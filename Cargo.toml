@@ -1,0 +1,35 @@
+[package]
+name = "typst_nvim"
+version = "0.1.0"
+authors = ["SeniorMars <cjh16@rice.edu>"]
+edition = "2021"
+
+# [profile.dev]
+# opt-level = 0
+# debug = true
+#
+# [profile.release]
+# debug = 1
+# incremental = true
+# lto = "off"
+
+[lib]
+name = "typst"
+crate-type = ["cdylib"]
+
+[dependencies]
+anyhow = "1"
+nvim-oxi = { version = "0.2.2", features = ["test", "neovim-0-8"] }
+serde = { version = '1.0', features = ["derive"] }
+# tempfile = "3"
+# phf = { version = "0.11", features = ["macros"] }
+
+# [dependencies.syntect]
+# version = "5.0"
+# default-features = false
+# features = ["parsing", "dump-load", "regex-onig"]
+
+# [dependencies.image]
+# version = "0.24"
+# default-features = false
+# features = ["jpeg", "png", "jpeg_rayon"]
