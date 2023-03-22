@@ -1,6 +1,8 @@
 # typst.nvim
 WIP. Goals: Tree-sitter highlighting, snippets, and a smooth integration with neovim.
 
+Currently working on the tree-sitter parser: https://github.com/SeniorMars/tree-sitter-typst
+
 
 Language spec(?):
 https://github.com/typst/typst/blob/main/tools/support/typst.tmLanguage.json
