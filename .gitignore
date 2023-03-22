@@ -14,4 +14,4 @@ Cargo.lock
 *.pdb
 
 # Lua
-lua/silicon.so
+lua/typst.so
