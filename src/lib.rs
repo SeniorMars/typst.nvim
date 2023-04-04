@@ -1,6 +1,5 @@
-#[macro_use]
-extern crate anyhow;
-
+// #[macro_use]
+// extern crate anyhow;
 mod config;
 
 use config::Opts;
@@ -16,7 +15,7 @@ fn setup(cmd_opts: Opts) -> Result<(), Error> {
 }
 
 
- #[oxi::module]
+#[oxi::module]
 fn typst() -> oxi::Result<Dictionary> {
     Ok(Dictionary::from_iter([
         ("setup", Function::from_fn(setup)),

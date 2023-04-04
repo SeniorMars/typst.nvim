@@ -15,10 +15,10 @@ lint:
 build:
   cargo build
 
-test: build
+test arg: build
   cargo test --package typst --lib -- $1 --exact --nocapture
 
-test_trace $RUST_BACKTRACE="1": build
+test_trace $RUST_BACKTRACE="1" arg: build
   # will print a stack trace if it crashes
   cargo test --package typst --lib -- $1 --exact --nocapture
 

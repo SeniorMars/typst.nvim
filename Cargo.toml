@@ -21,15 +21,3 @@ crate-type = ["cdylib"]
 anyhow = "1"
 nvim-oxi = { version = "0.2.2", features = ["test", "neovim-0-8"] }
 serde = { version = '1.0', features = ["derive"] }
-# tempfile = "3"
-# phf = { version = "0.11", features = ["macros"] }
-
-# [dependencies.syntect]
-# version = "5.0"
-# default-features = false
-# features = ["parsing", "dump-load", "regex-onig"]
-
-# [dependencies.image]
-# version = "0.24"
-# default-features = false
-# features = ["jpeg", "png", "jpeg_rayon"]
