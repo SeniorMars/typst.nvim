@@ -28,6 +28,7 @@ for _, module_name in ipairs({
     "typst.syntax",
     "typst.compiler.api",
     "typst.viewer.api",
+    "typst.internal.commands_api",
 }) do
     assert(
         package.loaded[module_name] == nil,
@@ -61,6 +62,7 @@ for _, module_name in ipairs({
     "typst.syntax",
     "typst.compiler.api",
     "typst.viewer.api",
+    "typst.internal.commands_api",
 }) do
     assert(
         package.loaded[module_name] == nil,
@@ -88,6 +90,7 @@ for _, module_name in ipairs({
     "typst.syntax",
     "typst.compiler.api",
     "typst.viewer.api",
+    "typst.internal.commands_api",
 }) do
     assert(
         package.loaded[module_name] == nil,

@@ -166,6 +166,24 @@ function M.completion(completion)
     end
 
     if
+        type(completion.path_scan_entry_max) ~= "number"
+        or completion.path_scan_entry_max < 0
+    then
+        error(
+            "typst.nvim: completion.path_scan_entry_max must be a non-negative number"
+        )
+    end
+
+    if
+        type(completion.path_scan_cache_ms) ~= "number"
+        or completion.path_scan_cache_ms < 0
+    then
+        error(
+            "typst.nvim: completion.path_scan_cache_ms must be a non-negative number"
+        )
+    end
+
+    if
         type(completion.csl_scan_max) ~= "number"
         or completion.csl_scan_max < 0
     then

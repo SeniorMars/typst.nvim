@@ -128,6 +128,16 @@ function M.diagnostics(diagnostics)
         error("typst.nvim: diagnostics.use_quickfix must be a boolean")
     end
 
+    if
+        diagnostics.list ~= "quickfix"
+        and diagnostics.list ~= "loclist"
+        and diagnostics.list ~= "location"
+    then
+        error(
+            'typst.nvim: diagnostics.list must be "quickfix", "loclist", or "location"'
+        )
+    end
+
     if type(diagnostics.fonts) ~= "boolean" then
         error("typst.nvim: diagnostics.fonts must be a boolean")
     end

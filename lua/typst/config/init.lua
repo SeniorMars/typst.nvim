@@ -1,3 +1,4 @@
+local compile_config = require("typst.config.compile")
 local defaults_provider = require("typst.config.defaults")
 local validation = require("typst.config.validate")
 
@@ -171,45 +172,10 @@ function M.for_run(profile, overrides)
 
         run.compile.profile = profile
 
-        -- Profiles are compile/run overlays, not alternate full configs. Keep
-        -- the copied fields limited to options that affect Typst invocation or
-        -- output discovery so a profile cannot unexpectedly rewrite editor UI.
-        if profile_config.output_format ~= nil then
-            run.output_format = profile_config.output_format
-        end
-
-        if profile_config.output_name ~= nil then
-            run.output_name = profile_config.output_name
-        end
-
-        if profile_config.output_dir ~= nil then
-            run.output_dir = profile_config.output_dir
-        end
-
-        if profile_config.extra_args ~= nil then
-            run.compile.extra_args = vim.deepcopy(profile_config.extra_args)
-        end
-
-        if profile_config.watch_output ~= nil then
-            run.compile.watch_output = profile_config.watch_output
-        end
-
-        if profile_config.watch_structured_args ~= nil then
-            run.compile.watch_structured_args =
-                vim.deepcopy(profile_config.watch_structured_args)
-        end
-
-        if profile_config.deps ~= nil then
-            run.compile.deps = profile_config.deps
-        end
-
-        if profile_config.open ~= nil then
-            run.compile.open = profile_config.open
-        end
-
-        if profile_config.typst_open ~= nil then
-            run.compile.typst_open = profile_config.typst_open
-        end
+        -- Profiles are compile/run overlays, not alternate full configs. The
+        -- schema lives with compile validation so supported keys and overlay
+        -- behavior cannot drift apart.
+        compile_config.apply_profile(run, profile_config)
     end
 
     overrides = overrides or {}

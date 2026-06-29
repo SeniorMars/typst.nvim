@@ -68,6 +68,7 @@ function M.diagnostics()
         enabled = true,
         source = "fallback",
         use_quickfix = false,
+        list = "quickfix",
         fonts = true,
         font_scan_timeout_ms = 250,
     }

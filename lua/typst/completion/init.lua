@@ -1,19 +1,14 @@
-local completion_lsp = require("typst.completion.lsp")
-local completion_packages = require("typst.completion.packages")
-local completion_context = require("typst.completion.context")
-local completion_csl = require("typst.completion.csl")
-local completion_raw = require("typst.completion.raw")
-local completion_colors = require("typst.completion.colors")
-local completion_fonts = require("typst.completion.fonts")
-local completion_paths = require("typst.completion.paths")
-local completion_parameters = require("typst.completion.parameters")
-local completion_position = require("typst.completion.position")
-local completion_project = require("typst.completion.project")
-local completion_stdlib = require("typst.completion.stdlib")
-local metadata = require("typst.metadata")
 local telemetry = require("typst.core.telemetry")
 
 local M = {}
+
+local function mod(name)
+    return require("typst.completion." .. name)
+end
+
+local function metadata()
+    return require("typst.metadata")
+end
 
 ---@class TypstCompletionSource
 ---@field is_available? fun(): boolean
@@ -123,44 +118,37 @@ local function apply_lsp_edit_fields(out, item)
     return out
 end
 
-local function lsp_item(item)
-    return apply_lsp_edit_fields({
-        label = item.abbr or item.word,
-        insertText = item.word,
-        filterText = item.word,
-        detail = item.menu,
-        documentation = item_documentation(item),
-        kind = lsp_kind_by_vim_kind[item.kind]
-            or vim.lsp.protocol.CompletionItemKind.Value,
-        data = item.user_data,
-    }, item)
-end
+local frontend_fields = {
+    lsp = function(out, item)
+        out.detail = item.menu
+        out.documentation = item_documentation(item)
+    end,
+    cmp = function(out, item)
+        out.word = item.word
+        out.menu = item.menu
+        out.documentation = item_documentation(item)
+    end,
+    blink = function(out, item)
+        out.detail = item.menu
+        out.documentation = item.info
+    end,
+}
 
-local function cmp_item(item)
-    return apply_lsp_edit_fields({
+local function frontend_item(frontend, item)
+    local out = {
         label = item.abbr or item.word,
-        word = item.word,
         insertText = item.word,
         filterText = item.word,
-        menu = item.menu,
         kind = lsp_kind_by_vim_kind[item.kind]
             or vim.lsp.protocol.CompletionItemKind.Value,
-        documentation = item_documentation(item),
         data = item.user_data,
-    }, item)
-end
+    }
 
-local function blink_item(item)
-    return apply_lsp_edit_fields({
-        label = item.abbr or item.word,
-        insertText = item.word,
-        filterText = item.word,
-        kind = lsp_kind_by_vim_kind[item.kind]
-            or vim.lsp.protocol.CompletionItemKind.Value,
-        detail = item.menu,
-        documentation = item.info,
-        data = item.user_data,
-    }, item)
+    local apply = frontend_fields[frontend]
+    if type(apply) == "function" then
+        apply(out, item)
+    end
+    return apply_lsp_edit_fields(out, item)
 end
 
 local function line_start(opts)
@@ -179,7 +167,7 @@ local function line_start(opts)
             col = #line
         end
     end
-    return completion_context.start(line, col)
+    return mod("context").start(line, col)
 end
 
 local function source_opts(params, defaults)
@@ -189,7 +177,7 @@ local function source_opts(params, defaults)
         or (params.context and params.context.bufnr)
         or defaults.bufnr
         or vim.api.nvim_get_current_buf()
-    local resolved = completion_position.resolve({
+    local resolved = mod("position").resolve({
         pos = params.pos or defaults.pos,
         line = params.line
             or params.context and params.context.cursor_before_line,
@@ -249,6 +237,19 @@ local function request_current(source, sequence, request_opts)
     return true
 end
 
+local lsp_context_exclusions = {
+    csl_style = true,
+    file_path = true,
+    font = true,
+    font_family = true,
+    path = true,
+    raw_language = true,
+}
+
+local function include_lsp_source(context)
+    return not lsp_context_exclusions[context]
+end
+
 local function call_refresh_hook(opts, source)
     local hook = opts
         and (opts[source .. "_refresh"] or opts.refresh or opts.on_refresh)
@@ -300,15 +301,15 @@ local function complete_impl(opts)
     opts = opts or {}
     local base = opts.base or ""
     local context = opts.context
-        or completion_context.kind(opts.bufnr, opts.pos, {
-            parameter_value = completion_parameters.value_context,
-            parameter = completion_parameters.context,
+        or mod("context").kind(opts.bufnr, opts.pos, {
+            parameter_value = mod("parameters").value_context,
+            parameter = mod("parameters").context,
         })
     if not context then
         return {}
     end
     local limit = opts.limit or 80
-    local catalog = metadata.catalog()
+    local catalog
     local items = {}
 
     -- Source order is part of completion behavior: Tinymist may provide the
@@ -319,14 +320,23 @@ local function complete_impl(opts)
         return #items >= limit
     end
 
-    for _, item in ipairs(completion_lsp.items(opts, base, context)) do
-        if add(item) then
-            return items
+    local function metadata_catalog()
+        if not catalog then
+            catalog = metadata().catalog()
+        end
+        return catalog
+    end
+
+    if include_lsp_source(context) then
+        for _, item in ipairs(mod("lsp").items(opts, base, context)) do
+            if add(item) then
+                return items
+            end
         end
     end
 
     if context == "csl_style" then
-        for _, item in ipairs(completion_csl.items(opts, base, catalog)) do
+        for _, item in ipairs(mod("csl").items(opts, base, metadata_catalog())) do
             if add(item) then
                 return items
             end
@@ -335,7 +345,7 @@ local function complete_impl(opts)
     end
 
     if context == "raw_language" then
-        for _, item in ipairs(completion_raw.items(opts, base)) do
+        for _, item in ipairs(mod("raw").items(opts, base)) do
             if add(item) then
                 return items
             end
@@ -344,7 +354,7 @@ local function complete_impl(opts)
     end
 
     if context == "path" or context == "file_path" then
-        for _, item in ipairs(completion_paths.items(opts, base)) do
+        for _, item in ipairs(mod("paths").items(opts, base)) do
             if add(item) then
                 return items
             end
@@ -353,7 +363,9 @@ local function complete_impl(opts)
     end
 
     if context == "color" then
-        for _, item in ipairs(completion_colors.items(opts, base, catalog)) do
+        for _, item in
+            ipairs(mod("colors").items(opts, base, metadata_catalog()))
+        do
             if add(item) then
                 return items
             end
@@ -362,7 +374,7 @@ local function complete_impl(opts)
     end
 
     if context == "font_family" or context == "font" then
-        for _, item in ipairs(completion_fonts.items(opts, base)) do
+        for _, item in ipairs(mod("fonts").items(opts, base)) do
             if add(item) then
                 return items
             end
@@ -371,7 +383,7 @@ local function complete_impl(opts)
     end
 
     if context == "parameter" or context == "named_parameter" then
-        for _, item in ipairs(completion_parameters.items(opts, base)) do
+        for _, item in ipairs(mod("parameters").items(opts, base)) do
             if add(item) then
                 return items
             end
@@ -380,7 +392,7 @@ local function complete_impl(opts)
     end
 
     if context == "parameter_value" then
-        for _, item in ipairs(completion_parameters.value_items(opts, base)) do
+        for _, item in ipairs(mod("parameters").value_items(opts, base)) do
             if add(item) then
                 return items
             end
@@ -389,7 +401,7 @@ local function complete_impl(opts)
     end
 
     if context ~= "math" or opts.include_project_in_math then
-        for _, item in ipairs(completion_project.items(opts, base)) do
+        for _, item in ipairs(mod("project").items(opts, base)) do
             if add(item) then
                 return items
             end
@@ -397,7 +409,7 @@ local function complete_impl(opts)
     end
 
     if context ~= "math" or opts.include_project_in_math then
-        for _, item in ipairs(completion_packages.items(opts, base)) do
+        for _, item in ipairs(mod("packages").items(opts, base)) do
             if add(item) then
                 return items
             end
@@ -405,7 +417,14 @@ local function complete_impl(opts)
     end
 
     for _, item in
-        ipairs(completion_stdlib.items(base, context, catalog, limit - #items))
+        ipairs(
+            mod("stdlib").items(
+                base,
+                context,
+                metadata_catalog(),
+                limit - #items
+            )
+        )
     do
         if add(item) then
             return items
@@ -432,7 +451,7 @@ function M.omnifunc(findstart, base)
     if findstart == 1 then
         local line = vim.api.nvim_get_current_line()
         local col = vim.api.nvim_win_get_cursor(0)[2]
-        return completion_context.start(line, col)
+        return mod("context").start(line, col)
     end
 
     local items = {}
@@ -453,7 +472,7 @@ end
 function M.native(opts)
     local items = {}
     for _, item in ipairs(M.complete(opts)) do
-        items[#items + 1] = lsp_item(item)
+        items[#items + 1] = frontend_item("lsp", item)
     end
 
     return {
@@ -468,7 +487,7 @@ end
 function M.cmp(opts)
     local items = {}
     for _, item in ipairs(M.complete(opts)) do
-        items[#items + 1] = cmp_item(item)
+        items[#items + 1] = frontend_item("cmp", item)
     end
     return items
 end
@@ -479,7 +498,7 @@ end
 function M.blink(opts)
     local items = {}
     for _, item in ipairs(M.complete(opts)) do
-        items[#items + 1] = blink_item(item)
+        items[#items + 1] = frontend_item("blink", item)
     end
     return items
 end
@@ -559,17 +578,25 @@ end
 
 --- Clear completion caches owned by typst.nvim.
 function M.reset()
-    completion_csl.reset()
-    completion_fonts.reset()
-    completion_lsp.reset()
-    completion_raw.reset()
+    for _, module_name in ipairs({
+        "typst.completion.csl",
+        "typst.completion.fonts",
+        "typst.completion.lsp",
+        "typst.completion.paths",
+        "typst.completion.raw",
+    }) do
+        local module = package.loaded[module_name]
+        if type(module) == "table" and type(module.reset) == "function" then
+            module.reset()
+        end
+    end
 end
 
 --- Return signature help metadata through the completion subsystem.
 ---@param opts? table Signature options, including buffer and position.
 ---@return table? signature Signature help payload, or nil outside a call.
 function M.signature(opts)
-    return completion_parameters.signature(opts)
+    return mod("parameters").signature(opts)
 end
 
 return M

@@ -21,6 +21,9 @@ performance-gate:
 benchmarks:
   bash tests/run_benchmark_suite.sh
 
+startup-benchmark:
+  bash tests/run_startup_benchmark.sh
+
 windows-edge:
   bash tests/run_windows_edge.sh
 

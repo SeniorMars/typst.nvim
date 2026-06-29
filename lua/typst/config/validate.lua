@@ -239,6 +239,17 @@ local function validate_integrations(integrations)
         error("typst.nvim: integrations must be a table")
     end
 
+    local semantic = integrations.semantic
+    if semantic ~= nil then
+        if type(semantic) ~= "table" then
+            error("typst.nvim: integrations.semantic must be a table")
+        end
+        validate_optional_provider(
+            semantic.provider,
+            "integrations.semantic.provider"
+        )
+    end
+
     local tinymist = integrations.tinymist
     if tinymist == nil then
         return

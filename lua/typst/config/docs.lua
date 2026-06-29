@@ -55,6 +55,7 @@ local optional_nil_defaults = {
 local optional_types = {
     ["integrations.tinymist.capabilities"] = "nil|table",
     ["integrations.tinymist.on_attach"] = "nil|function",
+    ["integrations.semantic.provider"] = "nil|string|function|table",
     ["compile.provider"] = "nil|string|function|table",
     ["exports.provider"] = "nil|string|function|table",
     ["render.provider"] = "nil|string|function|table",
@@ -90,6 +91,7 @@ local optional_types = {
 }
 
 local type_overrides = {
+    ["integrations.semantic.provider"] = "nil|string|function|table",
     ["preview.browser.style.variables"] = "table",
 }
 

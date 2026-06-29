@@ -41,6 +41,9 @@ function M.values()
             },
         },
         integrations = {
+            semantic = {
+                provider = "tinymist",
+            },
             tinymist = {
                 lsp = "auto",
                 path = "tinymist",

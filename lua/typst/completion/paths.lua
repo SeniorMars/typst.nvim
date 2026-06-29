@@ -4,11 +4,14 @@ local completion_items = require("typst.completion.items")
 local completion_match = require("typst.completion.match")
 local coordinates = require("typst.core.coordinates")
 local position = require("typst.completion.position")
+local scan_cache = require("typst.core.scan_cache")
 local util = require("typst.core.util")
 
 local M = {}
+local uv = vim.uv or vim.loop
 
 local normalize_bufnr = require("typst.core.buffer").normalize_bufnr
+local directory_cache = scan_cache.new()
 
 local path_function_kinds = {
     bibliography = "bibliography",
@@ -87,12 +90,8 @@ local function base_parts(base, file_dir)
     return prefix, leaf, scan_dir
 end
 
-local function allowed(kind, name, node_type, leaf)
+local function allowed(kind, name, node_type)
     if name == ".git" then
-        return false
-    end
-
-    if name:sub(1, 1) == "." and leaf:sub(1, 1) ~= "." then
         return false
     end
 
@@ -107,6 +106,130 @@ local function allowed(kind, name, node_type, leaf)
 
     local extension = name:match("%.([^%.]+)$")
     return extension and allowed_extensions[extension:lower()] or false
+end
+
+local function matches_leaf(name, leaf)
+    if name:sub(1, 1) == "." and leaf:sub(1, 1) ~= "." then
+        return false
+    end
+
+    return completion_match.prefix(name, leaf)
+end
+
+local function directory_signature(scan_dir)
+    local stat = uv.fs_stat(scan_dir)
+    if type(stat) ~= "table" then
+        return "missing"
+    end
+
+    local mtime = stat.mtime or {}
+    return scan_cache.signature({
+        stat.type,
+        stat.size,
+        stat.ino,
+        stat.dev,
+        mtime.sec,
+        mtime.nsec,
+    })
+end
+
+local function cache_key(scan_dir, path_kind)
+    return scan_cache.signature({
+        util.path_key(scan_dir),
+        path_kind,
+    })
+end
+
+local function read_directory(scan_dir, path_kind, entry_max)
+    local ok, iterator = pcall(vim.fs.dir, scan_dir)
+    if not ok or not iterator then
+        return nil
+    end
+
+    local entries = {}
+    local seen = {}
+    local cap = tonumber(entry_max)
+    local scanned = 0
+    for name, node_type in iterator do
+        scanned = scanned + 1
+        if not seen[name] and allowed(path_kind, name, node_type) then
+            seen[name] = true
+            entries[#entries + 1] = {
+                name = name,
+                type = node_type,
+            }
+        end
+        if cap and cap > 0 and scanned >= cap then
+            break
+        end
+    end
+    return entries
+end
+
+local function directory_entries(scan_dir, completion_config, path_kind)
+    local ttl_ms = tonumber(completion_config.path_scan_cache_ms) or 0
+    if ttl_ms <= 0 then
+        return read_directory(
+            scan_dir,
+            path_kind,
+            completion_config.path_scan_entry_max
+        )
+    end
+
+    local key = cache_key(scan_dir, path_kind)
+    local signature = scan_cache.signature({
+        directory_signature(scan_dir),
+        ttl_ms,
+        completion_config.path_scan_entry_max,
+    })
+    local cached, fresh = scan_cache.peek(directory_cache, key, {
+        signature = signature,
+        ttl_ms = ttl_ms,
+    })
+    if fresh then
+        return cached
+    end
+
+    local entries = read_directory(
+        scan_dir,
+        path_kind,
+        completion_config.path_scan_entry_max
+    )
+    if not entries then
+        return nil
+    end
+
+    scan_cache.put(directory_cache, key, entries, {
+        signature = signature,
+        ttl_ms = ttl_ms,
+    })
+    return entries
+end
+
+local function build_items(entries, path_kind, prefix, leaf, file_dir, max)
+    local items = {}
+    local seen = {}
+    for _, entry in ipairs(entries) do
+        if #items >= max then
+            break
+        end
+
+        local name = entry.name
+        local node_type = entry.type
+        if matches_leaf(name, leaf) then
+            local suffix = node_type == "directory" and "/" or ""
+            local word = prefix .. name .. suffix
+            local path = util.resolve_path(prefix .. name, file_dir)
+            completion_items.add_unique(items, seen, name, function()
+                return item(word, {
+                    path_kind = path_kind,
+                    path = path,
+                    type = node_type,
+                })
+            end, { base = leaf, key = name, trim = false })
+        end
+    end
+    return items
 end
 
 function M.context_from_before(before)
@@ -187,31 +310,12 @@ function M.items(opts, base)
         return {}
     end
 
-    local ok, iterator = pcall(vim.fs.dir, scan_dir)
-    if not ok or not iterator then
+    local entries = directory_entries(scan_dir, completion_config, path_kind)
+    if not entries then
         return {}
     end
 
-    local items = {}
-    local seen = {}
-    for name, node_type in iterator do
-        if #items >= max then
-            break
-        end
-
-        if not seen[name] and allowed(path_kind, name, node_type, leaf) then
-            local suffix = node_type == "directory" and "/" or ""
-            local word = prefix .. name .. suffix
-            local path = util.resolve_path(prefix .. name, file_dir)
-            completion_items.add_unique(items, seen, name, function()
-                return item(word, {
-                    path_kind = path_kind,
-                    path = path,
-                    type = node_type,
-                })
-            end, { base = leaf, key = name, trim = false })
-        end
-    end
+    local items = build_items(entries, path_kind, prefix, leaf, file_dir, max)
 
     table.sort(items, function(a, b)
         if a.kind == b.kind then
@@ -221,6 +325,10 @@ function M.items(opts, base)
     end)
 
     return items
+end
+
+function M.reset()
+    scan_cache.reset(directory_cache)
 end
 
 return M

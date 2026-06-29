@@ -36,11 +36,17 @@ function M.conceal()
     return {
         enabled = true,
         reveal = "node",
+        reveal_insert = nil,
+        reveal_by_category = {},
         conceallevel = 2,
         viewport_margin = 25,
         categories = {
             math_symbols = true,
             math_scripts = true,
+            math_fonts = true,
+            math_operators = true,
+            math_wrappers = true,
+            math_accents = false,
             math_delimiters = true,
             markup_delimiters = true,
             headings = false,
@@ -64,6 +70,42 @@ function M.conceal()
         custom = {
             math = {},
         },
+        math = {
+            scripts = {
+                digits = true,
+                signs = true,
+                simple_letters = true,
+                grouped = false,
+                max_group_len = 4,
+            },
+            fonts = {
+                enabled = true,
+                styles = {
+                    cal = true,
+                    bb = true,
+                    frak = true,
+                    bold = true,
+                    sans = false,
+                    mono = false,
+                    italic = false,
+                },
+            },
+            accents = {
+                enabled = false,
+                allow_combining = false,
+                simple_ascii_only = true,
+            },
+        },
+        renderer = {
+            mode = "unicode",
+            image = {
+                enabled = false,
+                max_inline_height = 8,
+                debounce_ms = 250,
+                cache = true,
+                reveal = "node",
+            },
+        },
     }
 end
 
@@ -83,6 +125,8 @@ function M.completion()
         font_families = {},
         font_scan_timeout_ms = 250,
         path_scan_max = 200,
+        path_scan_entry_max = 2000,
+        path_scan_cache_ms = 300,
         csl_scan_max = 100,
         scan_cache_ttl_ms = 5000,
         package_scan_max = 500,

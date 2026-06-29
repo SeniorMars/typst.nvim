@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local conceal = require("typst.conceal")
 local perf = require("tests.performance_report")
+local telemetry = require("typst.core.telemetry")
 local toc = require("typst.edit.toc")
 local typst = require("typst")
 
@@ -27,6 +28,7 @@ local budgets = {
     toc_collect = 2000 * scale,
     conceal_matches = 1500 * scale,
     completion = 1500 * scale,
+    viewer_clean = 500 * scale,
 }
 
 local function assert_budget(name, budget_ms, fn)
@@ -132,6 +134,36 @@ assert(
     end),
     "completion performance fixture should include stdlib completions"
 )
+
+telemetry.reset()
+local clean_result = assert_budget(
+    "viewer clean",
+    budgets.viewer_clean,
+    function()
+        return require("typst.viewer.api").clean(project, {}, function() end)
+    end
+)
+assert(
+    clean_result and type(clean_result.output) == "string",
+    "viewer clean should return a cleanup summary"
+)
+local clean_metric = assert(
+    telemetry.snapshot()["viewer.clean"],
+    "missing viewer clean telemetry"
+)
+assert(
+    clean_metric.last_ms <= budgets.viewer_clean,
+    ("viewer clean telemetry exceeded %.1fms budget: %.1fms"):format(
+        budgets.viewer_clean,
+        clean_metric.last_ms
+    )
+)
+perf.record_metric(spec_name, {
+    name = "viewer clean telemetry",
+    elapsed_ms = clean_metric.last_ms,
+    budget_ms = budgets.viewer_clean,
+    ratio = clean_metric.last_ms / budgets.viewer_clean,
+})
 
 perf.write(spec_name)
 vim.env.TYPST_PACKAGE_CACHE_PATH = old_package_cache_path

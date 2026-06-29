@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local config = require("typst.config")
+local compile_config = require("typst.config.compile")
 local typst = require("typst")
 local util = require("typst.core.util")
 typst.reset()
@@ -81,6 +82,10 @@ assert(type(default_config.api) == "table", "api config should be a table")
 assert(
     default_config.integrations.tinymist.lsp == "auto",
     "Tinymist Neovim LSP integration should default to auto mode"
+)
+assert(
+    default_config.integrations.semantic.provider == "tinymist",
+    "semantic provider integration should default to Tinymist"
 )
 assert(
     default_config.integrations.tinymist.path == "tinymist",
@@ -177,6 +182,14 @@ local invalid_configs = {
         message = "integrations.tinymist must be a table",
     },
     {
+        opts = { integrations = { semantic = false } },
+        message = "integrations.semantic must be a table",
+    },
+    {
+        opts = { integrations = { semantic = { provider = "" } } },
+        message = "integrations.semantic.provider",
+    },
+    {
         opts = { integrations = { tinymist = { lsp = "coc" } } },
         message = "integrations.tinymist.lsp",
     },
@@ -237,6 +250,10 @@ local invalid_configs = {
     {
         opts = { compile = { profiles = { draft = { output_name = "" } } } },
         message = "compile.profiles.draft.output_name",
+    },
+    {
+        opts = { compile = { profiles = { draft = { provider = "typst" } } } },
+        message = "compile.profiles.draft.provider is not supported",
     },
     {
         opts = { compile = { fragments = false } },
@@ -368,6 +385,10 @@ local invalid_configs = {
     {
         opts = { diagnostics = { use_quickfix = "yes" } },
         message = "diagnostics.use_quickfix",
+    },
+    {
+        opts = { diagnostics = { list = "buffer" } },
+        message = "diagnostics.list",
     },
     {
         opts = { diagnostics = { fonts = "yes" } },
@@ -830,6 +851,10 @@ local invalid_configs = {
         message = "completion.path_scan_max",
     },
     {
+        opts = { completion = { path_scan_cache_ms = -1 } },
+        message = "completion.path_scan_cache_ms",
+    },
+    {
         opts = { completion = { csl_scan_max = -1 } },
         message = "completion.csl_scan_max",
     },
@@ -1040,6 +1065,91 @@ for _, case in ipairs(invalid_configs) do
     )
 end
 
+local profile_overlay_ok, profile_overlay_err = pcall(function()
+    typst.setup({
+        root = root,
+        output_dir = typst_test_cache_path("profile-base-output"),
+        output_name = "base",
+        output_format = "pdf",
+        compile = {
+            extra_args = { "--input", "base=true" },
+            watch_output = "auto",
+            watch_structured_args = { "--base-watch" },
+            deps = true,
+            open = false,
+            typst_open = false,
+            profiles = {
+                all = {
+                    output_format = "svg",
+                    output_name = "profile",
+                    output_dir = typst_test_cache_path("profile-output"),
+                    extra_args = { "--input", "profile=true" },
+                    watch_output = "structured",
+                    watch_structured_args = { "--format", "json" },
+                    deps = false,
+                    open = true,
+                    typst_open = true,
+                },
+            },
+        },
+    })
+end)
+assert(profile_overlay_ok, profile_overlay_err)
+
+local run_config = config.for_run("all")
+local profile_expectations = {
+    output_format = function(run)
+        return run.output_format == "svg"
+    end,
+    output_name = function(run)
+        return run.output_name == "profile"
+    end,
+    output_dir = function(run)
+        return run.output_dir:match("profile%-output") ~= nil
+    end,
+    extra_args = function(run)
+        return run.compile.extra_args[2] == "profile=true"
+    end,
+    watch_output = function(run)
+        return run.compile.watch_output == "structured"
+    end,
+    watch_structured_args = function(run)
+        return run.compile.watch_structured_args[2] == "json"
+    end,
+    deps = function(run)
+        return run.compile.deps == false
+    end,
+    open = function(run)
+        return run.compile.open == true
+    end,
+    typst_open = function(run)
+        return run.compile.typst_open == true
+    end,
+}
+
+for _, key in ipairs(compile_config.profile_override_keys()) do
+    assert(
+        profile_expectations[key],
+        ("profile override key %s should have overlay coverage"):format(key)
+    )
+    assert(
+        profile_expectations[key](run_config),
+        ("compile profile field %s should overlay run config"):format(key)
+    )
+end
+
+run_config.compile.extra_args[2] = "mutated=true"
+run_config.compile.watch_structured_args[2] = "text"
+local run_config_again = config.for_run("all")
+assert(
+    run_config_again.compile.extra_args[2] == "profile=true",
+    "profile extra_args overlay should be deep-copied"
+)
+assert(
+    run_config_again.compile.watch_structured_args[2] == "json",
+    "profile watch_structured_args overlay should be deep-copied"
+)
+
 local ok, err = pcall(function()
     typst.setup({
         root = root,
@@ -1095,6 +1205,7 @@ local ok, err = pcall(function()
             },
         },
         diagnostics = {
+            list = "loclist",
             fonts = false,
             font_scan_timeout_ms = 25,
         },
@@ -1306,6 +1417,7 @@ local ok, err = pcall(function()
             font_families = { "Unit Test Serif" },
             font_scan_timeout_ms = 25,
             path_scan_max = 25,
+            path_scan_cache_ms = 25,
             csl_scan_max = 25,
             scan_cache_ttl_ms = 25,
             package_scan_max = 25,
@@ -1418,6 +1530,10 @@ assert(
 assert(
     config.get().project.persist_main == false,
     "project explicit-main persistence should be configurable"
+)
+assert(
+    config.get().diagnostics.list == "loclist",
+    "diagnostics list backend should be configurable"
 )
 assert(
     config.get().diagnostics.fonts == false,
@@ -1768,6 +1884,10 @@ assert(
 assert(
     config.get().completion.path_scan_max == 25,
     "path scan cap should be configurable"
+)
+assert(
+    config.get().completion.path_scan_cache_ms == 25,
+    "path scan cache TTL should be configurable"
 )
 assert(
     config.get().completion.csl_scan_max == 25,

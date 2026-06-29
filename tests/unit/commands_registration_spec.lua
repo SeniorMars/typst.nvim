@@ -248,4 +248,37 @@ if not ok then
     error(err)
 end
 
+local compile_calls = {}
+require("typst.ui.commands.compiler").register({
+    api = {
+        compiler = {
+            compile = function(call_opts)
+                compile_calls[#compile_calls + 1] = vim.deepcopy(call_opts)
+            end,
+        },
+    },
+})
+
+vim.cmd("TypstCompile")
+vim.cmd("TypstCompileSS")
+vim.cmd("TypstCompile! draft")
+vim.cmd("TypstCompileSS! draft")
+
+assert(
+    vim.deep_equal(compile_calls[1], compile_calls[2]),
+    "TypstCompile and TypstCompileSS should pass identical default compile opts"
+)
+assert(
+    vim.deep_equal(compile_calls[3], compile_calls[4]),
+    "TypstCompile and TypstCompileSS should pass identical bang/profile compile opts"
+)
+assert(
+    compile_calls[1].open == nil and compile_calls[1].profile == nil,
+    "default compile commands should not force open/profile"
+)
+assert(
+    compile_calls[3].open == true and compile_calls[3].profile == "draft",
+    "bang/profile compile commands should pass open/profile"
+)
+
 vim.cmd("qa!")
