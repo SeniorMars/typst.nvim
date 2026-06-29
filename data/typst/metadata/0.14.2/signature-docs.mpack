@@ -1,0 +1,4278 @@
+”¦0.14.2ÜJ£abs¤sizeÙHThe size of the brackets, relative to the height of the wrapped content.¤bodyÙ-The expression to take the absolute value of.¦accent¤baseÙhThe base to which the accent is applied. May consist of multiple
+letters.
+
+```example
+$arrow(A B C)$
+```ÚuThe accent to apply to the base.
+
+Supported accents include:
+
+| Accent        | Name            | Codepoint |
+| ------------- | --------------- | --------- |
+| Grave         | `grave`         | <code>&DiacriticalGrave;</code> |
+| Acute         | `acute`         | `Â´`       |
+| Circumflex    | `hat`           | `^`       |
+| Tilde         | `tilde`         | `~`       |
+| Macron        | `macron`        | `Â¯`       |
+| Dash          | `dash`          | `â€¾`       |
+| Breve         | `breve`         | `Ë˜`       |
+| Dot           | `dot`           | `.`       |
+| Double dot, Diaeresis | `dot.double`, `diaer` | `Â¨` |
+| Triple dot    | `dot.triple`    | <code>&tdot;</code> |
+| Quadruple dot | `dot.quad`      | <code>&DotDot;</code> |
+| Circle        | `circle`        | `âˆ˜`       |
+| Double acute  | `acute.double`  | `Ë`       |
+| Caron         | `caron`         | `Ë‡`       |
+| Right arrow   | `arrow`, `->`   | `â†’`       |
+| Left arrow    | `arrow.l`, `<-` | `â†`       |
+| Left/Right arrow | `arrow.l.r`  | `â†”`       |
+| Right harpoon | `harpoon`       | `â‡€`       |
+| Left harpoon  | `harpoon.lt`    | `â†¼`       |ÙaThe size of the accent, relative to the width of the base.
+
+```example
+$dash(A, size: #150%)$
+```§dotlessÙ¤Whether to remove the dot on top of lowercase i and j when adding a top
+accent.
+
+This enables the `dtls` OpenType feature.
+
+```example
+$hat(dotless: #false, i)$
+```¥align©alignmentÙThe [alignment] along both axes.
+
+```example
+#set page(height: 6cm)
+#set text(lang: "ar")
+
+Ù…Ø«Ø§Ù„
+#align(
+  end + horizon,
+  rect(inset: 12pt)[Ø±ÙƒÙ†]
+)
+```µThe content to align.¬arguments.at£keyÙ)The index or name of the argument to get.§defaultÙ0A default value to return if the key is invalid.©array.all¤testÙ:The function to apply to each item. Must return a boolean.©array.any¨array.at¥indexÙLThe index at which to retrieve the item. If negative, indexes from
+the back.Ù8A default value to return if the index is out of bounds.¬array.chunksªchunk-sizeÙ1How many elements each chunk may at most contain.¥exactÙDWhether to keep the remainder if its size is less than `chunk-size`.®array.contains¥value¸The value to search for.«array.dedupÙ¯If given, applies this function to each element in the array to
+determine the keys to deduplicate by.
+
+```example
+#("apple", "banana", " apple ").dedup(key: s => s.trim())
+```¯array.enumerate¥startÙ;The index returned for the first pair of the returned list.¬array.filterªarray.find¨searcher«array.firstÙ0A default value to return if the array is empty.ªarray.fold¤initÙ The initial value to start with.¦folderÙbThe folding function. Must have two parameters: One for the
+accumulated value and one for an item.¬array.insertÙJThe index at which to insert the item. If negative, indexes from
+the back.Ù#The value to insert into the array.±array.intersperse©separatorÙ<The value that will be placed between each adjacent element.ªarray.joinÙ1A value to insert between each item of the array.¤lastÙ4An alternative separator between the last two items.Ù%What to return if the array is empty.ªarray.last©array.map¦mapperÙ#The function to apply to each item.®array.position­array.productÙLWhat to return if the array is empty. Must be set if the array can
+be empty.ªarray.pushÙ,The value to insert at the end of the array.«array.rangeÙ#The start of the range (inclusive).£endÙ!The end of the range (exclusive).¤stepÙ+The distance between the generated numbers.¬array.reduce§reducerÙcThe reducing function. Must have two parameters: One for the
+accumulated value and one for an item.¬array.removeÙJThe index at which to remove the item. If negative, indexes from
+the back.«array.sliceÙ@The start index (inclusive). If negative, indexes from the back.ÙƒThe end index (exclusive). If omitted, the whole slice until the end
+of the array is extracted. If negative, indexes from the back.¥countÙƒThe number of items to extract. This is equivalent to passing
+`start + count` as the `end` position. Mutually exclusive with `end`.¬array.sortedÙ^If given, applies this function to each element in the array to
+determine the keys to sort by.¢byÚIf given, uses this function to compare every two elements in the
+array.
+
+The function will receive two elements in the array for comparison,
+and should return a boolean indicating their order: `{true}`
+indicates that the elements are in order, while `{false}` indicates
+that they should be swapped. To keep the sort stable, if the two
+elements are equal, the function should return `{true}`.
+
+If this function does not order the elements properly (e.g., by
+returning `{false}` for both `{(x, y)}` and `{(y, x)}`, or for
+`{(x, x)}`), the resulting array will be in unspecified order.
+
+When used together with `key`, `by` will be passed the keys instead
+of the elements.
+
+```example
+#(
+  "sorted",
+  "by",
+  "decreasing",
+  "length",
+).sorted(
+  key: s => s.len(),
+  by: (l, r) => l >= r,
+)
+```«array.split¢at¶The value to split at.©array.sum­array.windows«window-sizeÙ+How many elements each window will contain.©array.zipÙwWhether all arrays have to have the same length.
+For example, `{(1, 2).zip((1, 2, 3), exact: true)}` produces an
+error.¦others·The arrays to zip with.¦assert©conditionÙ:The condition that must be true for the assertion to pass.§messageÙ+The error message when the assertion fails.©assert.eq¤left»The first value to compare.¥right¼The second value to compare.Ù^An optional message to display on error instead of the representations
+of the compared values.©assert.ne¦attachÙ&The base to which things are attached.¡tÙ¡The top attachment, smartly positioned at top-right or above the base.
+
+You can wrap the base in `{limits()}` or `{scripts()}` to override the
+smart positioning.¡bÙ«The bottom attachment, smartly positioned at the bottom-right or below
+the base.
+
+You can wrap the base in `{limits()}` or `{scripts()}` to override the
+smart positioning.¢tlÙ*The top-left attachment (before the base).¢blÙ)The bottom-left attachment (before base).¢trÙ*The top-right attachment (after the base).¢brÙ-The bottom-right attachment (after the base).¢bbµThe content to style.¬bibliography§sourcesÚ^One or multiple paths to or raw bytes for Hayagriva `.yaml` and/or
+BibLaTeX `.bib` files.
+
+This can be a:
+- A path string to load a bibliography file from the given path. For
+  more details about paths, see the [Paths section]($syntax/#paths).
+- Raw bytes from which the bibliography should be decoded.
+- An array where each item is one of the above.¥titleÚ§The title of the bibliography.
+
+- When set to `{auto}`, an appropriate title for the
+  [text language]($text.lang) will be used. This is the default.
+- When set to `{none}`, the bibliography will not have a title.
+- A custom title can be set by passing content.
+
+The bibliography's heading will not be numbered by default, but you can
+force it to be with a show-set rule:
+`{show bibliography: set heading(numbering: "1.")}`¤fullÙÿWhether to include all works from the given bibliography files, even
+those that weren't cited in the document.
+
+To selectively add individual cited works without showing them, you can
+also use the `cite` function with [`form`]($cite.form) set to `{none}`.¥styleÚThe bibliography style.
+
+This can be:
+- A string with the name of one of the built-in styles (see below). Some
+  of the styles listed below appear twice, once with their full name and
+  once with a short alias.
+- A path string to a [CSL file](https://citationstyles.org/). For more
+  details about paths, see the [Paths section]($syntax/#paths).
+- Raw bytes from which a CSL style should be decoded.¥binom¥upper»The binomial's upper index.¥lower»The binomial's lower index.¥block¥widthÙxThe block's width.
+
+```example
+#set align(center)
+#block(
+  width: 60%,
+  inset: 8pt,
+  fill: silver,
+  lorem(10),
+)
+```¦heightÚ6The block's height. When the height is larger than the remaining space
+on a page and [`breakable`]($block.breakable) is `{true}`, the
+block will continue on the next page with the remaining height.
+
+```example
+#set page(height: 80pt)
+#set align(center)
+#block(
+  width: 80%,
+  height: 150%,
+  fill: aqua,
+)
+```©breakableÙÀWhether the block can be broken and continue on the next page.
+
+```example
+#set page(height: 80pt)
+The following block will
+jump to its own page.
+#block(
+  breakable: false,
+  lorem(15),
+)
+```¤fillÙ_The block's background color. See the
+[rectangle's documentation]($rect.fill) for more details.¦strokeÙ]The block's border color. See the
+[rectangle's documentation]($rect.stroke) for more details.¦radiusÙjHow much to round the block's corners. See the
+[rectangle's documentation]($rect.radius) for more details.¥insetÙ`How much to pad the block's content. See the
+[box's documentation]($box.inset) for more details.¦outsetÙ~How much to expand the block's size without affecting the layout. See
+the [box's documentation]($box.outset) for more details.§spacingÚ*The spacing around the block. When `{auto}`, inherits the paragraph
+[`spacing`]($par.spacing).
+
+For two adjacent blocks, the larger of the first block's `above` and the
+second block's `below` spacing wins. Moreover, block spacing takes
+precedence over paragraph [`spacing`]($par.spacing).
+
+Note that this is only a shorthand to set `above` and `below` to the
+same value. Since the values for `above` and `below` might differ, a
+[context] block only provides access to `{block.above}` and
+`{block.below}`, not to `{block.spacing}` directly.
+
+This property can be used in combination with a show rule to adjust the
+spacing around arbitrary block-level elements.
+
+```example
+#set align(center)
+#show math.equation: set block(above: 8pt, below: 16pt)
+
+This sum of $x$ and $y$:
+$ x + y = z $
+A second paragraph.
+```¥aboveÙ3The spacing between this block and its predecessor.¥belowÙ1The spacing between this block and its successor.¤clipÚ3Whether to clip the content inside the block.
+
+Clipping is useful when the block's content is larger than the block itself,
+as any content that exceeds the block's bounds will be hidden.
+
+```example
+#block(
+  width: 50pt,
+  height: 50pt,
+  clip: true,
+  image("tiger.jpg", width: 100pt, height: 100pt)
+)
+```¦stickyÚJWhether this block must stick to the following one, with no break in
+between.
+
+This is, by default, set on heading blocks to prevent orphaned headings
+at the bottom of the page.
+
+```example
+>>> #set page(height: 140pt)
+// Disable stickiness of headings.
+#show heading: set block(sticky: false)
+#lorem(20)
+
+= Chapter
+#lorem(10)
+```ºThe contents of the block.¤bold£boxÚhThe width of the box.
+
+Boxes can have [fractional]($fraction) widths, as the example below
+demonstrates.
+
+_Note:_ Currently, only boxes and only their widths might be fractionally
+sized within paragraphs. Support for fractionally sized images, shapes,
+and more might be added in the future.
+
+```example
+Line in #box(width: 1fr, line(length: 100%)) between.
+```¶The height of the box.¨baselineÙuAn amount to shift the box's baseline by.
+
+```example
+Image: #box(baseline: 40%, image("tiger.jpg", width: 2cm)).
+```Ù]The box's background color. See the
+[rectangle's documentation]($rect.fill) for more details.Ù[The box's border color. See the
+[rectangle's documentation]($rect.stroke) for more details.ÙhHow much to round the box's corners. See the
+[rectangle's documentation]($rect.radius) for more details.Ú¡How much to pad the box's content.
+
+This can be a single length for all sides or a dictionary of lengths
+for individual sides. When passing a dictionary, it can contain the
+following keys in order of precedence: `top`, `right`, `bottom`, `left`
+(controlling the respective cell sides), `x`, `y` (controlling vertical
+and horizontal insets), and `rest` (covers all insets not styled by
+other dictionary entries). All keys are optional; omitted keys will use
+their previously set value, or the default value if never set.
+
+[Relative lengths]($relative) for this parameter are relative to the box
+size excluding [outset]($box.outset). Note that relative insets and
+outsets are different from relative [widths]($box.width) and
+[heights]($box.height), which are relative to the container.
+
+_Note:_ When the box contains text, its exact size depends on the
+current [text edges]($text.top-edge).
+
+```example
+#rect(inset: 0pt)[Tight]
+```ÚzHow much to expand the box's size without affecting the layout.
+
+This can be a single length for all sides or a dictionary of lengths for
+individual sides. [Relative lengths]($relative) for this parameter are
+relative to the box size excluding outset. See the documentation for
+[inset]($box.inset) above for further details.
+
+This is useful to prevent padding from affecting line layout. For a
+generalized version of the example below, see the documentation for the
+[raw text's block parameter]($raw.block).
+
+```example
+An inline
+#box(
+  fill: luma(235),
+  inset: (x: 3pt, y: 0pt),
+  outset: (y: 3pt),
+  radius: 2pt,
+)[rectangle].
+```Ú)Whether to clip the content inside the box.
+
+Clipping is useful when the box's content is larger than the box itself,
+as any content that exceeds the box's bounds will be hidden.
+
+```example
+#box(
+  width: 50pt,
+  height: 50pt,
+  clip: true,
+  image("tiger.jpg", width: 100pt, height: 100pt)
+)
+```¸The contents of the box.¨bytes.atÙ(The index at which to retrieve the byte.«bytes.slice¼The start index (inclusive).ÙRThe end index (exclusive). If omitted, the whole slice until the end
+is extracted.ÙƒThe number of items to extract. This is equivalent to passing
+`start + count` as the `end` position. Mutually exclusive with
+`end`.£cal¨calc.absÙ,The value whose absolute value to calculate.©calc.acosÙBThe number whose arccosine to calculate. Must be between -1 and 1.©calc.asinÙ@The number whose arcsine to calculate. Must be between -1 and 1.©calc.atanÙ)The number whose arctangent to calculate.ªcalc.atan2¡x±The X coordinate.¡y±The Y coordinate.ªcalc.binom¡nÙ,The upper coefficient. Must be non-negative.¡kÙ,The lower coefficient. Must be non-negative.©calc.ceil·The number to round up.ªcalc.clamp´The number to clamp.£min¼The inclusive minimum value.£max¼The inclusive maximum value.¨calc.cos¥angleÙ$The angle whose cosine to calculate.©calc.coshÙ:The hyperbolic angle whose hyperbolic cosine to calculate.¯calc.div-euclid¨dividend½The dividend of the division.§divisor¼The divisor of the division.©calc.evenÙ!The number to check for evenness.¨calc.exp¨exponentºThe exponent of the power.©calc.fact¦numberÙ>The number whose factorial to calculate. Must be non-negative.ªcalc.floor¹The number to round down.ªcalc.fract·The number to truncate.¨calc.gcd¡a²The first integer.³The second integer.¨calc.lcm§calc.lnÙCThe number whose logarithm to calculate. Must be strictly positive.¨calc.logÙ+The base of the logarithm. May not be zero.¨calc.max¦valuesÙLThe sequence of values from which to extract the maximum.
+Must not be empty.¨calc.minÙLThe sequence of values from which to extract the minimum.
+Must not be empty.©calc.norm¡pÙ'The p value to calculate the p-norm of.ÙRThe sequence of values from which to calculate the p-norm.
+Returns `0.0` if empty.¨calc.oddÙ The number to check for oddness.©calc.permÙ&The base number. Must be non-negative.§numbersÙ1The number of permutations. Must be non-negative.¨calc.powÙ^The base of the power.
+
+If this is a [`decimal`], the exponent can only be an [integer]($int).¨calc.quo½The dividend of the quotient.¼The divisor of the quotient.¨calc.rem¾The dividend of the remainder.½The divisor of the remainder.¯calc.rem-euclid©calc.root¨radicandÙ#The expression to take the root of.Ù#Which root of the radicand to take.ªcalc.round´The number to round.¦digitsÙ’If positive, the number of decimal places.
+
+If negative, the number of significant integer digits that should be
+removed before the decimal point.¨calc.sinÙ"The angle whose sine to calculate.©calc.sinhÙ8The hyperbolic angle whose hyperbolic sine to calculate.©calc.sqrtÙ@The number whose square root to calculate. Must be non-negative.¨calc.tanÙ%The angle whose tangent to calculate.©calc.tanhÙ;The hyperbolic angle whose hyperbolic tangent to calculate.ªcalc.trunc¦cancelÙ1The content over which the line should be placed.¦lengthÚ,The length of the line, relative to the length of the diagonal spanning
+the whole element being "cancelled". A value of `{100%}` would then have
+the line span precisely the element's diagonal.
+
+```example
+>>> #set page(width: 140pt)
+$ a + cancel(x, length: #200%)
+    - cancel(x, length: #200%) $
+```¨invertedÚ+Whether the cancel line should be inverted (flipped along the y-axis).
+For the default angle setting, inverted means the cancel line
+points to the top left instead of top right.
+
+```example
+>>> #set page(width: 140pt)
+$ (a cancel((b + c), inverted: #true)) /
+    cancel(b + c, inverted: #true) $
+```¥crossÙ³Whether two opposing cancel lines should be drawn, forming a cross over
+the element. Overrides `inverted`.
+
+```example
+>>> #set page(width: 140pt)
+$ cancel(Pi, cross: #true) $
+```ÚHow much to rotate the cancel line.
+
+- If given an angle, the line is rotated by that angle clockwise with
+  respect to the y-axis.
+- If `{auto}`, the line assumes the default angle; that is, along the
+  rising diagonal of the content box.
+- If given a function `angle => angle`, the line is rotated, with
+  respect to the y-axis, by the angle returned by that function. The
+  function receives the default angle as its input.
+
+```example
+>>> #set page(width: 140pt)
+$ cancel(Pi)
+  cancel(Pi, angle: #0deg)
+  cancel(Pi, angle: #45deg)
+  cancel(Pi, angle: #90deg)
+  cancel(1/(1+x), angle: #(a => a + 45deg))
+  cancel(1/(1+x), angle: #(a => a + 90deg)) $
+```Ù¸How to [stroke]($stroke) the cancel line.
+
+```example
+>>> #set page(width: 140pt)
+$ cancel(
+  sum x,
+  stroke: #(
+    paint: red,
+    thickness: 1.5pt,
+    dash: "dashed",
+  ),
+) $
+```¥cases¥delimÚThe delimiter to use.
+
+Can be a single character specifying the left delimiter, in which case
+the right delimiter is inferred. Otherwise, can be an array containing a
+left and a right delimiter.
+
+```example
+#set math.cases(delim: "[")
+$ x = cases(1, 2) $
+```§reverseÙuWhether the direction of cases should be reversed.
+
+```example
+#set math.cases(reverse: true)
+$ cases(1, 2) = x $
+```£gapÙWThe gap between branches.
+
+```example
+#set math.cases(gap: 1em)
+$ x = cases(1, 2) $
+```¨childrenÙ%The branches of the case distinction.¤cbor¦sourceÙ:A [path]($syntax/#paths) to a CBOR file or raw CBOR bytes.«cbor.decode¤dataªCBOR data.«cbor.encode´Value to be encoded.¦circleÙJThe circle's radius. This is mutually exclusive with `width` and
+`height`.ÙšThe circle's width. This is mutually exclusive with `radius` and
+`height`.
+
+In contrast to `radius`, this can be relative to the parent container's
+width.Ù›The circle's height. This is mutually exclusive with `radius` and
+`width`.
+
+In contrast to `radius`, this can be relative to the parent container's
+height.ÙYHow to fill the circle. See the [rectangle's documentation]($rect.fill)
+for more details.Ù]How to stroke the circle. See the
+[rectangle's documentation]($rect.stroke) for more details.ÙaHow much to pad the circle's content. See the
+[box's documentation]($box.inset) for more details.ÙHow much to expand the circle's size without affecting the layout. See
+the [box's documentation]($box.outset) for more details.ÙkThe content to place into the circle. The circle expands to fit this
+content, keeping the 1-1 aspect ratio.¤citeÙòThe citation key that identifies the entry in the bibliography that
+shall be cited, as a label.
+
+```example
+// All the same
+@netwok \
+#cite(<netwok>) \
+#cite(label("netwok"))
+>>> #set text(0pt)
+>>> #bibliography("works.bib", style: "apa")
+```ªsupplementÙÕA supplement for the citation such as page or chapter number.
+
+In reference syntax, the supplement can be added in square brackets:
+
+```example
+This has been proven. @distress[p.~7]
+
+#bibliography("works.bib")
+```¤formÚóThe kind of citation to produce. Different forms are useful in different
+scenarios: A normal citation is useful as a source at the end of a
+sentence, while a "prose" citation is more suitable for inclusion in the
+flow of text.
+
+If set to `{none}`, the cited work is included in the bibliography, but
+nothing will be displayed.
+
+```example
+#cite(<netwok>, form: "prose")
+show the outsized effects of
+pirate life on the human psyche.
+>>> #set text(0pt)
+>>> #bibliography("works.bib", style: "apa")
+```ÚìThe citation style.
+
+This can be:
+- `{auto}` to automatically use the
+  [bibliography's style]($bibliography.style) for citations.
+- A string with the name of one of the built-in styles (see below). Some
+  of the styles listed below appear twice, once with their full name and
+  once with a short alias.
+- A path string to a [CSL file](https://citationstyles.org/). For more
+  details about paths, see the [Paths section]($syntax/#paths).
+- Raw bytes from which a CSL style should be decoded.¥classÙ"The class to apply to the content.Ù*The content to which the class is applied.¤cmyk¤cyan³The cyan component.§magenta¶The magenta component.¦yellowµThe yellow component.²The key component.¥colorÙnAlternatively: The color to convert to CMYK.
+
+If this is given, the individual components should not be given.¨colbreak¤weakÙPIf `{true}`, the column break is skipped if the current column is
+already empty.ªcolor.cmyk°color.components¥alphaÙ'Whether to include the alpha component.¬color.darken¦factorÙ"The factor to darken the color by.°color.desaturateÙ&The factor to desaturate the color by.©color.hsl£hue®The hue angle.ªsaturation¹The saturation component.©lightness¸The lightness component.´The alpha component.ÙmAlternatively: The color to convert to HSL.
+
+If this is given, the individual components should not be given.©color.hsv´The value component.­color.lightenÙ#The factor to lighten the color by.°color.linear-rgb£red²The red component.¥green´The green component.¤blue³The blue component.ÙwAlternatively: The color to convert to linear RGB(A).
+
+If this is given, the individual components should not be given.ªcolor.lumaÙiAlternatively: The color to convert to grayscale.
+
+If this is given, the `lightness` should not be given.©color.mix¦colorsÙÎThe colors, optionally with weights, specified as a pair (array of
+length two) of color and weight (float or ratio).
+
+The weights do not need to add to `{100%}`, they are relative to the
+sum of all weights.¥spaceÙjThe color space to mix in. By default, this happens in a perceptual
+color space ([`oklab`]($color.oklab)).¬color.negateÙZThe color space used for the transformation. By default, a perceptual color space is used.«color.oklab¾The a ("green/red") component.Ù The b ("blue/yellow") component.ÙoAlternatively: The color to convert to Oklab.
+
+If this is given, the individual components should not be given.«color.oklch¦chromaµThe chroma component.²The hue component.ÙoAlternatively: The color to convert to Oklch.
+
+If this is given, the individual components should not be given.­color.opacify¥scaleÙ'The scale to change the alpha value by.©color.rgb£hexÚAlternatively: The color in hexadecimal notation.
+
+Accepts three, four, six or eight hexadecimal digits and optionally
+a leading hash.
+
+If this is given, the individual components should not be given.
+
+```example
+#text(16pt, rgb("#239dad"))[
+  *Typst*
+]
+```ÙpAlternatively: The color to convert to RGB(a).
+
+If this is given, the individual components should not be given.¬color.rotate¿The angle to rotate the hue by.ÙoThe color space used to rotate. By default, this happens in a perceptual
+color space ([`oklch`]($color.oklch)).®color.saturateÙ$The factor to saturate the color by.´color.transparentizeÙ(The factor to change the alpha value by.§columns¶The number of columns.¦gutterÙ1The size of the gutter space between each column.Ù5The content that should be layouted into the columns.ªcontent.at¥field´The field to access.Ù6A default value to return if the field does not exist.«content.has¶The field to look for.ªcounter.at¨selectorÙ;The place at which the counter's value should be retrieved.¯counter.display©numberingÚÌA [numbering pattern or a function]($numbering), which specifies how
+to display the counter. If given a function, that function receives
+each number of the counter as a separate argument. If the amount of
+numbers varies, e.g. for the heading argument, you can use an
+[argument sink]($arguments).
+
+If this is omitted or set to `{auto}`, displays the counter with the
+numbering style for the counted element or with the pattern
+`{"1.1"}` if no such style exists.¤bothÚIf enabled, displays the current and final top-level count together.
+Both can be styled through a single numbering pattern. This is used
+by the page numbering property to display the current and total
+number of pages when a pattern like `{"1 / 1"}` is given.¬counter.step¥levelÙ:The depth at which to step the counter. Defaults to `{1}`.®counter.update¦updateÙîIf given an integer or array of integers, sets the counter to that
+value. If given a function, that function receives the previous
+counter value (with each number as a separate argument) and has to
+return the new value (integer or array).£csvÙ8A [path]($syntax/#paths) to a CSV file or raw CSV bytes.©delimiterÙWThe delimiter that separates columns in the CSV file.
+Must be a single ASCII character.¨row-typeÚ$How to represent the file's rows.
+
+- If set to `array`, each row is represented as a plain array of
+  strings.
+- If set to `dictionary`, each row is represented as a dictionary
+  mapping from header keys to strings. This option only makes sense when
+  a header row is present in the CSV file.ªcsv.decode©CSV data.Ú$How to represent the file's rows.
+
+- If set to `array`, each row is represented as a plain array of
+  strings.
+- If set to `dictionary`, each row is represented as a dictionary
+  mapping from header keys to strings. This option only makes sense
+  when a header row is present in the CSV file.¥curveÙ”How to fill the curve.
+
+When setting a fill, the default stroke disappears. To create a curve
+with both fill and stroke, you have to configure both.©fill-ruleÚThe drawing rule used to fill the curve.
+
+```example
+// We use `.with` to get a new
+// function that has the common
+// arguments pre-applied.
+#let star = curve.with(
+  fill: red,
+  curve.move((25pt, 0pt)),
+  curve.line((10pt, 50pt)),
+  curve.line((50pt, 20pt)),
+  curve.line((0pt, 20pt)),
+  curve.line((40pt, 50pt)),
+  curve.close(),
+)
+
+#star(fill-rule: "non-zero")
+#star(fill-rule: "even-odd")
+```ÚbHow to [stroke] the curve.
+
+Can be set to `{none}` to disable the stroke or to `{auto}` for a
+stroke of `{1pt}` black if and only if no fill is given.
+
+```example
+#let down = curve.line((40pt, 40pt), relative: true)
+#let up = curve.line((40pt, -40pt), relative: true)
+
+#curve(
+  stroke: 4pt + gradient.linear(red, blue),
+  down, up, down, up, down,
+)
+```ªcomponentsÙXThe components of the curve, in the form of moves, line and BÃ©zier
+segment, and closes.«curve.close¤mode·How to close the curve.«curve.cubic­control-startÚThe control point going out from the start of the curve segment.
+
+- If `{auto}` and this element follows another `curve.cubic` element,
+  the last control point will be mirrored. In SVG terms, this makes
+  `curve.cubic` behave like the `S` operator instead of the `C` operator.
+
+- If `{none}`, the curve has no first control point, or equivalently,
+  the control point defaults to the curve's starting point.
+
+```example
+#curve(
+  stroke: blue,
+  curve.move((0pt, 50pt)),
+  // - No start control point
+  // - End control point at `(20pt, 0pt)`
+  // - End point at `(50pt, 0pt)`
+  curve.cubic(none, (20pt, 0pt), (50pt, 0pt)),
+  // - No start control point
+  // - No end control point
+  // - End point at `(50pt, 0pt)`
+  curve.cubic(none, none, (100pt, 50pt)),
+)
+
+#curve(
+  stroke: blue,
+  curve.move((0pt, 50pt)),
+  curve.cubic(none, (20pt, 0pt), (50pt, 0pt)),
+  // Passing `auto` instead of `none` means the start control point
+  // mirrors the end control point of the previous curve. Mirror of
+  // `(20pt, 0pt)` w.r.t `(50pt, 0pt)` is `(80pt, 0pt)`.
+  curve.cubic(auto, none, (100pt, 50pt)),
+)
+
+#curve(
+  stroke: blue,
+  curve.move((0pt, 50pt)),
+  curve.cubic(none, (20pt, 0pt), (50pt, 0pt)),
+  // `(80pt, 0pt)` is the same as `auto` in this case.
+  curve.cubic((80pt, 0pt), none, (100pt, 50pt)),
+)
+```«control-endÙ¿The control point going into the end point of the curve segment.
+
+If set to `{none}`, the curve has no end control point, or equivalently,
+the control point defaults to the curve's end point.Ù/The point at which the curve segment shall end.¨relativeÙeWhether the `control-start`, `control-end`, and `end` coordinates are
+relative to the previous point.ªcurve.lineÙ&The point at which the line shall end.Ú=Whether the coordinates are relative to the previous point.
+
+```example
+#curve(
+  stroke: blue,
+  curve.line((50pt, 0pt), relative: true),
+  curve.line((0pt, 50pt), relative: true),
+  curve.line((50pt, 0pt), relative: true),
+  curve.line((0pt, -50pt), relative: true),
+  curve.line((50pt, 0pt), relative: true),
+)
+```ªcurve.moveÙ)The starting point for the new component.Ù;Whether the coordinates are relative to the previous point.ªcurve.quad§controlÚœThe control point of the quadratic BÃ©zier curve.
+
+- If `{auto}` and this segment follows another quadratic BÃ©zier curve,
+  the previous control point will be mirrored.
+- If `{none}`, the control point defaults to `end`, and the curve will
+  be a straight line.
+
+```example
+#curve(
+  stroke: 2pt,
+  curve.quad((20pt, 40pt), (40pt, 40pt), relative: true),
+  curve.quad(auto, (40pt, -40pt), relative: true),
+)
+```Ù)The point at which the segment shall end.ÙOWhether the `control` and `end` coordinates are relative to the previous
+point.°datetime.display§patternÙ(The format used to display the datetime.®datetime.today¦offsetÙdAn offset to apply to the current UTC date. If set to `{auto}`, the
+offset will be the local offset.­dictionary.atÙ&The key at which to retrieve the item.ÙCA default value to return if the key is not part of the dictionary.±dictionary.insertÙ,The key of the pair that should be inserted.Ù.The value of the pair that should be inserted.±dictionary.remove¾The key of the pair to remove.Ù4A default value to return if the key does not exist.§display´The content to size.§crampedÙ\Whether to impose a height restriction for exponents, like regular sub-
+and superscripts do.¨documentÚThe document's title. This is rendered as the title of the PDF viewer
+window or the browser tab of the page.
+
+Adding a title is important for accessibility, as it makes it easier to
+navigate to your document and identify it among other open documents.
+When exporting to PDF/UA, a title is required.
+
+While this can be arbitrary content, PDF viewers only support plain text
+titles, so the conversion might be lossy.¦author·The document's authors.«description»The document's description.¨keywords¸The document's keywords.¤dateÚqThe document's creation date.
+
+If this is `{auto}` (default), Typst uses the current date and time.
+Setting it to `{none}` prevents Typst from embedding any creation date
+into the PDF metadata.
+
+The year component must be at least zero in order to be embedded into a
+PDF.
+
+If you want to create byte-by-byte reproducible PDFs, set this to
+something other than `{auto}`.§ellipseÙ6The ellipse's width, relative to its parent container.Ù7The ellipse's height, relative to its parent container.ÙZHow to fill the ellipse. See the [rectangle's documentation]($rect.fill)
+for more details.Ù^How to stroke the ellipse. See the
+[rectangle's documentation]($rect.stroke) for more details.ÙbHow much to pad the ellipse's content. See the
+[box's documentation]($box.inset) for more details.Ù€How much to expand the ellipse's size without affecting the layout. See
+the [box's documentation]($box.outset) for more details.Ù‚The content to place into the ellipse.
+
+When this is omitted, the ellipse takes on a default size of at most
+`{45pt}` by `{30pt}`.¤emph¹The content to emphasize.¤enum¥tightÚ"Defines the default [spacing]($enum.spacing) of the enumeration. If it
+is `{false}`, the items are spaced apart with
+[paragraph spacing]($par.spacing). If it is `{true}`, they use
+[paragraph leading]($par.leading) instead. This makes the list more
+compact, which can look better if the items are short.
+
+In markup mode, the value of this parameter is determined based on
+whether items are separated with a blank line. If items directly follow
+each other, this is set to `{true}`; if items are separated by a blank
+line, this is set to `{false}`. The markup-defined tightness cannot be
+overridden with set rules.
+
+```example
++ If an enum has a lot of text, and
+  maybe other inline content, it
+  should not be tight anymore.
+
++ To make an enum wide, simply
+  insert a blank line between the
+  items.
+```ÚÏHow to number the enumeration. Accepts a
+[numbering pattern or function]($numbering).
+
+If the numbering pattern contains multiple counting symbols, they apply
+to nested enums. If given a function, the function receives one argument
+if `full` is `{false}` and multiple arguments if `full` is `{true}`.
+
+```example
+#set enum(numbering: "1.a)")
++ Different
++ Numbering
+  + Nested
+  + Items
++ Style
+
+#set enum(numbering: n => super[#n])
++ Superscript
++ Numbering!
+```ÙiWhich number to start the enumeration with.
+
+```example
+#enum(
+  start: 3,
+  [Skipping],
+  [Ahead],
+)
+```ÙÂWhether to display the full numbering, including the numbers of
+all parent enumerations.
+
+
+```example
+#set enum(numbering: "1.a)", full: true)
++ Cook
+  + Heat water
+  + Add ingredients
++ Eat
+```¨reversedÙvWhether to reverse the numbering for this enumeration.
+
+```example
+#set enum(reversed: true)
++ Coffee
++ Tea
++ Milk
+```¦indent½The indentation of each item.«body-indentÙ:The space between the numbering and the body of each item.ÙÑThe spacing between the items of the enumeration.
+
+If set to `{auto}`, uses paragraph [`leading`]($par.leading) for tight
+enumerations and paragraph [`spacing`]($par.spacing) for wide
+(non-tight) enumerations.¬number-alignÚThe alignment that enum numbers should have.
+
+By default, this is set to `{end + top}`, which aligns enum numbers
+towards end of the current text direction (in left-to-right script,
+for example, this is the same as `{right}`) and at the top of the line.
+The choice of `{end}` for horizontal alignment of enum numbers is
+usually preferred over `{start}`, as numbers then grow away from the
+text instead of towards it, avoiding certain visual issues. This option
+lets you override this behaviour, however. (Also to note is that the
+[unordered list]($list) uses a different method for this, by giving the
+`marker` content an alignment directly.).
+
+````example
+#set enum(number-align: start + bottom)
+
+Here are some powers of two:
+1. One
+2. Two
+4. Four
+8. Eight
+16. Sixteen
+32. Thirty two
+````ÙñThe numbered list's items.
+
+When using the enum syntax, adjacent items are automatically collected
+into enumerations, even through constructs like for loops.
+
+```example
+#for phase in (
+   "Launch",
+   "Orbit",
+   "Descent",
+) [+ #phase]
+```©enum.item²The item's number.°The item's body.¨equationÙ6Whether the equation is displayed as a separate block.ÚHow to number block-level equations. Accepts a
+[numbering pattern or function]($numbering) taking a single number.
+
+```example
+#set math.equation(numbering: "(1)")
+
+We define:
+$ phi.alt := (1 + sqrt(5)) / 2 $ <ratio>
+
+With @ratio, we get:
+$ F_n = floor(1 / sqrt(5) phi.alt^n) $
+```Ú¦The alignment of the equation numbering.
+
+By default, the alignment is `{end + horizon}`. For the horizontal
+component, you can use `{right}`, `{left}`, or `{start}` and `{end}`
+of the text direction; for the vertical component, you can use
+`{top}`, `{horizon}`, or `{bottom}`.
+
+```example
+#set math.equation(numbering: "(1)", number-align: bottom)
+
+We can calculate:
+$ E &= sqrt(m_0^2 + p^2) \
+    &approx 125 "GeV" $
+```ÚA supplement for the equation.
+
+For references to equations, this is added before the referenced number.
+
+If a function is specified, it is passed the referenced equation and
+should return content.
+
+```example
+#set math.equation(numbering: "(1)", supplement: [Eq.])
+
+We define:
+$ phi.alt := (1 + sqrt(5)) / 2 $ <ratio>
+
+With @ratio, we get:
+$ F_n = floor(1 / sqrt(5) phi.alt^n) $
+```£altÚÔAn alternative description of the mathematical equation.
+
+This should describe the full equation in natural language and will be
+made available to Assistive Technology. You can learn more in the
+[Textual Representations section of the Accessibility
+Guide]($guides/accessibility/#textual-representations).
+
+```example
+#math.equation(
+  alt: "integral from 1 to infinity of a x squared plus b with respect to x",
+  block: true,
+  $ integral_1^oo a x^2 + b dif x $,
+)
+```½The contents of the equation.¤evalÙ#A string of Typst code to evaluate.ÙŸThe [syntactical mode]($reference/syntax/#modes) in which the string is
+parsed.
+
+```example
+#eval("= Heading", mode: "markup")
+#eval("1_2^3", mode: "math")
+```¥scopeÙÁA scope of definitions that are made available.
+
+```example
+#eval("x + 1", scope: (x: 2)) \
+#eval(
+  "abc/xyz",
+  mode: "math",
+  scope: (
+    abc: $a + b + c$,
+    xyz: $x + y + z$,
+  ),
+)
+```¦figureÙ-The content of the figure. Often, an [image].ÚĞAn alternative description of the figure.
+
+When you add an alternative description, AT will read both it and the
+caption (if any). However, the content of the figure itself will be
+skipped.
+
+When the body of your figure is an [image]($image) with its own `alt`
+text set, this parameter should not be used on the figure element.
+Likewise, do not use this parameter when the figure contains a table,
+code, or other content that is already accessible. In such cases, the
+content of the figure will be read by AT, and adding an alternative
+description would lead to a loss of information.
+
+You can learn how to write good alternative descriptions in the
+[Accessibility Guide]($guides/accessibility/#textual-representations).©placementÚ¤The figure's placement on the page.
+
+- `{none}`: The figure stays in-flow exactly where it was specified
+  like other content.
+- `{auto}`: The figure picks `{top}` or `{bottom}` depending on which
+  is closer.
+- `{top}`: The figure floats to the top of the page.
+- `{bottom}`: The figure floats to the bottom of the page.
+
+The gap between the main flow content and the floating figure is
+controlled by the [`clearance`]($place.clearance) argument on the
+`place` function.
+
+```example
+#set page(height: 200pt)
+#show figure: set place(
+  clearance: 1em,
+)
+
+= Introduction
+#figure(
+  placement: bottom,
+  caption: [A glacier],
+  image("glacier.jpg", width: 60%),
+)
+#lorem(60)
+```ÚtRelative to which containing scope the figure is placed.
+
+Set this to `{"parent"}` to create a full-width figure in a two-column
+document.
+
+Has no effect if `placement` is `{none}`.
+
+```example
+#set page(height: 250pt, columns: 2)
+
+= Introduction
+#figure(
+  placement: bottom,
+  scope: "parent",
+  caption: [A glacier],
+  image("glacier.jpg", width: 60%),
+)
+#lorem(60)
+```§captionµThe figure's caption.¤kindÚ:The kind of figure this is.
+
+All figures of the same kind share a common counter.
+
+If set to `{auto}`, the figure will try to automatically determine its
+kind based on the type of its body. Automatically detected kinds are
+[tables]($table) and [code]($raw). In other cases, the inferred kind is
+that of an [image].
+
+Setting this to something other than `{auto}` will override the
+automatic detection. This can be useful if
+- you wish to create a custom figure type that is not an
+  [image], a [table] or [code]($raw),
+- you want to force the figure to use a specific counter regardless of
+  its content.
+
+You can set the kind to be an element function or a string. If you set
+it to an element function other than [`table`], [`raw`], or [`image`],
+you will need to manually specify the figure's supplement.
+
+```example:"Customizing the figure kind"
+#figure(
+  circle(radius: 10pt),
+  caption: [A curious atom.],
+  kind: "atom",
+  supplement: [Atom],
+)
+```
+
+If you want to modify a counter to skip a number or reset the counter,
+you can access the [counter] of each kind of figure with a
+[`where`]($function.where) selector:
+
+- For [tables]($table): `{counter(figure.where(kind: table))}`
+- For [images]($image): `{counter(figure.where(kind: image))}`
+- For a custom kind: `{counter(figure.where(kind: kind))}`
+
+```example:"Modifying the figure counter for specific kinds"
+#figure(
+  table(columns: 2, $n$, $1$),
+  caption: [The first table.],
+)
+
+#counter(
+  figure.where(kind: table)
+).update(41)
+
+#figure(
+  table(columns: 2, $n$, $42$),
+  caption: [The 42nd table],
+)
+
+#figure(
+  rect[Image],
+  caption: [Does not affect images],
+)
+```
+
+To conveniently use the correct counter in a show rule, you can access
+the `counter` field. There is an example of this in the documentation
+[of the `figure.caption` element's `body` field]($figure.caption.body).ÚThe figure's supplement.
+
+If set to `{auto}`, the figure will try to automatically determine the
+correct supplement based on the `kind` and the active
+[text language]($text.lang). If you are using a custom figure type, you
+will need to manually specify the supplement.
+
+If a function is specified, it is passed the first descendant of the
+specified `kind` (typically, the figure's body) and should return
+content.
+
+```example
+#figure(
+  [The contents of my figure!],
+  caption: [My custom figure],
+  supplement: [Bar],
+  kind: "foo",
+)
+```ÙgHow to number the figure. Accepts a
+[numbering pattern or function]($numbering) taking a single number.Ù.The vertical gap between the body and caption.¨outlinedÙ>Whether the figure should appear in an [`outline`] of figures.®figure.caption¨positionÚ„The caption's position in the figure. Either `{top}` or `{bottom}`.
+
+```example
+#show figure.where(
+  kind: table
+): set figure.caption(position: top)
+
+#figure(
+  table(columns: 2)[A][B],
+  caption: [I'm up here],
+)
+
+#figure(
+  rect[Hi],
+  caption: [I'm down here],
+)
+
+#figure(
+  table(columns: 2)[A][B],
+  caption: figure.caption(
+    position: bottom,
+    [I'm down here too!]
+  )
+)
+```ÚThe separator which will appear between the number and body.
+
+If set to `{auto}`, the separator will be adapted to the current
+[language]($text.lang) and [region]($text.region).
+
+```example
+#set figure.caption(separator: [ --- ])
+
+#figure(
+  rect[Hello],
+  caption: [A rectangle],
+)
+```ÚFThe caption's body.
+
+Can be used alongside `kind`, `supplement`, `counter`, `numbering`, and
+`location` to completely customize the caption.
+
+```example
+#show figure.caption: it => [
+  #underline(it.body) |
+  #it.supplement
+  #context it.counter.display(it.numbering)
+]
+
+#figure(
+  rect[Hello],
+  caption: [A rectangle],
+)
+```°float.from-bytes¥bytesÚThe bytes that should be converted to a float.
+
+Must have a length of either 4 or 8. The bytes are then
+interpreted in [IEEE 754](https://en.wikipedia.org/wiki/IEEE_754)'s
+binary32 (single-precision) or binary64 (double-precision) format
+depending on the length of the bytes.¦endianÙ!The endianness of the conversion.®float.to-bytesÚThe size of the resulting bytes.
+
+This must be either 4 or 8. The call will return the
+representation of this float in either
+[IEEE 754](https://en.wikipedia.org/wiki/IEEE_754)'s binary32
+(single-precision) or binary64 (double-precision) format
+depending on the provided size.¨footnoteÚ¼How to number footnotes. Accepts a
+[numbering pattern or function]($numbering) taking a single number.
+
+By default, the footnote numbering continues throughout your document.
+If you prefer per-page footnote numbering, you can reset the footnote
+[counter] in the page [header]($page.header). In the future, there might
+be a simpler way to achieve this.
+
+```example
+#set footnote(numbering: "*")
+
+Footnotes:
+#footnote[Star],
+#footnote[Dagger]
+```ÙiThe content to put into the footnote. Can also be the label of another
+footnote this one should point to.®footnote.entry¤noteÚ5The footnote for this entry. Its location can be used to determine
+the footnote counter state.
+
+```example
+#show footnote.entry: it => {
+  let loc = it.note.location()
+  numbering(
+    "1: ",
+    ..counter(footnote).at(loc),
+  )
+  it.note.body
+}
+
+Customized #footnote[Hello]
+listing #footnote[World! ğŸŒ]
+```ÙØThe separator between the document body and the footnote listing.
+
+```example
+#set footnote.entry(
+  separator: repeat[.]
+)
+
+Testing a different separator.
+#footnote[
+  Unconventional, but maybe
+  not that bad?
+]
+```©clearanceÙ»The amount of clearance between the document body and the separator.
+
+```example
+#set footnote.entry(clearance: 3em)
+
+Footnotes also need ...
+#footnote[
+  ... some space to breathe.
+]
+```ÙThe gap between footnote entries.
+
+```example
+#set footnote.entry(gap: 0.8em)
+
+Footnotes:
+#footnote[Spaced],
+#footnote[Apart]
+```Ù€The indent of each footnote entry.
+
+```example
+#set footnote.entry(indent: 0em)
+
+Footnotes:
+#footnote[No],
+#footnote[Indent]
+```¤frac£num¹The fraction's numerator.¥denom»The fraction's denominator.Ú;How the fraction should be laid out.
+
+```example:"Styles"
+$ frac(x, y, style: "vertical") $
+$ frac(x, y, style: "skewed") $
+$ frac(x, y, style: "horizontal") $
+```
+
+```example:"Setting the default"
+#set math.frac(style: "skewed")
+$ a / b $
+```
+
+```example:"Handling of grouping parentheses"
+// Grouping parentheses are removed.
+#set math.frac(style: "vertical")
+$ (a + b) / b $
+
+// Grouping parentheses are removed.
+#set math.frac(style: "skewed")
+$ (a + b) / b $
+
+// Grouping parentheses are retained.
+#set math.frac(style: "horizontal")
+$ (a + b) / b $
+```
+
+```example:"Different styles in inline vs block equations"
+// This changes the style for inline equations only.
+#show math.equation.where(block: false): set math.frac(style: "horizontal")
+
+This $(x-y)/z = 3$ is inline math, and this is block math:
+$ (x-y)/z = 3 $
+```¤frak®function.where¦fields¹The fields to filter for.­function.with©argumentsÙ'The arguments to apply to the function.®gradient.conic¥stopsÙ*The color [stops](#stops) of the gradient.ºThe angle of the gradient.ÙƒThe color space in which to interpolate the gradient.
+
+Defaults to a perceptually uniform color space called
+[Oklab]($color.oklab).ÚThe [relative placement](#relativeness) of the gradient.
+
+For an element placed at the root/top level of the document, the parent
+is the page itself. For other elements, the parent is the innermost block,
+box, column, grid, or stack that contains the element.¦centerÙThe center of the circle of the gradient.
+
+A value of `{(50%, 50%)}` means that the circle is centered inside
+of its container.¯gradient.linearÚThe [relative placement](#relativeness) of the gradient.
+
+For an element placed at the root/top level of the document, the
+parent is the page itself. For other elements, the parent is the
+innermost block, box, column, grid, or stack that contains the
+element.£dir¾The direction of the gradient.¯gradient.radialÙ‡The center of the end circle of the gradient.
+
+A value of `{(50%, 50%)}` means that the end circle is
+centered inside of its container.ÙˆThe radius of the end circle of the gradient.
+
+By default, it is set to `{50%}`. The ending radius must be bigger
+than the focal radius.¬focal-centerÚThe center of the focal circle of the gradient.
+
+The focal center must be inside of the end circle.
+
+A value of `{(50%, 50%)}` means that the focal circle is
+centered inside of its container.
+
+By default it is set to the same as the center of the last circle.¬focal-radiusÙ¿The radius of the focal circle of the gradient.
+
+The focal center must be inside of the end circle.
+
+By default, it is set to `{0%}`. The focal radius must be smaller
+than the ending radius`.¯gradient.repeat«repetitionsÙ+The number of times to repeat the gradient.¦mirrorÙéWhether to mirror the gradient at every second repetition, i.e.,
+the first instance (and all odd ones) stays unchanged.
+
+```example
+#circle(
+  radius: 40pt,
+  fill: gradient
+    .conic(green, black)
+    .repeat(2, mirror: true)
+)
+```¯gradient.sampleÙ-The position at which to sample the gradient.°gradient.samples¢tsÙ.The positions at which to sample the gradient.®gradient.sharp¥stepsÙ$The number of stops in the gradient.ªsmoothnessÙ How much to smooth the gradient.¤gridÚ1The column sizes.
+
+Either specify a track size array or provide an integer to create a grid
+with that many `{auto}`-sized columns. Note that opposed to rows and
+gutters, providing a single track size will only ever create a single
+column.
+
+See the [track size section](#track-size) above for more details.¤rowsÙ½The row sizes.
+
+If there are more cells than fit the defined rows, the last row is
+repeated until there are no more cells.
+
+See the [track size section](#track-size) above for more details.Ú+The gaps between rows and columns. This is a shorthand to set
+[`column-gutter`]($grid.column-gutter) and [`row-gutter`]($grid.row-gutter)
+to the same value.
+
+If there are more gutters than defined sizes, the last gutter is
+repeated.
+
+See the [track size section](#track-size) above for more details.­column-gutter¹The gaps between columns.ªrow-gutter¶The gaps between rows.Ú6How much to pad the cells' content.
+
+To specify a uniform inset for all cells, you can use a single length
+for all sides, or a dictionary of lengths for individual sides. See the
+[box's documentation]($box.inset) for more details.
+
+To specify varying inset for different cells, you can:
+- use a single inset for all cells
+- use an array of insets corresponding to each column
+- use a function that maps a cell's position to its inset
+
+See the [styling section](#styling) above for more details.
+
+In addition, you can find an example at the [`table.inset`] parameter.Ú²How to align the cells' content.
+
+If set to `{auto}`, the outer alignment is used.
+
+You can specify the alignment in any of the following fashions:
+- use a single alignment for all cells
+- use an array of alignments corresponding to each column
+- use a function that maps a cell's position to its alignment
+
+See the [styling section](#styling) above for details.
+
+In addition, you can find an example at the [`table.align`] parameter.Ú&How to fill the cells.
+
+This can be:
+- a single color for all cells
+- an array of colors corresponding to each column
+- a function that maps a cell's position to its color
+
+Most notably, arrays and functions are useful for creating striped grids.
+See the [styling section](#styling) above for more details.
+
+```example
+#grid(
+  fill: (x, y) =>
+    if calc.even(x + y) { luma(230) }
+    else { white },
+  align: center + horizon,
+  columns: 4,
+  inset: 2pt,
+  [X], [O], [X], [O],
+  [O], [X], [O], [X],
+  [X], [O], [X], [O],
+  [O], [X], [O], [X],
+)
+```ÚnHow to [stroke]($stroke) the cells.
+
+Grids have no strokes by default, which can be changed by setting this
+option to the desired stroke.
+
+If it is necessary to place lines which can cross spacing between cells
+produced by the [`gutter`]($grid.gutter) option, or to override the
+stroke between multiple specific cells, consider specifying one or more
+of [`grid.hline`] and [`grid.vline`] alongside your grid cells.
+
+To specify the same stroke for all cells, you can use a single [stroke]
+for all sides, or a dictionary of [strokes]($stroke) for individual
+sides. See the [rectangle's documentation]($rect.stroke) for more
+details.
+
+To specify varying strokes for different cells, you can:
+- use a single stroke for all cells
+- use an array of strokes corresponding to each column
+- use a function that maps a cell's position to its stroke
+
+See the [styling section](#styling) above for more details.
+
+```example:"Passing a function to set a stroke based on position"
+#set page(width: 420pt)
+#set text(number-type: "old-style")
+#show grid.cell.where(y: 0): set text(size: 1.3em)
+
+#grid(
+  columns: (1fr, 2fr, 2fr),
+  row-gutter: 1.5em,
+  inset: (left: 0.5em),
+  stroke: (x, y) => if x > 0 { (left: 0.5pt + gray) },
+  align: horizon,
+
+  [Winter \ 2007 \ Season],
+  [Aaron Copland \ *The Tender Land* \ January 2007],
+  [Eric Satie \ *Gymnopedie 1, 2* \ February 2007],
+
+  [],
+  [Jan 12 \ *Middlebury College \ Center for the Arts* \ 20:00],
+  [Feb 2 \ *Johnson State College Dibden Center for the Arts* \ 19:30],
+
+  [],
+  [Skip a week \ #text(0.8em)[_Prepare your exams!_]],
+  [Feb 9 \ *Castleton State College \ Fine Arts Center* \ 19:30],
+
+  [],
+  [Jan 26, 27 \ *Lyndon State College Alexander Twilight Theater* \ 20:00],
+  [
+    Feb 17 --- #smallcaps[Anniversary] \
+    *Middlebury College \ Center for the Arts* \
+    19:00 #text(0.7em)[(for a special guest)]
+  ],
+)
+```
+
+```example:"Folding the stroke dictionary"
+#set page(height: 13em, width: 26em)
+
+#let cv(..jobs) = grid(
+  columns: 2,
+  inset: 5pt,
+  stroke: (x, y) => if x == 0 and y > 0 {
+    (right: (
+      paint: luma(180),
+      thickness: 1.5pt,
+      dash: "dotted",
+    ))
+  },
+  grid.header(grid.cell(colspan: 2)[
+    *Professional Experience*
+    #box(width: 1fr, line(length: 100%, stroke: luma(180)))
+  ]),
+  ..{
+    let last = none
+    for job in jobs.pos() {
+      (
+        if job.year != last [*#job.year*],
+        [
+          *#job.company* - #job.role _(#job.timeframe)_ \
+          #job.details
+        ]
+      )
+      last = job.year
+    }
+  }
+)
+
+#cv(
+  (
+    year: 2012,
+    company: [Pear Seed & Co.],
+    role: [Lead Engineer],
+    timeframe: [Jul - Dec],
+    details: [
+      - Raised engineers from 3x to 10x
+      - Did a great job
+    ],
+  ),
+  (
+    year: 2012,
+    company: [Mega Corp.],
+    role: [VP of Sales],
+    timeframe: [Mar - Jun],
+    details: [- Closed tons of customers],
+  ),
+  (
+    year: 2013,
+    company: [Tiny Co.],
+    role: [CEO],
+    timeframe: [Jan - Dec],
+    details: [- Delivered 4x more shareholder value],
+  ),
+  (
+    year: 2014,
+    company: [Glorbocorp Ltd],
+    role: [CTO],
+    timeframe: [Jan - Mar],
+    details: [- Drove containerization forward],
+  ),
+)
+```Ù¥The contents of the grid cells, plus any extra grid lines specified with
+the [`grid.hline`] and [`grid.vline`] elements.
+
+The cells are populated in row-major order.©grid.cell°The cell's body.ÚKThe cell's column (zero-indexed).
+This field may be used in show rules to style a cell depending on its
+column.
+
+You may override this field to pick in which column the cell must
+be placed. If no row (`y`) is chosen, the cell will be placed in the
+first row (starting at row 0) with that column available (or a new row
+if none). If both `x` and `y` are chosen, however, the cell will be
+placed in that exact position. An error is raised if that position is
+not available (thus, it is usually wise to specify cells with a custom
+position before cells with automatic positions).
+
+```example
+#let circ(c) = circle(
+    fill: c, width: 5mm
+)
+
+#grid(
+  columns: 4,
+  rows: 7mm,
+  stroke: .5pt + blue,
+  align: center + horizon,
+  inset: 1mm,
+
+  grid.cell(x: 2, y: 2, circ(aqua)),
+  circ(yellow),
+  grid.cell(x: 3, circ(green)),
+  circ(black),
+)
+```ÚtThe cell's row (zero-indexed).
+This field may be used in show rules to style a cell depending on its
+row.
+
+You may override this field to pick in which row the cell must be
+placed. If no column (`x`) is chosen, the cell will be placed in the
+first column (starting at column 0) available in the chosen row. If all
+columns in the chosen row are already occupied, an error is raised.
+
+```example
+#let tri(c) = polygon.regular(
+  fill: c,
+  size: 5mm,
+  vertices: 3,
+)
+
+#grid(
+  columns: 2,
+  stroke: blue,
+  inset: 1mm,
+
+  tri(black),
+  grid.cell(y: 1, tri(teal)),
+  grid.cell(y: 1, tri(red)),
+  grid.cell(y: 2, tri(orange))
+)
+```§colspanÙ+The amount of columns spanned by this cell.§rowspanÙ(The amount of rows spanned by this cell.Ù)The cell's [inset]($grid.inset) override.Ù-The cell's [alignment]($grid.align) override.Ù'The cell's [fill]($grid.fill) override.Ù+The cell's [stroke]($grid.stroke) override.ÙÔWhether rows spanned by this cell can be placed in different pages.
+When equal to `{auto}`, a cell spanning only fixed-size rows is
+unbreakable, while a cell spanning at least one `{auto}`-sized row is
+breakable.«grid.footer¦repeatÙ4Whether this footer should be repeated across pages.Ù&The cells and lines within the footer.«grid.headerÙ4Whether this header should be repeated across pages.ÚLThe level of the header. Must not be zero.
+
+This allows repeating multiple headers at once. Headers with different
+levels can repeat together, as long as they have ascending levels.
+
+Notably, when a header with a lower level starts repeating, all higher
+or equal level headers stop repeating (they are "replaced" by the new
+header).Ù&The cells and lines within the header.ªgrid.hlineÚ·The row above which the horizontal line is placed (zero-indexed).
+If the `position` field is set to `{bottom}`, the line is placed below
+the row with the given index instead (see [`grid.hline.position`] for
+details).
+
+Specifying `{auto}` causes the line to be placed at the row below the
+last automatically positioned cell (that is, cell without coordinate
+overrides) before the line among the grid's children. If there is no
+such cell before the line, it is placed at the top of the grid (row 0).
+Note that specifying for this option exactly the total amount of rows
+in the grid causes this horizontal line to override the bottom border
+of the grid, while a value of 0 overrides the top border.ÙIThe column at which the horizontal line starts (zero-indexed, inclusive).ÚThe column before which the horizontal line ends (zero-indexed,
+exclusive).
+Therefore, the horizontal line will be drawn up to and across column
+`end - 1`.
+
+A value equal to `{none}` or to the amount of columns causes it to
+extend all the way towards the end of the grid.Ù“The line's stroke.
+
+Specifying `{none}` removes any lines previously placed across this
+line's range, including hlines or per-cell stroke below it.ÚThe position at which the line is placed, given its row (`y`) - either
+`{top}` to draw above it or `{bottom}` to draw below it.
+
+This setting is only relevant when row gutter is enabled (and
+shouldn't be used otherwise - prefer just increasing the `y` field by
+one instead), since then the position below a row becomes different
+from the position above the next row due to the spacing between both.ªgrid.vlineÚÿThe column before which the vertical line is placed (zero-indexed).
+If the `position` field is set to `{end}`, the line is placed after the
+column with the given index instead (see [`grid.vline.position`] for
+details).
+
+Specifying `{auto}` causes the line to be placed at the column after
+the last automatically positioned cell (that is, cell without
+coordinate overrides) before the line among the grid's children. If
+there is no such cell before the line, it is placed before the grid's
+first column (column 0).
+Note that specifying for this option exactly the total amount of
+columns in the grid causes this vertical line to override the end
+border of the grid (right in LTR, left in RTL), while a value of 0
+overrides the start border (left in LTR, right in RTL).ÙDThe row at which the vertical line starts (zero-indexed, inclusive).ÚThe row on top of which the vertical line ends (zero-indexed,
+exclusive).
+Therefore, the vertical line will be drawn up to and across row
+`end - 1`.
+
+A value equal to `{none}` or to the amount of rows causes it to extend
+all the way towards the bottom of the grid.Ù“The line's stroke.
+
+Specifying `{none}` removes any lines previously placed across this
+line's range, including vlines or per-cell stroke below it.Ú?The position at which the line is placed, given its column (`x`) -
+either `{start}` to draw before it or `{end}` to draw after it.
+
+The values `{left}` and `{right}` are also accepted, but discouraged as
+they cause your grid to be inconsistent between left-to-right and
+right-to-left documents.
+
+This setting is only relevant when column gutter is enabled (and
+shouldn't be used otherwise - prefer just increasing the `x` field by
+one instead), since then the position after a column becomes different
+from the position before the next column due to the spacing between
+both.¡h¦amount»How much spacing to insert.Ú~If `{true}`, the spacing collapses at the start or end of a paragraph.
+Moreover, from multiple adjacent weak spacings all but the largest one
+collapse.
+
+Weak spacing in markup also causes all adjacent markup spaces to be
+removed, regardless of the amount of spacing inserted. To force a space
+next to weak spacing, you can explicitly write `[#" "]` (for a normal
+space) or `[~]` (for a non-breaking space). The latter can be useful to
+create a construct that always attaches to the preceding word with one
+non-breaking space, independently of whether a markup space existed in
+front or not.
+
+```example
+#h(1cm, weak: true)
+We identified a group of _weak_
+specimens that fail to manifest
+in most cases. However, when
+#h(8pt, weak: true) supported
+#h(8pt, weak: true) on both sides,
+they do show up.
+
+Further #h(0pt, weak: true) more,
+even the smallest of them swallow
+adjacent markup spaces.
+```§headingÚ³The absolute nesting depth of the heading, starting from one. If set
+to `{auto}`, it is computed from `{offset + depth}`.
+
+This is primarily useful for usage in [show rules]($styling/#show-rules)
+(either with [`where`]($function.where) selectors or by accessing the
+level directly on a shown heading).
+
+```example
+#show heading.where(level: 2): set text(red)
+
+= Level 1
+== Level 2
+
+#set heading(offset: 1)
+= Also level 2
+== Level 3
+```¥depthÚoThe relative nesting depth of the heading, starting from one. This is
+combined with `{offset}` to compute the actual `{level}`.
+
+This is set by the heading syntax, such that `[== Heading]` creates a
+heading with logical depth of 2, but actual level `{offset + 2}`. If you
+construct a heading manually, you should typically prefer this over
+setting the absolute level.ÙğThe starting offset of each heading's `{level}`, used to turn its
+relative `{depth}` into its absolute `{level}`.
+
+```example
+= Level 1
+
+#set heading(offset: 1, numbering: "1.1")
+= Level 2
+
+#heading(offset: 2, depth: 2)[
+  I'm level 4
+]
+```ÙËHow to number the heading. Accepts a
+[numbering pattern or function]($numbering) taking multiple numbers.
+
+```example
+#set heading(numbering: "1.a.")
+
+= A section
+== A subsection
+=== A sub-subsection
+```ÚA supplement for the heading.
+
+For references to headings, this is added before the referenced number.
+
+If a function is specified, it is passed the referenced heading and
+should return content.
+
+```example
+#set heading(numbering: "1.", supplement: [Chapter])
+
+= Introduction <intro>
+In @intro, we see how to turn
+Sections into Chapters. And
+in @intro[Part], it is done
+manually.
+```Ú—Whether the heading should appear in the [outline].
+
+Note that this property, if set to `{true}`, ensures the heading is also
+shown as a bookmark in the exported PDF's outline (when exporting to
+PDF). To change that behavior, use the `bookmarked` property.
+
+```example
+#outline()
+
+#heading[Normal]
+This is a normal heading.
+
+#heading(outlined: false)[Hidden]
+This heading does not appear
+in the outline.
+```ªbookmarkedÚƒWhether the heading should appear as a bookmark in the exported PDF's
+outline. Doesn't affect other export formats, such as PNG.
+
+The default value of `{auto}` indicates that the heading will only
+appear in the exported PDF's outline if its `outlined` property is set
+to `{true}`, that is, if it would also be listed in Typst's [outline].
+Setting this property to either `{true}` (bookmark) or `{false}` (don't
+bookmark) bypasses that behavior.
+
+```example
+#heading[Normal heading]
+This heading will be shown in
+the PDF's bookmark outline.
+
+#heading(bookmarked: false)[Not bookmarked]
+This heading won't be
+bookmarked in the resulting
+PDF.
+```®hanging-indentÚÄThe indent all but the first line of a heading should have.
+
+The default value of `{auto}` uses the width of the numbering as indent
+if the heading is aligned at the [start]($direction.start) of the [text
+direction]($text.dir), and no indent for center and other alignments.
+
+```example
+#set heading(numbering: "1.")
+= A very, very, very, very, very, very long heading
+
+#show heading: set align(center)
+== A very long heading\ with center alignment
+```´The heading's title.¤hide´The content to hide.©highlightÙpThe color to highlight the text with.
+
+```example
+This is #highlight(
+  fill: blue
+)[highlighted with blue].
+```Ù²The highlight's border color. See the
+[rectangle's documentation]($rect.stroke) for more details.
+
+```example
+This is a #highlight(
+  stroke: fuchsia
+)[stroked highlighting].
+```¨top-edgeÙ¿The top end of the background rectangle.
+
+```example
+#set highlight(top-edge: "ascender")
+#highlight[a] #highlight[aib]
+
+#set highlight(top-edge: "x-height")
+#highlight[a] #highlight[aib]
+```«bottom-edgeÙÇThe bottom end of the background rectangle.
+
+```example
+#set highlight(bottom-edge: "descender")
+#highlight[a] #highlight[ap]
+
+#set highlight(bottom-edge: "baseline")
+#highlight[a] #highlight[ap]
+```¦extentÙ¡The amount by which to extend the background to the sides beyond
+(or within if negative) the content.
+
+```example
+A long #highlight(extent: 4pt)[background].
+```ÙÒHow much to round the highlight's corners. See the
+[rectangle's documentation]($rect.radius) for more details.
+
+```example
+Listen #highlight(
+  radius: 5pt, extent: 2pt
+)[carefully], it will be on the test.
+```Ù'The content that should be highlighted.¥imageÚ‹A [path]($syntax/#paths) to an image file or raw bytes making up an
+image in one of the supported [formats]($image.format).
+
+Bytes can be used to specify raw pixel data in a row-major,
+left-to-right, top-to-bottom format.
+
+```example
+#let original = read("diagram.svg")
+#let changed = original.replace(
+  "#2B80FF", // blue
+  green.to-hex(),
+)
+
+#image(bytes(original))
+#image(bytes(changed))
+```¦formatÚLThe image's format.
+
+By default, the format is detected automatically. Typically, you thus
+only need to specify this when providing raw bytes as the
+[`source`]($image.source) (even then, Typst will try to figure out the
+format automatically, but that's not always possible).
+
+Supported formats are `{"png"}`, `{"jpg"}`, `{"gif"}`, `{"svg"}`,
+`{"pdf"}`, `{"webp"}` as well as raw pixel data.
+
+Note that several restrictions apply when using PDF files as images:
+
+- When exporting to PDF, any PDF image file used must have a version
+  equal to or lower than the [export target PDF
+  version]($pdf/#pdf-versions).
+- PDF files as images are currently not supported when exporting with a
+  specific PDF standard, like PDF/A-3 or PDF/UA-1. In these cases, you
+  can instead use SVGs to embed vector images.
+- The image file must not be password-protected.
+- Tags in your PDF image will not be preserved. Instead, you must
+  provide an [alternative description]($image.alt) to make the image
+  accessible.
+
+When providing raw pixel data as the `source`, you must specify a
+dictionary with the following keys as the `format`:
+- `encoding` ([str]): The encoding of the pixel data. One of:
+  - `{"rgb8"}` (three 8-bit channels: red, green, blue)
+  - `{"rgba8"}` (four 8-bit channels: red, green, blue, alpha)
+  - `{"luma8"}` (one 8-bit channel)
+  - `{"lumaa8"}` (two 8-bit channels: luma and alpha)
+- `width` ([int]): The pixel width of the image.
+- `height` ([int]): The pixel height of the image.
+
+The pixel width multiplied by the height multiplied by the channel count
+for the specified encoding must then match the `source` data.
+
+```example
+#image(
+  read(
+    "tetrahedron.svg",
+    encoding: none,
+  ),
+  format: "svg",
+  width: 2cm,
+)
+
+#image(
+  bytes(range(16).map(x => x * 16)),
+  format: (
+    encoding: "luma8",
+    width: 4,
+    height: 4,
+  ),
+  width: 2cm,
+)
+```·The width of the image.¸The height of the image.Ú¨An alternative description of the image.
+
+This text is used by Assistive Technology (AT) like screen readers to
+describe the image to users with visual impairments.
+
+When the image is wrapped in a [`figure`]($figure), use this parameter
+rather than the [figure's `alt` parameter]($figure.alt) to describe the
+image. The only exception to this rule is when the image and the other
+contents in the figure form a single semantic unit. In this case, use
+the figure's `alt` parameter to describe the entire composition and do
+not use this parameter.
+
+You can learn how to write good alternative descriptions in the
+[Accessibility Guide]($guides/accessibility/#textual-representations).¤pageÙeThe page number that should be embedded as an image. This attribute only
+has an effect for PDF files.£fitÚ­How the image should adjust itself to a given area (the area is defined
+by the `width` and `height` fields). Note that `fit` doesn't visually
+change anything if the area's aspect ratio is the same as the image's
+one.
+
+```example
+#set page(width: 300pt, height: 50pt, margin: 10pt)
+#image("tiger.jpg", width: 100%, fit: "cover")
+#image("tiger.jpg", width: 100%, fit: "contain")
+#image("tiger.jpg", width: 100%, fit: "stretch")
+```§scalingÙûA hint to viewers how they should scale the image.
+
+When set to `{auto}`, the default is left up to the viewer. For PNG
+export, Typst will default to smooth scaling, like most PDF and SVG
+viewers.
+
+_Note:_ The exact look may differ across PDF viewers.£iccÙªAn ICC profile for the image.
+
+ICC profiles define how to interpret the colors in an image. When set
+to `{auto}`, Typst will try to extract an ICC profile from the image.¬image.decodeÙ9The data to decode as an image. Can be a string for SVGs.Ù6The image's format. Detected automatically by default.¼A text describing the image.Ù3How the image should adjust itself to a given area.Ù2A hint to viewers how they should scale the image.¦inline«int.bit-and£rhsÙ*The right-hand operand of the bitwise AND.®int.bit-lshift¥shiftÙ2The amount of bits to shift. Must not be negative.ªint.bit-orÙ)The right-hand operand of the bitwise OR.®int.bit-rshiftÚ«The amount of bits to shift. Must not be negative.
+
+Shifts larger than 63 are allowed and will cause the return value to
+saturate. For non-negative numbers, the return value saturates at
+`{0}`, while, for negative numbers, it saturates at `{-1}` if
+`logical` is set to `{false}`, or `{0}` if it is `{true}`. This
+behavior is consistent with just applying this operation multiple
+times. Therefore, the shift will always succeed.§logicalÚ(Toggles whether a logical (unsigned) right shift should be performed
+instead of arithmetic right shift.
+If this is `{true}`, negative operands will not preserve their sign
+bit, and bits which appear to the left after the shift will be
+`{0}`. This parameter has no effect on non-negative operands.«int.bit-xorÙ*The right-hand operand of the bitwise XOR.®int.from-bytesÙ„The bytes that should be converted to an integer.
+
+Must be of length at most 8 so that the result fits into a 64-bit
+signed integer.¦signedÙ•Whether the bytes should be treated as a signed integer. If this is
+`{true}` and the most significant bit is set, the resulting number
+will negative.¬int.to-bytesÚŠThe size in bytes of the resulting bytes (must be at least zero). If
+the integer is too large to fit in the specified size, the
+conversion will truncate the remaining bytes based on the
+endianness. To keep the same resulting value, if the endianness is
+big-endian, the truncation will happen at the rightmost bytes.
+Otherwise, if the endianness is little-endian, the truncation will
+happen at the leftmost bytes.
+
+Be aware that if the integer is negative and the size is not enough
+to make the number fit, when passing the resulting bytes to
+`int.from-bytes`, the resulting number might be positive, as the
+most significant bit might not be set to 1.¦italic¤jsonÙ:A [path]($syntax/#paths) to a JSON file or raw JSON bytes.«json.decodeªJSON data.«json.encode¦prettyÙ?Whether to pretty print the JSON with newlines and indentation.¦layout¤funcÚ’A function to call with the outer container's size. Its return value is
+displayed in the document.
+
+The container's size is given as a [dictionary] with the keys `width`
+and `height`, both of type [`length`].
+
+This function is called once for each time the content returned by
+`layout` appears in the document. This makes it possible to generate
+content that depends on the dimensions of its container.¦limitsÙ!The base to attach the limits to.ÙšWhether to also force limits in inline equations.
+
+When applying limits globally (e.g., through a show rule), it is
+typically a good idea to disable this.¤lineÙOThe start point of the line.
+
+Must be an array of exactly two relative lengths.¾The point where the line ends.Ù?The line's length. This is only respected if `end` is `{none}`.ÙeThe angle at which the line points away from the origin. This is only
+respected if `end` is `{none}`.Ú?How to [stroke] the line.
+
+```example
+#set line(length: 100%)
+#stack(
+  spacing: 1em,
+  line(stroke: 2pt + red),
+  line(stroke: (paint: blue, thickness: 4pt, cap: "round")),
+  line(stroke: (paint: blue, thickness: 1pt, dash: "dashed")),
+  line(stroke: (paint: blue, thickness: 1pt, dash: ("dot", 2pt, 4pt, 2pt))),
+)
+```©linebreak§justifyÚ>Whether to justify the line before the break.
+
+This is useful if you found a better line break opportunity in your
+justified text than Typst did.
+
+```example
+#set par(justify: true)
+#let jb = linebreak(justify: true)
+
+I have manually tuned the #jb
+line breaks in this paragraph #jb
+for an _interesting_ result. #jb
+```¤link¤destÚµThe destination the link points to.
+
+- To link to web pages, `dest` should be a valid URL string. If the URL
+  is in the `mailto:` or `tel:` scheme and the `body` parameter is
+  omitted, the email address or phone number will be the link's body,
+  without the scheme.
+
+- To link to another part of the document, `dest` can take one of three
+  forms:
+  - A [label] attached to an element. If you also want automatic text
+    for the link based on the element, consider using a
+    [reference]($ref) instead.
+
+  - A [`location`] (typically retrieved from [`here`], [`locate`] or
+    [`query`]).
+
+  - A dictionary with a `page` key of type [integer]($int) and `x` and
+    `y` coordinates of type [length]. Pages are counted from one, and
+    the coordinates are relative to the page's top left corner.
+
+```example
+= Introduction <intro>
+#link("mailto:hello@typst.app") \
+#link(<intro>)[Go to intro] \
+#link((page: 1, x: 0pt, y: 0pt))[
+  Go to top
+]
+```Ù’The content that should become a link.
+
+If `dest` is an URL string, the parameter can be omitted. In this case,
+the URL will be shown as the link.¤listÚDefines the default [spacing]($list.spacing) of the list. If it is
+`{false}`, the items are spaced apart with
+[paragraph spacing]($par.spacing). If it is `{true}`, they use
+[paragraph leading]($par.leading) instead. This makes the list more
+compact, which can look better if the items are short.
+
+In markup mode, the value of this parameter is determined based on
+whether items are separated with a blank line. If items directly follow
+each other, this is set to `{true}`; if items are separated by a blank
+line, this is set to `{false}`. The markup-defined tightness cannot be
+overridden with set rules.
+
+```example
+- If a list has a lot of text, and
+  maybe other inline content, it
+  should not be tight anymore.
+
+- To make a list wide, simply insert
+  a blank line between the items.
+```¦markerÚüThe marker which introduces each item.
+
+Instead of plain content, you can also pass an array with multiple
+markers that should be used for nested lists. If the list nesting depth
+exceeds the number of markers, the markers are cycled. For total
+control, you may pass a function that maps the list's nesting depth
+(starting from `{0}`) to a desired marker.
+
+```example
+#set list(marker: [--])
+- A more classic list
+- With en-dashes
+
+#set list(marker: ([â€¢], [--]))
+- Top-level
+  - Nested
+  - Items
+- Items
+```¸The indent of each item.Ù9The spacing between the marker and the body of each item.Ù¼The spacing between the items of the list.
+
+If set to `{auto}`, uses paragraph [`leading`]($par.leading) for tight
+lists and paragraph [`spacing`]($par.spacing) for wide (non-tight)
+lists.ÙÓThe bullet list's children.
+
+When using the list syntax, adjacent items are automatically collected
+into lists, even through constructs like for loops.
+
+```example
+#for letter in "ABC" [
+  - Letter #letter
+]
+```©list.item¦locateÚA selector that should match exactly one element. This element will be
+located.
+
+Especially useful in combination with
+- [`here`] to locate the current context,
+- a [`location`] retrieved from some queried element via the
+  [`location()`]($content.location) method on content.¥lorem¥wordsÙ&The length of the blind text in words.¤textÙ!The text to convert to lowercase.¢lrÙ0The delimited content, including the delimiters.¤luma£matÚ The delimiter to use.
+
+Can be a single character specifying the left delimiter, in which case
+the right delimiter is inferred. Otherwise, can be an array containing a
+left and a right delimiter.
+
+```example
+#set math.mat(delim: "[")
+$ mat(1, 2; 3, 4) $
+```Ù†The horizontal alignment that each cell should have.
+
+```example
+#set math.mat(align: right)
+$ mat(-1, 1, 1; 1, -1, 1; 1, 1, -1) $
+```§augmentÚËDraws augmentation lines in a matrix.
+
+- `{none}`: No lines are drawn.
+- A single number: A vertical augmentation line is drawn
+  after the specified column number. Negative numbers start from the end.
+- A dictionary: With a dictionary, multiple augmentation lines can be
+  drawn both horizontally and vertically. Additionally, the style of the
+  lines can be set. The dictionary can contain the following keys:
+  - `hline`: The offsets at which horizontal lines should be drawn.
+    For example, an offset of `2` would result in a horizontal line
+    being drawn after the second row of the matrix. Accepts either an
+    integer for a single line, or an array of integers
+    for multiple lines. Like for a single number, negative numbers start from the end.
+  - `vline`: The offsets at which vertical lines should be drawn.
+    For example, an offset of `2` would result in a vertical line being
+    drawn after the second column of the matrix. Accepts either an
+    integer for a single line, or an array of integers
+    for multiple lines. Like for a single number, negative numbers start from the end.
+  - `stroke`: How to [stroke]($stroke) the line. If set to `{auto}`,
+    takes on a thickness of 0.05 em and square line caps.
+
+```example:"Basic usage"
+$ mat(1, 0, 1; 0, 1, 2; augment: #2) $
+// Equivalent to:
+$ mat(1, 0, 1; 0, 1, 2; augment: #(-1)) $
+```
+
+```example:"Customizing the augmentation line"
+$ mat(0, 0, 0; 1, 1, 1; augment: #(hline: 1, stroke: 2pt + green)) $
+```Ù§The gap between rows and columns.
+
+This is a shorthand to set `row-gap` and `column-gap` to the same value.
+
+```example
+#set math.mat(gap: 1em)
+$ mat(1, 2; 3, 4) $
+```§row-gapÙUThe gap between rows.
+
+```example
+#set math.mat(row-gap: 1em)
+$ mat(1, 2; 3, 4) $
+```ªcolumn-gapÙ[The gap between columns.
+
+```example
+#set math.mat(column-gap: 1em)
+$ mat(1, 2; 3, 4) $
+```Ù‘An array of arrays with the rows of the matrix.
+
+```example
+#let data = ((1, 2, 3), (4, 5, 6))
+#let matrix = math.mat(..data)
+$ v := matrix $
+```¨math.abs«math.accent«math.attach§math.bbªmath.binom©math.bold¨math.cal«math.cancelªmath.casesªmath.class¬math.display­math.equation©math.frac©math.frak«math.inline«math.italic«math.limits§math.lr¨math.mat¨math.mid¹The content to be scaled.©math.mono©math.normÙ#The expression to take the norm of.§math.op´The operator's text.ÙGWhether the operator should show attachments as limits in display mode.®math.overbrace¼The content below the brace.ªannotationÙ%The optional content above the brace.°math.overbracket¾The content below the bracket.Ù'The optional content above the bracket.­math.overline»The content below the line.®math.overparenÙ"The content below the parenthesis.Ù+The optional content above the parenthesis.®math.overshellÙ-The content below the tortoise shell bracket.Ù6The optional content above the tortoise shell bracket.«math.primes½The number of grouped primes.©math.rootªmath.round¸The expression to round.©math.sans¨math.scr«math.script¬math.scriptsÙ"The base to attach the scripts to.ªmath.serif©math.sqrtÙ*The expression to take the square root of.¬math.sscript¬math.stretchµThe glyph to stretch.ÙVThe size to stretch to, relative to the maximum size of the glyph and
+its attachments.©math.text¤fontÚ	aA font family descriptor or priority list of font family descriptors.
+
+A font family descriptor can be a plain string representing the family
+name or a dictionary with the following keys:
+
+- `name` (required): The font family name.
+- `covers` (optional): Defines the Unicode codepoints for which the
+  family shall be used. This can be:
+  - A predefined coverage set:
+    - `{"latin-in-cjk"}` covers all codepoints except for those which
+      exist in Latin fonts, but should preferably be taken from CJK
+      fonts.
+  - A [regular expression]($regex) that defines exactly which codepoints
+    shall be covered. Accepts only the subset of regular expressions
+    which consist of exactly one dot, letter, or character class.
+
+When processing text, Typst tries all specified font families in order
+until it finds a font that has the necessary glyphs. In the example
+below, the font `Inria Serif` is preferred, but since it does not
+contain Arabic glyphs, the arabic text uses `Noto Sans Arabic` instead.
+
+The collection of available fonts differs by platform:
+
+- In the web app, you can see the list of available fonts by clicking on
+  the "Ag" button. You can provide additional fonts by uploading `.ttf`
+  or `.otf` files into your project. They will be discovered
+  automatically. The priority is: project fonts > server fonts.
+
+- Locally, Typst uses your installed system fonts or embedded fonts in
+  the CLI, which are `Libertinus Serif`, `New Computer Modern`,
+  `New Computer Modern Math`, and `DejaVu Sans Mono`. In addition, you
+  can use the `--font-path` argument or `TYPST_FONT_PATHS` environment
+  variable to add directories that should be scanned for fonts. The
+  priority is: `--font-paths` > system fonts > embedded fonts. Run
+  `typst fonts` to see the fonts that Typst has discovered on your
+  system. Note that you can pass the `--ignore-system-fonts` parameter
+  to the CLI to ensure Typst won't search for system fonts.
+
+```example
+#set text(font: "PT Sans")
+This is sans-serif.
+
+#set text(font: (
+  "Inria Serif",
+  "Noto Sans Arabic",
+))
+
+This is Latin. \
+Ù‡Ø°Ø§ Ø¹Ø±Ø¨ÙŠ.
+
+// Change font only for numbers.
+#set text(font: (
+  (name: "PT Sans", covers: regex("[0-9]")),
+  "Libertinus Serif"
+))
+
+The number 123.
+
+// Mix Latin and CJK fonts.
+#set text(font: (
+  (name: "Inria Serif", covers: "latin-in-cjk"),
+  "Noto Serif CJK SC"
+))
+åˆ†åˆ«è®¾ç½®â€œä¸­æ–‡â€å’ŒEnglishå­—ä½“
+```¨fallbackÚ\Whether to allow last resort font fallback when the primary font list
+contains no match. This lets Typst search through all available fonts
+for the most similar one that has the necessary glyphs.
+
+_Note:_ Currently, there are no warnings when fallback is disabled and
+no glyphs are found. Instead, your text shows up in the form of "tofus":
+Small boxes that indicate the lack of an appropriate glyph. In the
+future, you will be able to instruct Typst to issue warnings so you know
+something is up.
+
+```example
+#set text(font: "Inria Serif")
+Ù‡Ø°Ø§ Ø¹Ø±Ø¨ÙŠ
+
+#set text(fallback: false)
+Ù‡Ø°Ø§ Ø¹Ø±Ø¨ÙŠ
+```ÚèThe desired font style.
+
+When an italic style is requested and only an oblique one is available,
+it is used. Similarly, the other way around, an italic style can stand
+in for an oblique one.  When neither an italic nor an oblique style is
+available, Typst selects the normal style. Since most fonts are only
+available either in an italic or oblique style, the difference between
+italic and oblique style is rarely observable.
+
+If you want to emphasize your text, you should do so using the [emph]
+function instead. This makes it easy to adapt the style later if you
+change your mind about how to signify the emphasis.
+
+```example
+#text(font: "Libertinus Serif", style: "italic")[Italic]
+#text(font: "DejaVu Sans", style: "oblique")[Oblique]
+```¦weightÚThe desired thickness of the font's glyphs. Accepts an integer between
+`{100}` and `{900}` or one of the predefined weight names. When the
+desired weight is not available, Typst selects the font from the family
+that is closest in weight.
+
+If you want to strongly emphasize your text, you should do so using the
+[strong] function instead. This makes it easy to adapt the style later
+if you change your mind about how to signify the strong emphasis.
+
+```example
+#set text(font: "IBM Plex Sans")
+
+#text(weight: "light")[Light] \
+#text(weight: "regular")[Regular] \
+#text(weight: "medium")[Medium] \
+#text(weight: 500)[Medium] \
+#text(weight: "bold")[Bold]
+```§stretchÚThe desired width of the glyphs. Accepts a ratio between `{50%}` and
+`{200%}`. When the desired width is not available, Typst selects the
+font from the family that is closest in stretch. This will only stretch
+the text if a condensed or expanded version of the font is available.
+
+If you want to adjust the amount of space between characters instead of
+stretching the glyphs itself, use the [`tracking`]($text.tracking)
+property instead.
+
+```example
+#text(stretch: 75%)[Condensed] \
+#text(stretch: 100%)[Normal]
+```ÚThe size of the glyphs. This value forms the basis of the `em` unit:
+`{1em}` is equivalent to the font size.
+
+You can also give the font size itself in `em` units. Then, it is
+relative to the previous font size.
+
+```example
+#set text(size: 20pt)
+very #text(1.5em)[big] text
+```ÙLThe glyph fill paint.
+
+```example
+#set text(fill: red)
+This text is red.
+```ÙKHow to stroke the text.
+
+```example
+#text(stroke: 0.5pt + red)[Stroked]
+```¨trackingÙuThe amount of space that should be added between characters.
+
+```example
+#set text(tracking: 1.5pt)
+Distant text.
+```ÚTThe amount of space between words.
+
+Can be given as an absolute length, but also relative to the width of
+the space character in the font.
+
+If you want to adjust the amount of space between characters rather than
+words, use the [`tracking`]($text.tracking) property instead.
+
+```example
+#set text(spacing: 200%)
+Text with distant words.
+```±cjk-latin-spacingÙàWhether to automatically insert spacing between CJK and Latin characters.
+
+```example
+#set text(cjk-latin-spacing: auto)
+ç¬¬4ç« ä»‹ç»äº†åŸºæœ¬çš„APIã€‚
+
+#set text(cjk-latin-spacing: none)
+ç¬¬4ç« ä»‹ç»äº†åŸºæœ¬çš„APIã€‚
+```Ù^An amount to shift the text baseline by.
+
+```example
+A #text(baseline: 3pt)[lowered]
+word.
+```¨overhangÚüWhether certain glyphs can hang over into the margin in justified text.
+This can make justification visually more pleasing.
+
+```example
+#set page(width: 220pt)
+
+#set par(justify: true)
+This justified text has a hyphen in
+the paragraph's second line. Hanging
+the hyphen slightly into the margin
+results in a clearer paragraph edge.
+
+#set text(overhang: false)
+This justified text has a hyphen in
+the paragraph's second line. Hanging
+the hyphen slightly into the margin
+results in a clearer paragraph edge.
+```Ú:The top end of the conceptual frame around the text used for layout and
+positioning. This affects the size of containers that hold text.
+
+```example
+#set rect(inset: 0pt)
+#set text(size: 20pt)
+
+#set text(top-edge: "ascender")
+#rect(fill: aqua)[Typst]
+
+#set text(top-edge: "cap-height")
+#rect(fill: aqua)[Typst]
+```ÚBThe bottom end of the conceptual frame around the text used for layout
+and positioning. This affects the size of containers that hold text.
+
+```example
+#set rect(inset: 0pt)
+#set text(size: 20pt)
+
+#set text(bottom-edge: "baseline")
+#rect(fill: aqua)[Typst]
+
+#set text(bottom-edge: "descender")
+#rect(fill: aqua)[Typst]
+```¤langÚ°An [ISO 639-1/2/3 language code.](https://en.wikipedia.org/wiki/ISO_639)
+
+Setting the correct language affects various parts of Typst:
+
+- The text processing pipeline can make more informed choices.
+- Hyphenation will use the correct patterns for the language.
+- [Smart quotes]($smartquote) turns into the correct quotes for the
+  language.
+- And all other things which are language-aware.
+
+Choosing the correct language is important for accessibility. For
+example, screen readers will use it to choose a voice that matches the
+language of the text. If your document is in another language than
+English (the default), you should set the text language at the start of
+your document, before any other content. You can, for example, put it
+right after the `[#set document(/* ... */)]` rule that [sets your
+document's title]($document.title).
+
+If your document contains passages in a different language than the main
+language, you should locally change the text language just for those parts,
+either with a set rule [scoped to a block]($scripting/#blocks) or using
+a direct text function call such as `[#text(lang: "de")[...]]`.
+
+If multiple codes are available for your language, you should prefer the
+two-letter code (ISO 639-1) over the three-letter codes (ISO 639-2/3).
+When you have to use a three-letter code and your language differs
+between ISO 639-2 and ISO 639-3, use ISO 639-2 for PDF 1.7 (Typst's
+default for PDF export) and below and ISO 639-3 for PDF 2.0 and HTML
+export.
+
+The language code is case-insensitive, and will be lowercased when
+accessed through [context]($context).
+
+```example:"Setting the text language to German"
+#set text(lang: "de")
+#outline()
+
+= Einleitung
+In diesem Dokument, ...
+```¦regionÚAn [ISO 3166-1 alpha-2 region code.](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2)
+
+This lets the text processing pipeline make more informed choices.
+
+The region code is case-insensitive, and will be uppercased when
+accessed through [context]($context).¦scriptÚëThe OpenType writing script.
+
+The combination of `{lang}` and `{script}` determine how font features,
+such as glyph substitution, are implemented. Frequently the value is a
+modified (all-lowercase) ISO 15924 script identifier, and the `math`
+writing script is used for features appropriate for mathematical
+symbols.
+
+When set to `{auto}`, the default and recommended setting, an
+appropriate script is chosen for each block of characters sharing a
+common Unicode script property.
+
+```example
+#set text(
+  font: "Libertinus Serif",
+  size: 20pt,
+)
+
+#let scedilla = [Å]
+#scedilla // S with a cedilla
+
+#set text(lang: "ro", script: "latn")
+#scedilla // S with a subscript comma
+
+#set text(lang: "ro", script: "grek")
+#scedilla // S with a cedilla
+```Ú6The dominant direction for text and inline objects. Possible values are:
+
+- `{auto}`: Automatically infer the direction from the `lang` property.
+- `{ltr}`: Layout text from left to right.
+- `{rtl}`: Layout text from right to left.
+
+When writing in right-to-left scripts like Arabic or Hebrew, you should
+set the [text language]($text.lang) or direction. While individual runs
+of text are automatically layouted in the correct direction, setting the
+dominant direction gives the bidirectional reordering algorithm the
+necessary information to correctly place punctuation and inline objects.
+Furthermore, setting the direction affects the alignment values `start`
+and `end`, which are equivalent to `left` and `right` in `ltr` text and
+the other way around in `rtl` text.
+
+If you set this to `rtl` and experience bugs or in some way bad looking
+output, please get in touch with us through the
+[Forum](https://forum.typst.app/),
+[Discord server](https://discord.gg/2uDybryKPe),
+or our [contact form](https://typst.app/contact).
+
+```example
+#set text(dir: rtl)
+Ù‡Ø°Ø§ Ø¹Ø±Ø¨ÙŠ.
+```©hyphenateÚÖWhether to hyphenate text to improve line breaking. When `{auto}`, text
+will be hyphenated if and only if justification is enabled.
+
+Setting the [text language]($text.lang) ensures that the correct
+hyphenation patterns are used.
+
+```example
+#set page(width: 200pt)
+
+#set par(justify: true)
+This text illustrates how
+enabling hyphenation can
+improve justification.
+
+#set text(hyphenate: false)
+This text illustrates how
+enabling hyphenation can
+improve justification.
+```¥costsÚõThe "cost" of various choices when laying out text. A higher cost means
+the layout engine will make the choice less often. Costs are specified
+as a ratio of the default cost, so `{50%}` will make text layout twice
+as eager to make a given choice, while `{200%}` will make it half as
+eager.
+
+Currently, the following costs can be customized:
+- `hyphenation`: splitting a word across multiple lines
+- `runt`: ending a paragraph with a line with a single word
+- `widow`: leaving a single line of paragraph on the next page
+- `orphan`: leaving single line of paragraph on the previous page
+
+Hyphenation is generally avoided by placing the whole word on the next
+line, so a higher hyphenation cost can result in awkward justification
+spacing. Note: Hyphenation costs will only be applied when the
+[`linebreaks`]($par.linebreaks) are set to "optimized". (For example
+by default implied by [`justify`]($par.justify).)
+
+Runts are avoided by placing more or fewer words on previous lines, so a
+higher runt cost can result in more awkward in justification spacing.
+
+Text layout prevents widows and orphans by default because they are
+generally discouraged by style guides. However, in some contexts they
+are allowed because the prevention method, which moves a line to the
+next page, can result in an uneven number of lines between pages. The
+`widow` and `orphan` costs allow disabling these modifications.
+(Currently, `{0%}` allows widows/orphans; anything else, including the
+default of `{100%}`, prevents them. More nuanced cost specification for
+these modifications is planned for the future.)
+
+```example
+#set text(hyphenate: true, size: 11.4pt)
+#set par(justify: true)
+
+#lorem(10)
+
+// Set hyphenation to ten times the normal cost.
+#set text(costs: (hyphenation: 1000%))
+
+#lorem(10)
+```§kerningÚ§Whether to apply kerning.
+
+When enabled, specific letter pairings move closer together or further
+apart for a more visually pleasing result. The example below
+demonstrates how decreasing the gap between the "T" and "o" results in a
+more natural look. Setting this to `{false}` disables kerning by turning
+off the OpenType `kern` font feature.
+
+```example
+#set text(size: 25pt)
+Totally
+
+#set text(kerning: false)
+Totally
+```ªalternatesÚ=Whether to apply stylistic alternates.
+
+Sometimes fonts contain alternative glyphs for the same codepoint.
+Setting this to `{true}` switches to these by enabling the OpenType
+`salt` font feature.
+
+```example
+#set text(
+  font: "IBM Plex Sans",
+  size: 20pt,
+)
+
+0, a, g, ÃŸ
+
+#set text(alternates: true)
+0, a, g, ÃŸ
+```­stylistic-setÚLWhich stylistic sets to apply. Font designers can categorize alternative
+glyphs forms into stylistic sets. As this value is highly font-specific,
+you need to consult your font to know which sets are available.
+
+This can be set to an integer or an array of integers, all
+of which must be between `{1}` and `{20}`, enabling the
+corresponding OpenType feature(s) from `ss01` to `ss20`.
+Setting this to `{none}` will disable all stylistic sets.
+
+```example
+#set text(font: "IBM Plex Serif")
+ÃŸ vs #text(stylistic-set: 5)[ÃŸ] \
+10 years ago vs #text(stylistic-set: (1, 2, 3))[10 years ago]
+```©ligaturesÚjWhether standard ligatures are active.
+
+Certain letter combinations like "fi" are often displayed as a single
+merged glyph called a _ligature._ Setting this to `{false}` disables
+these ligatures by turning off the OpenType `liga` and `clig` font
+features.
+
+```example
+#set text(size: 20pt)
+A fine ligature.
+
+#set text(ligatures: false)
+A fine ligature.
+```
+
+Note that some programming fonts use other OpenType font features to
+implement "ligatures," including the contextual alternates (`calt`)
+feature, which is also enabled by default. Use the general
+[`features`]($text.features) parameter to control such features.·discretionary-ligaturesÙ~Whether ligatures that should be used sparingly are active. Setting this
+to `{true}` enables the OpenType `dlig` font feature.´historical-ligaturesÙkWhether historical ligatures are active. Setting this to `{true}`
+enables the OpenType `hlig` font feature.«number-typeÙøWhich kind of numbers / figures to select. When set to `{auto}`, the
+default numbers for the font are used.
+
+```example
+#set text(font: "Noto Sans", 20pt)
+#set text(number-type: "lining")
+Number 9.
+
+#set text(number-type: "old-style")
+Number 9.
+```¬number-widthÚThe width of numbers / figures. When set to `{auto}`, the default
+numbers for the font are used.
+
+```example
+#set text(font: "Noto Sans", 20pt)
+#set text(number-width: "proportional")
+A 12 B 34. \
+A 56 B 78.
+
+#set text(number-width: "tabular")
+A 12 B 34. \
+A 56 B 78.
+```¬slashed-zeroÙ¢Whether to have a slash through the zero glyph. Setting this to `{true}`
+enables the OpenType `zero` font feature.
+
+```example
+0, #text(slashed-zero: true)[0]
+```©fractionsÚVWhether to turn numbers into fractions. Setting this to `{true}`
+enables the OpenType `frac` font feature.
+
+It is not advisable to enable this property globally as it will mess
+with all appearances of numbers after a slash (e.g., in URLs). Instead,
+enable it locally when you want a fraction.
+
+```example
+1/2 \
+#text(fractions: true)[1/2]
+```¨featuresÚRaw OpenType features to apply.
+
+- If given an array of strings, sets the features identified by the
+  strings to `{1}`.
+- If given a dictionary mapping to numbers, sets the features
+  identified by the keys to the values.
+
+```example:"Give an array of strings"
+// Enable the `frac` feature manually.
+#set text(features: ("frac",))
+1/2
+```
+
+```example:"Give a dictionary mapping to numbers"
+#set text(font: "Cascadia Code")
+=>
+// Disable the contextual alternates (`calt`) feature.
+#set text(features: (calt: 0))
+=>
+```ÙEContent in which all text is styled according to the other arguments.©The text.¯math.underbrace¼The content above the brace.Ù%The optional content below the brace.±math.underbracket¾The content above the bracket.Ù'The optional content below the bracket.®math.underline»The content above the line.¯math.underparenÙ"The content above the parenthesis.Ù+The optional content below the parenthesis.¯math.undershellÙ-The content above the tortoise shell bracket.Ù6The optional content below the tortoise shell bracket.¬math.upright¨math.vecÙúThe delimiter to use.
+
+Can be a single character specifying the left delimiter, in which case
+the right delimiter is inferred. Otherwise, can be an array containing a
+left and a right delimiter.
+
+```example
+#set math.vec(delim: "[")
+$ vec(1, 2) $
+```ÙvThe horizontal alignment that each element should have.
+
+```example
+#set math.vec(align: right)
+$ vec(-1, 1, -1) $
+```ÙOThe gap between elements.
+
+```example
+#set math.vec(gap: 1em)
+$ vec(1, 2) $
+```»The elements of the vector.§measureÚÜThe width available to layout the content.
+
+Setting this to `{auto}` indicates infinite available width.
+
+Note that using the `width` and `height` parameters of this function is
+different from measuring a sized [`block`] containing the content. In
+the following example, the former will get the dimensions of the inner
+content instead of the dimensions of the block.
+
+```example
+#context measure(lorem(100), width: 400pt)
+
+#context measure(block(lorem(100), width: 400pt))
+```ÙjThe height available to layout the content.
+
+Setting this to `{auto}` indicates infinite available height.§contentÙ"The content whose size to measure.¨metadataÙ%The value to embed into the document.£mid¤mono¤move¢dxÙ+The horizontal displacement of the content.¢dyÙ)The vertical displacement of the content.´The content to move.¤normÚœDefines how the numbering works.
+
+**Counting symbols** are `1`, `a`, `A`, `i`, `I`, `Î±`, `Î‘`, `ä¸€`, `å£¹`,
+`ã‚`, `ã„`, `ã‚¢`, `ã‚¤`, `×`, `ê°€`, `ã„±`, `*`, `Ù¡`, `Û±`, `à¥§`, `à§§`, `à¦•`,
+`â‘ `, and `â“µ`. They are replaced by the number in the sequence,
+preserving the original case.
+
+The `*` character means that symbols should be used to count, in the
+order of `*`, `â€ `, `â€¡`, `Â§`, `Â¶`, `â€–`. If there are more than six
+items, the number is represented using repeated symbols.
+
+**Suffixes** are all characters after the last counting symbol. They are
+displayed as-is at the end of any rendered number.
+
+**Prefixes** are all characters that are neither counting symbols nor
+suffixes. They are displayed as-is at in front of their rendered
+equivalent of their counting symbol.
+
+This parameter can also be an arbitrary function that gets each number
+as an individual argument. When given a function, the `numbering`
+function just forwards the arguments to that function. While this is not
+particularly useful in itself, it means that you can just give arbitrary
+numberings to the `numbering` function without caring whether they are
+defined as a pattern or function.Ú4The numbers to apply the numbering to. Must be non-negative.
+
+In general, numbers are counted from one. A number of zero indicates
+that the first element has not yet appeared.
+
+If `numbering` is a pattern and more numbers than counting symbols are
+given, the last counting symbol with its prefix is repeated.¥oklab¥oklch¢op§outlineÚ~The title of the outline.
+
+- When set to `{auto}`, an appropriate title for the
+  [text language]($text.lang) will be used.
+- When set to `{none}`, the outline will not have a title.
+- A custom title can be set by passing content.
+
+The outline's heading will not be numbered by default, but you can
+force it to be with a show-set rule:
+`{show outline: set heading(numbering: "1.")}`¦targetÚThe type of element to include in the outline.
+
+To list figures containing a specific kind of element, like an image or
+a table, you can specify the desired kind in a [`where`]($function.where)
+selector. See the section on [alternative outlines]($outline/#alternative-outlines)
+for more details.
+
+```example
+#outline(
+  title: [List of Tables],
+  target: figure.where(kind: table),
+)
+
+#figure(
+  table(
+    columns: 4,
+    [t], [1], [2], [3],
+    [y], [0.3], [0.7], [0.5],
+  ),
+  caption: [Experiment results],
+)
+```ÚThe maximum level up to which elements are included in the outline. When
+this argument is `{none}`, all elements are included.
+
+```example
+#set heading(numbering: "1.")
+#outline(depth: 2)
+
+= Yes
+Top-level section.
+
+== Still
+Subsection.
+
+=== Nope
+Not included.
+```Ú×How to indent the outline's entries.
+
+- `{auto}`: Indents the numbering/prefix of a nested entry with the
+  title of its parent entry. If the entries are not numbered (e.g., via
+  [heading numbering]($heading.numbering)), this instead simply inserts
+  a fixed amount of `{1.2em}` indent per level.
+
+- [Relative length]($relative): Indents the entry by the specified
+  length per nesting level. Specifying `{2em}`, for instance, would
+  indent top-level headings by `{0em}` (not nested), second level
+  headings by `{2em}` (nested once), third-level headings by `{4em}`
+  (nested twice) and so on.
+
+- [Function]($function): You can further customize this setting with a
+  function. That function receives the nesting level as a parameter
+  (starting at 0 for top-level headings/elements) and should return a
+  (relative) length. For example, `{n => n * 2em}` would be equivalent
+  to just specifying `{2em}`.
+
+```example
+>>> #show heading: none
+#set heading(numbering: "I-I.")
+#set outline(title: none)
+
+#outline()
+#line(length: 100%)
+#outline(indent: 3em)
+
+= Software engineering technologies
+== Requirements
+== Tools and technologies
+=== Code editors
+== Analyzing alternatives
+= Designing software components
+= Testing and integration
+```­outline.entryÙOThe nesting level of this outline entry. Starts at `{1}` for top-level
+entries.§elementÙ¡The element this entry refers to. Its location will be available
+through the [`location`]($content.location) method on the content
+and can be [linked]($link) to.ÚTContent to fill the space between the title and the page number. Can be
+set to `{none}` to disable filling.
+
+The `fill` will be placed into a fractionally sized box that spans the
+space between the entry's body and the page number. When using show
+rules to override outline entries, it is thus recommended to wrap the
+fill in a [`box`] with fractional width, i.e.
+`{box(width: 1fr, it.fill)}`.
+
+When using [`repeat`], the [`gap`]($repeat.gap) property can be useful
+to tweak the visual weight of the fill.
+
+```example
+#set outline.entry(fill: line(length: 100%))
+#outline()
+
+= A New Beginning
+```¶outline.entry.indented¦prefixÙ­The `prefix` is aligned with the `inner` content of entries that
+have level one less.
+
+In the default show rule, this is just `it.prefix()`, but it can be
+freely customized.¥innerÙ€The formatted inner content of the entry.
+
+In the default show rule, this is just `it.inner()`, but it can be
+freely customized.Ù1The gap between the prefix and the inner content.©overbrace«overbracket¨overlineÙíHow to [stroke] the line.
+
+If set to `{auto}`, takes on the text's color and a thickness defined in
+the current font.
+
+```example
+#set text(fill: olive)
+#overline(
+  stroke: green.darken(20%),
+  offset: -12pt,
+  [The Forest Theme],
+)
+```Ù¦The position of the line relative to the baseline. Read from the font
+tables if `{auto}`.
+
+```example
+#overline(offset: -1.2em)[
+  The Tale Of A Faraway Line II
+]
+```ÙÀThe amount by which to extend the line beyond (or within if negative)
+the content.
+
+```example
+#set overline(extent: 4pt)
+#set underline(extent: 4pt)
+#overline(underline[Typography Today])
+```¥evadeÙ³Whether the line skips sections in which it would collide with the
+glyphs.
+
+```example
+#overline(
+  evade: false,
+  offset: -7.5pt,
+  stroke: 1pt,
+  extent: 3pt,
+  [Temple],
+)
+```ªbackgroundÙùWhether the line is placed behind the content it overlines.
+
+```example
+#set overline(stroke: (thickness: 1em, paint: maroon, cap: "round"))
+#overline(background: true)[This is stylized.] \
+#overline(background: false)[This is partially hidden.]
+```¿The content to add a line over.©overparen©overshell£pad½The padding at the left side.£top¼The padding at the top side.¾The padding at the right side.¦bottom¿The padding at the bottom side.Ù8A shorthand to set `left` and `right` to the same value.Ù8A shorthand to set `top` and `bottom` to the same value.¤restÙ4A shorthand to set all four sides to the same value.Ù The content to pad at the sides.¥paperÙ¤A standard paper size to set width and height.
+
+This is just a shorthand for setting `width` and `height` and, as such,
+cannot be retrieved in a context expression.Ù‡The width of the page.
+
+```example
+#set page(
+  width: 3cm,
+  margin: (x: 0cm),
+)
+
+#for i in range(3) {
+  box(square(width: 1cm))
+}
+```Ú>The height of the page.
+
+If this is set to `{auto}`, page breaks can only be triggered manually
+by inserting a [page break]($pagebreak) or by adding another non-empty
+page set rule. Most examples throughout this documentation use `{auto}`
+for the height of the page to dynamically grow and shrink to fit their
+content.§flippedÚ*Whether the page is flipped into landscape orientation.
+
+```example
+#set page(
+  "us-business-card",
+  flipped: true,
+  fill: rgb("f2e5dd"),
+)
+
+#set align(bottom + end)
+#text(14pt)[*Sam H. Richards*] \
+_Procurement Manager_
+
+#set text(10pt)
+17 Main Street \
+New York, NY 10001 \
++1 555 555 5555
+```¦marginÚ¼The page's margins.
+
+- `{auto}`: The margins are set automatically to 2.5/21 times the smaller
+  dimension of the page. This results in 2.5 cm margins for an A4 page.
+- A single length: The same margin on all sides.
+- A dictionary: With a dictionary, the margins can be set individually.
+  The dictionary can contain the following keys in order of precedence:
+  - `top`: The top margin.
+  - `right`: The right margin.
+  - `bottom`: The bottom margin.
+  - `left`: The left margin.
+  - `inside`: The margin at the inner side of the page (where the
+    [binding]($page.binding) is).
+  - `outside`: The margin at the outer side of the page (opposite to the
+    [binding]($page.binding)).
+  - `x`: The horizontal margins.
+  - `y`: The vertical margins.
+  - `rest`: The margins on all sides except those for which the
+    dictionary explicitly sets a size.
+
+All keys are optional; omitted keys will use their previously set value,
+or the default margin if never set. In addition, the values for `left`
+and `right` are mutually exclusive with the values for `inside` and
+`outside`.
+
+```example
+#set page(
+ width: 3cm,
+ height: 4cm,
+ margin: (x: 8pt, y: 4pt),
+)
+
+#rect(
+  width: 100%,
+  height: 100%,
+  fill: aqua,
+)
+```§bindingÚ5On which side the pages will be bound.
+
+- `{auto}`: Equivalent to `left` if the [text direction]($text.dir)
+  is left-to-right and `right` if it is right-to-left.
+- `left`: Bound on the left side.
+- `right`: Bound on the right side.
+
+This affects the meaning of the `inside` and `outside` options for
+margins.ÚëHow many columns the page has.
+
+If you need to insert columns into a page or other container, you can
+also use the [`columns` function]($columns).
+
+```example:single
+#set page(columns: 2, height: 4.8cm)
+Climate change is one of the most
+pressing issues of our time, with
+the potential to devastate
+communities, ecosystems, and
+economies around the world. It's
+clear that we need to take urgent
+action to reduce our carbon
+emissions and mitigate the impacts
+of a rapidly changing climate.
+```ÚÁThe page's background fill.
+
+Setting this to something non-transparent instructs the printer to color
+the complete page. If you are considering larger production runs, it may
+be more environmentally friendly and cost-effective to source pre-dyed
+pages and not set this property.
+
+When set to `{none}`, the background becomes transparent. Note that PDF
+pages will still appear with a (usually white) background in viewers,
+but they are actually transparent. (If you print them, no color is used
+for the background.)
+
+The default of `{auto}` results in `{none}` for PDF output, and
+`{white}` for PNG and SVG.
+
+```example
+#set page(fill: rgb("444352"))
+#set text(fill: rgb("fdfdfd"))
+*Dark mode enabled.*
+```ÚCHow to number the pages. You can refer to the Page Setup Guide for
+[customizing page numbers]($guides/page-setup/#page-numbers).
+
+Accepts a [numbering pattern or function]($numbering) taking one or two
+numbers:
+1. The first number is the current page number.
+2. The second number is the total number of pages. In a numbering
+   pattern, the second number can be omitted. If a function is passed,
+   it will receive one argument in the context of links or references,
+   and two arguments when producing the visible page numbers.
+
+These are logical numbers controlled by the page counter, and may thus
+not match the physical numbers. Specifically, they are the
+[current]($counter.get) and the [final]($counter.final) value of
+`{counter(page)}`. See the [`counter`]($counter/#page-counter)
+documentation for more details.
+
+If an explicit [`footer`]($page.footer) (or [`header`]($page.header) for
+[top-aligned]($page.number-align) numbering) is given, the numbering is
+ignored.
+
+```example
+#set page(
+  height: 100pt,
+  margin: (top: 16pt, bottom: 24pt),
+  numbering: "1 / 1",
+)
+
+#lorem(48)
+```ÙÓA supplement for the pages.
+
+For page references, this is added before the page number.
+
+```example
+#set page(numbering: "1.", supplement: [p.])
+
+= Introduction <intro>
+We are on #ref(<intro>, form: "page")!
+```ÚŒThe alignment of the page numbering.
+
+If the vertical component is `top`, the numbering is placed into the
+header and if it is `bottom`, it is placed in the footer. Horizon
+alignment is forbidden. If an explicit matching `header` or `footer` is
+given, the numbering is ignored.
+
+```example
+#set page(
+  margin: (top: 16pt, bottom: 24pt),
+  numbering: "1",
+  number-align: right,
+)
+
+#lorem(30)
+```¦headerÚÎThe page's header. Fills the top margin of each page.
+
+- Content: Shows the content as the header.
+- `{auto}`: Shows the page number if a [`numbering`]($page.numbering) is
+  set and [`number-align`]($page.number-align) is `top`.
+- `{none}`: Suppresses the header.
+
+```example
+#set par(justify: true)
+#set page(
+  margin: (top: 32pt, bottom: 20pt),
+  header: [
+    #set text(8pt)
+    #smallcaps[Typst Academy]
+    #h(1fr) _Exercise Sheet 3_
+  ],
+)
+
+#lorem(19)
+```­header-ascentÙ4The amount the header is raised into the top margin.¦footerÚ¹The page's footer. Fills the bottom margin of each page.
+
+- Content: Shows the content as the footer.
+- `{auto}`: Shows the page number if a [`numbering`]($page.numbering) is
+  set and [`number-align`]($page.number-align) is `bottom`.
+- `{none}`: Suppresses the footer.
+
+For just a page number, the `numbering` property typically suffices. If
+you want to create a custom footer but still display the page number,
+you can directly access the [page counter]($counter).
+
+```example
+#set par(justify: true)
+#set page(
+  height: 100pt,
+  margin: 20pt,
+  footer: context [
+    #set align(right)
+    #set text(8pt)
+    #counter(page).display(
+      "1 of I",
+      both: true,
+    )
+  ]
+)
+
+#lorem(48)
+```®footer-descentÙ8The amount the footer is lowered into the bottom margin.Ú]Content in the page's background.
+
+This content will be placed behind the page's body. It can be
+used to place a background image or a watermark.
+
+```example
+#set page(background: rotate(24deg,
+  text(18pt, fill: rgb("FFCBC4"))[
+    *CONFIDENTIAL*
+  ]
+))
+
+= Typst's secret plans
+In the year 2023, we plan to take
+over the world (of typesetting).
+```ªforegroundÙäContent in the page's foreground.
+
+This content will overlay the page's body.
+
+```example
+#set page(foreground: text(24pt)[ğŸ¤“])
+
+Reviewer 2 has marked our paper
+"Weak Reject" because they did
+not understand our approach...
+```ÙàThe contents of the page(s).
+
+Multiple pages will be created if the content does not fit on a single
+page. A new page with the page properties prior to the function invocation
+will be created after the body has been typeset.©pagebreakÙLIf `{true}`, the page break is skipped if the current page is already
+empty.¢toÙ·If given, ensures that the next page will be an even/odd page, with an
+empty page in between if necessary.
+
+```example
+#set page(height: 30pt)
+
+First.
+#pagebreak(to: "odd")
+Third.
+```¥panicÙ1The values to panic with and display to the user.£par§leadingÚ!The spacing between lines.
+
+Leading defines the spacing between the [bottom edge]($text.bottom-edge)
+of one line and the [top edge]($text.top-edge) of the following line. By
+default, these two properties are up to the font, but they can also be
+configured manually with a text set rule.
+
+By setting top edge, bottom edge, and leading, you can also configure a
+consistent baseline-to-baseline distance. You could, for instance, set
+the leading to `{1em}`, the top-edge to `{0.8em}`, and the bottom-edge
+to `{-0.2em}` to get a baseline gap of exactly `{2em}`. The exact
+distribution of the top- and bottom-edge values affects the bounds of
+the first and last line.
+
+```preview
+// Color palette
+#let c = (
+  par-line: aqua.transparentize(60%),
+  leading-line: blue,
+  leading-text: blue.darken(20%),
+  spacing-line: orange.mix(red).darken(15%),
+  spacing-text: orange.mix(red).darken(20%),
+)
+
+// A sample text for measuring font metrics.
+#let sample-text = [A]
+
+// Number of lines in each paragraph
+#let n-lines = (4, 4, 2)
+#let annotated-lines = (4, 8)
+
+// The wide margin is for annotations
+#set page(width: 350pt, margin: (x: 20%))
+
+#context {
+  let text-height = measure(sample-text).height
+  let line-height = text-height + par.leading.to-absolute()
+
+  let jumps = n-lines
+    .map(n => ((text-height,) * n).intersperse(par.leading))
+    .intersperse(par.spacing)
+    .flatten()
+
+  place(grid(
+    ..jumps
+      .enumerate()
+      .map(((i, h)) => if calc.even(i) {
+        // Draw a stripe for the line
+        block(height: h, width: 100%, fill: c.par-line)
+      } else {
+        // Put an annotation for the gap
+        let sw(a, b) = if h == par.leading { a } else { b }
+
+        align(end, block(
+          height: h,
+          outset: (right: sw(0.5em, 1em)),
+          stroke: (
+            left: none,
+            rest: 0.5pt + sw(c.leading-line, c.spacing-line),
+          ),
+          if i / 2 <= sw(..annotated-lines) {
+            place(horizon, dx: 1.3em, text(
+              0.8em,
+              sw(c.leading-text, c.spacing-text),
+              sw([leading], [spacing]),
+            ))
+          },
+        ))
+      })
+  ))
+
+  // Mark top and bottom edges
+  place(
+    // pos: top/bottom edge
+    // dy: Î”y to the last mark
+    // kind: leading/spacing
+    for (pos, dy, kind) in (
+      (bottom, text-height, "leading"),
+      (top, par.leading, "leading"),
+      (bottom, (n-lines.first() - 1) * line-height - par.leading, "spacing"),
+      (top, par.spacing, "spacing"),
+    ) {
+      v(dy)
+
+      let c-text = c.at(kind + "-text")
+      let c-line = c.at(kind + "-line")
+
+      place(end, box(
+        height: 0pt,
+        grid(
+          columns: 2,
+          column-gutter: 0.2em,
+          align: pos,
+          move(
+            // Compensate optical illusion
+            dy: if pos == top { -0.2em } else { 0.05em },
+            text(0.8em, c-text)[#repr(pos) edge],
+          ),
+          line(length: 1em, stroke: 0.5pt + c-line),
+        ),
+      ))
+    },
+  )
+}
+
+#set par(justify: true)
+#set text(luma(25%), overhang: false)
+#show ". ": it => it + parbreak()
+#lorem(55)
+```ÚÄThe spacing between paragraphs.
+
+Just like leading, this defines the spacing between the bottom edge of a
+paragraph's last line and the top edge of the next paragraph's first
+line.
+
+When a paragraph is adjacent to a [`block`] that is not a paragraph,
+that block's [`above`]($block.above) or [`below`]($block.below) property
+takes precedence over the paragraph spacing. Headings, for instance,
+reduce the spacing below them by default for a better look.ÚnWhether to justify text in its line.
+
+Hyphenation will be enabled for justified paragraphs if the
+[text function's `hyphenate` property]($text.hyphenate) is set to
+`{auto}` and the current language is known.
+
+Note that the current [alignment]($align.alignment) still has an effect
+on the placement of the last line except if it ends with a
+[justified line break]($linebreak.justify).
+
+By default, Typst only changes the spacing between words to achieve
+justification. However, you can also allow it to adjust the spacing
+between individual characters using the
+[`justification-limits` property]($par.justification-limits).´justification-limitsÚíHow much the spacing between words and characters may be adjusted during
+justification.
+
+When justifying text, Typst needs to stretch or shrink a line to the
+full width of the measure. To achieve this, by default, it adjusts the
+spacing between words. Additionally, it can also adjust the spacing
+between individual characters. This property allows you to configure
+lower and upper bounds for these adjustments.
+
+The property accepts a dictionary with two entries, `spacing` and
+`tracking`, each containing a dictionary with the keys `min` and `max`.
+The `min` keys define down to which lower bound gaps may be shrunk while
+the `max` keys define up to which upper bound they may be stretched.
+
+- The `spacing` entry defines how much the width of spaces between words
+  may be adjusted. It is closely related to [`text.spacing`] and its
+  `min` and `max` keys accept [relative lengths]($relative), just like
+  the `spacing` property.
+
+  A `min` value of `{100%}` means that spaces should retain their normal
+  size (i.e. not be shrunk), while a value of `{90% - 0.01em}` would
+  indicate that a space can be shrunk to a width of 90% of its normal
+  width minus 0.01Ã— the current font size. Similarly, a `max` value of
+  `{100% + 0.02em}` means that a space's width can be increased by 0.02Ã—
+  the current font size. The ratio part must always be positive. The
+  length part, meanwhile, must not be positive for `min` and not be
+  negative for `max`.
+
+  Note that spaces may still be expanded beyond the `max` value if there
+  is no way to justify the line otherwise. However, other means of
+  justification (e.g. spacing apart characters if the `tracking` entry
+  is configured accordingly) are first used to their maximum.
+
+- The `tracking` entry defines how much the spacing between letters may
+  be adjusted. It is closely related to [`text.tracking`] and its `min`
+  and `max` keys accept [lengths]($length), just like the `tracking`
+  property. Unlike `spacing`, it does not accept relative lengths
+  because the base of the relative length would vary for each character,
+  leading to an uneven visual appearance. The behavior compared to
+  `spacing` is as if the base was `{100%}`.
+
+  Otherwise, the `min` and `max` values work just like for `spacing`. A
+  `max` value of `{0.01em}` means that additional spacing amounting to
+  0.01Ã— of the current font size may be inserted between every pair of
+  characters. Note that this also includes the gaps between spaces and
+  characters, so for spaces the values of `tracking` act in addition to
+  the values for `spacing`.
+
+If you only specify one of `spacing` or `tracking`, the other retains
+its previously set value (or the default if it was not previously set).
+
+If you want to enable character-level justification, a good value for
+the `min` and `max` keys is around `{0.01em}` to `{0.02em}` (negated for
+`min`). Using the same value for both gives a good baseline, but
+tweaking the two values individually may produce more balanced results,
+as demonstrated in the example below. Be careful not to set the bounds
+too wide, as it quickly looks unnatural.
+
+Using character-level justification is an impactful microtypographical
+technique that can improve the appearance of justified text, especially
+in narrow columns. Note though that character-level justification does
+not work with every font or language. For example, cursive fonts connect
+letters. Using character-level justification would lead to jagged
+connections.
+
+```example:"Character-level justification"
+#let example(name) = columns(2, gutter: 10pt)[
+  #place(top, float: true, scope: "parent", strong(name))
+>>> Anne Christine Bayley (1~June 1934 â€“ 31~December 2024) was an
+>>> English surgeon. She was awarded the Order of the British Empire
+>>> for her research into HIV/AIDS patients in Zambia and for
+>>> documenting the spread of the disease among heterosexual patients in
+>>> Africa. In addition to her clinical work, she was a lecturer and
+>>> head of the surgery department at the University of Zambia School of
+>>> Medicine. In the 1990s, she returned to England, where she was
+>>> ordained as an Anglican priest. She continued to be active in Africa
+>>> throughout her retirement years.
+<<<   /* Text from https://en.wikipedia.org/wiki/Anne_Bayley */
+]
+
+#set page(width: 440pt, height: 21em, margin: 15pt)
+#set par(justify: true)
+#set text(size: 0.8em)
+
+#grid(
+  columns: (1fr, 1fr),
+  gutter: 20pt,
+  {
+    // These are Typst's default limits.
+    set par(justification-limits: (
+      spacing: (min: 100% * 2 / 3, max: 150%),
+      tracking: (min: 0em, max: 0em),
+    ))
+    example[Word-level justification]
+  },
+  {
+    // These are our custom character-level limits.
+    set par(justification-limits: (
+      tracking: (min: -0.01em, max: 0.02em),
+    ))
+    example[Character-level justification]
+  },
+)
+```ªlinebreaksÚXHow to determine line breaks.
+
+When this property is set to `{auto}`, its default value, optimized line
+breaks will be used for justified paragraphs. Enabling optimized line
+breaks for ragged paragraphs may also be worthwhile to improve the
+appearance of the text.
+
+```example
+#set page(width: 207pt)
+#set par(linebreaks: "simple")
+Some texts feature many longer
+words. Those are often exceedingly
+challenging to break in a visually
+pleasing way.
+
+#set par(linebreaks: "optimized")
+Some texts feature many longer
+words. Those are often exceedingly
+challenging to break in a visually
+pleasing way.
+```±first-line-indentÚŞThe indent the first line of a paragraph should have.
+
+By default, only the first line of a consecutive paragraph will be
+indented (not the first one in the document or container, and not
+paragraphs immediately following other block-level elements).
+
+If you want to indent all paragraphs instead, you can pass a dictionary
+containing the `amount` of indent as a length and the pair
+`{all: true}`. When `all` is omitted from the dictionary, it defaults to
+`{false}`.
+
+By typographic convention, paragraph breaks are indicated either by some
+space between paragraphs or by indented first lines. Consider
+- reducing the [paragraph `spacing`]($par.spacing) to the
+  [`leading`]($par.leading) using `{set par(spacing: 0.65em)}`
+- increasing the [block `spacing`]($block.spacing) (which inherits the
+  paragraph spacing by default) to the original paragraph spacing using
+  `{set block(spacing: 1.2em)}`
+
+```example
+#set block(spacing: 1.2em)
+#set par(
+  first-line-indent: 1.5em,
+  spacing: 0.65em,
+)
+
+The first paragraph is not affected
+by the indent.
+
+But the second paragraph is.
+
+#line(length: 100%)
+
+#set par(first-line-indent: (
+  amount: 1.5em,
+  all: true,
+))
+
+Now all paragraphs are affected
+by the first line indent.
+
+Even the first one.
+```Ù|The indent that all but the first line of a paragraph should have.
+
+```example
+#set par(hanging-indent: 1em)
+
+#lorem(15)
+```¾The contents of the paragraph.¨par.lineÚHow to number each line. Accepts a
+[numbering pattern or function]($numbering) taking a single number.
+
+```example
+>>> #set page(margin: (left: 3em))
+#set par.line(numbering: "I")
+
+Roses are red. \
+Violets are blue. \
+Typst is there for you.
+```
+
+```example
+>>> #set page(width: 200pt, margin: (left: 3em))
+#set par.line(
+  numbering: i => if calc.rem(i, 5) == 0 or i == 1 { i },
+)
+
+#lorem(60)
+```Ú‘The alignment of line numbers associated with each line.
+
+The default of `{auto}` indicates a smart default where numbers grow
+horizontally away from the text, considering the margin they're in and
+the current text direction.
+
+```example
+>>> #set page(margin: (left: 3em))
+#set par.line(
+  numbering: "I",
+  number-align: left,
+)
+
+Hello world! \
+Today is a beautiful day \
+For exploring the world.
+```­number-marginÚõThe margin at which line numbers appear.
+
+_Note:_ In a multi-column document, the line numbers for paragraphs
+inside the last column will always appear on the `{end}` margin (right
+margin for left-to-right text and left margin for right-to-left),
+regardless of this configuration. That behavior cannot be changed at
+this moment.
+
+```example
+>>> #set page(margin: (right: 3em))
+#set par.line(
+  numbering: "1",
+  number-margin: right,
+)
+
+= Report
+- Brightness: Dark, yet darker
+- Readings: Negative
+```°number-clearanceÚ@The distance between line numbers and text.
+
+The default value of `{auto}` results in a clearance that is adaptive to
+the page width and yields reasonable results in most cases.
+
+```example
+>>> #set page(margin: (left: 3em))
+#set par.line(
+  numbering: "1",
+  number-clearance: 4pt,
+)
+
+Typesetting \
+Styling \
+Layout
+```¯numbering-scopeÚòControls when to reset line numbering.
+
+_Note:_ The line numbering scope must be uniform across each page run (a
+page run is a sequence of pages without an explicit pagebreak in
+between). For this reason, set rules for it should be defined before any
+page content, typically at the very start of the document.
+
+```example
+>>> #set page(margin: (left: 3em))
+#set par.line(
+  numbering: "1",
+  numbering-scope: "page",
+)
+
+First line \
+Second line
+#pagebreak()
+First line again \
+Second line again
+```¤pathÙ—How to fill the path.
+
+When setting a fill, the default stroke disappears. To create a
+rectangle with both fill and stroke, you have to configure both.ÚOThe drawing rule used to fill the path.
+
+```example
+// We use `.with` to get a new
+// function that has the common
+// arguments pre-applied.
+#let star = path.with(
+  fill: red,
+  closed: true,
+  (25pt, 0pt),
+  (10pt, 50pt),
+  (50pt, 20pt),
+  (0pt, 20pt),
+  (40pt, 50pt),
+)
+
+#star(fill-rule: "non-zero")
+#star(fill-rule: "even-odd")
+```Ù–How to [stroke] the path.
+
+Can be set to  `{none}` to disable the stroke or to `{auto}` for a
+stroke of `{1pt}` black if and only if no fill is given.¦closedÙßWhether to close this path with one last BÃ©zier curve. This curve will
+take into account the adjacent control points. If you want to close
+with a straight line, simply add one last point that's the same as the
+start point.¨verticesÚ¨The vertices of the path.
+
+Each vertex can be defined in 3 ways:
+
+- A regular point, as given to the [`line`] or [`polygon`] function.
+- An array of two points, the first being the vertex and the second
+  being the control point. The control point is expressed relative to
+  the vertex and is mirrored to get the second control point. The given
+  control point is the one that affects the curve coming _into_ this
+  vertex (even for the first point). The mirrored control point affects
+  the curve going out of this vertex.
+- An array of three points, the first being the vertex and the next
+  being the control points (control point for curves coming in and out,
+  respectively).¬pdf.artifactÙ‡The artifact kind.
+
+This will govern how the PDF reader treats the artifact during reflow
+and content extraction (e.g. copy and paste).Ù The content that is an artifact.ªpdf.attachÙ™The [path]($syntax/#paths) of the file to be attached.
+
+Must always be specified, but is only read from if no data is provided
+in the following argument.ÙQRaw file data, optionally.
+
+If omitted, the data is read from the specified path.¬relationshipÙaThe relationship of the attached file to the document.
+
+Ignored if export doesn't target PDF/A-3.©mime-typeÙ#The MIME type of the attached file.Ù$A description for the attached file.©pdf.embed¥placeÚmRelative to which position in the parent container to place the content.
+
+- If `float` is `{false}`, then this can be any alignment other than `{auto}`.
+- If `float` is `{true}`, then this must be `{auto}`, `{top}`, or `{bottom}`.
+
+When `float` is `{false}` and no vertical alignment is specified, the
+content is placed at the current position on the vertical axis.Ú£Relative to which containing scope something is placed.
+
+The parent scope is primarily used with figures and, for
+this reason, the figure function has a mirrored [`scope`
+parameter]($figure.scope). Nonetheless, it can also be more generally
+useful to break out of the columns. A typical example would be to
+[create a single-column title section]($guides/page-setup/#columns)
+in a two-column document.
+
+Note that parent-scoped placement is currently only supported if `float`
+is `{true}`. This may change in the future.
+
+```example
+#set page(height: 150pt, columns: 2)
+#place(
+  top + center,
+  scope: "parent",
+  float: true,
+  rect(width: 80%, fill: aqua),
+)
+
+#lorem(25)
+```¥floatÚWhether the placed element has floating layout.
+
+Floating elements are positioned at the top or bottom of the parent
+container, displacing in-flow content. They are always placed in the
+in-flow order relative to each other, as well as before any content
+following a later [`place.flush`] element.
+
+```example
+#set page(height: 150pt)
+#let note(where, body) = place(
+  center + where,
+  float: true,
+  clearance: 6pt,
+  rect(body),
+)
+
+#lorem(10)
+#note(bottom)[Bottom 1]
+#note(bottom)[Bottom 2]
+#lorem(40)
+#note(top)[Top]
+#lorem(10)
+```ÙwThe spacing between the placed element and other elements in a floating
+layout.
+
+Has no effect if `float` is `{false}`.Ú³The horizontal displacement of the placed content.
+
+```example
+#set page(height: 100pt)
+#for x in range(-8, 8) {
+  place(center + horizon,
+    dx: x * 8pt, dy: x * 4pt,
+    text(
+      size: calc.root(x + 10, 3) * 6pt,
+      fill: color.mix((green, 8 - x), (blue, 8 + x)),
+    )[T]
+  )
+}
+```
+
+This does not affect the layout of in-flow content.
+In other words, the placed content is treated as if it
+were wrapped in a [`move`] element.ÙÀThe vertical displacement of the placed content.
+
+This does not affect the layout of in-flow content.
+In other words, the placed content is treated as if it
+were wrapped in a [`move`] element.µThe content to place.¦pluginÙHA [path]($syntax/#paths) to a WebAssembly file or raw WebAssembly bytes.±plugin.transition¼The plugin function to call.Ù+The byte buffers to call the function with.§polygonÙšHow to fill the polygon.
+
+When setting a fill, the default stroke disappears. To create a
+rectangle with both fill and stroke, you have to configure both.ÙkThe drawing rule used to fill the polygon.
+
+See the [curve documentation]($curve.fill-rule) for an example.Ù™How to [stroke] the polygon.
+
+Can be set to  `{none}` to disable the stroke or to `{auto}` for a
+stroke of `{1pt}` black if and only if no fill is given.ÙfThe vertices of the polygon. Each point is specified as an array of two
+[relative lengths]($relative).¯polygon.regularÙcHow to fill the polygon. See the general
+[polygon's documentation]($polygon.fill) for more details.ÙgHow to stroke the polygon. See the general
+[polygon's documentation]($polygon.stroke) for more details.ÙfThe diameter of the [circumcircle](https://en.wikipedia.org/wiki/Circumcircle)
+of the regular polygon.Ù&The number of vertices in the polygon.¦primes¥queryÙûCan be
+- an element function like a `heading` or `figure`,
+- a `{<label>}`,
+- a more complex selector like `{heading.where(level: 1)}`,
+- or `{selector(heading).before(here())}`.
+
+Only [locatable]($location/#locatable) element functions are supported.¥quoteÚWhether this is a block quote.
+
+```example
+An inline citation would look like
+this: #quote(
+  attribution: [RenÃ© Descartes]
+)[
+  cogito, ergo sum
+], and a block equation like this:
+#quote(
+  block: true,
+  attribution: [JFK]
+)[
+  Ich bin ein Berliner.
+]
+```¦quotesÚ«Whether double quotes should be added around this quote.
+
+The double quotes used are inferred from the `quotes` property on
+[smartquote], which is affected by the `lang` property on [text].
+
+- `{true}`: Wrap this quote in double quotes.
+- `{false}`: Do not wrap this quote in double quotes.
+- `{auto}`: Infer whether to wrap this quote in double quotes based on
+  the `block` property. If `block` is `{false}`, double quotes are
+  automatically added.
+
+```example
+#set text(lang: "de")
+
+Ein deutsch-sprechender Author
+zitiert unter umstÃ¤nden JFK:
+#quote[Ich bin ein Berliner.]
+
+#set text(lang: "en")
+
+And an english speaking one may
+translate the quote:
+#quote[I am a Berliner.]
+```«attributionÚNThe attribution of this quote, usually the author or source. Can be a
+label pointing to a bibliography entry or any content. By default only
+displayed for block quotes, but can be changed using a `{show}` rule.
+
+```example
+#quote(attribution: [RenÃ© Descartes])[
+  cogito, ergo sum
+]
+
+#show quote.where(block: false): it => {
+  ["] + h(0pt, weak: true) + it.body + h(0pt, weak: true) + ["]
+  if it.attribution != none [ (#it.attribution)]
+}
+
+#quote(
+  attribution: link("https://typst.app/home")[typst.app]
+)[
+  Compose papers faster
+]
+
+#set quote(block: true)
+
+#quote(attribution: <tolkien54>)[
+  You cannot pass... I am a servant
+  of the Secret Fire, wielder of the
+  flame of Anor. You cannot pass. The
+  dark fire will not avail you, flame
+  of UdÃ»n. Go back to the Shadow! You
+  cannot pass.
+]
+
+#bibliography("works.bib", style: "apa")
+```ªThe quote.¥range£rawÚThe raw text.
+
+You can also use raw blocks creatively to create custom syntaxes for
+your automations.
+
+````example:"Implementing a DSL using raw and show rules"
+// Parse numbers in raw blocks with the
+// `mydsl` tag and sum them up.
+#show raw.where(lang: "mydsl"): it => {
+  let sum = 0
+  for part in it.text.split("+") {
+    sum += int(part.trim())
+  }
+  sum
+}
+
+```mydsl
+1 + 2 + 3 + 4 + 5
+```
+````ÚWhether the raw text is displayed as a separate block.
+
+In markup mode, using one-backtick notation makes this `{false}`.
+Using three-backtick notation makes it `{true}` if the enclosed content
+contains at least one line break.
+
+````example
+// Display inline code in a small box
+// that retains the correct baseline.
+#show raw.where(block: false): box.with(
+  fill: luma(240),
+  inset: (x: 3pt, y: 0pt),
+  outset: (y: 3pt),
+  radius: 2pt,
+)
+
+// Display block code in a larger block
+// with more padding.
+#show raw.where(block: true): block.with(
+  fill: luma(240),
+  inset: 10pt,
+  radius: 4pt,
+)
+
+With `rg`, you can search through your files quickly.
+This example searches the current directory recursively
+for the text `Hello World`:
+
+```bash
+rg "Hello World"
+```
+````Ú‚The language to syntax-highlight in.
+
+Apart from typical language tags known from Markdown, this supports the
+`{"typ"}`, `{"typc"}`, and `{"typm"}` tags for
+[Typst markup]($reference/syntax/#markup),
+[Typst code]($reference/syntax/#code), and
+[Typst math]($reference/syntax/#math), respectively.
+
+````example
+```typ
+This is *Typst!*
+```
+
+This is ```typ also *Typst*```, but inline!
+````Ú3The horizontal alignment that each line in a raw block should have.
+This option is ignored if this is not a raw block (if specified
+`block: false` or single backticks were used in markup mode).
+
+By default, this is set to `{start}`, meaning that raw text is
+aligned towards the start of the text direction inside the block
+by default, regardless of the current context's alignment (allowing
+you to center the raw block itself without centering the text inside
+it, for example).
+
+````example
+#set raw(align: center)
+
+```typc
+let f(x) = x
+code = "centered"
+```
+````¨syntaxesÚbAdditional syntax definitions to load. The syntax definitions should be
+in the [`sublime-syntax` file format](https://www.sublimetext.com/docs/syntax.html).
+
+You can pass any of the following values:
+
+- A path string to load a syntax file from the given path. For more
+  details about paths, see the [Paths section]($syntax/#paths).
+- Raw bytes from which the syntax should be decoded.
+- An array where each item is one of the above.
+
+````example
+#set raw(syntaxes: "SExpressions.sublime-syntax")
+
+```sexp
+(defun factorial (x)
+  (if (zerop x)
+    ; with a comment
+    1
+    (* x (factorial (- x 1)))))
+```
+````¥themeÚGThe theme to use for syntax highlighting. Themes should be in the
+[`tmTheme` file format](https://www.sublimetext.com/docs/color_schemes_tmtheme.html).
+
+You can pass any of the following values:
+
+- `{none}`: Disables syntax highlighting.
+- `{auto}`: Highlights with Typst's default theme.
+- A path string to load a theme file from the given path. For more
+  details about paths, see the [Paths section]($syntax/#paths).
+- Raw bytes from which the theme should be decoded.
+
+Applying a theme only affects the color of specifically highlighted
+text. It does not consider the theme's foreground and background
+properties, so that you retain control over the color of raw text. You
+can apply the foreground color yourself with the [`text`] function and
+the background with a [filled block]($block.fill). You could also use
+the [`xml`] function to extract these properties from the theme.
+
+````example
+#set raw(theme: "halcyon.tmTheme")
+#show raw: it => block(
+  fill: rgb("#1d2433"),
+  inset: 8pt,
+  radius: 5pt,
+  text(fill: rgb("#a2aabc"), it)
+)
+
+```typ
+= Chapter 1
+#let hi = "Hello World"
+```
+````¨tab-sizeÙÒThe size for a tab stop in spaces. A tab is replaced with enough spaces to
+align with the next multiple of the size.
+
+````example
+#set raw(tab-size: 8)
+```tsv
+Year	Month	Day
+2000	2	3
+2001	2	1
+2002	3	10
+```
+````¨raw.lineÙEThe line number of the raw line inside of the raw block, starts at 1.Ù+The total number of lines in the raw block.µThe line of raw text.¹The highlighted raw text.¤readÙKPath to a file.
+
+For more details, see the [Paths section]($syntax/#paths).¨encodingÙYThe encoding to read the file with.
+
+If set to `{none}`, this function returns raw bytes.¤rectÙ8The rectangle's width, relative to its parent container.Ù9The rectangle's height, relative to its parent container.Ù¾How to fill the rectangle.
+
+When setting a fill, the default stroke disappears. To create a
+rectangle with both fill and stroke, you have to configure both.
+
+```example
+#rect(fill: blue)
+```ÚDHow to stroke the rectangle. This can be:
+
+- `{none}` to disable stroking
+
+- `{auto}` for a stroke of `{1pt + black}` if and only if no fill is
+  given.
+
+- Any kind of [stroke]
+
+- A dictionary describing the stroke for each side individually. The
+  dictionary can contain the following keys in order of precedence:
+
+  - `top`: The top stroke.
+  - `right`: The right stroke.
+  - `bottom`: The bottom stroke.
+  - `left`: The left stroke.
+  - `x`: The horizontal stroke.
+  - `y`: The vertical stroke.
+  - `rest`: The stroke on all sides except those for which the
+    dictionary explicitly sets a size.
+
+  All keys are optional; omitted keys will use their previously set
+  value, or the default stroke if never set.
+
+```example
+#stack(
+  dir: ltr,
+  spacing: 1fr,
+  rect(stroke: red),
+  rect(stroke: 2pt),
+  rect(stroke: 2pt + red),
+)
+```Ú%How much to round the rectangle's corners, relative to the minimum of
+the width and height divided by two. This can be:
+
+- A relative length for a uniform corner radius.
+
+- A dictionary: With a dictionary, the stroke for each side can be set
+  individually. The dictionary can contain the following keys in order
+  of precedence:
+  - `top-left`: The top-left corner radius.
+  - `top-right`: The top-right corner radius.
+  - `bottom-right`: The bottom-right corner radius.
+  - `bottom-left`: The bottom-left corner radius.
+  - `left`: The top-left and bottom-left corner radii.
+  - `top`: The top-left and top-right corner radii.
+  - `right`: The top-right and bottom-right corner radii.
+  - `bottom`: The bottom-left and bottom-right corner radii.
+  - `rest`: The radii for all corners except those for which the
+    dictionary explicitly sets a size.
+
+```example
+#set rect(stroke: 4pt)
+#rect(
+  radius: (
+    left: 5pt,
+    top-right: 20pt,
+    bottom-right: 10pt,
+  ),
+  stroke: (
+    left: red,
+    top: yellow,
+    right: green,
+    bottom: blue,
+  ),
+)
+```ÙdHow much to pad the rectangle's content.
+See the [box's documentation]($box.inset) for more details.Ù‚How much to expand the rectangle's size without affecting the layout.
+See the [box's documentation]($box.outset) for more details.Ù†The content to place into the rectangle.
+
+When this is omitted, the rectangle takes on a default size of at most
+`{45pt}` by `{30pt}`.£refÙ¶The target label that should be referenced.
+
+Can be a label that is defined in the document or, if the
+[`form`]($ref.form) is set to `["normal"]`, an entry from the
+[`bibliography`].ÚâA supplement for the reference.
+
+If the [`form`]($ref.form) is set to `{"normal"}`:
+- For references to headings or figures, this is added before the
+  referenced number.
+- For citations, this can be used to add a page number.
+
+If the [`form`]($ref.form) is set to `{"page"}`, then this is added
+before the page number of the label referenced.
+
+If a function is specified, it is passed the referenced element and
+should return content.
+
+```example
+#set heading(numbering: "1.")
+#show ref.where(
+  form: "normal"
+): set ref(supplement: it => {
+  if it.func() == heading {
+    "Chapter"
+  } else {
+    "Thing"
+  }
+})
+
+= Introduction <intro>
+In @intro, we see how to turn
+Sections into Chapters. And
+in @intro[Part], it is done
+manually.
+```Ù~The kind of reference to produce.
+
+```example
+#set page(numbering: "1")
+
+Here <here> we are on
+#ref(<here>, form: "page").
+```¶The content to repeat.Ù*The gap between each instance of the body.ÙUWhether to increase the gap between instances to completely fill the
+available space.¤reprÙ1The value whose string representation to produce.£rgb¤root¦rotateÙBThe amount of rotation.
+
+```example
+#rotate(-1.571rad)[Space!]
+```¦originÚ«The origin of the rotation.
+
+If, for instance, you wanted the bottom left corner of the rotated
+element to stay aligned with the baseline, you would set it to `bottom +
+left` instead.
+
+```example
+#set text(spacing: 8pt)
+#let square = square.with(width: 8pt)
+
+#box(square())
+#box(rotate(30deg, origin: center, square()))
+#box(rotate(30deg, origin: top + left, square()))
+#box(rotate(30deg, origin: bottom + right, square()))
+```¦reflowÚ>Whether the rotation impacts the layout.
+
+If set to `{false}`, the rotated content will retain the bounding box of
+the original content. If set to `{true}`, the bounding box will take the
+rotation of the content into account and adjust the layout accordingly.
+
+```example
+Hello #rotate(90deg, reflow: true)[World]!
+```¶The content to rotate.¥round¤sansÙ’The scaling factor for both axes, as a positional argument. This is just
+an optional shorthand notation for setting `x` and `y` to the same
+value.ÙdThe horizontal scaling factor.
+
+The body will be mirrored horizontally if the parameter is negative.Ù`The vertical scaling factor.
+
+The body will be mirrored vertically if the parameter is negative.ÙvThe origin of the transformation.
+
+```example
+A#box(scale(75%)[A])A \
+B#box(scale(75%, origin: bottom + left)[B])B
+```Ú'Whether the scaling impacts the layout.
+
+If set to `{false}`, the scaled content will be allowed to overlap
+other content. If set to `{true}`, it will compute the new size of
+the scaled content and adjust the layout accordingly.
+
+```example
+Hello #scale(x: 20%, y: 40%, reflow: true)[World]!
+```µThe content to scale.£scr§scripts®selector.afterÙ@The original selection will start at the first match of `start`.©inclusiveÙ‹Whether `start` itself should match or not. This is only relevant
+ if both selectors match the same type of element. Defaults to
+ `{true}`.¬selector.andÙ The other selectors to match on.¯selector.beforeÙ<The original selection will end at the first match of `end`.Ù‡Whether `end` itself should match or not. This is only relevant if
+both selectors match the same type of element. Defaults to `{true}`.«selector.or¥serif¤skew¢axÙFThe horizontal skewing angle.
+
+```example
+#skew(ax: 30deg)[Skewed]
+```¢ayÙDThe vertical skewing angle.
+
+```example
+#skew(ay: 30deg)[Skewed]
+```ÚThe origin of the skew transformation.
+
+The origin will stay fixed during the operation.
+
+```example
+X #box(skew(ax: -30deg, origin: center + horizon)[X]) X \
+X #box(skew(ax: -30deg, origin: bottom + left)[X]) X \
+X #box(skew(ax: -30deg, origin: top + right)[X]) X
+```ÚRWhether the skew transformation impacts the layout.
+
+If set to `{false}`, the skewed content will retain the bounding box of
+the original content. If set to `{true}`, the bounding box will take the
+transformation of the content into account and adjust the layout accordingly.
+
+```example
+Hello #skew(ay: 30deg, reflow: true, "World")!
+```´The content to skew.©smallcaps£allÙäWhether to turn uppercase letters into small capitals as well.
+
+Unless overridden by a show rule, this enables the `c2sc` OpenType
+feature.
+
+```example
+#smallcaps(all: true)[UNICEF] is an
+agency of #smallcaps(all: true)[UN].
+```Ù)The content to display in small capitals.ªsmartquote¦doubleÙ&Whether this should be a double quote.§enabledÙ¾Whether smart quotes are enabled.
+
+To disable smartness for a single quote, you can also escape it with a
+backslash.
+
+```example
+#set smartquote(enabled: false)
+
+These are "dumb" quotes.
+```«alternativeÙõWhether to use alternative quotes.
+
+Does nothing for languages that don't have alternative quotes, or if
+explicit quotes were set.
+
+```example
+#set text(lang: "de")
+#set smartquote(alternative: true)
+
+"Das ist in anderen AnfÃ¼hrungszeichen."
+```ÚCThe quotes to use.
+
+- When set to `{auto}`, the appropriate single quotes for the
+  [text language]($text.lang) will be used. This is the default.
+- Custom quotes can be passed as a string, array, or dictionary of either
+  - [string]($str): a string consisting of two characters containing the
+    opening and closing double quotes (characters here refer to Unicode
+    grapheme clusters)
+  - [array]: an array containing the opening and closing double quotes
+  - [dictionary]: a dictionary containing the double and single quotes, each
+    specified as either `{auto}`, string, or array
+
+```example
+#set text(lang: "de")
+'Das sind normale AnfÃ¼hrungszeichen.'
+
+#set smartquote(quotes: "()")
+"Das sind eigene AnfÃ¼hrungszeichen."
+
+#set smartquote(quotes: (single: ("[[", "]]"),  double: auto))
+'Das sind eigene AnfÃ¼hrungszeichen.'
+```¤sqrt¦squareÙOThe square's side length. This is mutually exclusive with `width` and
+`height`.Ù–The square's width. This is mutually exclusive with `size` and `height`.
+
+In contrast to `size`, this can be relative to the parent container's
+width.Ù—The square's height. This is mutually exclusive with `size` and `width`.
+
+In contrast to `size`, this can be relative to the parent container's
+height.ÙYHow to fill the square. See the [rectangle's documentation]($rect.fill)
+for more details.Ù]How to stroke the square. See the
+[rectangle's documentation]($rect.stroke) for more details.ÙkHow much to round the square's corners. See the
+[rectangle's documentation]($rect.radius) for more details.ÙaHow much to pad the square's content. See the
+[box's documentation]($box.inset) for more details.ÙHow much to expand the square's size without affecting the layout. See
+the [box's documentation]($box.outset) for more details.ÙºThe content to place into the square. The square expands to fit this
+content, keeping the 1-1 aspect ratio.
+
+When this is omitted, the square takes on a default size of at most
+`{30pt}`.§sscript¥stackÚ]The direction along which the items are stacked. Possible values are:
+
+- `{ltr}`: Left to right.
+- `{rtl}`: Right to left.
+- `{ttb}`: Top to bottom.
+- `{btt}`: Bottom to top.
+
+You can use the `start` and `end` methods to obtain the initial and
+final points (respectively) of a direction, as `alignment`. You can also
+use the `axis` method to determine whether a direction is
+`{"horizontal"}` or `{"vertical"}`. The `inv` method returns a
+direction's inverse direction.
+
+For example, `{ttb.start()}` is `top`, `{ttb.end()}` is `bottom`,
+`{ttb.axis()}` is `{"vertical"}` and `{ttb.inv()}` is equal to `btt`.ÙGSpacing to insert between items where no explicit spacing was provided.Ù%The children to stack along the axis.¨state.atÙ9The place at which the state's value should be retrieved.¬state.updateÚ"A value to update to or a function to update with.
+
+- If given a non-function value, sets the state to that value.
+- If given a function, that function receives the state's previous
+  value and has to return the state's new value.
+
+When updating the state based on its previous value, you should
+prefer the function form instead of retrieving the previous value
+from the [context]($context). This allows the compiler to resolve
+the final state efficiently, minimizing the number of
+[layout iterations]($context/#compiler-iterations) required.
+
+In the following example, `{fill.update(f => not f)}` will paint odd
+[items in the bullet list]($list.item) as expected. However, if it's
+replaced with `{context fill.update(not fill.get())}`, then layout
+will not converge within 5 attempts, as each update will take one
+additional iteration to propagate.
+
+```example
+#let fill = state("fill", false)
+
+#show list.item: it => {
+  fill.update(f => not f)
+  context {
+    set text(fill: fuchsia) if fill.get()
+    it
+  }
+}
+
+#lorem(5).split().map(list.item).join()
+```¦str.atÙ3The byte index. If negative, indexes from the back.¬str.containsºThe pattern to search for.­str.ends-withÙ&The pattern the string might end with.¨str.find©str.firstÙ1A default value to return if the string is empty.°str.from-unicodeÙ(The code point that should be converted.¨str.last©str.match«str.matches¬str.position«str.replace«replacementÙøThe string to replace the matches with or a function that gets a
+dictionary for each match and can return individual replacement
+strings.
+
+The dictionary passed to the function has the same shape as the
+dictionary returned by [`match`]($str.match).ÙCIf given, only the first `count` matches of the pattern are placed.©str.sliceÙEThe start byte index (inclusive). If negative, indexes from the
+back.Ù‰The end byte index (exclusive). If omitted, the whole slice until
+the end of the string is extracted. If negative, indexes from the
+back.ÙƒThe number of bytes to extract. This is equivalent to passing
+`start + count` as the `end` position. Mutually exclusive with `end`.©str.splitÙ0The pattern to split at. Defaults to whitespace.¯str.starts-withÙ(The pattern the string might start with.®str.to-unicode©characterÙ'The character that should be converted.¨str.trimÙ;The pattern to search for. If `{none}`, trims white spaces.ÙlCan be `{start}` or `{end}` to only trim the start or end of the
+string. If omitted, both sides are trimmed.ÙXWhether to repeatedly removes matches of the pattern or just once.
+Defaults to `{true}`.¦strikeÚEHow to [stroke] the line.
+
+If set to `{auto}`, takes on the text's color and a thickness defined in
+the current font.
+
+_Note:_ Please don't use this for real redaction as you can still copy
+paste the text.
+
+```example
+This is #strike(stroke: 1.5pt + red)[very stricken through]. \
+This is #strike(stroke: 10pt)[redacted].
+```Ú"The position of the line relative to the baseline. Read from the font
+tables if `{auto}`.
+
+This is useful if you are unhappy with the offset your font provides.
+
+```example
+#set text(font: "Inria Serif")
+This is #strike(offset: auto)[low-ish]. \
+This is #strike(offset: -3.5pt)[on-top].
+```ÙËThe amount by which to extend the line beyond (or within if negative)
+the content.
+
+```example
+This #strike(extent: -2pt)[skips] parts of the word.
+This #strike(extent: 2pt)[extends] beyond the word.
+```Ù²Whether the line is placed behind the content.
+
+```example
+#set strike(stroke: red)
+#strike(background: true)[This is behind.] \
+#strike(background: false)[This is in front.]
+```¾The content to strike through.¦strong¥deltaÙYThe delta to apply on the font weight.
+
+```example
+#set strong(delta: 0)
+No *effect!*
+```Ù"The content to strongly emphasize.£sub«typographicÚ7Whether to use subscript glyphs from the font if available.
+
+Ideally, subscripts glyphs are provided by the font (using the `subs`
+OpenType feature). Otherwise, Typst is able to synthesize subscripts by
+lowering and scaling down regular glyphs.
+
+When this is set to `{false}`, synthesized glyphs will be used
+regardless of whether the font provides dedicated subscript glyphs. When
+`{true}`, synthesized glyphs may still be used in case the font does not
+provide the necessary subscript glyphs.
+
+```example
+N#sub(typographic: true)[1]
+N#sub(typographic: false)[1]
+```ÚŒThe downward baseline shift for synthesized subscripts.
+
+This only applies to synthesized subscripts. In other words, this has no
+effect if `typographic` is `{true}` and the font provides the necessary
+subscript glyphs.
+
+If set to `{auto}`, the baseline is shifted according to the metrics
+provided by the font, with a fallback to `{0.2em}` in case the font does
+not define the necessary metrics.ÚyThe font size for synthesized subscripts.
+
+This only applies to synthesized subscripts. In other words, this has no
+effect if `typographic` is `{true}` and the font provides the necessary
+subscript glyphs.
+
+If set to `{auto}`, the size is scaled according to the metrics provided
+by the font, with a fallback to `{0.6em}` in case the font does not
+define the necessary metrics.Ù!The text to display in subscript.¥superÚDWhether to use superscript glyphs from the font if available.
+
+Ideally, superscripts glyphs are provided by the font (using the `sups`
+OpenType feature). Otherwise, Typst is able to synthesize superscripts
+by raising and scaling down regular glyphs.
+
+When this is set to `{false}`, synthesized glyphs will be used
+regardless of whether the font provides dedicated superscript glyphs.
+When `{true}`, synthesized glyphs may still be used in case the font
+does not provide the necessary superscript glyphs.
+
+```example
+N#super(typographic: true)[1]
+N#super(typographic: false)[1]
+```Ú6The downward baseline shift for synthesized superscripts.
+
+This only applies to synthesized superscripts. In other words, this has
+no effect if `typographic` is `{true}` and the font provides the
+necessary superscript glyphs.
+
+If set to `{auto}`, the baseline is shifted according to the metrics
+provided by the font, with a fallback to `{-0.5em}` in case the font
+does not define the necessary metrics.
+
+Note that, since the baseline shift is applied downward, you will need
+to provide a negative value for the content to appear as raised above
+the normal baseline.ÚThe font size for synthesized superscripts.
+
+This only applies to synthesized superscripts. In other words, this has
+no effect if `typographic` is `{true}` and the font provides the
+necessary superscript glyphs.
+
+If set to `{auto}`, the size is scaled according to the metrics provided
+by the font, with a fallback to `{0.6em}` in case the font does not
+define the necessary metrics.Ù#The text to display in superscript.¥tableÙgThe column sizes. See the [grid documentation]($grid/#track-size) for
+more information on track sizing.ÙdThe row sizes. See the [grid documentation]($grid/#track-size) for more
+information on track sizing.ÙÂThe gaps between rows and columns. This is a shorthand for setting
+`column-gutter` and `row-gutter` to the same value. See the [grid
+documentation]($grid.gutter) for more information on gutters.Ù…The gaps between columns. Takes precedence over `gutter`. See the
+[grid documentation]($grid.gutter) for more information on gutters.Ù‚The gaps between rows. Takes precedence over `gutter`. See the
+[grid documentation]($grid.gutter) for more information on gutters.ÚŸHow much to pad the cells' content.
+
+To specify the same inset for all cells, use a single length for all
+sides, or a dictionary of lengths for individual sides. See the
+[box's documentation]($box.inset) for more details.
+
+To specify a varying inset for different cells, you can:
+- use a single, uniform inset for all cells
+- use an array of insets for each column
+- use a function that maps a cell's X/Y position (both starting from
+  zero) to its inset
+
+See the [grid documentation]($grid/#styling) for more details.
+
+```example
+#table(
+  columns: 2,
+  inset: 10pt,
+  [Hello],
+  [World],
+)
+
+#table(
+  columns: 2,
+  inset: (x: 20pt, y: 10pt),
+  [Hello],
+  [World],
+)
+```ÚHow to align the cells' content.
+
+If set to `{auto}`, the outer alignment is used.
+
+You can specify the alignment in any of the following fashions:
+- use a single alignment for all cells
+- use an array of alignments corresponding to each column
+- use a function that maps a cell's X/Y position (both starting from
+  zero) to its alignment
+
+See the [Table Guide]($guides/tables/#alignment) for details.
+
+```example
+#table(
+  columns: 3,
+  align: (left, center, right),
+  [Hello], [Hello], [Hello],
+  [A], [B], [C],
+)
+```Ú¯How to fill the cells.
+
+This can be:
+- a single fill for all cells
+- an array of fill corresponding to each column
+- a function that maps a cell's position to its fill
+
+Most notably, arrays and functions are useful for creating striped
+tables. See the [Table Guide]($guides/tables/#fills) for more
+details.
+
+```example
+#table(
+  fill: (x, _) =>
+    if calc.odd(x) { luma(240) }
+    else { white },
+  align: (x, y) =>
+    if y == 0 { center }
+    else if x == 0 { left }
+    else { right },
+  columns: 4,
+  [], [*Q1*], [*Q2*], [*Q3*],
+  [Revenue:], [1000 â‚¬], [2000 â‚¬], [3000 â‚¬],
+  [Expenses:], [500 â‚¬], [1000 â‚¬], [1500 â‚¬],
+  [Profit:], [500 â‚¬], [1000 â‚¬], [1500 â‚¬],
+)
+```ÚKHow to [stroke] the cells.
+
+Strokes can be disabled by setting this to `{none}`.
+
+If it is necessary to place lines which can cross spacing between cells
+produced by the [`gutter`]($table.gutter) option, or to override the
+stroke between multiple specific cells, consider specifying one or more
+of [`table.hline`] and [`table.vline`] alongside your table cells.
+
+To specify the same stroke for all cells, use a single [stroke] for all
+sides, or a dictionary of [strokes]($stroke) for individual sides. See
+the [rectangle's documentation]($rect.stroke) for more details.
+
+To specify varying strokes for different cells, you can:
+- use a single stroke for all cells
+- use an array of strokes corresponding to each column
+- use a function that maps a cell's position to its stroke
+
+See the [Table Guide]($guides/tables/#strokes) for more details.Ù|The contents of the table cells, plus any extra table lines specified
+with the [`table.hline`] and [`table.vline`] elements.ªtable.cellÙZThe cell's column (zero-indexed).
+Functions identically to the `x` field in [`grid.cell`].ÙWThe cell's row (zero-indexed).
+Functions identically to the `y` field in [`grid.cell`].Ù*The cell's [inset]($table.inset) override.Ù.The cell's [alignment]($table.align) override.Ù(The cell's [fill]($table.fill) override.Ù,The cell's [stroke]($table.stroke) override.¬table.footer¬table.header«table.hlineÙŠThe row above which the horizontal line is placed (zero-indexed).
+Functions identically to the `y` field in [`grid.hline`]($grid.hline.y).ÙKThe column before which the horizontal line ends (zero-indexed,
+exclusive).«table.vlineÙ}The column before which the vertical line is placed (zero-indexed).
+Functions identically to the `x` field in [`grid.vline`].ÙIThe row on top of which the vertical line ends (zero-indexed,
+exclusive).Ú@The position at which the line is placed, given its column (`x`) -
+either `{start}` to draw before it or `{end}` to draw after it.
+
+The values `{left}` and `{right}` are also accepted, but discouraged as
+they cause your table to be inconsistent between left-to-right and
+right-to-left documents.
+
+This setting is only relevant when column gutter is enabled (and
+shouldn't be used otherwise - prefer just increasing the `x` field by
+one instead), since then the position after a column becomes different
+from the position before the next column due to the spacing between
+both.¥termsÚ-Defines the default [spacing]($terms.spacing) of the term list. If it is
+`{false}`, the items are spaced apart with
+[paragraph spacing]($par.spacing). If it is `{true}`, they use
+[paragraph leading]($par.leading) instead. This makes the list more
+compact, which can look better if the items are short.
+
+In markup mode, the value of this parameter is determined based on
+whether items are separated with a blank line. If items directly follow
+each other, this is set to `{true}`; if items are separated by a blank
+line, this is set to `{false}`. The markup-defined tightness cannot be
+overridden with set rules.
+
+```example
+/ Fact: If a term list has a lot
+  of text, and maybe other inline
+  content, it should not be tight
+  anymore.
+
+/ Tip: To make it wide, simply
+  insert a blank line between the
+  items.
+```Ú(The separator between the item and the description.
+
+If you want to just separate them with a certain amount of space, use
+`{h(2cm, weak: true)}` as the separator and replace `{2cm}` with your
+desired amount of space.
+
+```example
+#set terms(separator: [: ])
+
+/ Colon: A nice separator symbol.
+```ÙÈThe hanging indent of the description.
+
+This is in addition to the whole item's `indent`.
+
+```example
+#set terms(hanging-indent: 0pt)
+/ Term: This term list does not
+  make use of hanging indents.
+```ÙËThe spacing between the items of the term list.
+
+If set to `{auto}`, uses paragraph [`leading`]($par.leading) for tight
+term lists and paragraph [`spacing`]($par.spacing) for wide
+(non-tight) term lists.ÚThe term list's children.
+
+When using the term list syntax, adjacent items are automatically
+collected into term lists, even through constructs like for loops.
+
+```example
+#for (year, product) in (
+  "1978": "TeX",
+  "1984": "LaTeX",
+  "2019": "Typst",
+) [/ #product: Born in #year.]
+```ªterms.item¤termÙ$The term described by the list item.¼The description of the term.ÚThe content of the title.
+
+When omitted (or `{auto}`), this will default to [`document.title`]. In
+this case, a document title must have been previously set with
+`{set document(title: [..])}`.
+
+```example
+#set document(title: "Course ABC, Homework 1")
+#title[Homework 1]
+
+...
+```¤tomlÙ:A [path]($syntax/#paths) to a TOML file or raw TOML bytes.«toml.decodeªTOML data.«toml.encodeÙ[Value to be encoded.
+
+TOML documents are tables. Therefore, only dictionaries are suitable.Ù+Whether to pretty-print the resulting TOML.ªunderbrace¬underbracket©underlineÙÈHow to [stroke] the line.
+
+If set to `{auto}`, takes on the text's color and a thickness defined in
+the current font.
+
+```example
+Take #underline(
+  stroke: 1.5pt + red,
+  offset: 2pt,
+  [care],
+)
+```Ù£The position of the line relative to the baseline, read from the font
+tables if `{auto}`.
+
+```example
+#underline(offset: 5pt)[
+  The Tale Of A Faraway Line I
+]
+```Ù—The amount by which to extend the line beyond (or within if negative)
+the content.
+
+```example
+#align(center,
+  underline(extent: 2pt)[Chapter 1]
+)
+```Ù°Whether the line skips sections in which it would collide with the
+glyphs.
+
+```example
+This #underline(evade: true)[is great].
+This #underline(evade: false)[is less great].
+```ÙıWhether the line is placed behind the content it underlines.
+
+```example
+#set underline(stroke: (thickness: 1em, paint: maroon, cap: "round"))
+#underline(background: true)[This is stylized.] \
+#underline(background: false)[This is partially hidden.]
+```¹The content to underline.ªunderparenªundershellÙ!The text to convert to uppercase.§upright¡vÚIf `{true}`, the spacing collapses at the start or end of a flow.
+Moreover, from multiple adjacent weak spacings all but the largest one
+collapse. Weak spacings will always collapse adjacent paragraph spacing,
+even if the paragraph spacing is larger.
+
+```example
+The following theorem is
+foundational to the field:
+#v(4pt, weak: true)
+$ x^2 + y^2 = r^2 $
+#v(4pt, weak: true)
+The proof is simple:
+```£vecªversion.atÙtThe index at which to retrieve the component. If negative, indexes
+from the back of the explicitly given components.£xmlÙ9A [path]($syntax/#paths) to an XML file or raw XML bytes.ªxml.decode©XML data.¤yamlÙ:A [path]($syntax/#paths) to a YAML file or raw YAML bytes.«yaml.decodeªYAML data.«yaml.encodeÜc’’’’’”’’	’
+’’’’’’’’’’‘’’‘’’’’’’’’ ’!"’#‘’$%’&‘’'’(‘’)*’+‘’’,‘’-’.‘’/’0’’12’34’5’’6’$7’8‘’9:’;“’9<’=>’?’@‘’/’A‘’BC’D‘’-’E‘’F’G‘’$H’I“’)J’KL’MN’O‘’PQ’R’’S’’T“’)U’KV’WX’Y’’Z’[\’]‘’^_’`‘’F’a‘’bc’d’’!e’fg’h’’ij’kl’m“’no’pq’kr’s“’no’pq’kr’t—’u’vw’xy’z{’|}’~’Ì€Ì’Ì‚‘’Ìƒ’Ì„”’Ì…Ì†’Ì‡Ìˆ’Ì‰ÌŠ’Ì‹ÌŒ’Ì’’ÌÌ’ÌÌ‘’Ì’’Ì“Ì”’Ì•Ì–’Ì—Ì˜’Ì™Ìš’Ì›Ìœ’ÌÌ’ÌŸÌ ’Ì¡Ì¢’Ì£Ì¤’Ì¥Ì¦’Ì§Ì¨’Ì©Ìª’Ì«Ì¬’Ì­’Ì®‘’Ìƒ’Ì¯š’Ì“Ì°’Ì•Ì±’Ì²Ì³’Ì™Ì´’Ì›Ìµ’ÌÌ¶’ÌŸÌ·’Ì¡Ì¸’Ì©Ì¹’Ìº’Ì»’’Ì¼’’Ì½“’)Ì¾’KÌ¿’WÌÀ’ÌÁ‘’Ìƒ’ÌÂ‘’$ÌÃ’ÌÄ‘’$ÌÅ’ÌÆ‘’$ÌÇ’ÌÈ‘’$ÌÉ’ÌÊ’’ÌËÌÌ’ÌÍÌÎ’ÌÏ’’ÌĞÌÑ’ÌÒÌÓ’ÌÔ‘’$ÌÕ’ÌÖ“’$Ì×’ÌØÌÙ’ÌÚÌÛ’ÌÜ‘’ÌİÌŞ’Ìß‘’$Ìà’Ìá’’ÌâÌã’ÌäÌå’Ìæ‘’$Ìç’Ìè‘’ÌéÌê’Ìë‘’ÌìÌí’Ìî‘’$Ìï’Ìğ‘’$Ìñ’Ìò’’ÌóÌô’xÌõ’Ìö’’ÌóÌô’xÌõ’Ì÷‘’$Ìø’Ìù’’$Ìø’Ìú’Ìû‘’ÌüÌı’Ìş‘’ÌüÌÿ’Í ’’ÍÍ’ÌüÍ’Í‘’$Í’Í’’Í’ÍÍ	’Í
+’’Í’ÌéÌê’Í’’ÌâÍ’ÌäÍ’Í’’ÌâÍ’ÌäÍ’Í’’ÌâÍ’ÌäÍ’Í’’ÍÍ’Í’Í’’$Í’ÍÍ’Í‘’ÌİÍ’Í‘’$Í’Í‘’$Í ’Í!‘’ÌİÍ"’Í#‘’$Í$’Í%‘’$Ìñ’Í&–’Í'’Í(Í)’Í*Í+’Í,Í-’ÌİÍ.’Ì›Í/’Í0”’Í1Í2’Í3Í4’Í5Í6’Í7Í8’Í9‘’Í:Í;’Í<‘’Í=Í>’Í?‘’$Í@’ÍA˜’ÌÍB’Ì“ÍC’Ì•ÍD’Ì™ÍE’Ì›ÍF’ÌŸÍG’Ì¡ÍH’ÍI’ÍJ”’ÍK’ÍLÍM’ÍNÍO’Ì‹ÍP’ÍQ’’ÍQÍR’ÍS’ÍT•’ÍUÍV’ÍWÍX’ÍYÍZ’Í[’Í\Í]’Í^‘’Í_Í`’Ía•’ÍUÍV’ÍWÍX’ÍYÍZ’Í[’Í\Í]’Íb‘’ÍcÍd’Íe‘’ÍfÍg’Íh‘’ÍfÍi’Íj•’ÍkÍl’ÍmÍn’ÍoÍp’ÍcÍq’Í\Ír’Ís•’ÍkÍl’ÍmÍn’$Ít’ÍcÍq’Í\Ír’Íu‘’ÍfÍv’Íw•’ÍxÍy’ÍzÍ{’Í|Í}’ÍcÍq’Í\Í~’Í“’ÍoÍp’ÍcÍq’Í\Í€’Í’’Í‚Íƒ’Í„Í…’Í†‘’Í„Í‡’Íˆ•’ÍoÍp’ÌóÍ‰’xÍŠ’ÍcÍq’Í\Í‹’ÍŒ•’ÍoÍp’ÍÍ’ÍkÍ’ÍcÍq’Í\Í’Í‘‘’Í’Í“’Í”–’ÍxÍy’ÍzÍ{’Í|Í}’ÍcÍq’Í•Í–’Í\Í—’Í˜’’ÌİÍ™’Í„Íš’Í›‘’ÍfÍœ’Í‘’Í’Í’ÍŸ“’WÍ ’Í¡Í¢’Í£’Í¤’’Í¥Í¦’Í§’Í¨‘’Í¥Í©’Íª‘’Í«Í¬’Í­’’Í®Í¯’Í°Í±’Í²‘’Í³Í´’Íµ‘’Í¶Í·’Í¸“’Í:Í¹’ÍºÍ»’Í¼Í½’Í¾“’Í=Í¿’ÍºÍ»’Í¼ÍÀ’ÍÁ”’Ì™ÍÂ’ÍÃÍÄ’Ì›ÍÅ’ÍÆÍÇ’ÍÈ‘’ÍÉÍÊ’ÍË”’ÍÌÍÍ’ÍÎÍÏ’KÍĞ’ÍÑÍÒ’ÍÓ’’KÍÔ’ÍÑÍÕ’ÍÖ’’)Í×’ÍÑÍØ’ÍÙ“’ÍÚÍÛ’KÍÜ’ÍÑÍİ’ÍŞ‘’ÍßÍà’Íá‘’ÍâÍã’Íä’’Íå’Íæ’Íç’’Íè’$Íé’Íê’’Íë’Íì’Íí’’Íî’ÍïÍğ’Íñ•’Ì‡Íò’ÍóÍô’ÍõÍö’Í÷Íø’ÍùÍú’Íû—’Ì“Íü’Ì•Íı’Ì™Íş’Ì›Íÿ’ÌŸÍ ’Ì¡Í’Í’Í‘’Í’Íš’ÍÍ’Í®Í’)Í	’Ì‰Í
+’ÍÍ’ÍÍ’ÍÍ’Ì£Í’ÍÍ’Í7Í’Í’’ÌìÍ’Í’Í–’Ì’Í’Í®Í’ÍÍ’ÍLÍ’ÍÍ’Í’Í “’Í:Í!’ÍÉÍ"’Í#Í$’Í%š’Í&’ÍÍ'’Í(Í)’Í#Í*’Í+Í,’Í-Í.’ÍLÍ/’Í®Í0’Í5Í1’Í2Í3’Í4“’Í5Í6’9Í7’Í8’Í9’’Í:Í;’Í<Í=’Í>’’Í<Í=’Í?’Í@’’Í®ÍA’ÍB’ÍC•’ÍDÍE’9ÍF’ÍGÍH’Í5ÍI’ÍÍJ’ÍK“’ÍLÍM’ÍNÍO’Ì‹ÍP’ÍQ‘’Ìƒ’ÍR‘’ÍSÍT’ÍU‘’ÍVÍW’ÍX•’ÍYÍZ’ÌİÍ[’Í„Í\’ÍÑÍ]’Í^Í_’Í`•’ÍYÍZ’Í„Í\’ÍÑÍa’ÍbÍc’ÌİÍ[’Íd—’ÍYÍZ’Í„Í\’ÍÑÍ]’Í^Íe’ÌÍf’ÍgÍh’ÍiÍj’Ík’’ÍlÍm’ÍnÍo’Íp‘’vÍq’Ír‘’ÍsÍt’Íu’’ÍvÍw’ÍxÍy’Ízš’ÍŸÍ{’Í|Í}’Í¡Í~’ÍÍ€’ÍÍ‚’ÌŸÍƒ’Í„’Ì™Í…’Ì›Í†’Í7Í‡’Íˆš’Í‰’ÌËÍŠ’ÌÍÍ‹’ÍŒÍ’ÍÍ’ÌŸÍ’Í‘’Ì™Í’’Ì›Í“’Ì—Í”’Í•’’Í–Í—’Í7Í˜’Í™“’Í–Íš’Í³Í›’Í7Íœ’Í•’ÌÍÍ’)ÍŸ’KÍ ’Ì›Í¡’Í5Í¢’Í£•’ÌËÍ¤’)Í¥’KÍ¦’Ì›Í§’Í5Í¨’Í©’’ÍªÍ«’Í_Í¬’Í­™’Í³Í®’Í¯Í°’ÍâÍ±’Í®Í²’ÍLÍ³’Í2Í´’ÍµÍ¶’Í·Í¸’Í¹’Íº‘’Í»’Í¼—’Ì™Í½’Ì›Í¾’Í¿ÍÀ’ÍÁÍÂ’ÍÃÍÄ’ÌÍÅ’ÍÆ’ÍÇ™’Í:ÍÈ’ÍÉÍÊ’Ì“ÍË’Ì•ÍÌ’ÍÍÍ’ÍÎÍÏ’ÍĞÍÑ’ÍÒÍÓ’ÍÔÍÕ’ÍÖ—’Í=Í×’ÍÉÍØ’Ì“ÍË’Ì•ÍÌ’ÍÍÙ’ÍĞÍÚ’ÍÒÍÛ’ÍÜ’’Íî’ÍïÍğ’Íİ‘’ÍŞÍß’Íà‘’ÍáÍâ’Íã‘’ÍŞÍä’Íå’’ÍáÍæ’ÍçÍè’Íé‘’ÍŞÍê’Íë“’Í:Íì’Í<Í=’ÍíÍî’Íï’’Í<Í=’Íğ’Íñ‘’Ìƒ’Íò‘’Í:Íó’Íô‘’Í=Íõ’Íö’’$Í@’Í÷Íø’Íù‘’ÍúÍû’Íü’’Íı’ÍÜÍş’Íÿ•’)Í ’KÍ’Í(Í’ÌİÍ’Ì›Í’Í‘’ÍÍ’Í’’Í	Í
+’Í’Í–’ÍÍ’ÍÍ’ÍÍ’ÍÍ’Ì£Í’Í7Í’Í‘’Í’Í‘’Í«Í’Í‘’ÍÍ’Ì‘’ÍÍ’Í’’’Í’Í“’ÍoÍp’ÍcÍq’Í\Í€’Í—’Í1Í ’Í!’Í"Í#’Í5Í$’Í%Í&’Í'Í(’Í|Í)’Í*’’’’Í+”’’	’
+’’Í,—’u’vw’xy’z{’|}’~’Ì€Ì’Í-‘’Ìƒ’Í.’’ÌÌ’ÌÌ‘’Í/‘’Ìƒ’Í0‘’Ìƒ’Í1–’Í'’Í(Í)’Í*Í+’Í,Í-’ÌİÍ.’Ì›Í/’Í2”’Í1Í2’Í3Í4’Í5Í6’Í7Í8’Í3’’ÍQÍR’ÍS’Í4’’Íî’ÍïÍğ’Í5–’Ì’Í’Í®Í’ÍÍ’ÍLÍ’ÍÍ’Í’Í6“’ÍLÍM’ÍNÍO’Ì‹ÍP’Í7‘’Ìƒ’Í8’’Íî’ÍïÍğ’Í9‘’Ìƒ’Í:’’Íı’ÍÜÍş’Í;’’’Í’Í<—’Í1Í ’Í!’Í"Í#’Í5Í$’Í%Í&’Í'Í(’Í|Í)’Í=‘’Í>’Í?‘’Ìƒ’Í@’’’ÍA’ÍB’’ÍÍC’ÍüÍD’ÍE’’ÍF’ÍGÍH’ÍI’’ÍJ’ÍGÍK’ÍL‘’ÍM’ÍN’’ÍO’ÍGÍP’ÍQ’’ÍR’ÍGÍS’ÍT‘’WÍU’ÍV’’Í’ÍÍ’ÍW’’’ÍX’ÍY‘’Ìƒ’ÍZ‘’Ìƒ’Í[’’Íî’ÍïÍğ’Í\‘’Í]’Í^‘’Ìƒ’Í_‘’ÍÍ`’Ía’’Íî’ÍïÍğ’Íb’’Íc’Íd’ÍeÜ "’ÍfÍg’ÍhÍi’Ì‹Íj’ÍkÍl’ÍmÍn’Ío’Ì™Íp’Ì›Íq’ÍrÍs’Ì£Ít’ÍuÍv’Ì²Íw’ÍxÍy’Í¿Íz’ÍÁÍ{’Í|Í}’Í~Í’Í€Í’ÍbÍ‚’ÍƒÍ„’Í…Í†’Í‡Íˆ’Í‰ÍŠ’Í‹ÍŒ’ÍÍ’ÍÍ’Í‘Í’’Í“Í”’Í•Í–’Í—Í˜’Í™Íš’Í›Íœ’Í’ÍÍ’ÍŸ’’Í ’ÍGÍ¡’Í¢’’Í£’ÍGÍ¤’Í¥‘’Í¦’Í§’’Í¨’ÍGÍ©’Íª’’Í«’ÍGÍ¬’Í­‘’Ìƒ’Í®”’Í1Í¯’Í°’Í5Í±’Í7Í²’Í³“’Ì“Í´’Ì•Íµ’Í¶Í·’Í¸‘’$Í¹’Íº‘’Í>’Í»‘’Ìƒ’Í¼“’Í½Í¾’Í¿ÍÀ’ÍÁ’ÍÂ’’’ÍA’Í®’’Í®ÍÃ’ÍÍÄ’ÍÅ•’ÍoÍp’ÌóÍ‰’xÍŠ’ÍcÍq’Í\Í‹’ÍÆ•’ÍoÍp’ÍÍ’ÍkÍ’ÍcÍq’Í\Í’ÍÇ’’ÍÍC’ÍüÍD’ÍÈ”’Ì‡ÍÉ’ÍÊÍË’Í¯ÍÌ’ÍÍÍ’ÍÎ“’Í³ÍÏ’ÍĞÍÑ’Ì™ÍÒ’ÍÓ“’ÍÔÍÕ’ÍÖÍ×’Í5ÍØ’ÍÙ’’ÍF’ÍGÍH’ÍÚ’’ÍJ’ÍGÍK’ÍÛ–’Ì›ÍÜ’ÍâÍİ’ÍÃÍŞ’ÍßÍà’ÍáÍâ’Íã’Íä’’ÍO’ÍGÍP’Íå’’ÍR’ÍGÍS’Íæ˜’nÍç’ÍèÍé’pÍê’ÍëÍì’ÌËÍí’ÌÍÍî’ÍïÍğ’Íñ’ÍÎÜ ’ÍòÍó’Ì“Íô’Ì•Íõ’ÍöÍ÷’ÍøÍù’ÍúÍû’ÍŸÍü’Ì™Íı’Í®Íş’ÍLÍÿ’ÍÍ ’ÍÍ’ÍÍ’ÍÍ’ÍÍ’ÍáÍ	’Í
+Í’Í’Í’’Í_Í’ÍÍ’Í‘’ÌüÍ’Í˜’ÍÍ’Ì£Í’ÍÍ’ÍÍ’ÍÍ’ÍÍ’Í·Í’Í’Í •’Í®Í!’ÍÍ"’Í#Í$’Í%Í&’Í'Í(’Í)•’Ì™Í*’ÍÃÍ+’Ì›Í,’Í-Í.’Í/Í0’Í1’’Í-Í2’Í3’Í4•’Í)Í5’Í=Í6’Í7Í8’Í9Í:’ÍõÍ;’Í<•’Í)Í5’Í=Í6’Í7Í8’Í9Í:’ÍõÍ;’Í=—’Í>’Í#Í?’Í@ÍA’ÍGÍB’Í½ÍC’Í¿ÍD’ÍE’ÍF‘’Í:ÍG’ÍH’’ÍúÍI’ÍVÍJ’ÍK”’Ì™ÍL’ÍÃÍM’Ì›ÍN’Í/ÍO’ÍP”’Ì™ÍQ’Ì›ÍR’ÍS’Í/ÍT’ÍU‘’WÍU’ÍV‘’ÍÊÍW’ÍX”’Ì’ÍY’ÍZÍ[’Í\Í]’Í^’Í_“’)J’KL’MN’Í`—’ÍÍa’Ì’Íb’Í|Íc’Íd’ÍeÍf’ÍgÍh’ÍiÍj’Ík”’ÌìÍl’WÍm’ÍÍn’Ío’Íp’’Í)Íq’ÍrÍs’Ít˜’Ì“Íu’Ì•Ív’Ì™Íw’Ì›Íx’ÌÍy’ÌŸÍz’Ì¡Í{’Í|’Í}“’ÍÊÍ~’ÍLÍ’ÍNÍ€’Í–“’Í’Í5Í‚’ÍÍƒ’Í„‘’$Í…’Í†–’ÍxÍy’ÍzÍ{’Í|Í}’ÍcÍq’Í•Í–’Í\Í—’Í‡’’Í’ÍÍ’Íˆ”’ÌİÍ‰’ÍŠÍ‹’ÍŒÍ’Í’Í’’’ÍX’Í‘’Ìƒ’Í’–’ÍfÍ‘’ÌËÍ’’ÌÍÍ“’ÍŠÍ”’ÍŒÍ•’Í–’Í—‘’Ìƒ’Í€’’Íî’ÍïÍğ’Í˜‘’Í]’Í™’’)Íš’Í›Íœ’Í‘’fÍ’ÍŸ’’KÍ ’Í›Í¡’Í¢‘’fÍ’Í£‘’Ìƒ’Í¤•’Í¥Í¦’Í§Í¨’ÍŠÍ©’ÍŒÍª’Í«’Í¬’’Í­Í®’Í¯’Í°”’Í±Í²’Í³Í´’ÍµÍ¶’ÍZÍ·’Í¸‘’ÍÍ`’Í¹™’Íº’Ì“Í»’Ì•Í¼’Ì™Í½’Ì›Í¾’ÌÍ¿’ÌŸÍÀ’Ì¡ÍÁ’ÍÂ’ÍÃ’’Íî’ÍïÍğ’ÍÄ“’ÍbÍÅ’Ì£ÍÆ’Í7ÍÇ’ÍÈ‘’Í«ÍÉ’ÍÊ‘’Í¶ÍË’ÍÌ’’ÍÍ’’ÍÎ‘’ÍßÍÏ’ÍĞ‘’ÍßÍÑ’ÍÒ‘’ÍßÍÏ’ÍÓ‘’ÍÔ’ÍÕ‘’$ÍÖ’Í×‘’ÍÔ’ÍØ‘’ÍßÍÏ’ÍÙ‘’ÍßÍÏ’ÍÚ‘’ÍßÍÏ’ÍÛ“’ÍßÍÏ’ÍÜÍİ’WÍŞ’Íß“’)Íà’KÍá’WÍâ’Íã‘’ÍßÍä’Íå‘’ÍßÍæ’Íç‘’ÍèÍé’Íê“’ÍßÍë’^Íì’Í–Íí’Ím’’Íc’Íd’Íî•’Ì›Íï’ÍâÍğ’ÍÃÍñ’ÍáÍò’Íó’Íô’’ÍõÍö’Í÷’Íø”’ÍùÍú’Ì²Íû’Íü’Íı’Íş”’ÍùÍÿ’Ì²Í ’Í’Í’Íš’ÍŸÍ’Í|Í’Í¡Í’ÍÍ’ÍÍ’ÌŸÍ	’Í
+’Ì™Í’Ì›Í’Í7Í’Íš’Í‰’ÌËÍ’ÌÍÍ’ÍŒÍ’ÍÍ’ÌŸÍ’Í’Ì™Í’Ì›Í’Ì—Í”’Í’’Í–Í—’Í7Í˜’Í“’Í–Íš’Í³Í›’Í7Íœ’Í•’ÌÍÍ’)ÍŸ’KÍ’Ì›Í¡’Í5Í¢’Í•’ÌËÍ’)Í¥’KÍ’Ì›Í§’Í5Í’Í–’ÍÍ’9Í ’ÍÍ’Í·Í!’Ì£Í"’Í7Í#’Í$’’Í%Í&’ÍõÍ'’ÍÜ "’ÍfÍg’ÍhÍi’Ì‹Íj’ÍkÍl’ÍmÍn’Ío’Ì™Íp’Ì›Íq’ÍrÍs’Ì£Ít’ÍuÍv’Ì²Íw’ÍxÍy’Í¿Íz’ÍÁÍ{’Í|Í}’Í~Í’Í€Í’ÍbÍ‚’ÍƒÍ„’Í…Í†’Í‡Íˆ’Í‰ÍŠ’Í‹ÍŒ’ÍÍ’ÍÍ’Í‘Í’’Í“Í”’Í•Í–’Í—Í˜’Í™Íš’Í›Íœ’Í’ÍÍ’Ì‡‘’Í(’Í)‘’Í:Í*’Í+‘’Í=Í,’Í-’’$Í.’Í÷Í/’Í0’’Í ’ÍGÍ¡’Í1’’Í£’ÍGÍ¤’Í2–’Ì›Í3’ÍâÍ4’ÍÃÍ5’ÍßÍ6’ÍáÍ7’Í8’Í9’’Í¨’ÍGÍ©’Í:’’Í«’ÍGÍ¬’Ì‘’ÍÍ;’Í<‘’Ìƒ’Í=’’ÍªÍ«’Í_Í>’Í?”’Í1Í¯’Í°’Í5Í±’Í7Í²’Í@‘’ÍA’ÍB‘’Í:ÍC’ÍD‘’Í=ÍE’ÍF‘’Í:ÍG’ÍH‘’Í=ÍI’ÍJ‘’$Í@

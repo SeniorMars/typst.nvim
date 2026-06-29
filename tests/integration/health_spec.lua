@@ -1,0 +1,506 @@
+local root = vim.fn.getcwd()
+vim.opt.runtimepath:prepend(root)
+
+local typst = require("typst")
+local preview = require("typst.integrations.typst_preview")
+
+local case_id = 0
+
+local function cleanup()
+    pcall(function()
+        typst.reset({ force = true })
+    end)
+    pcall(vim.cmd, "silent! %bwipeout!")
+end
+
+local function run_case(name, fn)
+    case_id = case_id + 1
+    cleanup()
+
+    local ok, err = xpcall(fn, debug.traceback)
+
+    cleanup()
+
+    if not ok then
+        error(("health integration case failed [%s]:\n%s"):format(name, err))
+    end
+end
+
+local function capture_health()
+    local messages = {}
+    local old_health = vim.health
+
+    vim.health = {
+        start = function(message)
+            messages[#messages + 1] = { level = "start", message = message }
+        end,
+        ok = function(message)
+            messages[#messages + 1] = { level = "ok", message = message }
+        end,
+        warn = function(message)
+            messages[#messages + 1] = { level = "warn", message = message }
+        end,
+        error = function(message)
+            messages[#messages + 1] = { level = "error", message = message }
+        end,
+    }
+
+    local ok, err = xpcall(function()
+        require("typst.health").check()
+    end, debug.traceback)
+
+    vim.health = old_health
+
+    if not ok then
+        error(err)
+    end
+
+    return messages
+end
+
+local function has_message(messages, level, pattern)
+    for _, item in ipairs(messages) do
+        if
+            (level == nil or item.level == level)
+            and item.message:find(pattern, 1, true)
+        then
+            return true
+        end
+    end
+    return false
+end
+
+local function with_preview_unavailable(fn)
+    local old_available = preview.available
+    local old_command_available = preview.command_available
+
+    preview.available = function()
+        return false
+    end
+    preview.command_available = function()
+        return false
+    end
+
+    local ok, err = xpcall(fn, debug.traceback)
+
+    preview.available = old_available
+    preview.command_available = old_command_available
+
+    if not ok then
+        error(err)
+    end
+end
+
+run_case("native preview and project report", function()
+    typst.setup({
+        root = root,
+        preview = {
+            fallback = "view",
+        },
+    })
+
+    local main = root .. "/tests/fixtures/basic/main.typ"
+    vim.cmd.edit(main)
+    typst.project.set_main(main)
+
+    local messages
+    with_preview_unavailable(function()
+        messages = capture_health()
+    end)
+
+    local saw_native_preview = false
+    local saw_project_decision = false
+    local saw_project_diagnostics = false
+    local saw_project_index_cache = false
+    local saw_metadata_symbols = false
+
+    for _, item in ipairs(messages) do
+        assert(
+            not item.message:match("delegated later"),
+            "health output should describe current preview behavior instead of future delegation"
+        )
+
+        if
+            item.level == "ok" and item.message:match("Preview: native viewer")
+        then
+            saw_native_preview = true
+        end
+
+        if
+            item.level == "ok"
+            and item.message:find("tests/fixtures/basic/main.typ", 1, true)
+            and item.message:find("root_source=", 1, true)
+            and item.message:find("main_source=", 1, true)
+        then
+            saw_project_decision = true
+        end
+
+        if
+            item.level == "ok"
+            and item.message:find("tinymist_nvim_lsp=not_attached", 1, true)
+            and item.message:find(
+                "compiler_diagnostics=fallback_active",
+                1,
+                true
+            )
+        then
+            saw_project_diagnostics = true
+        end
+
+        if
+            item.level == "ok"
+            and item.message:find("index_collect_cache=", 1, true)
+            and item.message:find("index_file_cache=", 1, true)
+            and item.message:find("index_bibliography_cache=", 1, true)
+        then
+            saw_project_index_cache = true
+        end
+
+        if
+            item.level == "ok"
+            and item.message:find("Typst metadata:", 1, true)
+            and item.message:find("symbols", 1, true)
+            and item.message:find("emojis", 1, true)
+            and not item.message:find("docs", 1, true)
+        then
+            saw_metadata_symbols = true
+        end
+    end
+
+    assert(
+        saw_native_preview,
+        "health output should explain native TypstPreview behavior"
+    )
+    assert(
+        saw_project_decision,
+        "health output should expose attached project root/main decisions"
+    )
+    assert(
+        saw_project_diagnostics,
+        "health output should expose effective project diagnostics policy"
+    )
+    assert(
+        saw_project_index_cache,
+        "health output should expose project index cache statistics"
+    )
+    assert(
+        saw_metadata_symbols,
+        "health output should expose bundled symbol and emoji metadata"
+    )
+end)
+
+run_case("missing treesitter is warning-only", function()
+    typst.setup({
+        root = root,
+        compile = {
+            provider = "noop",
+        },
+        preview = {
+            fallback = "view",
+        },
+    })
+
+    local old_get_lang = vim.treesitter.language.get_lang
+    local old_query_get = vim.treesitter.query.get
+
+    vim.treesitter.language.get_lang = function()
+        error("missing typst parser")
+    end
+    vim.treesitter.query.get = function()
+        error("missing typst query")
+    end
+
+    local messages
+    local ok, err = xpcall(function()
+        with_preview_unavailable(function()
+            messages = capture_health()
+        end)
+    end, debug.traceback)
+
+    vim.treesitter.language.get_lang = old_get_lang
+    vim.treesitter.query.get = old_query_get
+
+    if not ok then
+        error(err)
+    end
+
+    local saw_parser_warning = false
+    local query_warnings = 0
+    local saw_typst_not_required = false
+
+    for _, item in ipairs(messages) do
+        assert(
+            not (
+                    item.level == "error"
+                    and item.message:find("Tree-sitter", 1, true)
+                ),
+            "missing Tree-sitter should be reported as warnings, not errors"
+        )
+
+        if
+            item.level == "warn"
+            and item.message == "Tree-sitter Typst parser was not detected"
+        then
+            saw_parser_warning = true
+        end
+
+        if
+            item.level == "warn"
+            and item.message:find("Tree-sitter query failed to load:", 1, true)
+        then
+            query_warnings = query_warnings + 1
+        end
+
+        if
+            item.level == "ok"
+            and item.message
+                == "Typst executable: not required by configured compiler provider"
+        then
+            saw_typst_not_required = true
+        end
+    end
+
+    assert(
+        saw_parser_warning,
+        "health should warn when the Tree-sitter parser is unavailable"
+    )
+    assert(
+        query_warnings == 6,
+        ("health should warn for all bundled Tree-sitter queries, got %d"):format(
+            query_warnings
+        )
+    )
+    assert(
+        saw_typst_not_required,
+        "custom compiler provider health should not require the Typst CLI"
+    )
+end)
+
+run_case("compiler provider state", function()
+    local provider = {
+        name = "health-provider",
+        compile = function(project, callback)
+            typst_test_compiler(project).last_command =
+                { "health-provider", "compile", project.main }
+            typst_test_compiler(project).last_cwd = project.root
+            callback({ code = 0, stale = false })
+            return { pid = 4241 }
+        end,
+        start = function(project, _callback, run_config)
+            typst_test_compiler(project).last_command = {
+                "health-provider",
+                "watch",
+                project.main,
+                run_config.compile.profile,
+            }
+            typst_test_compiler(project).last_cwd = project.root
+            return { pid = 4242 }
+        end,
+        stop = function(_project, callback)
+            if callback then
+                callback({ code = 0, stale = false, stopped = true })
+            end
+        end,
+        status = function(project)
+            return "health-" .. typst_test_compiler(project).status
+        end,
+        output = function(_project, run_config)
+            return typst_test_cache_path("health-provider/")
+                .. (run_config.compile.profile or "default")
+                .. ".pdf"
+        end,
+    }
+
+    typst.setup({
+        root = root,
+        compile = {
+            provider = provider,
+            profiles = {
+                custom = {},
+            },
+        },
+    })
+
+    local main = root .. "/tests/fixtures/basic/main.typ"
+    vim.cmd.edit(main)
+    typst.project.set_main(main)
+    typst.compiler.watch({ profile = "custom" })
+
+    local messages = capture_health()
+
+    local saw_provider_state = false
+    for _, item in ipairs(messages) do
+        if
+            item.level == "ok"
+            and item.message:find("status=health-watching", 1, true)
+            and item.message:find("profile=custom", 1, true)
+            and item.message:find("cwd=" .. root, 1, true)
+            and item.message:find("command=health-provider watch", 1, true)
+            and item.message:find("watcher_pid=4242", 1, true)
+            and item.message:find("root_source=config.root", 1, true)
+            and item.message:find(
+                "main_source=buffer variable vim.b.typst_main",
+                1,
+                true
+            )
+        then
+            saw_provider_state = true
+        end
+    end
+
+    assert(
+        saw_provider_state,
+        "health output should expose provider-aware active project state"
+    )
+
+    typst.compiler.stop()
+
+    typst.setup({
+        root = root,
+        compile = {
+            provider = "typst_missing_health_provider",
+        },
+    })
+
+    messages = capture_health()
+
+    local saw_missing_provider = false
+    for _, item in ipairs(messages) do
+        if
+            item.level == "warn"
+            and item.message:find(
+                "Compiler provider module could not be loaded: typst_missing_health_provider",
+                1,
+                true
+            )
+        then
+            saw_missing_provider = true
+        end
+    end
+
+    assert(
+        saw_missing_provider,
+        "health should warn about missing string compiler providers"
+    )
+end)
+
+run_case("tinymist ownership report", function()
+    local old_get_clients = vim.lsp.get_clients
+    local old_coc_initialized = vim.g.coc_service_initialized
+
+    local main = root .. "/tests/fixtures/basic/main.typ"
+    vim.cmd.edit(main)
+    local bufnr = vim.api.nvim_get_current_buf()
+
+    local function tinymist_client()
+        return {
+            id = 42,
+            name = "tinymist",
+            config = {
+                root_dir = root,
+            },
+            supports_method = function(_, method)
+                return method == "textDocument/codeAction"
+                    or method == "textDocument/semanticTokens/full"
+                    or method == "textDocument/documentLink"
+                    or method == "textDocument/codeLens"
+                    or method == "workspace/executeCommand"
+            end,
+        }
+    end
+
+    local ok, err = xpcall(function()
+        vim.g.coc_service_initialized = nil
+        typst.setup({
+            root = root,
+            output_dir = typst_test_cache_path("health-tinymist-output"),
+            diagnostics = {
+                source = "fallback",
+            },
+        })
+        typst.project.set_main(main)
+
+        vim.lsp.get_clients = function(opts)
+            if opts and opts.bufnr and opts.bufnr ~= bufnr then
+                return {}
+            end
+            return { tinymist_client() }
+        end
+
+        local messages = capture_health()
+        assert(
+            has_message(messages, "ok", "Tinymist Neovim LSP mode: auto"),
+            "health output should report Tinymist mode"
+        )
+        assert(
+            has_message(
+                messages,
+                "ok",
+                "Tinymist Neovim LSP client is attached"
+            ),
+            "health output should report global Tinymist attachment"
+        )
+        assert(
+            has_message(
+                messages,
+                "ok",
+                "Tinymist attached client: tinymist id=42"
+            ),
+            "health output should identify attached Tinymist clients"
+        )
+        assert(
+            has_message(messages, "ok", "Tinymist capabilities detected:")
+                and has_message(messages, "ok", "codeAction")
+                and has_message(messages, "ok", "semanticTokens"),
+            "health output should summarize detected Tinymist capabilities"
+        )
+        assert(
+            has_message(messages, "ok", "tinymist_nvim_lsp=attached")
+                and has_message(
+                    messages,
+                    "ok",
+                    "compiler_diagnostics=fallback_suppressed_by_tinymist"
+                ),
+            "health output should explain project diagnostics suppression by Tinymist"
+        )
+
+        vim.g.coc_service_initialized = 1
+        typst.reset()
+        typst.setup({
+            root = root,
+            output_dir = typst_test_cache_path("health-tinymist-output"),
+            integrations = {
+                tinymist = {
+                    lsp = "auto",
+                },
+            },
+        })
+
+        messages = capture_health()
+        assert(
+            has_message(messages, "ok", "coc.nvim detected for Tinymist policy"),
+            "health output should report Coc detection"
+        )
+        assert(
+            has_message(messages, "ok", "Tinymist Neovim LSP auto mode skipped"),
+            "health output should report Coc skip reason"
+        )
+        assert(
+            has_message(
+                messages,
+                "ok",
+                "Tinymist native clients detected but ignored by auto+Coc policy"
+            ),
+            "health output should report ignored native Tinymist clients under Coc policy"
+        )
+    end, debug.traceback)
+
+    vim.lsp.get_clients = old_get_clients
+    vim.g.coc_service_initialized = old_coc_initialized
+
+    if not ok then
+        error(err)
+    end
+end)
+
+vim.cmd("qa!")

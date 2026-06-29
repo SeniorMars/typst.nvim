@@ -1,0 +1,69 @@
+{
+  "artifacts": {
+    "emojis": {
+      "bytes": 22711,
+      "count": 1472,
+      "file": "emojis.mpack",
+      "schema": 1
+    },
+    "shorthands": {
+      "bytes": 397,
+      "count": 44,
+      "file": "shorthands.mpack",
+      "schema": 1
+    },
+    "signature_docs": {
+      "bytes": 188615,
+      "count": 356,
+      "file": "signature-docs.mpack",
+      "schema": 1
+    },
+    "signatures": {
+      "bytes": 36391,
+      "count": 303,
+      "file": "signatures.mpack",
+      "schema": 2
+    },
+    "stdlib_index": {
+      "bytes": 103715,
+      "count": 2434,
+      "file": "stdlib-index.mpack",
+      "schema": 1
+    },
+    "symbols": {
+      "bytes": 19709,
+      "count": 1204,
+      "file": "symbols.mpack",
+      "schema": 1
+    }
+  },
+  "enums": {
+    "context": {
+      "global": 1,
+      "math": 2
+    },
+    "item_flags": {
+      "contextual": 1,
+      "deprecated": 2,
+      "has_constructor": 4
+    },
+    "kind": {
+      "constant": 5,
+      "element": 1,
+      "function": 2,
+      "module": 4,
+      "symbol": 6,
+      "type": 3
+    },
+    "param_flags": {
+      "named": 2,
+      "positional": 1,
+      "required": 4,
+      "settable": 16,
+      "variadic": 8
+    }
+  },
+  "generator_version": 4,
+  "schema": 2,
+  "typst_version": "0.15.0"
+}

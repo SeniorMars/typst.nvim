@@ -1,0 +1,3 @@
+start|compiling ...
+success|compiled in 12ms
+error|compilation failed

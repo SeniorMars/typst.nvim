@@ -1,0 +1,3338 @@
+*typst.nvim* Project-aware Typst workflows for Neovim
+
+==============================================================================
+CONTENTS                                                         *typst-contents*
+
+1. Introduction                                           |typst-introduction|
+2. Feature overview                                           |typst-features|
+3. Requirements                                           |typst-requirements|
+4. Setup                                                        |typst-setup|
+5. Daily workflow                                                |typst-usage|
+6. Project model                                             |typst-projects|
+7. Compilation and diagnostics                                  |typst-compile|
+8. Viewers and preview                                             |typst-view|
+9. Navigation and context                                    |typst-navigation|
+10. Completion and metadata                                  |typst-completion|
+11. Editing model                                                |typst-editing|
+12. Commands                                                   |typst-commands|
+13. Mappings                                                   |typst-mappings|
+14. Tree-sitter queries                                           |typst-queries|
+15. Configuration                                                |typst-config|
+16. VimTeX parity and Typst differences                    |typst-vimtex-parity|
+17. Troubleshooting                                      |typst-troubleshooting|
+18. Reference notes                                      |typst-project-docs|
+19. Lua API                                                        |typst-lua|
+20. Public API                                                    |typst-api|
+21. Events                                                      |typst-events|
+
+==============================================================================
+INTRODUCTION                                                *typst-introduction*
+
+typst.nvim is a project-aware Typst workflow plugin for Neovim.
+
+The plugin is inspired by VimTeX's workflow model: identify the project and
+main document, run builds asynchronously, surface diagnostics, open viewers,
+offer navigation, and keep editing commands close to the source language. It is
+not a TeX compatibility layer. Typst has different project structure, output
+formats, diagnostics, preview tools, and semantic tooling, so typst.nvim uses
+Typst-native concepts where a direct VimTeX port would be misleading.
+
+A Typst buffer usually belongs to a project keyed by a root directory and a
+main document. The current buffer does not have to be the main document:
+included files, package-style libraries, and unnamed scratch buffers can still
+resolve to the document that should be compiled, viewed, indexed, or searched.
+
+The most useful first command is usually: >
+
+  :TypstInfo
+<
+
+It shows the root, main file, output, compiler provider, Tinymist state,
+diagnostics policy, active watcher/process details, and the source of the
+root/main decision. Use `:TypstInfo!` for the same data in a scratch buffer.
+
+==============================================================================
+FEATURE OVERVIEW                                                *typst-features*
+
+Core workflow:
+
+- project attachment for Typst buffers, including root/main-file discovery;
+- one-shot compile, continuous watch, stop, status, logs, and cleanup;
+- compiler diagnostics through `vim.diagnostic` and quickfix;
+- viewer opening plus capability-gated forward and inverse source jumps;
+- native browser/viewer preview plus optional typst-preview.nvim compatibility.
+
+Navigation and document understanding:
+
+- project file lists, layered TOC, labels, citations, symbols, and pickers;
+- `gf`-style following for imports, paths, packages, labels, citations, URLs,
+  and local/imported definitions;
+- syntactic project index with Tinymist overlays where semantic data exists;
+- package resource browsing and generated symbol/emoji information.
+
+Editing support:
+
+- heading, block, equation, raw-block, and comment motions;
+- Tree-sitter and optional Tinymist text objects;
+- Typst-aware surround, markup, label/reference, list, raw, equation, and
+  argument-list transforms;
+- folds, indentation, conservative prose `formatexpr`, matching-pair
+  navigation/highlighting, and optional conceal.
+
+Completion and metadata:
+
+- omnifunc plus native, nvim-cmp, and blink.cmp adapter APIs;
+- labels, references, citations, imports, paths, CSL styles, packages,
+  templates, raw languages, colors, fonts, symbols, emojis, local definitions,
+  and generated stdlib metadata;
+- optional Tinymist completion requests when a Neovim LSP client is attached.
+
+Extensibility:
+
+- public Lua API namespaces for projects, compiler, viewer, artifacts, editing,
+  completion, metadata, syntax, conceal, bibliography, and providers;
+- provider registry for compilers, viewers, pickers, TOC/index layers,
+  formatters, linters, grammar checkers, workflows, and renderers;
+- `TypstEvent*` User events for setup, project, compile, preview, view, render,
+  TOC, and quit lifecycle hooks.
+
+==============================================================================
+REQUIREMENTS                                                *typst-requirements*
+
+Required:
+
+- Neovim 0.11+
+- `typst` executable in `PATH`
+
+Recommended:
+
+- SeniorMars/tree-sitter-typst for structural editing, text objects, folds,
+  indentation, conceal, package syntax extensions, and syntax-aware fallback
+  indexing;
+- Tinymist when semantic completion, hover, document symbols, code actions,
+  rename previews, inlay hints, document links, and color information are
+  desired;
+- typstyle for the default non-Tinymist formatter path;
+- a browser, configured PDF viewer, custom preview provider, or optional
+  typst-preview.nvim compatibility for source-map-style synchronization;
+- Telescope, fzf-lua, fzf.vim, Snacks, or `vim.ui.select` for picker UIs;
+- optional external tools such as textidote, vlty/Vale-style checkers,
+  crityp, or terminal image support depending on configured workflows.
+
+Run `:checkhealth typst` after installation. Health output reports executable
+availability, parser/query loading, Tinymist and preview integration state,
+configuration, and attached project state.
+
+==============================================================================
+SETUP                                                              *typst-setup*
+
+Minimal setup: >
+
+  require("typst").setup()
+<
+
+Setup should run during normal startup before opening Typst buffers if you want
+non-default configuration. Defaults are still available when a Typst ftplugin
+loads first, but calling setup early makes the intended configuration explicit.
+
+Useful small setups: >
+
+  -- Use Tinymist only when another plugin has already attached it.
+  require("typst").setup({
+    integrations = {
+      tinymist = { lsp = "detect" },
+    },
+  })
+
+  -- Write output next to the main Typst file and open it with zathura.
+  require("typst").setup({
+    output_dir = "",
+    viewer = { provider = "zathura" },
+  })
+<
+
+Run `:checkhealth typst` to inspect executable availability, parser/query
+loading, Tinymist and preview integration state, configuration, and attached
+projects. Project health lines include provider-aware status, root/main
+decision sources, project-specific Tinymist attachment, effective compiler
+diagnostics policy, active profile, command, cwd, and process/watcher details
+when present.
+
+==============================================================================
+DAILY WORKFLOW                                                     *typst-usage*
+
+Most sessions use a small command loop: >
+
+  :TypstInfo
+  :TypstSetMain path/to/main.typ
+  :TypstWatch
+  :TypstView
+  :TypstPreview
+  :TypstToc
+  :TypstPick labels
+  :TypstStop
+<
+
+`:TypstInfo` is the diagnostic command for the plugin itself. If the wrong file
+is being compiled, inspect `root_source` and `main_source` there before changing
+configuration.
+
+Use `:TypstSetMain` in included files when automatic discovery cannot know the
+intended compile root. Use `:TypstToggleMain` to switch the current buffer
+between local-main mode and normal project-main resolution.
+
+Use `:TypstWatch` for a VimTeX-like continuous compile workflow. Use
+`:TypstCompile` for a one-shot build, and `:TypstCompileSS` when a VimTeX muscle
+memory alias is useful. Use `:TypstErrors` or `:TypstDiagnostics` to open the
+current compiler diagnostics in quickfix.
+
+Use `:TypstView` for generated output and `:TypstPreview` for browser preview.
+Typst PDF output does not provide SyncTeX by default, so forward and inverse
+search are only enabled for viewer or preview backends that explicitly declare
+the relevant capability.
+
+For navigation, start with `gf`, `:TypstToc`, and `:TypstPick`. For editing,
+the default motions, text objects, dot-repeat-aware structural transforms, and
+insert helpers are documented under |typst-mappings| and |typst-editing|.
+
+==============================================================================
+PROJECT MODEL                                                   *typst-projects*
+
+typst.nvim keeps project state per resolved `(root, main)` pair, not globally
+per Neovim session and not simply per buffer. This allows multiple unrelated
+Typst documents, or multiple main documents under one repository, to be open at
+the same time with different output paths, watchers, diagnostics, TOC state,
+and preview/viewer state.
+
+Project resolution order:
+
+1. `vim.b.typst_main`
+2. saved explicit `:TypstSetMain` choice
+3. `// typst.nvim: main = ../main.typ` comment directive
+4. configured `main` string, callback, or per-root table mapping
+5. nearest `.typstmain` project file
+6. existing project dependency graph
+7. capped local `#include`/`#import` scan
+8. nearest root marker plus `main.typ` for nested files
+9. current buffer
+
+Unnamed Typst buffers attach to a scratch in-memory project rooted at the
+current working directory. `:saveas` re-resolves them as normal file-backed
+projects and prunes the scratch project.
+
+Root-level Typst files under the same root marker can resolve as independent
+main documents instead of all falling back to a sibling `main.typ`; the
+`main.typ` heuristic is reserved for nested files after stronger sources fail.
+
+`:TypstSetMain` persists the explicit choice for the current buffer path so it
+survives later Neovim sessions. When a buffer is renamed with `:saveas`, the
+saved choice follows the new buffer path. Set `project.persist_main = false` to
+ignore saved choices. Unreadable explicit main paths are ignored during
+resolution; stale `vim.b.typst_main` values are cleared so import scanning and
+current-buffer fallbacks can recover after a main file is deleted or moved.
+Project state records `dependency_sources` and `file_sources` values of
+`explicit`, `compiler`, or `heuristic`; existing graph attachment uses that
+priority order so heuristic associations do not override explicit or
+compiler-discovered project membership.
+
+The syntactic project index is persistent per project. It caches each scanned
+Typst or bibliography file by loaded-buffer changedtick or on-disk mtime/size.
+Unnamed Typst buffers use their scratch project main path as the index key and
+are rescanned by buffer changedtick, so fallback headings, labels, references,
+definitions, and TODOs work before the buffer has a file name.
+
+Typst buffers detach on `BufUnload`, `BufDelete`, and `BufWipeout`, and on
+`BufHidden` when the buffer's `bufhidden` policy will unload, delete, or wipe
+it. Retained hidden buffers stay attached. When the last buffer leaves a
+project, typst.nvim stops any active one-shot compile or watcher before
+removing that project from the registry.
+
+==============================================================================
+COMPILATION AND DIAGNOSTICS                                      *typst-compile*
+
+The built-in compiler provider runs the Typst CLI without a shell. The global
+`executable` may be a string such as `"typst"` or a list prefix such as
+`{ "uv", "run", "typst" }`; typst.nvim appends the Typst subcommand and
+arguments itself.
+
+One-shot compiles and watchers are mutually exclusive per project. Starting a
+watcher stops an active one-shot compile, and starting a compile stops an active
+watcher. `:TypstStopAll` walks every registered project and stops active
+compiler state without requiring the current buffer to belong to that project.
+
+Watch mode records each parsed compile cycle separately. Each cycle gets a
+monotonic `cycle_generation`, updates diagnostics for that cycle, refreshes
+dependency knowledge when dependency output is enabled, and notifies viewer and
+preview reload hooks. Human-readable Typst watch output is parsed as
+fixture-gated best-effort compatibility; structured JSON-line watch output can
+be configured through `compile.watch_structured_args`.
+
+Diagnostics are published through `vim.diagnostic`. With the default
+`diagnostics.source = "fallback"`, compiler diagnostics are suppressed when a
+Tinymist Neovim LSP client is attached for the project or coc.nvim appears to
+own the Typst LSP session. Use `"always"` to keep typst.nvim compiler
+diagnostics active alongside Tinymist, or `"off"` to turn them off.
+
+Use these commands when a build behaves unexpectedly:
+
+- |:TypstInfo| for the resolved project, command, cwd, provider, output, and
+  diagnostic policy;
+- |:TypstCompileOutput| for the last compiler command, stdout, stderr, and
+  exit code;
+- |:TypstLog| for broader plugin logs;
+- |:TypstStatusAll| for all registered projects.
+
+==============================================================================
+VIEWERS AND PREVIEW                                                  *typst-view*
+
+`:TypstView` opens the resolved generated output. By default this uses
+`vim.ui.open`; named viewer presets and custom `viewer.open` callbacks or
+commands can replace it. Viewer commands may use placeholders such as
+`{output}`, `{main}`, `{root}`, `{line}`, and `{column}` in configured args.
+Successful one-shot compiles notify `viewer.reload(project, result, opts)` and
+`preview.refresh(project, result, opts)` with `opts.source == "compile"`.
+Watch cycles notify the same hooks with `opts.source == "watch"` and
+`opts.watch == true`. `:TypstCompile!` and `:TypstWatch!` request viewer
+opening through typst.nvim rather than delegating output opening to Tinymist or
+the Typst CLI.
+
+`:TypstPreview` is the preview side of the workflow. It can call a configured
+preview provider, use typst.nvim's native browser shell, or open the configured
+viewer. Preview opens are project-aware, so running preview from an included
+file still uses the resolved main document.
+
+`preview.export.mode = "compile"` displays the artifact recorded by the compiler
+service. `preview.export.mode = "profile"` runs a named `exports.profiles`
+entry before display, and `preview.export.mode = "provider"` invokes an export
+provider with a reserved output path. Preview exports are typst.nvim-owned and
+are recorded with `producer = "preview"`; they do not replace the compiler
+output path. Export providers receive `preview = true`, `preview_export = true`,
+`preview_target`, and `update_compiler_output = false`. If no preview export
+output directory is configured, typst.nvim writes into the preview cache with a
+project-specific name. Browser refresh exports are generation-guarded so stale
+exports cannot replace a newer active preview route.
+`preview.browser.export.mode = "inherit"` makes the browser target use the
+top-level preview export contract. |:TypstInfo| and |:TypstClean| distinguish
+document artifacts from preview-owned cache exports. Preview-owned artifact
+records also retain their preview export target, mode, profile/provider, and
+format so |:TypstArtifacts|, |:TypstInfo|, and health can report preview cache
+exports separately from document exports.
+`preview.browser.style.variables` overrides browser-shell CSS custom
+properties, `preview.browser.style.css` appends trusted inline CSS, and
+`preview.browser.style.css_path` loads an absolute or project-relative
+stylesheet. Keep shared styles under XDG config, such as
+`stdpath("config")/typst.nvim/preview.css`. Variable keys without a leading
+`--` are exposed as `--typst-preview-{key}`.
+`preview.cache.max_entries`, `preview.cache.max_bytes`, and
+`preview.cache.ttl_ms` prune stale preview-owned cache exports after preview
+profile/provider exports. Active browser output is preserved. Use
+|:TypstCleanPreview| for explicit preview-cache cleanup; bang forces deletion
+of changed-but-owned preview artifacts while still preserving the active preview
+output.
+
+Native browser and external viewer validation is tracked in
+`docs/preview-viewer-matrix.md`. Use `just preview-matrix browser-server` to
+exercise the default URL opener, or use a named browser/PDF target such as
+`safari`, `chrome`, `skim`, `sioyek`, `zathura`, `okular`, or `evince` when
+that application is installed and you want an app-specific check.
+Browser opener failures keep the attempted URL in preview state, in
+`g:typst_nvim_last_preview_url`, and in |:TypstPreviewStatus| with bang. For
+WSL, SSH, containers, and remote Neovim sessions, configure
+`preview.browser.commands` with command lists such as
+`{ "wslview", "{url}" }` or open the reported URL manually. With
+`preview.browser.app = nil` and `preview.browser.commands = nil`, typst.nvim
+uses `vim.ui.open()` when available, then the OS default URL opener such as
+`open`, `xdg-open`, or Windows shell openers. Set `preview.browser.app` to
+`"firefox"`, `"chrome"`, `"safari"`, `"edge"`, `"brave"`, or another
+app/executable name only when a specific browser should be used. Use
+`preview.browser.reload_throttle_ms` to limit watch refresh frequency for slow
+browsers. `preview.browser.performance = "safari"` opts into file-shell
+transport, slower polling, and reload throttling; `"fast"` lowers the browser
+poll interval for SVG-oriented preview profiles. The default browser poll
+interval is 250ms. The native browser shell exposes reload, zoom, fit, page,
+status/error, and source-sync controls without taking over Tinymist's semantic
+features.
+
+Native typst.nvim preview only:
+>
+  require("typst").setup({
+    preview = {
+      provider = "native",
+      native = "browser",
+      follow_buffer = true,
+      source_maps = {
+        provider = "typst-query",
+      },
+      browser = {
+        performance = "fast",
+        export = {
+          mode = "profile",
+          profile = "preview_svg",
+        },
+      },
+    },
+  })
+<
+
+typst-preview.nvim for live preview, typst.nvim for workflow:
+>
+  require("typst").setup({
+    preview = {
+      provider = "typst-preview.nvim",
+      native = "viewer",
+    },
+  })
+<
+
+In the hybrid setup, use typst-preview.nvim for its live/incremental browser
+frontend and typst.nvim for root/main ownership, compile/watch/view, export
+profiles, bibliography, navigation, health, logs, and cleanup.
+
+Forward and inverse synchronization are capability-gated. PDF viewers do not
+claim SyncTeX-style support by default because normal Typst PDF output does not
+carry SyncTeX data. Native browser preview uses the default `typst-query`
+provider for SVG browser outputs only; unsupported formats report no native
+browser source-sync capability unless another provider supplies it. Legacy
+`preview.forward`, `preview.inverse`, and `preview.capabilities` remain
+supported; new source-map integrations should prefer
+`preview.source_maps.provider`, `forward`, `inverse`, and `capabilities`.
+Browser preview source-map workflows, including explicit typst-preview.nvim
+compatibility through `TypstPreviewSyncCursor`, are the Typst-native equivalent
+of VimTeX's galley preview workflow.
+
+Registered source-map integrations use the `source_map` provider kind. A
+provider may implement `forward`, `inverse`, `generate`, `resolve`, or
+`browser_inverse`. Native browser server mode sends DOM/SVG click coordinates
+to `browser_inverse` through its local `/source-sync` route and opens the source
+location returned by the provider. PDF plugin clicks and file-shell fallback
+tabs cannot be intercepted by typst.nvim.
+
+Rendered previews are explicit actions, not automatic inline rendering on every
+edit. Commands such as |:TypstPreviewFragment|, |:TypstPreviewEquation|,
+|:TypstPreviewImage|, and |:TypstPreviewPage| compile small artifacts into the
+render cache and show them through the configured render display provider.
+
+==============================================================================
+NAVIGATION AND CONTEXT                                         *typst-navigation*
+
+typst.nvim combines three sources of navigation data:
+
+- Tree-sitter and syntactic project scans for headings, labels, citations,
+  imports, paths, definitions, TODOs, and local structural context;
+- Typst compiler dependency output for project membership after compiles or
+  watch cycles;
+- Tinymist semantic data for document symbols, definitions, references, rename,
+  code actions, and LSP UI features when available.
+
+Use `gf` or |:TypstFollow| for cursor targets. It understands local imports,
+included files, image/data/bibliography paths, local CSL styles, Typst package
+imports, URLs, labels, references, citations, and local/imported definitions.
+
+Use |:TypstToc| for a persistent outline window or TOC-owned quickfix list.
+The TOC can include headings, figures, tables, equations, labels, references,
+citations, imports, files, TODOs, definitions, and custom provider layers.
+
+Use |:TypstPick| for picker-backed access to the same normalized project and
+TOC item model. The default picker tries Telescope, fzf-lua, fzf.vim, Snacks,
+then `vim.ui.select`.
+
+Use |:TypstContextMenu| for local actions under the cursor. The menu reuses
+the same project, package, symbol, path, citation, label, color, font, and
+semantic resolvers that power navigation and completion.
+
+==============================================================================
+COMPLETION AND METADATA                                      *typst-completion*
+
+typst.nvim installs `v:lua.typst_nvim_omnifunc` for Typst buffers when no other
+omnifunc is already set. Completion frontends can use the same fallback engine
+through `require("typst").completion.native()`, `.cmp()`, `.blink()`,
+`.cmp_source()`, and `.blink_source()`.
+
+When a Tinymist Neovim LSP client is attached and the current context is
+semantic Typst source, completion asks Tinymist for `textDocument/completion`
+first. Pass `include_tinymist = false` to Lua completion calls to use only the
+typst.nvim fallback sources.
+
+Fallback completion combines project-index data and bundled metadata. It
+covers labels, references, bibliography keys, local and imported `#let`
+definitions, filesystem paths, package and template specs, built-in stdlib
+items, named parameters, accepted parameter values, CSL styles, raw-block
+language IDs, colors, fonts, symbols, and emojis.
+
+The generated metadata is compact and versioned. It is meant to provide fast
+completion, signatures, symbols, emojis, and conceal data; Tinymist remains the
+semantic hover and language-documentation source.
+
+==============================================================================
+EDITING MODEL                                                     *typst-editing*
+
+Editing helpers are buffer-local and conservative. They prefer parser-backed
+ranges, refuse incomplete syntax when preserving source would be uncertain, and
+use Tinymist code actions only for features where semantic actions are a better
+source of truth.
+
+The default motions work in normal, visual, and operator-pending modes and
+respect counts. Text objects cover headings, sections, equations, delimiters,
+content/code/raw blocks, calls, arguments, labels, imports, and optional
+list-items. Empty inner text objects and incomplete syntax return no range
+rather than selecting stale text.
+
+Structural transforms such as argument splitting/joining, label/reference
+toggles, markup toggles, equation conversion, raw conversion, list toggles, and
+surround operations are dot-repeat-aware. typst.nvim keeps multi-token edits in
+one undo step and preserves user registers where practical.
+
+Conceal is syntax-aware but not semantic Typst evaluation. Built-in symbol
+conceal is suppressed when a local declaration or import could shadow a
+stdlib meaning. With `conceal.reveal = "node"`, the source form is revealed
+only under the current window's cursor while neighboring matches stay concealed.
+
+==============================================================================
+COMMANDS                                                        *typst-commands*
+
+Most commands operate on the project resolved from the current buffer. When a
+command needs a project and none is attached, it reports the missing project
+instead of guessing from the current working directory. Use |:TypstInfo| first
+when the target project is unclear.
+
+Command groups:
+
+  Project state:
+    |:TypstInfo|, |:TypstReloadState|, |:TypstClearCache|,
+    |:TypstSetMain|, |:TypstToggleMain|, |:TypstEditMain|, |:TypstFiles|,
+    |:TypstCd|, |:TypstStatus|, |:TypstStatusAll|, |:TypstCount|
+
+  Compile, diagnostics, and output:
+    |:TypstCompile|, |:TypstCompileSS|, |:TypstCompileSelected|,
+    |:TypstCompileOutput|, |:TypstWatch|, |:TypstStop|, |:TypstStopAll|,
+    |:TypstDiagnostics|, |:TypstErrors|, |:TypstClean|
+
+  View and preview:
+    |:TypstView|, |:TypstViewForward|, |:TypstViewInverse|,
+    |:TypstPreview|, |:TypstPreviewInverse|, |:TypstPreviewStop|,
+    |:TypstPreviewToggle|, |:TypstPreviewOpenBrowser|,
+    |:TypstPreviewReload|, |:TypstPreviewStatus|, |:TypstCleanPreview|,
+    |:TypstPreviewFragment|, |:TypstPreviewEquation|,
+    |:TypstPreviewImage|, |:TypstPreviewPage|, |:TypstRenderCacheClear|
+
+  External workflows:
+    |:TypstFormat|, |:TypstLint|, |:TypstGrammar|,
+    |:TypstFontDiagnostics|, |:TypstExport|, |:TypstArtifacts|,
+    |:TypstArtifactOpen|, |:TypstArtifactClean|, |:TypstEval|,
+    |:TypstEvalSelection|, |:TypstInspect|, |:TypstInit|,
+    |:TypstTemplates|, |:TypstProfile|, |:TypstTest|, |:TypstBench|,
+    |:TypstCoverage|, |:TypstHtmlPreview|, |:TypstPresentation|
+
+  Navigation, metadata, and context:
+    |:TypstToc|, |:TypstTocRefresh|, |:TypstTocToggle|, |:TypstLabels|,
+    |:TypstCitations|, |:TypstSymbols|, |:TypstPick|, |:TypstFollow|,
+    |:TypstContextMenu|, |:TypstPackageInfo|, |:TypstPackageOpen|,
+    |:TypstPackageReadme|, |:TypstPackageSource|, |:TypstSymbolInfo|,
+    |:TypstSymbolVariants|
+
+  Semantic and editing helpers:
+    |:TypstInlayHintsToggle|, |:TypstCodeAction|, |:TypstColorInfo|,
+    |:TypstColorPresentation|, |:TypstLinks|, |:TypstCodeLens|,
+    |:TypstWorkspaceSymbols|, |:TypstReferences|, |:TypstRenamePreview|,
+    |:TypstSelectionExpand|, |:TypstOnEnter|,
+    |:TypstPromoteHeading|, |:TypstDemoteHeading|, |:TypstRefreshFolds|,
+    |:TypstMatchHighlightToggle|, |:TypstInsert|, |:TypstImapsList|,
+    |:TypstConcealEnable|, |:TypstConcealDisable|, |:TypstConcealToggle|,
+    |:TypstConcealRefresh|, |:TypstConcealInspect|, |:TypstLog|, and the
+    structural edit commands documented below.
+
+  Debug and maintenance:
+    |:TypstCheckInvariants|, |:TypstTelemetry|, |:TypstTelemetryReset|
+
+                                                        *:TypstInfo*
+:TypstInfo[!]
+    Show the detailed current-project report for the current buffer, including
+    root, main, compiler provider, root/main decision sources, output, status,
+    process working directory, last command, active compile PID, active watcher
+    command, viewer backend/command, preview backend/command, dependencies, and
+    diagnostics state. It also shows whether typst.nvim can see a Tinymist
+    Neovim LSP client for the project and whether compiler diagnostics are
+    active, always enabled, off, or suppressed by Tinymist/Coc ownership. The
+    status value is read through the active compiler provider's
+    `status(project)` method. With bang, open the same detailed current-project
+    report in a scratch buffer.
+
+                                                        *:TypstReloadState*
+:TypstReloadState
+    Detach and re-resolve typst.nvim state for the current buffer, then reapply
+    buffer-local mappings, folds, conceal, and omnifunc. This refreshes project
+    resolution while preserving active resources for the same project and
+    stopping resources from any old project that becomes detached.
+
+                                                        *:TypstClearCache*
+:TypstClearCache
+    Clear generated metadata selection, package resource cache state, symbol
+    search caches, project index caches, and conceal match caches, then redraw
+    conceal decorations.
+
+                                                        *:TypstSetMain*
+:TypstSetMain [file]
+    Set the current buffer's main Typst document. Without an argument, the
+    current buffer becomes the main document. The explicit choice is saved for
+    the current buffer path unless `project.persist_main = false`; if the
+    buffer is renamed with `:saveas`, the saved choice follows the new path. If
+    this moves the last buffer out of a project with an active compile or
+    watcher, the old compiler process is stopped before the old project is
+    pruned.
+
+                                                        *:TypstToggleMain*
+:TypstToggleMain
+    Toggle the current buffer between local-main mode and normal project-main
+    resolution. Local-main mode stores the current buffer in `vim.b.typst_main`;
+    toggling again clears that override and reruns the resolver.
+
+                                                        *:TypstEditMain*
+:TypstEditMain
+    Edit the resolved main Typst document for the current buffer. This is useful
+    from included files after setting `vim.b.typst_main`, using `:TypstSetMain`,
+    or after dependency discovery has associated the buffer with a main file.
+
+                                                        *:TypstFiles*
+:TypstFiles
+    Populate and open the quickfix list with files known to belong to the
+    resolved project. The list includes the main file, attached project buffers,
+    and dependencies discovered from Typst's dependency output.
+
+                                                        *:TypstCd*
+:TypstCd[!]
+    Change directory to the resolved project root. Without bang, this uses
+    `:lcd` and affects the current window. With bang, this uses `:cd` and
+    changes the global working directory.
+
+                                                        *:TypstCompile*
+:TypstCompile[!] [profile]
+    Compile the resolved project asynchronously with the Typst CLI. With bang,
+    open the successful output through typst.nvim's configured viewer. With a
+    profile name, apply the matching
+    `compile.profiles` entry for this run. If a watcher is active for the
+    project, it is stopped before the one-shot compile starts. If another
+    one-shot compile is active, it is stopped and replaced.
+
+                                                        *:TypstCompileSS*
+:TypstCompileSS[!] [profile]
+    VimTeX-compatible one-shot compile alias. In typst.nvim, watch mode is a
+    separate command, so this behaves like `:TypstCompile[!] [profile]`.
+
+                                                        *:TypstCompileSelected*
+:TypstCompileSelected [template]
+    Compile the selected line range as a generated Typst fragment. The optional
+    template name selects an entry from `compile.fragments.templates`; without
+    one, typst.nvim uses `compile.fragments.default`. Fragment compiles run
+    through the configured compiler provider without changing the registered
+    project state. Built-in templates include `markup`, `math`, `code`,
+    `full-page`, and `auto-sized`; `document` and `auto` are compatibility
+    aliases. Generated source is passed through stdin by default; the built-in
+    Typst provider runs `typst compile -`, generic/task providers receive stdin
+    and `{main}` expands to `-`, and custom provider callbacks can read
+    `run_config.compile.stdin`. Generic/task `{source}` still expands to the
+    originating source path when it is known, and `{stdin}` expands to `1` for
+    stdin-backed fragment compiles. Configured file-backed fragment sources are
+    deleted after the compile resolves or if the compiler provider fails to
+    start. The output artifact remains available.
+
+                                                        *:TypstCompileOutput*
+:TypstCompileOutput
+    Open a scratch buffer with the current project's latest compiler command,
+    cwd, exit code, stdout, and stderr. For broader plugin logs, use
+    `:TypstLog`.
+
+                                                        *:TypstWatch*
+:TypstWatch[!] [profile]
+    Start or restart continuous compilation for the resolved project. With
+    bang, open the output through typst.nvim's configured viewer after the
+    first successful cycle. With a profile name, apply the matching
+    `compile.profiles` entry for this watcher. If a one-shot compile is active,
+    it is stopped before the watcher starts. While the watcher is running,
+    typst.nvim refreshes dependency knowledge from Typst's dependency output so
+    included files can resolve to the watched main document. Each Typst watch
+    compile cycle emits compile started/success/failure events, replaces stale
+    diagnostics for that cycle, and keeps the project status in the watching
+    lifecycle until the watcher is stopped. Each cycle also gets a monotonic
+    `cycle_generation` that keeps increasing across watcher restarts.
+    If the watch process exits after parsed cycles, typst.nvim keeps the last
+    cycle as the build result instead of synthesizing another compile success or
+    failure from the process exit.
+    Typst's default watch output is human-readable, so that parser is
+    fixture-gated best-effort compatibility. Configure
+    `compile.watch_structured_args` when a Typst executable or wrapper can emit
+    stable JSON-line watch events. Set `compile.watch_output = "structured"` to
+    reject human-readable status lines instead of parsing them.
+    Completed watch cycles notify optional viewer.reload(project, result, opts)
+    and preview.refresh(project, result, opts) callbacks, with
+    opts.source == "watch" and opts.watch == true.
+    Retained watcher stdout/stderr is bounded. Unterminated partial-line
+    buffers are bounded too.
+    Repeated watch restarts while the old watcher is stopping are debounced
+    into one replacement watcher.
+
+                                                        *:TypstStop*
+:TypstStop
+    Stop the current project's active one-shot compile or watcher. If no
+    compiler is active, report that the stop was an idle no-op instead of
+    emitting a stopped event.
+
+                                                        *:TypstStopAll*
+:TypstStopAll
+    Stop active one-shot compiles and watchers for all registered Typst
+    projects. Idle projects are counted as no-ops.
+
+                                                        *:TypstStatus*
+:TypstStatus[!]
+    Echo the compact current-project status. With bang, echo the compact
+    all-project status table for every registered Typst project.
+
+    Status command contract:
+      :TypstStatus       compact current-project status
+      :TypstStatus!      compact all-project status
+      :TypstStatusAll    all-project status
+      :TypstStatusAll!   all-project report in a scratch buffer
+      :TypstInfo!        detailed current-project report
+
+                                                        *:TypstStatusAll*
+:TypstStatusAll[!]
+    Show the all-project status table explicitly, including main file,
+    compiler/watch state, last build result, and diagnostic count for every
+    registered Typst project. With bang, open the all-project report in a
+    scratch buffer.
+
+                                                        *:TypstCount*
+:TypstCount[!]
+    Count visible Typst words and characters for the current buffer. With a
+    range, count only the selected lines. With bang, aggregate all readable
+    files known to the current Typst project. Counts ignore common Typst source
+    syntax such as comments, control declarations, math spans, raw text, labels,
+    references, and markup delimiters.
+
+                                                        *:TypstFormat*
+:TypstFormat
+    Format the current Typst buffer. With `format.provider = "auto"`, Tinymist
+    formatting is used when attached; otherwise typst.nvim runs `typstyle` with
+    buffer text on stdin and formatted text on stdout. With `format.provider =
+    "prose"`, plain prose paragraphs are wrapped while Typst structures are
+    left alone. Registered provider names, custom callbacks, and provider
+    tables can be configured through `format.provider`.
+
+                                                        *:TypstLint*
+:TypstLint[!]
+    Run the configured lint provider for the current project. The default
+    provider invokes `typst compile` against a temporary output path, parses
+    Typst human or short diagnostics, and publishes them through
+    `vim.diagnostic`. With bang, also populate and open quickfix for the lint
+    result.
+
+                                                        *:TypstGrammar*
+:TypstGrammar[!]
+    Run the configured external prose or grammar checker. Diagnostics are
+    published through `vim.diagnostic` with source `typst grammar`. With bang,
+    also populate and open quickfix for the grammar result. Built-in parsers
+    normalize textidote line/column output and Vale/vlty-style JSON output.
+
+                                                        *:TypstFontDiagnostics*
+:TypstFontDiagnostics[!]
+    Check current-buffer `font:` family references against configured
+    `completion.font_families` and families reported by `typst fonts`.
+    Diagnostics are published through `vim.diagnostic` with source `typst
+    fonts`. With bang, also populate and open quickfix for missing families.
+
+                                                        *:TypstView*
+:TypstView
+    Open the generated output for the current project. By default this uses
+    `vim.ui.open`. Configure `viewer.open` to provide a custom opener. String
+    and list-prefix openers must name an executable in `PATH`; otherwise the
+    command fails before emitting `TypstViewOpened`. `viewer.args` is passed to
+    executable viewers. Use `{output}` inside an argument to control where the
+    output path appears; otherwise the output path is appended after the
+    configured args.
+
+                                                        *:TypstViewForward*
+:TypstViewForward
+    Forward-search the current cursor position through `viewer.forward` when a
+    backend is configured, or through `preview.forward` when a preview source
+    sync callback is configured. When `preview.provider = "typst-preview.nvim"`,
+    this can call `:TypstPreviewSyncCursor` as the Typst-native replacement for
+    VimTeX's galley preview workflow. Without a backend, this reports that
+    forward search is unavailable. String and list-prefix backends use
+    `viewer.forward_args`, with `{output}`, `{main}`, `{root}`, `{line}`, and
+    `{column}` placeholders, and only run when the selected viewer declares
+    `capabilities.forward` or `capabilities.source_maps`.
+
+                                                        *:TypstViewInverse*
+:TypstViewInverse [file] [line] [column]
+    Handle an inverse-search source location reported by a source-map-capable
+    viewer. When `viewer.inverse` is configured, typst.nvim calls that callback
+    or command. Otherwise, this opens the reported source location directly only
+    when the selected viewer declares `capabilities.inverse` or
+    `capabilities.source_maps`. String and list-prefix backends use
+    `viewer.inverse_args`, with `{source}`, `{file}`, `{path}`, `{output}`,
+    `{main}`, `{root}`, `{line}`, and `{column}` placeholders, and only run
+    when the selected viewer declares `capabilities.inverse` or
+    `capabilities.source_maps`.
+
+                                                        *:TypstClean*
+:TypstClean[!]
+    Remove temporary Typst artifacts for the current project, such as selected
+    fragment sources and dependency files. With bang, also request deletion of
+    the resolved generated output file. Unowned or changed outputs are skipped
+    unless the Lua API call explicitly sets `force = true`. This command
+    refuses to run while a one-shot compile or watcher is active.
+
+                                                        *:TypstExport*
+:TypstExport[!] [profile|format]
+    Export one or more generated artifacts for the current project. The
+    argument may be a built-in Typst CLI format (`pdf`, `png`, `svg`, `html`,
+    `bundle`) or a named `exports.profiles` entry. If both exist, the matching
+    profile name wins. Profile entries support Typst CLI flags such as
+    `inputs`, `font_paths`, `features`,
+    `creation_timestamp`, `package_path`, `package_cache_path`, `jobs`,
+    `diagnostic_format`, `timings`, `pages`, `pdf_standard`, `no_pdf_tags`,
+    `ppi`, and `pretty`. Profiles can also set `command`, `cwd`, and
+    `stdout = true` for non-Typst-compile artifacts such as `txt`. Command
+    placeholders include `{root}`, `{main}`, `{input}`, `{output}`,
+    `{output_dir}`, `{output_name}`, `{format}`, `{output_format}`,
+    `{typst_format}`, and `{profile}`. A profile entry may set `provider` to
+    route the whole export plan through a registered export provider;
+    provider-owned entries cannot be mixed with built-in/command entries in the
+    same plan. Successful exports are recorded in `project.services.artifacts.items`.
+
+                                                        *:TypstArtifacts*
+:TypstArtifacts
+    List registered generated artifacts for the current project.
+
+                                                        *:TypstArtifactOpen*
+:TypstArtifactOpen [format]
+    Open a generated artifact. When several artifacts match, the command uses
+    |vim.ui.select()| to ask which one to open. Lua API calls return
+    `ambiguous_artifact` unless `path`, `format`, or `prompt = true` selects a
+    single artifact.
+
+                                                        *:TypstArtifactClean*
+:TypstArtifactClean [format]
+    Delete registered generated artifacts, optionally filtered by format.
+
+                                                        *:TypstEval*
+:TypstEval[!] {expression}
+    Evaluate a Typst expression with `typst eval --in <main>` in the current
+    project context and show serialized output in a scratch buffer.
+
+                                                        *:TypstEvalSelection*
+:TypstEvalSelection[!]
+    Evaluate the selected Typst source range.
+
+                                                        *:TypstInspect*
+:TypstInspect[!] [expression]
+    Inspect a Typst expression or the word under the cursor through the same
+    eval path.
+
+                                                        *:TypstInit*
+:TypstInit[!] [template] [directory]
+    Initialize a project with Typst's `typst init`. Without [template], select
+    from the template gallery. The Lua API can pass `offline = true` or
+    `copy = true` to use the cached-template copier, which performs package
+    containment checks and stages the copy before renaming it into place.
+
+                                                        *:TypstTemplates*
+:TypstTemplates
+    List cached Typst template packages and configured Universe-index template
+    metadata.
+
+                                                        *:TypstProfile*
+:TypstProfile[!] [profile]
+    Compile with Typst's `--timings` JSON output. With bang, skip opening the
+    profile report scratch buffer.
+
+                                                        *:TypstTest*
+:TypstTest [args]
+    Run project tests with `tinymist test`. Registered `test` providers
+    override the default command.
+
+                                                        *:TypstBench*
+:TypstBench [args]
+    Run project benchmarks with `crityp` when available. Registered `bench`
+    providers override the default command.
+
+                                                        *:TypstCoverage*
+:TypstCoverage [args]
+    Run project coverage with `tinymist test --coverage`. Registered
+    `coverage` providers override the default command.
+
+                                                        *:TypstInlayHintsToggle*
+:TypstInlayHintsToggle
+    Toggle Neovim LSP inlay hints for the current Typst buffer.
+
+                                                        *:TypstCodeAction*
+:TypstCodeAction [index]
+    List Tinymist code actions for the current cursor range. With [index],
+    apply that action through the guarded Tinymist code-action wrapper.
+
+                                                        *:TypstColorInfo*
+:TypstColorInfo
+    List color information reported by Tinymist/LSP or a semantic provider.
+
+                                                        *:TypstColorPresentation*
+:TypstColorPresentation [index]
+    List Tinymist color presentations for the color literal under the cursor.
+    With [index], apply the returned `textEdit` and any additional text edits.
+
+                                                        *:TypstLinks*
+:TypstLinks
+    List document links reported by Tinymist/LSP or a semantic provider.
+
+                                                        *:TypstCodeLens*
+:TypstCodeLens
+    Refresh Typst code lenses.
+
+                                                        *:TypstWorkspaceSymbols*
+:TypstWorkspaceSymbols [query]
+    List Tinymist workspace symbols for the current project.
+
+                                                        *:TypstReferences*
+:TypstReferences
+    List semantic references for the symbol under the cursor.
+
+                                                        *:TypstRenamePreview*
+:TypstRenamePreview {name}
+    Request a Tinymist rename workspace edit without applying it and show a
+    scratch-buffer preview.
+
+                                                        *:TypstSelectionExpand*
+:TypstSelectionExpand
+    Request `textDocument/selectionRange` for semantic selection expansion.
+
+                                                        *:TypstOnEnter*
+:TypstOnEnter
+    Explicitly request Tinymist's `experimental/onEnter` edits at the cursor and
+    apply them if the buffer and cursor guards still match. This is intentionally
+    not mapped to <CR> by default.
+
+                                                        *:TypstHtmlPreview*
+:TypstHtmlPreview [profile]
+    Export the current project as HTML through the artifact pipeline.
+
+                                                        *:TypstPresentation*
+:TypstPresentation [profile]
+    Export through the presentation workflow helper, usually backed by a
+    `presentation` export profile.
+
+                                                        *:TypstPreview*
+:TypstPreview [document|slide|profile=name|format=fmt]
+    Use `preview.open` when configured, otherwise use typst.nvim's native
+    preview provider. The native provider opens the configured viewer by
+    default; set `preview.native = "browser"` for typst.nvim's local browser
+    preview shell, or `preview.native = "auto"` to try browser preview with
+    viewer fallback. Set `preview.provider = "typst-preview.nvim"` only when
+    explicit compatibility delegation is wanted. Preview runs against the
+    resolved project main, so included files preview their project main.
+    Repeated preview opens reuse the active project preview by default;
+    `require("typst").viewer.preview({ restart = true })` or `preview.reuse = false`
+    stops and reopens active previews. Set `preview.follow_buffer = true` to
+    make one active native browser preview follow the focused Typst buffer's
+    resolved project/main. `mode=...`, `profile=...`, `format=...`,
+    `export=...`, and `restart` tokens provide one-shot preview export
+    overrides.
+
+                                                *:TypstPreviewOpenBrowser*
+:TypstPreviewOpenBrowser[!] [document|slide|profile=name|format=fmt]
+    Start the native browser preview target regardless of `preview.native`.
+    Bang restarts an active preview before reopening.
+
+                                                    *:TypstPreviewReload*
+:TypstPreviewReload [document|slide|profile=name|format=fmt]
+    Reload the active preview backend from Neovim. Native browser previews
+    rerun preview export selection before updating the browser route or file
+    shell state.
+
+                                                    *:TypstPreviewStatus*
+:TypstPreviewStatus[!]
+    Show preview backend, transport, output, export, and cache state. Bang opens
+    the report in a scratch buffer. Browser opener failures include the
+    attempted URL, opener candidates, transport, shell path, and copy hint.
+
+                                                    *:TypstCleanPreview*
+:TypstCleanPreview[!] [format]
+    Clean preview-owned cache artifacts for the current project. Bang forces
+    deletion of changed-but-owned preview artifacts. The active preview output
+    is preserved.
+
+                                                        *:TypstPreviewInverse*
+:TypstPreviewInverse [file] [line] [column]
+    Jump from a browser preview/source-map location back to Typst source when
+    `preview.inverse`, `preview.capabilities.inverse`, or a source-map-capable
+    preview backend is available. With no file, the current project main is
+    used.
+
+                                                        *:TypstPreviewStop*
+:TypstPreviewStop
+    Stop the active preview through `preview.stop` when configured, clear an
+    active native browser preview session, or delegate to typst-preview.nvim
+    when `preview.provider = "typst-preview.nvim"`.
+
+                                                        *:TypstPreviewToggle*
+:TypstPreviewToggle [document|slide]
+    Toggle the tracked active preview or open a new preview with the same
+    backend selection as `:TypstPreview`. With `preview.provider =
+    "typst-preview.nvim"`, this may delegate to that provider's toggle command.
+
+                                                        *:TypstPreviewFragment*
+:TypstPreviewFragment[!] [svg|png]
+    Render the selected Typst source as an explicit preview artifact. With
+    bang, render without opening the scratch preview report.
+
+                                                        *:TypstPreviewEquation*
+:TypstPreviewEquation[!] [expression]
+    Render an equation expression, selection, or cursor word inside an
+    auto-sized Typst math document.
+
+                                                        *:TypstPreviewImage*
+:TypstPreviewImage[!] [path]
+    Preview an image path. Without an argument, typst.nvim resolves a quoted
+    image path under the cursor relative to the current buffer.
+
+                                                        *:TypstPreviewPage*
+:TypstPreviewPage[!] [page]
+    Render one page from the current Typst main file.
+
+                                                        *:TypstRenderCacheClear*
+:TypstRenderCacheClear[!]
+    Clear manifest-owned rendered-preview cache entries under
+    `render.output_dir`. With bang, forcibly remove the entire configured
+    render cache directory only when typst.nvim can prove ownership: the path
+    must be under the default render cache root or contain typst.nvim's
+    render-cache sentinel. Unsafe forced clears return `unsafe_cache_dir` and
+    preserve project directories.
+
+Rendered previews are explicit actions, not automatic inline rendering on every
+edit. The default renderer uses `typst compile` to SVG or PNG, stores outputs
+in the render cache by source, project context, format, page, and executable,
+then opens a scratch buffer that points at the rendered artifact. Equation and
+fragment previews write generated wrapper sources under the XDG-backed
+`render.source_dir` and pass the source to `typst compile -` over stdin, so
+typst.nvim does not create project-local wrapper files. Rendered artifacts live
+under the XDG-backed `render.output_dir`. Register a
+render provider with `display(result, opts)` to replace display, or set
+`display_provider` to `terminal`, `kitty`, `wezterm`, or `iterm` for built-in
+terminal image display. Kitty uses its graphics file-transfer protocol.
+iTerm/WezTerm inline display is bounded by `render.max_inline_image_bytes` and
+uses typst.nvim's built-in Lua base64 encoder.
+Implement `render(project, opts, callback)` to replace rendering.
+
+                                                        *:TypstToc*
+:TypstToc
+    Open the current project's outline in a dedicated TOC buffer. Tinymist
+    document symbols are preferred when available, including nested symbols;
+    otherwise typst.nvim scans the main file and known dependencies with
+    Tree-sitter. The TOC buffer also includes project-index layers for figures,
+    tables, equations, labels, references, citations, imports, file paths,
+    TODO/FIXME/NOTE/WARN comments, and local definitions. Pass
+    `{ layers = false }` to the Lua API to collect only headings or Tinymist
+    document symbols. Set `toc.mode = "quickfix"` or pass
+    `{ mode = "quickfix" }` to use quickfix presentation. TOC buffers install
+    configurable buffer-local mappings from `toc.mappings`: `jump`, `preview`,
+    `close`, `refresh`, `toggle`, and `toggle_layer`. In the dedicated TOC
+    buffer, `preview` opens the selected entry in the source window while
+    keeping focus in the TOC, `toggle` expands or collapses the current
+    heading, and `toggle_layer` hides or shows the current entry's layer for the
+    current project. When `toc.follow_cursor` and `toc.highlight_current` are
+    enabled, moving through an attached Typst source buffer moves and highlights
+    the visible TOC entry for the current section. `filter` prompts for a
+    case-insensitive TOC filter across titles, layers, and paths;
+    `clear_filter` restores the full view. When `toc.auto_refresh` is enabled,
+    edits and writes in attached Typst buffers debounce a refresh of the open
+    TOC without moving focus from the source window.
+    When the last buffer leaves a project, typst.nvim closes that project's
+    TOC window or TOC-owned quickfix list before pruning project state.
+    Registered `toc` providers can add custom layers by returning entries with
+    `title`, `layer`, and source location fields from `collect(project, opts)`.
+
+                                                        *:TypstTocOpen*
+:TypstTocOpen
+    Alias for `:TypstToc`.
+
+                                                        *:TypstTocRefresh*
+:TypstTocRefresh
+    Refresh the current project's outline.
+
+                                                        *:TypstTocToggle*
+:TypstTocToggle
+    Close the current project's TOC window if one is open, otherwise open the
+    current project's outline. In quickfix mode, close the TOC-owned quickfix
+    list when it is open.
+
+                                                        *:TypstLabels*
+:TypstLabels
+    Populate the quickfix list with labels found by the syntactic project
+    index.
+
+                                                        *:TypstCitations*
+:TypstCitations
+    Populate the quickfix list with bibliography keys found in local
+    bibliography files referenced by the project.
+
+                                                        *:TypstCitationInsert*
+:TypstCitationInsert [key-or-query]
+    Insert a citation at the cursor. With an exact key, insert immediately.
+    Otherwise open the bibliography picker filtered by the query. Inserted text
+    is context-aware: markup receives `@key`, code receives `#cite(<key>)`, and
+    an active `cite(...)` argument receives `<key>`.
+
+                                                        *:TypstCitationSearch*
+:TypstCitationSearch [query]
+    Search project bibliography entries with the configured picker. Queries
+    match citation key, author/editor, title, year/date, journal/booktitle,
+    keywords, and abstract text.
+
+                                                        *:TypstCitationOpen*
+:TypstCitationOpen [key]
+    Open the bibliography entry for a key. Without a key, resolve the citation
+    under the cursor.
+
+                                                        *:TypstCitationPreview*
+:TypstCitationPreview [key]
+    Show a compact citation preview from bibliography metadata. Without a key,
+    resolve the citation under the cursor.
+
+                                                        *:TypstCitationRename*
+:TypstCitationRename [old-key] new-key
+    Transactionally rename a bibliography key and project citation references.
+    With one argument, rename the citation under the cursor to that new key.
+
+                                                        *:TypstBibliographyStatus*
+:TypstBibliographyStatus
+    Report project bibliography counts: bibliography paths, entries, used keys,
+    missing keys, duplicate keys, and unused entries.
+
+                                                        *:TypstBibliographyDiagnostics*
+:TypstBibliographyDiagnostics[!]
+    Publish bibliography diagnostics for explicit undefined citations,
+    duplicate bibliography keys, unused bibliography entries, and
+    label/citation name collisions. With bang, also open quickfix.
+
+                                                        *:TypstBibliographyAttachments*
+:TypstBibliographyAttachments[!] [key-or-query]
+    List readable local PDF attachments resolved from configured bibliography
+    fields and path patterns. With one match, open it through `vim.ui.open`.
+    With bang, open the quickfix list for all matches.
+
+                                                        *:TypstSymbols*
+:TypstSymbols
+    Populate the quickfix list with local `#let` definitions found by the
+    syntactic project index.
+
+                                                        *:TypstPick*
+:TypstPick [kind]
+    Open project and TOC items with the configured picker backend. The optional
+    kind may be `all`, `toc`, `headings`, `figures`, `tables`, `equations`,
+    `labels`, `references`, `citations`, `bibliography`, `imports`, `files`,
+    `todos`, or `definitions`. The `toc` kind consumes the same TOC model as
+    |:TypstToc|, including registered custom TOC provider layers. Custom TOC
+    layer names can also be used directly, for example `:TypstPick theorem`.
+    The `bibliography` kind exposes insertion-ready items with `citation_key`
+    and `insert_text`.
+
+                                                        *:TypstFollow*
+:TypstFollow
+    Follow the Typst target under the cursor. This is the command form of the
+    default `gf` mapping. It resolves imports, image/data/bibliography paths,
+    local CSL style files, package imports, URLs, labels/references, explicit
+    `#cite(<key>)` citations, and local/imported definitions. Built-in CSL
+    style IDs such as `ieee` are not treated as file paths. Tinymist definition
+    is preferred for identifier targets when available; otherwise the syntactic
+    project index is used.
+
+    The syntactic project index is persistent per project. It caches each
+    scanned Typst or bibliography file by loaded-buffer changedtick or on-disk
+    mtime/size. Unnamed Typst buffers use their scratch project main path as
+    the index key and are rescanned by buffer changedtick, so fallback headings,
+    labels, references, definitions, and TODOs work before the buffer has a file
+    name. The index reuses unchanged file records for headings, labels,
+    citations, TOC layers, follow targets, package syntax extensions,
+    completion, picker items, and context actions. Use `:TypstClearCache` or
+    `require("typst").index.reset(project)` to drop cached index records.
+    Bibliography parsing handles multiline/concatenated BibTeX fields and
+    nested or inline Hayagriva YAML fields for citation metadata.
+    Lua consumers that want semantic index data can call
+    `require("typst").index.collect({ project = project, include_tinymist =
+    true })`; this overlays Tinymist document/workspace symbols and their
+    references onto returned headings, definitions, and references without
+    changing the default syntactic cache. The call is cache-first and
+    nonblocking: it returns the syntactic index plus any Tinymist cache that is
+    still valid for the current project generation, and schedules an async
+    refresh when semantic data is absent or stale.
+    index providers extend the syntactic project index. Extension plugins can
+    register `index` providers with
+    `require("typst").providers.register("index", name, provider)`. Provider
+    `collect(project, opts)` results are merged into normal index categories or
+    normalized from an `items` list. Provider registration invalidates aggregate
+    index caches, and `require("typst").index.mark_dirty(project, reason)` is
+    available for provider-specific refreshes.
+    `require("typst").bibliography.foldexpr()` and
+    `require("typst").bibliography.indentexpr()` provide conservative BibTeX
+    and Hayagriva helpers for integrations that attach bibliography buffers.
+    `require("typst").bibliography.expanded_fields()` resolves BibTeX
+    `crossref` and `xdata` inheritance. `search()` matches citation keys,
+    author/editor, title, year/date, venue, keywords, and abstract text.
+    `insert_text()` and `insert()` choose `@key`, `#cite(<key>)`, or `<key>`
+    from the current Typst context. `open()`, `preview()`, `attachment()`,
+    `attachments()`, `rename_key()`, and `status()` provide entry navigation,
+    formatted citation summaries, configurable attached-PDF lookup,
+    transactional citation-key rename, and project bibliography status
+    summaries.
+
+                                                        *:TypstContextMenu*
+:TypstContextMenu
+    Open a `vim.ui.select` action menu for the Typst item under the cursor. The
+    menu reuses package, symbol, and follow resolvers and can show package info,
+    open package source/page entries, update package imports to newer locally
+    cached versions, follow or reveal resolved targets, or copy the resolved
+    target.
+    Function calls can show signatures. Symbols can insert generated variants;
+    template packages can open package info, source, or initialize a project;
+    file paths can be revealed; image paths can open or preview the image;
+    colors and font families can be inspected or replaced.
+    Labels can be copied, renamed, or listed through quickfix references;
+    syntactic label rename validates the current source token before applying
+    fallback edits and reports `provider = "syntax"` with `semantic = false`.
+    Tinymist-backed rename reports `provider = "tinymist"`. Local definitions
+    list Tinymist semantic references when available, then fall back to project
+    occurrences. Headings can be promoted or demoted, and equations can switch
+    inline/block syntax or toggle numbering.
+    Citation targets can also open the bibliography entry, show a formatted
+    preview, rename the citation key, open URL/DOI fields from the entry,
+    open readable local PDF attachments, or copy the citation key.
+    The Lua API
+    accepts `{ open = false }` to return the action model without opening UI.
+
+                                                        *:TypstDiagnostics*
+:TypstDiagnostics
+    Populate and open the quickfix list with the current project's compiler
+    diagnostics. This works even when `diagnostics.use_quickfix` is false.
+
+                                                        *:TypstErrors*
+:TypstErrors
+    Alias for `:TypstDiagnostics` for VimTeX-style project error navigation.
+
+                                                        *:TypstPackageInfo*
+:TypstPackageInfo [query]
+    Open Typst package resource information for [query] in a reused scratch
+    buffer. Without a query, resolve a package import or imported package member
+    under the cursor. Cached packages are resolved through Typst's reported
+    package paths and show `typst.toml`, README, entrypoint, manuals,
+    advertised API paths, repository, homepage, typst.nvim-specific optional
+    `[tool.typst-docs]` resource hints, and Universe links. Missing packages
+    fall back to the Universe page. Cursor-based package member results use
+    cached package `///` source comments when available and are marked as
+    syntactic fallbacks.
+
+                                                        *:TypstPackageOpen*
+:TypstPackageOpen [query]
+    Open the Typst Universe page for a package query such as
+    `@preview/cetz:0.3.4` or `cetz`.
+
+                                                        *:TypstPackageReadme*
+:TypstPackageReadme [query]
+    Open the cached README for a package when available.
+
+                                                        *:TypstPackageSource*
+:TypstPackageSource [query]
+    Open the cached package source entrypoint or imported member source when
+    available.
+
+                                                        *:TypstSymbolInfo*
+:TypstSymbolInfo [query]
+    Open generated symbol or emoji information for [query] or the cursor token.
+    Both `arrow.r` and `sym.arrow.r` forms are accepted. This reports glyph,
+    qualified form, metadata version, category, and variants; it is not
+    standard-library function documentation. Lua consumers can read the broader
+    compact generated stdlib data through
+    `require("typst").metadata.stdlib_item(path)`, `metadata.signature(path)`,
+    and `metadata.stdlib_complete(prefix, context)`.
+
+                                                        *:TypstSymbolVariants*
+:TypstSymbolVariants [query]
+    List generated variants for a Typst symbol.
+
+                                                        *:TypstConcealEnable*
+:TypstConcealEnable
+    Enable typst.nvim conceal for the current buffer and refresh the display.
+
+                                                        *:TypstConcealDisable*
+:TypstConcealDisable
+    Disable typst.nvim conceal for the current buffer and refresh the display.
+
+                                                        *:TypstConcealToggle*
+:TypstConcealToggle
+    Toggle typst.nvim conceal for the current buffer.
+
+                                                        *:TypstConcealRefresh*
+:TypstConcealRefresh
+    Clear cached Typst metadata and redraw conceal decorations.
+
+                                                        *:TypstConcealInspect*
+:TypstConcealInspect
+    Show the conceal rule under the cursor, including source text,
+    replacement, resolved symbol, metadata provider version, category, source
+    range, reveal range, and shadowing decision.
+
+                                                        *:TypstPromoteHeading*
+:TypstPromoteHeading
+    Promote the heading under the cursor. Tinymist code actions are preferred
+    when attached; otherwise typst.nvim locally rewrites the heading marker.
+
+                                                        *:TypstDemoteHeading*
+:TypstDemoteHeading
+    Demote the heading under the cursor. Tinymist code actions are preferred
+    when attached; otherwise typst.nvim locally rewrites the heading marker.
+
+                                                        *:TypstRefreshFolds*
+:TypstRefreshFolds
+    Reapply Typst fold settings for the current buffer and ask Neovim to
+    recompute folds.
+
+                                                        *:TypstMatchHighlightEnable*
+:TypstMatchHighlightEnable
+    Enable matching-pair highlighting for the current Typst buffer.
+
+                                                        *:TypstMatchHighlightDisable*
+:TypstMatchHighlightDisable
+    Disable matching-pair highlighting for the current Typst buffer.
+
+                                                        *:TypstMatchHighlightToggle*
+:TypstMatchHighlightToggle
+    Toggle matching-pair highlighting for the current Typst buffer.
+
+                                                        *:TypstMatchHighlightRefresh*
+:TypstMatchHighlightRefresh
+    Refresh the current matching-pair extmarks.
+
+                                                        *:TypstUnwrapFunction*
+:TypstUnwrapFunction
+    Unwrap the surrounding function call when it has a trailing content block.
+    For example, `#strong[hello]` becomes `hello`.
+
+                                                        *:TypstChangeFunction*
+:TypstChangeFunction {name}
+    Replace the name of the surrounding Typst function call while preserving
+    its arguments and content blocks. For example, `#strong[hello]` can become
+    `#emph[hello]`.
+
+                                                        *:TypstSurroundDeleteCall*
+:TypstSurroundDeleteCall
+    Delete the surrounding Typst function call by unwrapping its trailing
+    content block.
+
+                                                        *:TypstSurroundChangeCall*
+:TypstSurroundChangeCall {name}
+    Change the surrounding Typst function call name. This is the generic
+    surrounding-edit spelling of |:TypstChangeFunction|.
+
+                                                        *:TypstChangeDelimiter*
+:TypstChangeDelimiter {content, block, group, equation}
+    Change the smallest surrounding delimiter pair while preserving its body.
+    Targets are content brackets `[]`, code block braces `{}`, parentheses
+    `()`, and equation delimiters `$...$`.
+
+                                                        *:TypstSurroundDeleteDelimiter*
+:TypstSurroundDeleteDelimiter [content, block, group, equation]
+    Delete the smallest surrounding delimiter pair while preserving its body.
+    With an argument, only delete the pair when it has the requested kind.
+
+                                                        *:TypstSurroundChangeDelimiter*
+:TypstSurroundChangeDelimiter {content, block, group, equation}
+    Change the smallest surrounding delimiter pair. This is the generic
+    surrounding-edit spelling of |:TypstChangeDelimiter|.
+
+                                                        *:TypstSurroundDeleteBlock*
+:TypstSurroundDeleteBlock
+    Delete surrounding code block braces while preserving the block body.
+
+                                                        *:TypstSurroundChangeBlock*
+:TypstSurroundChangeBlock [content, block, group, equation]
+    Change surrounding code block braces to another delimiter kind. The default
+    target is `content`.
+
+                                                        *:TypstSurroundDeleteEquation*
+:TypstSurroundDeleteEquation
+    Delete surrounding equation delimiters while preserving the formula body.
+
+                                                        *:TypstSurroundChangeEquation*
+:TypstSurroundChangeEquation [content, block, group, equation]
+    Change surrounding equation delimiters to another delimiter kind. The
+    default target is `content`.
+
+                                                        *:TypstSplitArguments*
+:TypstSplitArguments
+    Split the parenthesized argument group of the surrounding Typst function
+    call so each top-level argument appears on its own line with a trailing
+    comma.
+
+                                                        *:TypstJoinArguments*
+:TypstJoinArguments
+    Join the parenthesized argument group of the surrounding Typst function
+    call back to inline form. This refuses groups with comments or multiline
+    top-level arguments so source content is not silently dropped or flattened.
+
+                                                        *:TypstToggleArguments*
+:TypstToggleArguments
+    Split an inline argument group or join a multiline argument group for the
+    surrounding Typst function call.
+
+                                                        *:TypstNameArguments*
+:TypstNameArguments
+    Convert positional arguments in the surrounding Typst call to named
+    arguments when a simple same-buffer local `#let` function declaration
+    provides parameter names, or when generated stdlib metadata proves a
+    built-in positional parameter may be named. Native positional-only
+    arguments, variadic declarations, comments, spread arguments, and calls
+    without parameter metadata are left unchanged.
+
+                                                        *:TypstToggleTrailingComma*
+:TypstToggleTrailingComma [toggle, add, remove]
+    Add or remove the top-level trailing comma in the parenthesized multiline
+    argument group of the surrounding Typst function call. Groups with comments
+    are left unchanged.
+
+                                                        *:TypstAddTrailingComma*
+:TypstAddTrailingComma
+    Add a top-level trailing comma to the surrounding multiline Typst function
+    argument group.
+
+                                                        *:TypstRemoveTrailingComma*
+:TypstRemoveTrailingComma
+    Remove the top-level trailing comma from the surrounding multiline Typst
+    function argument group.
+
+                                                        *:TypstToggleLabel*
+:TypstToggleLabel
+    Convert the surrounding Typst label between shorthand `<name>` form and
+    explicit `#label(<name>)` form. Plain string calls such as
+    `#label("name")` convert back to shorthand when possible.
+
+                                                        *:TypstToggleReference*
+:TypstToggleReference
+    Convert the surrounding Typst reference between shorthand `@name` form and
+    explicit `#ref(<name>)` form.
+
+                                                        *:TypstToggleLabelReference*
+:TypstToggleLabelReference
+    Dispatch to |:TypstToggleReference| or |:TypstToggleLabel| depending on the
+    surrounding syntax node.
+
+                                                        *:TypstSurround*
+:TypstSurround {kind} [name]
+    Surround the current line or command range. Supported kinds are
+    `function`, `content`, `equation`, `figure`, `block`, `strong`, and
+    `emph`. The `function` kind requires [name] and creates `#name[...]`.
+
+                                                        *:TypstSurroundFunction*
+:TypstSurroundFunction {name}
+    Surround the current line or command range with a Typst function content
+    call, for example `#quote[...]`.
+
+                                                        *:TypstSurroundContent*
+:TypstSurroundContent
+    Surround the current line or command range with content brackets.
+
+                                                        *:TypstSurroundEquation*
+:TypstSurroundEquation
+    Surround the current line or command range with equation delimiters.
+
+                                                        *:TypstSurroundFigure*
+:TypstSurroundFigure
+    Surround the current line or command range with a `#figure[...]` content
+    block. Unlike |:TypstToggleFigure|, this command always wraps.
+
+                                                        *:TypstSurroundBlock*
+:TypstSurroundBlock
+    Surround the current line or command range with code block braces.
+
+                                                        *:TypstSurroundStrong*
+:TypstSurroundStrong
+    Surround the current line or command range with strong markup.
+
+                                                        *:TypstSurroundEmph*
+:TypstSurroundEmph
+    Surround the current line or command range with emphasis markup.
+
+                                                        *:TypstInsert*
+:TypstInsert [kind]
+    Insert paired Typst markup and place the cursor inside it. Supported kinds
+    are `strong`, `emph`, `math`, `content`, `code`, and `raw`.
+
+                                                        *:TypstImapsList*
+:TypstImapsList[!]
+    List registered Typst insert-mode mappings and mark which entries are
+    active for the current syntax context. With bang, open the report in a
+    scratch buffer. Runtime mappings are managed through
+    `require("typst").imaps.register(...)`,
+    `require("typst").imaps.unregister(...)`, and
+    `require("typst").imaps.active(bufnr)`.
+
+                                                        *:TypstToggleStrong*
+:TypstToggleStrong
+    Convert surrounding strong markup between shorthand and explicit function
+    form: `*hello*` and `#strong[hello]`.
+
+                                                        *:TypstToggleEmph*
+:TypstToggleEmph
+    Convert surrounding emphasis markup between shorthand and explicit function
+    form: `_hello_` and `#emph[hello]`.
+
+                                                        *:TypstToggleFigure*
+:TypstToggleFigure
+    Toggle figure wrapping. When the cursor is inside a `#figure` body, unwrap
+    the body. Otherwise wrap the current line or command range in a
+    `#figure[...]` content block.
+
+                                                        *:TypstToggleList*
+:TypstToggleList [toggle, bullet, numbered]
+    Toggle list markers on the current line or command range. `toggle` flips
+    bullet lists to numbered lists and numbered lists to bullet lists; plain
+    lines become bullet list items. `bullet` and `numbered` force that marker
+    kind, or remove it when every selected non-empty line already has it.
+
+                                                        *:TypstToggleBulletList*
+:TypstToggleBulletList
+    Toggle bullet markers on the current line or command range.
+
+                                                        *:TypstToggleNumberedList*
+:TypstToggleNumberedList
+    Toggle numbered list markers on the current line or command range.
+
+                                                        *:TypstConvertEquation*
+:TypstConvertEquation [toggle, inline, block]
+    Convert the equation under the cursor between inline and block form.
+    Tinymist code actions are used when available; otherwise typst.nvim uses a
+    local Tree-sitter transform. Without an argument, `toggle` is used.
+
+                                                        *:TypstToggleEquationNumbering*
+:TypstToggleEquationNumbering [toggle, on, off]
+    Toggle numbering for the equation under the cursor. Dollar-math syntax is
+    converted to an explicit `#math.equation(...)` call. Existing explicit
+    equation calls only have their `numbering` argument inserted or changed.
+    Without an argument, `toggle` is used.
+
+                                                        *:TypstToggleFraction*
+:TypstToggleFraction
+    Toggle a simple same-line fraction between `a / b` and `frac(a, b)`.
+
+                                                        *:TypstToggleDelimiterSize*
+:TypstToggleDelimiterSize
+    Toggle a simple same-line delimiter between `(body)` and `lr(body)`.
+
+                                                        *:TypstToggleLineBreak*
+:TypstToggleLineBreak
+    Add or remove a Typst markup line break marker at the end of the current
+    line.
+
+                                                        *:TypstCreateFunction*
+:TypstCreateFunction {name}
+    Convert the current word, or a command range, into a Typst function call.
+    Single words become `#name(word)`; multiline ranges become `#name[...]`.
+
+                                                        *:TypstSmartClose*
+:TypstSmartClose
+    Insert the closing delimiter for the nearest unmatched Typst delimiter
+    before or under the cursor.
+
+                                                        *:TypstConvertRaw*
+:TypstConvertRaw [toggle, inline, block]
+    Convert the raw text under the cursor between inline and block form.
+    Multi-line raw blocks are left unchanged when inline form is requested
+    because collapsing them would change literal content. Without an argument,
+    `toggle` is used.
+
+                                                        *:TypstCheckInvariants*
+:TypstCheckInvariants
+    Run typst.nvim's runtime invariant checker. This is a maintainer-facing
+    diagnostic command that checks project attachment, active operations, path
+    leases, diagnostics namespaces, and other ownership invariants. A passing
+    result reports the number of projects, operations, and leases inspected; a
+    failing result writes details to |:TypstLog|.
+
+                                                        *:TypstTelemetry*
+:TypstTelemetry
+    Show recorded typst.nvim performance telemetry. This is useful for
+    checking interactive hot paths such as project indexing, TOC collection,
+    completion, conceal matching, package refreshes, and attach/setup work.
+
+                                                        *:TypstTelemetryReset*
+:TypstTelemetryReset
+    Clear accumulated typst.nvim telemetry samples.
+
+                                                        *:TypstLog*
+:TypstLog
+    Open the in-memory typst.nvim log. Compiler runs include structured
+    command, cwd, root, main, and output fields. Failed compiler runs include
+    captured stdout and stderr fields.
+
+==============================================================================
+MAPPINGS                                                        *typst-mappings*
+
+typst.nvim installs buffer-local defaults for Typst buffers:
+
+Heading, block, equation, raw-block, and comment motions are available in
+normal, operator-pending, and visual modes. They accept Vim counts such as
+`2]m` and `3[[`.
+
+Text objects follow the usual Vim `i`/`a` convention: inner selections remove
+the surrounding syntax marker when that is meaningful, and outer selections
+include the marker, delimiter, wrapper, or full syntax node.
+
+Text object reference:
+
+  Mapping   Kind               Inner selects           Outer selects
+  `ih/ah`   heading            heading text            whole heading line
+  `iH/aH`   section            section body            heading plus body
+  `im/am`   equation           formula body            `$...$` or block math
+  `id/ad`   delimiter          delimiter body          delimiter pair
+  `ic/ac`   content            bracket body            `[ ... ]`
+  `ib/ab`   block              nearest block body      nearest block node
+  `ie/ae`   structural block   nearest unit body       nearest structural unit
+  `iC/aC`   code block         code/raw contents       full code/raw block
+  `ir/ar`   raw block          raw contents            full raw block
+  `if/af`   function call      arguments/content       whole call
+  `ia/aa`   argument           value/body              whole argument
+  `il/al`   label/reference    label name              `@ref` or `<label>`
+  `ii/ai`   import             import target/members   whole import statement
+
+`ie` and `ae` are Typst structural-block objects, not TeX environments. They
+target the nearest useful structural unit: function calls, bracket/content
+blocks, code/raw blocks, equations, grouped expressions, arrays/dictionaries,
+and list items. List-item objects exist as `<Plug>` mappings, but have no
+default keys because the obvious `im/am` keys are used for equations.
+
+typst.nvim does not currently provide VimTeX targets-style next/last text
+objects such as `ine` or `ile`. Use motions like `]m`, `[m`, `]n`, and `[n`
+with operators for directional selections.
+
+                                                        *typst-]]*
+]]
+    Jump to the next Typst heading.
+
+                                                        *typst-[[*
+[[
+    Jump to the previous Typst heading.
+
+                                                        *typst-][*
+][
+    Jump to the next Typst heading end.
+
+                                                        *typst-[]*
+[]
+    Jump to the previous Typst heading end.
+
+                                                        *typst-]m*
+]m
+    Jump to the next Typst structural block start.
+
+                                                        *typst-[m*
+[m
+    Jump to the previous Typst structural block start.
+
+                                                        *typst-]M*
+]M
+    Jump to the next Typst structural block end.
+
+                                                        *typst-[M*
+[M
+    Jump to the previous Typst structural block end.
+
+                                                        *typst-]n*
+]n
+    Jump to the next Typst equation start.
+
+                                                        *typst-[n*
+[n
+    Jump to the previous Typst equation start.
+
+                                                        *typst-]N*
+]N
+    Jump to the next Typst equation end.
+
+                                                        *typst-[N*
+[N
+    Jump to the previous Typst equation end.
+
+                                                        *typst-]r*
+]r
+    Jump to the next Typst raw block.
+
+                                                        *typst-[r*
+[r
+    Jump to the previous Typst raw block.
+
+                                                        *typst-]/*
+]/
+    Jump to the next Typst comment.
+
+                                                        *typst-[/*
+[/
+    Jump to the previous Typst comment.
+
+                                                        *typst-%*
+%
+    Jump to the matching Typst delimiter. This covers `()`, `[]`, `{}`, inline
+    and display `$` math delimiters, and triple-backtick raw block fences.
+    Delimiters inside comments, strings, and raw-block contents are ignored.
+
+                                                        *typst-gf*
+gf
+    Follow the Typst target under the cursor.
+
+                                                        *typst-localleader-ll*
+<localleader>ll
+    Start or restart Typst watch for the current project. This is the closest
+    Typst equivalent to VimTeX's continuous compile loop.
+
+                                                        *typst-localleader-lL*
+<localleader>lL
+    Run a one-shot Typst compile for the current project.
+
+                                                        *typst-localleader-lk*
+<localleader>lk
+    Stop the current project's active compile or watcher.
+
+                                                        *typst-localleader-lv*
+<localleader>lv
+    Open the generated output for the current project.
+
+                                                        *typst-localleader-ls*
+<localleader>ls
+    Forward-search the current source position through the configured viewer or
+    preview backend.
+
+                                                        *typst-localleader-le*
+<localleader>le
+    Open current compiler diagnostics in quickfix.
+
+                                                        *typst-localleader-lo*
+<localleader>lo
+    Open the current project's latest compiler output.
+
+                                                        *typst-localleader-li*
+<localleader>li
+    Show resolved project state for the current buffer.
+
+                                                        *typst-localleader-lt*
+<localleader>lt
+    Toggle the current project's TOC window or TOC-owned quickfix list.
+
+                                                        *typst-localleader-lc*
+<localleader>lc
+    Remove temporary Typst artifacts for the current project.
+
+                                                        *typst-localleader-lg*
+<localleader>lg
+    Open the typst.nvim log.
+
+                                                        *typst-hover*
+<Plug>(typst-hover)
+    Delegate to native LSP hover when a hover-capable Typst language server is
+    attached. typst.nvim does not map `K` by default; set
+    `mappings.hover = "K"` or map this plug yourself to opt in.
+
+                                                        *typst-.*
+.
+    Repeat the last Typst structural edit when it is still the last buffer
+    change. Otherwise fall back to Neovim's native dot-repeat. Multi-token
+    structural edits are undo-joined into one undo step. Set
+    `mappings.repeat_transform = false` to disable this buffer-local mapping.
+    Counted transform calls repeat through the same undo chain, range-capable
+    transforms honor visual and command ranges, and structural edits preserve
+    user registers.
+
+                                                        *typst-ih*
+ih
+    Inner heading text object.
+
+                                                        *typst-ah*
+ah
+    Outer heading text object.
+
+                                                        *typst-iH*
+iH
+    Inner section text object.
+
+                                                        *typst-aH*
+aH
+    Outer section text object.
+
+                                                        *typst-im*
+im
+    Inner equation text object.
+
+                                                        *typst-am*
+am
+    Outer equation text object.
+
+                                                        *typst-ic*
+ic
+    Inner content block text object.
+
+                                                        *typst-ac*
+ac
+    Outer content block text object.
+
+                                                        *typst-iC*
+iC
+    Inner code block text object.
+
+                                                        *typst-aC*
+aC
+    Outer code block text object.
+
+                                                        *typst-ir*
+ir
+    Inner raw block text object.
+
+                                                        *typst-ar*
+ar
+    Outer raw block text object.
+
+                                                        *typst-if*
+if
+    Inner function call text object.
+
+                                                        *typst-af*
+af
+    Outer function call text object.
+
+                                                        *typst-ia*
+ia
+    Inner argument text object.
+
+                                                        *typst-aa*
+aa
+    Outer argument text object. Counted outer argument text objects select
+    consecutive arguments, such as `y2aa`.
+
+                                                        *typst-il*
+il
+    Inner label or reference text object.
+
+                                                        *typst-al*
+al
+    Outer label or reference text object.
+
+                                                        *typst-ii*
+ii
+    Inner import statement text object.
+
+                                                        *typst-ai*
+ai
+    Outer import statement text object.
+
+List-item text objects are available through <Plug> mappings but have no
+default keys because `im` and `am` are currently used for equations.
+Empty inner text objects and incomplete syntax return no range rather than
+selecting delimiters or stale text.
+
+The defaults map to these <Plug> mappings:
+
+>
+  <Plug>(typst-next-heading)
+  <Plug>(typst-previous-heading)
+  <Plug>(typst-next-heading-end)
+  <Plug>(typst-previous-heading-end)
+  <Plug>(typst-next-block)
+  <Plug>(typst-previous-block)
+  <Plug>(typst-next-block-end)
+  <Plug>(typst-previous-block-end)
+  <Plug>(typst-next-equation)
+  <Plug>(typst-previous-equation)
+  <Plug>(typst-next-equation-end)
+  <Plug>(typst-previous-equation-end)
+  <Plug>(typst-next-raw-block)
+  <Plug>(typst-previous-raw-block)
+  <Plug>(typst-next-comment)
+  <Plug>(typst-previous-comment)
+  <Plug>(typst-match)
+  <Plug>(typst-follow)
+  <Plug>(typst-watch)
+  <Plug>(typst-compile)
+  <Plug>(typst-stop)
+  <Plug>(typst-view)
+  <Plug>(typst-view-forward)
+  <Plug>(typst-errors)
+  <Plug>(typst-compile-output)
+  <Plug>(typst-info)
+  <Plug>(typst-toc-toggle)
+  <Plug>(typst-clean)
+  <Plug>(typst-log)
+  <Plug>(typst-unwrap-function)
+  <Plug>(typst-change-delimiter-content)
+  <Plug>(typst-change-delimiter-block)
+  <Plug>(typst-change-delimiter-group)
+  <Plug>(typst-change-delimiter-equation)
+  <Plug>(typst-split-arguments)
+  <Plug>(typst-join-arguments)
+  <Plug>(typst-toggle-arguments)
+  <Plug>(typst-name-arguments)
+  <Plug>(typst-toggle-trailing-comma)
+  <Plug>(typst-add-trailing-comma)
+  <Plug>(typst-remove-trailing-comma)
+  <Plug>(typst-toggle-label)
+  <Plug>(typst-toggle-reference)
+  <Plug>(typst-toggle-label-reference)
+  <Plug>(typst-surround-content)
+  <Plug>(typst-surround-equation)
+  <Plug>(typst-surround-figure)
+  <Plug>(typst-surround-block)
+  <Plug>(typst-surround-strong)
+  <Plug>(typst-surround-emph)
+  <Plug>(typst-toggle-strong)
+  <Plug>(typst-toggle-emph)
+  <Plug>(typst-toggle-figure)
+  <Plug>(typst-insert-strong)
+  <Plug>(typst-insert-emph)
+  <Plug>(typst-insert-math)
+  <Plug>(typst-insert-content)
+  <Plug>(typst-insert-code)
+  <Plug>(typst-insert-raw)
+  <Plug>(typst-toggle-list)
+  <Plug>(typst-toggle-bullet-list)
+  <Plug>(typst-toggle-numbered-list)
+  <Plug>(typst-convert-raw)
+  <Plug>(typst-toggle-equation-numbering)
+  <Plug>(typst-inner-heading)
+  <Plug>(typst-outer-heading)
+  <Plug>(typst-inner-section)
+  <Plug>(typst-outer-section)
+  <Plug>(typst-inner-equation)
+  <Plug>(typst-outer-equation)
+  <Plug>(typst-inner-delimiter)
+  <Plug>(typst-outer-delimiter)
+  <Plug>(typst-inner-content)
+  <Plug>(typst-outer-content)
+  <Plug>(typst-inner-block)
+  <Plug>(typst-outer-block)
+  <Plug>(typst-inner-structural-block)
+  <Plug>(typst-outer-structural-block)
+  <Plug>(typst-inner-code-block)
+  <Plug>(typst-outer-code-block)
+  <Plug>(typst-inner-raw-block)
+  <Plug>(typst-outer-raw-block)
+  <Plug>(typst-inner-call)
+  <Plug>(typst-outer-call)
+  <Plug>(typst-inner-argument)
+  <Plug>(typst-outer-argument)
+  <Plug>(typst-inner-list-item)
+  <Plug>(typst-outer-list-item)
+  <Plug>(typst-inner-label)
+  <Plug>(typst-outer-label)
+  <Plug>(typst-inner-import)
+  <Plug>(typst-outer-import)
+<
+
+The shipped `queries/typst/textobjects.scm` also exposes matching Tree-sitter
+captures such as `@heading.inner`, `@section.outer`, `@equation.inner`,
+`@block.outer`, `@structural_block.inner`, `@code_block.outer`,
+`@raw_block.outer`, `@call.inner`, `@argument.inner`, `@list_item.outer`,
+`@label.outer`, and `@import.outer` for users who prefer query-driven text
+object plugins. The built-in delimiter text object is implemented in Lua so it
+can choose the nearest balanced delimiter pair. Text objects are Tree-sitter
+first; when no matching parser range is available and Tinymist supports
+`textDocument/selectionRange`, typst.nvim falls back to the LSP selection
+range. Use `lsp_fallback = false` in Lua calls to require parser-only ranges.
+
+==============================================================================
+TREE-SITTER QUERIES                                           *typst-queries*
+
+typst.nvim ships small query extensions for workflow features it owns:
+
+- `queries/markdown/injections.scm`
+- `queries/typst/textobjects.scm`
+- `queries/typst/highlights.scm`
+- `queries/typst/folds.scm`
+- `queries/typst/indents.scm`
+- `queries/typst/injections.scm`
+- `queries/typst/conceal.scm`
+
+The injection query captures Typst raw code blocks as embedded languages when
+the block has a language tag, for example ` ```python `. The Markdown injection
+query captures fenced ` ```typst ` blocks as Typst content when the Markdown
+parser is available. The highlight query adds conservative captures for
+headings, comments, markup styles, labels, references, list markers, raw text,
+code calls, strings, numbers, math symbols, TODO/NOTE/WARN/FIXME comment
+markers, parser errors, and punctuation without forking the parser.
+It marks prose and comments with `@spell`, while raw spans/blocks, strings,
+and math regions use `@nospell`.
+The highlight query also sets Tree-sitter `bo.commentstring` metadata so
+Neovim's built-in commenting can use `// %s` inside line comments and
+`/* %s */` inside block comments.
+
+The query suite is tested against `tests/fixtures/basic/syntax.typ`, a broad
+fixture covering headings, documentation comments, imports, labels,
+references, lists, markup styles, raw spans and blocks, calls, named
+arguments, and inline/display math. This keeps core highlight, conceal,
+text-object, fold, indent, embedded-Markdown, and injection captures tied to
+parser-backed source rather than query-load smoke tests alone.
+
+------------------------------------------------------------------------------
+Syntax Reference                                      *typst-syntax-reference*
+
+The highlight query intentionally uses common Neovim capture names so colors
+come from the user's theme. The shipped captures are:
+
+  Comments:
+    `@comment`, `@comment.todo`, `@comment.note`, `@comment.warning`,
+    `@comment.error`
+
+  Spell checking:
+    `@spell`, `@nospell`
+
+  Markup:
+    `@markup.heading`, `@markup.heading.1`, `@markup.heading.2`,
+    `@markup.heading.3`, `@markup.heading.4`, `@markup.heading.5`,
+    `@markup.heading.6`, `@markup.strong`, `@markup.italic`,
+    `@markup.link.label`, `@markup.list`, `@markup.raw`,
+    `@markup.raw.block`
+
+  Typst labels, raw tags, and code:
+    `@label`, `@string.special`, `@keyword`, `@keyword.import`,
+    `@keyword.operator`, `@function.call`, `@variable.parameter`,
+    `@string`, `@number`
+
+  Math and punctuation:
+    `@constant`, `@operator`, `@punctuation.special`,
+    `@punctuation.delimiter`, `@punctuation.bracket`
+
+  Malformed syntax:
+    `@error`
+
+The conceal query is structural. These captures are consumed by the Lua
+conceal resolver and are not meant to be color groups:
+
+  `@conceal.symbol`, `@conceal.emoji`, `@conceal.math_delimiter`,
+  `@conceal.script`,
+  `@conceal.markup_delimiter`, `@conceal.heading_marker`,
+  `@conceal.list_marker`, `@conceal.raw_delimiter`, `@conceal.raw_block`,
+  `@conceal.label_delimiter`, `@conceal.reference_marker`,
+  `@conceal.function_wrapper`
+
+typst.nvim intentionally does not use Tree-sitter highlight-query `conceal`
+metadata for these replacements. The Lua conceal renderer owns category
+toggles, metadata safety checks, shadowing checks, caching, and window-local
+cursor reveal behavior that native highlight conceal cannot express.
+
+The text-object query exposes these captures for query-aware text-object
+plugins and for typst.nvim's mapping tests:
+
+  `@heading.inner`, `@heading.outer`, `@section.inner`, `@section.outer`,
+  `@equation.inner`, `@equation.outer`, `@content.inner`, `@content.outer`,
+  `@block.inner`, `@block.outer`, `@structural_block.inner`,
+  `@structural_block.outer`, `@code_block.inner`, `@code_block.outer`,
+  `@raw_block.inner`, `@raw_block.outer`, `@list_item.inner`,
+  `@list_item.outer`, `@label.outer`, `@import.outer`, `@call.inner`,
+  `@call.outer`, `@argument.inner`, `@argument.outer`
+
+The fold, indent, and injection queries expose `@fold`, `@indent.scope`,
+`@indent.ignore`, `@injection.language`, and `@injection.content`.
+
+The package-aware syntax extension layer is resolved in Lua from the project index
+rather than by rewriting `queries/typst/highlights.scm`. When a buffer imports a
+configured package spec, typst.nvim can highlight imported package entry points
+with extmarks. The default configuration includes `@preview/cetz` and the
+`TypstPackageCetz` highlight group. Use
+`require("typst").syntax.package_extensions()` to list active package specs,
+`require("typst").syntax.package_matches()` to inspect matched ranges, and
+`require("typst").syntax.refresh()` to reapply package highlights after
+changing configuration or imports.
+
+The conceal query captures small structural candidates such as math identifiers,
+dotted fields, explicit emoji fields, delimiters, scripts, and heading markers.
+Lua resolves symbol and emoji names through versioned Typst metadata generated
+from Typst's Rust library and keeps punctuation/script rules syntax-driven, so
+the query does not contain a large symbol table.
+Set `metadata_version` to a bundled Typst version such as `"0.14.2"` or
+`"0.15.0"` to pin the metadata snapshot. Leave it as `nil` to use the newest
+compatible bundled snapshot; `:TypstInfo` and health output report mismatches
+when a requested or detected Typst version falls back to a different bundled
+version.
+
+When `folds.enabled` is true, Typst buffers use Typst fold settings. The
+default mode is expression folding with heading fallback and Tree-sitter folds
+when a compatible parser is available. `folds.mode = "manual"` leaves fold
+creation to the user while still applying configured fold options. `folds.text`
+may be a callback used by the installed `foldtext`.
+
+When `indent.enabled` is true, Typst buffers install a buffer-local
+`indentexpr`. The indentation logic uses the shipped indent query to preserve
+raw-block contents and applies Typst-aware rules for delimiters, display math
+fences, and list continuations. When `indent.formatexpr` is true, Typst buffers
+also install a conservative prose/comment `formatexpr` for `gq`.
+
+==============================================================================
+CONFIGURATION                                                      *typst-config*
+
+`require("typst").setup()` validates the merged configuration before replacing
+the active state. `require("typst.config").snapshot()` returns an isolated copy
+for integrations that only need to inspect settings. `get()` returns a
+read-only view for direct indexed reads. Use `snapshot()` when you need to
+traverse or mutate a copy. `unsafe_get()` is for typst.nvim internals that
+intentionally need the live table.
+
+The complete generated default-key reference is in `docs/config-reference.md`
+and the machine-readable schema is `data/config-schema.json`. Run
+`just config-docs` after changing defaults.
+
+Defaults: >
+
+  require("typst").setup({
+    executable = "typst",
+    metadata_version = nil,
+    output_format = "pdf",
+    output_name = nil,
+    output_dir = vim.fs.joinpath(vim.fn.stdpath("cache"), "typst.nvim", "output"),
+    root_markers = { ".typstmain", "typst.toml", ".git" },
+    main = nil,
+    project = {
+      import_scan = true,
+      import_scan_max_files = 200,
+      import_scan_max_depth = 3,
+      persist_main = true,
+      index = {
+        fs_watchers = "auto",
+      },
+    },
+    compile = {
+      provider = nil,
+      extra_args = {},
+      deps = true,
+      open = false,
+      typst_open = false,
+      generic = {
+        compile = nil,
+        watch = nil,
+        output = nil,
+        cwd = nil,
+      },
+      task = {
+        compile = nil,
+        watch = nil,
+        output = nil,
+        cwd = nil,
+      },
+      fragments = {
+        default = "markup",
+        output_dir = vim.fs.joinpath(vim.fn.stdpath("cache"), "typst.nvim", "fragments"),
+        source_dir = nil,
+        templates = {
+          markup = { prefix = "", suffix = "\n" },
+          math = { prefix = "$ ", suffix = " $\n" },
+          code = { prefix = "#{\n", suffix = "\n}\n" },
+          ["full-page"] = { prefix = "", suffix = "\n" },
+          auto = {
+            prefix = "#set page(width: auto, height: auto, margin: 0pt)\n",
+            suffix = "\n",
+          },
+          ["auto-sized"] = {
+            prefix = "#set page(width: auto, height: auto, margin: 0pt)\n",
+            suffix = "\n",
+          },
+          document = { prefix = "", suffix = "\n" },
+        },
+      },
+      profiles = {},
+    },
+    integrations = {
+      tinymist = {
+        -- "auto" starts/reuses Tinymist through Neovim's built-in LSP client
+        -- and skips startup when coc.nvim appears active.
+        -- Use "detect" for passive existing-client queries, "off" to disable,
+        -- or "start" to force nvim-lsp startup.
+        lsp = "auto",
+        path = "tinymist",
+        -- Advanced: set cmd to override path with a full command prefix.
+        cmd = nil,
+        settings = {},
+        init_options = {},
+        capabilities = nil,
+        on_attach = nil,
+      },
+    },
+    diagnostics = {
+      enabled = true,
+      source = "fallback",
+      use_quickfix = false,
+      fonts = true,
+      font_scan_timeout_ms = 250,
+    },
+    format = {
+      provider = "auto",
+      command = "typstyle",
+      extra_args = {},
+      timeout_ms = 2000,
+      prose_width = 80,
+    },
+    lint = {
+      provider = "typst",
+      command = nil,
+      extra_args = {},
+      timeout_ms = 2000,
+    },
+    grammar = {
+      provider = "command",
+      command = nil,
+      extra_args = {},
+      timeout_ms = 2000,
+      stdin = nil,
+      file_arg = nil,
+    },
+    viewer = {
+      provider = "generic",
+      open = nil,
+      reload = nil,
+      args = {},
+      forward = nil,
+      forward_args = {},
+      inverse = nil,
+      inverse_args = {},
+    },
+    preview = {
+      provider = "native",
+      native = "viewer",
+      export = {
+        mode = "compile",
+        profile = nil,
+        provider = nil,
+        output_format = nil,
+        output_name = nil,
+        output_dir = nil,
+        extra_args = {},
+      },
+      open = nil,
+      stop = nil,
+      refresh = nil,
+      forward = nil,
+      inverse = nil,
+      reuse = true,
+      capabilities = {
+        forward = false,
+        inverse = false,
+        source_maps = false,
+      },
+      source_maps = {
+        provider = nil,
+        forward = nil,
+        inverse = nil,
+        capabilities = {
+          forward = false,
+          inverse = false,
+          source_maps = false,
+        },
+      },
+      fallback = "view",
+      browser = {
+        host = "127.0.0.1",
+        port = 0,
+        server = true,
+        output_dir = vim.fs.joinpath(vim.fn.stdpath("cache"), "typst.nvim", "preview"),
+        refresh_ms = 1000,
+        open = nil,
+        export = {
+          mode = "inherit",
+          profile = nil,
+          provider = nil,
+          output_format = nil,
+          output_name = nil,
+          output_dir = nil,
+          extra_args = {},
+        },
+      },
+    },
+    syntax = {
+      package_extensions = true,
+      package_highlight_group = "TypstPackageSpecial",
+      package_highlight_priority = 115,
+      packages = {
+        ["@preview/cetz"] = {
+          highlight_group = "TypstPackageCetz",
+          capture = "@typst.package.cetz",
+          members = { "canvas", "draw", "line", "rect", "circle" },
+        },
+      },
+    },
+    conceal = {
+      enabled = true,
+      reveal = "node",
+      conceallevel = 2,
+      viewport_margin = 25,
+      categories = {
+        math_symbols = true,
+        math_scripts = true,
+        math_delimiters = true,
+        markup_delimiters = true,
+        headings = false,
+        lists = false,
+        raw_blocks = false,
+        raw_block_languages = false,
+        labels = false,
+        reference_markers = false,
+        function_wrappers = {
+          strong = true,
+          emph = true,
+          underline = true,
+          strike = true,
+        },
+        emoji = false,
+      },
+      safety = {
+        max_display_width = 1,
+        allow_combining = false,
+      },
+      custom = {
+        math = {
+          customop = "∗",
+        },
+      },
+    },
+    completion = {
+      include_packages = true,
+      include_templates = true,
+      universe_index_paths = {},
+      include_paths = true,
+      include_csl_styles = true,
+      csl_styles = {},
+      include_raw_languages = true,
+      raw_languages = {},
+      include_colors = true,
+      color_names = {},
+      include_fonts = true,
+      font_families = {},
+      font_scan_timeout_ms = 250,
+      path_scan_max = 200,
+      csl_scan_max = 100,
+      scan_cache_ttl_ms = 5000,
+      package_scan_max = 500,
+      package_cache_ttl_ms = 5000,
+      package_cache_prewarm = false,
+    },
+    indent = {
+      enabled = true,
+    },
+    structural_actions = {
+      timeout_ms = 1000,
+      patterns = {
+        heading_promote = {
+          "promote.*heading",
+          "heading.*promote",
+          "level.*up",
+          "decrease.*heading",
+        },
+        heading_demote = {
+          "demote.*heading",
+          "heading.*demote",
+          "level.*down",
+          "increase.*heading",
+        },
+        equation_toggle = {
+          "toggle.*equation",
+          "convert.*equation",
+          "equation.*style",
+          "inline.*block",
+          "block.*inline",
+        },
+        equation_inline = {
+          "inline.*equation",
+          "equation.*inline",
+          "convert.*inline",
+        },
+        equation_block = {
+          "block.*equation",
+          "equation.*block",
+          "convert.*block",
+        },
+      },
+    },
+    folds = {
+      enabled = true,
+      mode = "expr",
+      foldlevel = 99,
+      foldtext = true,
+      text = nil,
+      headings = true,
+      imports = true,
+      comments = false,
+      content_blocks = true,
+      code_blocks = true,
+      calls = false,
+      equations = true,
+      raw_blocks = true,
+      arrays = false,
+      dictionaries = false,
+      bibliography = true,
+    },
+    matchparen = {
+      enabled = true,
+    },
+    imaps = {
+      enabled = false,
+      builtins = true,
+      mappings = {},
+    },
+    toc = {
+      mode = "window",
+      position = "right",
+      width = 32,
+      height = 12,
+      auto_close = false,
+      follow_cursor = true,
+      highlight_current = true,
+      auto_refresh = true,
+      follow_delay_ms = 40,
+      refresh_delay_ms = 120,
+      visible_layers = {
+        heading = true,
+        figure = true,
+        table = true,
+        equation = true,
+        label = true,
+        reference = true,
+        citation = true,
+        import = true,
+        file = true,
+        todo = true,
+        definition = true,
+      },
+      mappings = {
+        enabled = true,
+        jump = "<CR>",
+        preview = "p",
+        close = "q",
+        refresh = "r",
+        toggle = "za",
+        toggle_layer = "L",
+        filter = "/",
+        clear_filter = "\\",
+      },
+    },
+    mappings = {
+      enabled = true,
+      next_heading = "]]",
+      previous_heading = "[[",
+      next_heading_end = "][",
+      previous_heading_end = "[]",
+      next_block = "]m",
+      previous_block = "[m",
+      next_block_end = "]M",
+      previous_block_end = "[M",
+      next_equation = "]n",
+      previous_equation = "[n",
+      next_equation_end = "]N",
+      previous_equation_end = "[N",
+      next_raw_block = "]r",
+      previous_raw_block = "[r",
+      next_comment = "]/",
+      previous_comment = "[/",
+      match = "%",
+      follow = "gf",
+      hover = false,
+      repeat_transform = ".",
+      commands = {
+        watch = "<localleader>ll",
+        compile = "<localleader>lL",
+        stop = "<localleader>lk",
+        view = "<localleader>lv",
+        forward = "<localleader>ls",
+        errors = "<localleader>le",
+        output = "<localleader>lo",
+        info = "<localleader>li",
+        toc = "<localleader>lt",
+        clean = "<localleader>lc",
+        log = "<localleader>lg",
+      },
+      insert = {
+        strong = false,
+        emph = false,
+        math = false,
+        content = false,
+        code = false,
+        raw = false,
+      },
+      textobjects = {
+        inner_heading = "ih",
+        outer_heading = "ah",
+        inner_section = "iH",
+        outer_section = "aH",
+        inner_equation = "im",
+        outer_equation = "am",
+        inner_delimiter = "id",
+        outer_delimiter = "ad",
+        inner_content = "ic",
+        outer_content = "ac",
+        inner_block = "ib",
+        outer_block = "ab",
+        inner_structural_block = "ie",
+        outer_structural_block = "ae",
+        inner_code_block = "iC",
+        outer_code_block = "aC",
+        inner_raw_block = "ir",
+        outer_raw_block = "ar",
+        inner_call = "if",
+        outer_call = "af",
+        inner_argument = "ia",
+        outer_argument = "aa",
+        inner_list_item = false,
+        outer_list_item = false,
+        inner_label = "il",
+        outer_label = "al",
+        inner_import = "ii",
+        outer_import = "ai",
+      },
+    },
+  })
+<
+
+Project and main-file resolution are explained in |typst-projects|. The
+configuration keys that affect that model are `root_markers`, `main`,
+`project.import_scan`, `project.import_scan_max_files`,
+`project.import_scan_max_depth`, and `project.persist_main`.
+
+Set any mapping to `false` to leave it unbound, or set `mappings.enabled` to
+`false` to disable all default Typst buffer mappings.
+VimTeX-style workflow keys are configured through `mappings.commands`; for
+example, `mappings.commands.watch = "<localleader>ll"` maps to
+`<Plug>(typst-watch)`.
+TOC buffer mappings are configured separately through `toc.mappings`. Set
+`toc.mappings.jump`, `toc.mappings.preview`, `toc.mappings.close`,
+`toc.mappings.refresh`, `toc.mappings.toggle`, `toc.mappings.toggle_layer`,
+`toc.mappings.filter`, or `toc.mappings.clear_filter` to a key string, or set
+an entry to `false` to leave that action unbound. `toc.visible_layers` controls
+the initial layer
+visibility for headings, figures, tables, equations, labels, references,
+citations, imports, files, TODOs, and definitions.
+`toc.follow_cursor` moves the open TOC cursor to the current source section,
+and `toc.highlight_current` highlights that TOC entry. Cursor-follow updates
+are debounced by `toc.follow_delay_ms`.
+`toc.auto_refresh` refreshes an open TOC after attached source-buffer edits or
+writes, delayed by `toc.refresh_delay_ms`.
+Manual and automatic refreshes preserve the TOC cursor entry, collapsed headings,
+filters, and per-project layer visibility.
+
+Insert-mode <Plug> mappings have no default keys. Bind
+`mappings.insert.strong`, `mappings.insert.emph`, `mappings.insert.math`,
+`mappings.insert.content`, `mappings.insert.code`, or `mappings.insert.raw` to
+insert paired Typst markup. The same helpers are available through
+|:TypstInsert| and Lua functions such as `require("typst").edit.insert_math()`.
+
+`diagnostics.source` controls compiler diagnostics:
+
+- `"fallback"` publishes compiler diagnostics only when Tinymist is not
+  attached to the project through Neovim's built-in LSP client and coc.nvim
+  does not appear to own the Typst LSP session.
+- `"always"` always publishes compiler diagnostics in typst.nvim's namespace.
+- `"off"` disables compiler diagnostics.
+
+Tinymist diagnostics are owned by Neovim's LSP client. typst.nvim's compiler
+diagnostics are project/source namespaced and follow `diagnostics.source`;
+health and `:TypstInfo` report whether they are active, suppressed by
+Tinymist/Coc ownership, always enabled, or off.
+
+`integrations.tinymist.lsp` controls typst.nvim's Tinymist Neovim LSP
+integration. The default `"auto"` starts or reuses a Neovim built-in LSP client
+named `tinymist` when the executable is available, unless coc.nvim appears
+active. `"detect"` only queries an existing nvim-lsp Tinymist client, `"off"`
+disables typst.nvim Tinymist LSP use, and `"start"` forces
+nvim-lsp startup even when Coc is present. `integrations.tinymist.cmd`,
+`path`, `settings`, `init_options`, `capabilities`, and `on_attach` configure
+`vim.lsp.start()` for `"auto"` and `"start"`. `integrations.tinymist.path` is
+the Tinymist executable path; `integrations.tinymist.cmd` overrides `path` with
+a full command prefix for wrappers or extra arguments.
+When using coc.nvim, including `coc-tinymist`, configure Coc's
+`tinymist.serverPath` and `tinymist.serverArgs`; typst.nvim does not read Coc
+settings or send requests to Coc's private LSP client.
+`integrations.tinymist.capabilities` and `integrations.tinymist.on_attach` are
+passed through to `vim.lsp.start()`. Tinymist CLI workflows such as
+|:TypstTest| are separate from this LSP setting.
+Citation completion is controlled separately by `bibliography.completion`.
+The default `"auto"` keeps project-index citation completion for offline/no-LSP
+sessions and `include_tinymist = false`, but avoids fallback citation candidates
+when a native Neovim Tinymist client is attached or coc.nvim appears active. Use
+`"project"` to force fallback citation completion, or `"tinymist"`/`"off"` to
+suppress it.
+
+Tinymist features are intentionally split between native Neovim LSP behavior
+and typst.nvim wrappers:
+
+- Native pass-through: semantic highlighting, hover, document highlights,
+  folding ranges, inlay hints, and signature help should normally use Neovim's
+  built-in LSP UI directly. typst.nvim may expose a small toggle or facade for
+  tests/status, but it should not replace Neovim's renderer.
+- Wrapped: completion, structural code actions, formatting, document links,
+  document symbols, definitions, references, color reports, code lenses,
+  rename preview/apply, workspace symbols, selection ranges, and diagnostics
+  policy use typst.nvim wrappers where stale-result guards, project-index
+  merging, report buffers, picker/context integration, or fallbacks matter.
+- Plugin-owned: compile/watch, exports, artifact cleanup, template init,
+  tests, benchmarks, coverage, lint workflows, statusline data, package
+  resources, and profile reports are typst.nvim workflows. Tinymist may supply
+  a provider or returned command, but it does not own the state model.
+
+See `docs/tinymist_parity.md` for the full method-by-method matrix.
+
+`format.provider` may be `"auto"`, `"tinymist"`, `"typstyle"`, `"command"`, a
+registered provider name, callback, or a provider table exposing
+`format(bufnr, project, opts)`. The default `"auto"` path asks Tinymist for LSP
+formatting first when a Tinymist nvim-lsp client is attached or auto-started;
+otherwise it falls back to `typstyle`. `format.command` may be a string
+executable or list prefix and is run with buffer text on stdin. The `"prose"`
+provider wraps plain Typst prose paragraphs with `format.prose_width` while
+leaving headings, code, math, raw blocks, lists, and function/code lines
+unchanged.
+
+`lint.provider` may be `"typst"`, `"tinymist"`, `"command"`, a registered
+provider name, callback, or a provider table exposing
+`lint(bufnr, project, opts)`. The default `"typst"`
+provider compiles to a temporary output and publishes parsed Typst human or
+short diagnostics. The `"command"` provider receives current-buffer text on
+stdin and parses stdout/stderr as short diagnostics relative to the project
+root.
+
+`grammar.provider` may be `"command"`, `"textidote"`, `"vlty"`, a registered
+provider name, callback, or a provider table exposing
+`grammar(bufnr, project, opts)`, `check(...)`, or `run(...)`. Generic commands
+default to current-buffer text on stdin. `textidote` and `vlty` default to
+passing the current file path. Arguments in `grammar.extra_args` may use
+`{file}`, `{main}`, and `{root}` placeholders. `grammar.stdin` and
+`grammar.file_arg` override those provider defaults. textidote line/column
+output and Vale/vlty-style JSON output are normalized before diagnostics are
+published.
+
+`diagnostics.fonts` enables missing font-family warnings from
+|:TypstFontDiagnostics|. The checker compares `font:` references with
+configured `completion.font_families` and `typst fonts`.
+`diagnostics.font_scan_timeout_ms = 0` skips the CLI font scan.
+
+`structural_actions.patterns` controls how typst.nvim selects a Tinymist code
+action for the structural commands. Patterns are Lua patterns matched against
+the action title, kind, and command name.
+
+`syntax.package_extensions` enables package-aware syntax highlighting.
+`syntax.packages` maps package specs such as `@preview/cetz` to extension
+metadata. Each package spec may set `enabled`, `name`, `capture`,
+`highlight_group`, `priority`, and a `members` list. The package version in an
+import is ignored for matching, so `@preview/cetz` covers imports such as
+`@preview/cetz:0.3.4`. Matched package entry points are highlighted with
+extmarks and can be inspected through
+`require("typst").syntax.package_matches()`.
+
+`conceal.enabled` controls the default for new Typst buffers. Commands can set
+a buffer-local override. With `conceal.reveal = "node"`, reveal is window-local:
+the candidate under the window's cursor is left as source text while
+neighboring candidates remain concealed. `categories.math_symbols` enables
+built-in symbol conceal;
+`math_scripts` enables conservative one-cell subscript and superscript
+replacements; `math_delimiters` and `markup_delimiters` hide only punctuation;
+`function_wrappers` hides supported style-call wrappers such as `#strong[` and
+]`; `emoji` hides explicit `emoji.*` symbols when explicitly enabled; `headings`
+hides heading markers when explicitly enabled; `lists` hides list markers;
+`raw_blocks` hides inline raw delimiters and fenced raw-block fences;
+`raw_block_languages` hides raw-block language tags; `labels` hides shorthand
+label delimiters; and `reference_markers` hides the leading `@` marker for
+shorthand references/citations. The initial safety
+defaults only allow an empty string or exactly one character, and that
+character must pass display-width safety checks, so most emoji glyphs also need
+`conceal.safety.max_display_width = 2`.
+`conceal.custom.math` maps math names to custom replacements and is resolved
+before generated Typst metadata. Runtime integrations can call
+`require("typst").conceal.register("math", name, replacement)` and
+`require("typst").conceal.unregister("math", name)`; runtime custom mappings
+override config mappings. Resolved matches are cached per buffer, changedtick,
+conceal generation, and conceal config, then filtered to the visible range and
+invalidated by edits and `:TypstConcealRefresh`. Implicit symbol conceal is
+suppressed when a local `#let`, function parameter, explicit import binding,
+import alias, or wildcard import makes the built-in meaning uncertain.
+Shadowing uses a Tree-sitter lexical approximation that considers declaration order
+and block/content scopes, not semantic resolution. Explicit `sym.*` symbols
+still allow custom or built-in symbol resolution.
+Explicit `emoji.*` symbols resolve through generated emoji metadata when
+`conceal.categories.emoji` is enabled.
+
+`compile.profiles` defines named per-run overrides for `:TypstCompile [profile]`
+and `:TypstWatch [profile]`. A profile may set `output_dir`, `output_name`,
+`output_format`, `extra_args`, `deps`, `open`, and `typst_open`; these values
+do not mutate the base configuration. `open = true` opens the successful output
+through typst.nvim's configured viewer. `typst_open = true` passes Typst's raw
+`--open` flag. When `deps = false`, typst.nvim does not refresh dependency
+knowledge for that run and preserves the existing project graph.
+`executable` may be a string such as `"typst"` or a list prefix such as
+`{ "uv", "run", "typst" }`; typst.nvim appends the Typst subcommand and
+arguments without going through a shell.
+
+`output_name` controls the generated output filename. If it has no extension,
+typst.nvim appends `output_format`.
+By default, output is written under `stdpath("cache")/typst.nvim/output`.
+Set `output_dir = ""` to write next to the main Typst file, or set an explicit
+relative path if you want project-local artifacts.
+
+`compile.fragments` controls `:TypstCompileSelected`. The default template
+names are `markup`, `math`, `code`, `full-page`, and `auto-sized`;
+`document` and `auto` are compatibility aliases. Table templates concatenate
+`prefix .. selection .. suffix`; string templates replace `{body}`; function
+templates receive `(body, ctx)` and return either source text or a table with
+template fields. Template tables may also override `output_dir`, `output_name`,
+`output_format`, `extra_args`, `deps`, and `open` for the fragment run.
+Fragment dependency capture is disabled by default so selected compiles do not
+replace the parent project's dependency graph.
+Fragment outputs default to `stdpath("cache")/typst.nvim/fragments`.
+Generated fragment source is passed through stdin by default. The built-in
+Typst provider runs `typst compile -` while `--root` remains the project root;
+generic/task providers receive stdin and `{main}` expands to `-`; custom
+provider callbacks can read `run_config.compile.stdin`. Generic/task `{source}`
+still expands to the originating source path when it is known, and `{stdin}`
+expands to `1` for stdin-backed fragment compiles. Project-relative imports
+remain valid without writing wrapper files into the project. Set
+`compile.fragments.source_dir` or a template `source_dir` only when a compiler
+provider needs a real temporary source file. File-backed fragment sources are
+cleaned up after the fragment compile resolves or if the compiler provider
+fails to start; output artifacts remain available.
+
+`main` may be a string, callback, or table keyed by project root. Table values
+may be strings or callbacks, allowing per-root main-file mappings while keeping
+`vim.b.typst_main` as the highest-precedence override. A leading Typst comment
+directive of the form `// typst.nvim: main = ../main.typ` resolves relative to
+the current buffer. Throwing `root` or `main` callbacks are caught, logged, and
+treated as no match so later resolvers can continue and the buffer is not left
+half-attached. A `.typstmain` file contains the main path relative to that
+file's directory, either as a bare path or `main = path`. When `root` is not
+configured, table keys also act as root hints, so nested Typst projects can
+resolve before a broader `.git` marker.
+
+`project.import_scan` enables a fallback scan for local `#include` and
+`#import` statements that reference the current buffer. It is capped by
+`project.import_scan_max_files`; when no root marker is found, ancestor scanning
+is capped by `project.import_scan_max_depth`. Package imports such as
+`@preview/name:version` are ignored by this resolver.
+
+Set `indent.enabled = false` to leave Typst buffer indentation untouched.
+
+Example: >
+
+  require("typst").setup({
+    compile = {
+      profiles = {
+        draft = {
+          output_dir = vim.fs.joinpath(vim.fn.stdpath("cache"), "typst.nvim", "draft"),
+          output_name = "draft",
+          output_format = "pdf",
+        },
+      },
+    },
+  })
+<
+
+`compile.provider` defaults to the built-in Typst CLI provider. Named providers
+include `"generic"` and `"task"`, which run command arrays from
+`compile.generic` or `compile.task`. Command arguments support `{root}`,
+`{main}`, `{output}`, `{profile}`, `{provider}`, `{source}`, and `{stdin}`
+placeholders. `{source}` matches `{main}` for normal document compiles; for
+stdin-backed selected fragments it is the originating buffer path when
+available. `{stdin}` is `1` only when the command receives generated source on
+stdin. Advanced users may also set `compile.provider` to a registered provider
+name, provider table, callback, or Lua module name. A provider must implement: >
+
+  compile(project, callback, run_config)
+  start(project, callback, run_config)
+  stop(project, callback)
+  status(project)
+  output(project, run_config)
+<
+
+Project-specific task/generic providers are the Typst-native replacement for
+Arara-style document automation. Configure `compile.provider = "task"` or
+`"generic"` to route `:TypstCompile` and `:TypstWatch` through `just`, `make`,
+`npm`, or another repository task runner without TeX directives in the source.
+
+typst.nvim calls `output(project, run_config)` before custom `compile` and
+`start` calls so events, `status()`, and `:TypstInfo` expose the provider's
+output path.
+
+typst.nvim tracks handles returned from custom `compile` and `start` calls in
+the project compiler service as the active process or watcher. It also applies
+standard lifecycle states from synchronous or asynchronous callback results.
+Returned handles remain active until a provider result arrives, `stop()` reports
+`stopped = true`, or failed shutdown moves the handle into retained-orphan
+tracking. typst.nvim calls the provider's `stop()` method before starting the
+opposite compile mode, and clears active handles when `stop()` reports
+`stopped = true`. Calling `stop()` while no compile or watcher is active is
+handled by typst.nvim without delegating to a custom provider; the
+callback result still has `stopped = true` and additionally sets `idle = true`.
+Provider callbacks should return a terminal table such as
+`{ code = 0, stdout = ..., stderr = ... }` or `{ code = 1, message = ... }`,
+or a pending table with `pending = true` while work is still owned. Terminal
+non-stale results update `project.services.compiler.last_result`, status,
+events, and output ownership consistently. `stopped = true` means confirmed
+termination; `stopped = false` or `orphaned = true` keeps failed cleanup
+visible. Retained orphans remain visible in reports/logs and keep leases guarded
+until a real late exit releases them or the user explicitly forces cleanup.
+
+`viewer.provider` chooses the output viewer preset. The default `"generic"`
+uses `viewer.open` when configured and otherwise falls back to `vim.ui.open`.
+Built-in presets include `"zathura"`, `"sioyek"`, `"skim"`, `"sumatrapdf"`,
+`"mupdf"`, `"evince"`, `"okular"`, and `"qpdfview"`. Presets can be overridden
+through `viewer.providers.<name>`, and extension plugins can register viewer
+names with `register_provider("viewer", name, provider)`. `viewer.open` may be
+a Lua callback, a string executable, or a list prefix such as
+`{ "python3", "viewer-wrapper.py" }`. When it is an executable prefix,
+`viewer.args` is appended after the prefix and `{output}` placeholders are
+expanded before the viewer command starts.
+
+`viewer.forward` is capability-gated. It may be a callback, string executable,
+list prefix, or `nil`; without it, |:TypstViewForward| tries a configured
+`preview.forward` callback, then `:TypstPreviewSyncCursor` only when
+`preview.provider = "typst-preview.nvim"`, and otherwise returns an unsupported
+result. String and list-prefix commands return an unsupported result with
+`detail = "capability_required"` until `capabilities.forward` or
+`capabilities.source_maps` is declared.
+Built-in PDF viewer presets open/reuse output but do not claim forward or
+inverse synchronization by default because normal Typst PDF output has no
+SyncTeX-style source map. `viewer.inverse` handles source locations reported by
+source-map-capable viewers and uses `viewer.inverse_args` for executable
+backends. String and list-prefix inverse commands use the same capability gate
+with `capabilities.inverse` or `capabilities.source_maps`. If no inverse
+backend is configured, |:TypstViewInverse| opens the reported source location
+directly only when the selected viewer declares `capabilities.inverse` or
+`capabilities.source_maps`. `preview.capabilities`
+still declares browser preview source-map support for existing configs; new
+integrations should prefer `preview.source_maps.capabilities` plus explicit
+`preview.source_maps.forward`/`inverse` callbacks. |:TypstPreviewInverse| opens
+source locations supplied by a preview/browser callback when inverse support is
+available. Together these cover the galley-style browser preview source-map
+workflow without pretending PDF output has SyncTeX.
+For zathura, sioyek, Skim, and SumatraPDF, treat forward/inverse command args
+as recipes: configure `viewer.forward_args`/`viewer.inverse_args`, then enable
+`capabilities.forward`, `capabilities.inverse`, or `capabilities.source_maps`
+only when a source-map provider can resolve Typst positions for that output.
+
+Set `folds.enabled = false` to leave fold options untouched. `folds.foldlevel`
+defaults to `99` so Typst documents do not open fully collapsed.
+
+Tinymist owns semantic hover, definition, and language documentation. typst.nvim
+does not provide a `texdoc` equivalent for Typst. Instead, it exposes generated
+symbol/emoji information and package resources from cached manifests, READMEs,
+source entrypoints, typst.nvim-specific optional `[tool.typst-docs]` resource
+hints, package homepage/repository links, and Typst Universe pages.
+
+Typst buffers install `v:lua.typst_nvim_omnifunc` as `omnifunc` when no other
+omnifunc is already configured. In semantic Typst contexts, completion asks
+attached Tinymist clients for `textDocument/completion` first. Pass
+`include_tinymist = false` in Lua calls to skip the LSP request. The fallback
+completion source combines a syntactic project index with the bundled symbol
+and emoji metadata artifacts plus compact stdlib function, element, type, and
+member metadata. It completes labels, references, bibliography keys, local `#let`
+declarations, direct file imports, wildcard file imports, simple file
+re-exports, local module-alias members, local `#include` `.typ` traversal,
+referenced file paths, built-in stdlib names, explicit `std.*` and `math.*`
+names, explicit `sym.*` symbols, and explicit `emoji.*` names.
+Compact generated MessagePack metadata is bundled for built-in functions,
+elements, types, parameters, returns, members, shorthands, constants,
+categories, parameter details, and deprecations, without bundling a
+package-documentation system. Named-parameter and signature fallback uses
+generated stdlib signatures plus simple local/imported `#let function(...)`
+signatures from the project index. In `#set` rules, generated stdlib
+parameters are filtered to fields Typst marks as settable. Parameter
+completion loads generated native parameter documentation lazily for menu
+details.
+Parameter-value
+fallback uses generated CastInfo constants for accepted values such as
+`image(fit: "cover")` or `text(style: "italic")`, and expands generated stdlib
+constants for accepted value types such as `text(dir: rtl)` and
+`align(alignment: center)`. Accepted value completions include Typst's
+generated value-specific documentation when the stdlib exposes it. It also
+scans cached Typst package roots
+and optional local `completion.universe_index_paths` JSON files for `@...`
+prefixes, returning exact package/template specs such as
+`@preview/cetz:0.3.4`; template packages are labeled separately when their
+manifest or index record contains template metadata. Inside path strings for
+`#import`, `#include`, `image`, `bibliography`, `read`, and raw/data-style
+calls, filesystem path completion scans the current directory level and returns
+matching entries with context-sensitive extension filters. Inside
+`bibliography(..., style: "...")` and `cite(..., style: "...")`, it completes
+built-in Typst CSL style IDs, configured `completion.csl_styles`, and
+project-local `.csl` files. Project-index glossary entries complete from
+conservative `#let` glossary/acronym/term data, including dictionary-style
+entry keys and `key: "..."` fields. In raw block fences such as
+```` ```py ````, it completes common language IDs, configured
+`completion.raw_languages`, and installed Tree-sitter parser names. In
+color-like arguments such as `fill:` and `stroke:`, it completes generated
+Typst stdlib color constants, configured `completion.color_names`, and
+generated `color.map.*` presets. In `font:` arguments, it completes configured
+`completion.font_families`, families discovered by `typst fonts`, and a small
+embedded fallback set when the CLI scan is unavailable.
+`completion.include_paths` disables filesystem path completion and
+`completion.path_scan_max` caps each directory scan.
+`completion.include_csl_styles` disables this source and
+`completion.csl_scan_max` caps local `.csl` file discovery.
+`completion.include_raw_languages` disables raw language completion.
+Raw-language parser discovery and local `.csl` scans are cached by config
+generation and expire after `completion.scan_cache_ttl_ms`; set it to `0` to
+keep scan snapshots until config changes or `:TypstClearCache`.
+`completion.include_colors` disables color completion.
+`completion.include_fonts` disables font completion, and
+`completion.font_scan_timeout_ms = 0` skips the `typst fonts` scan. Math
+completion inserts unqualified symbol names such as `arrow.r`.
+Completion frontends can consume the same fallback service through
+`require("typst").completion.native(opts)`,
+`require("typst").completion.cmp(opts)`,
+`require("typst").completion.blink(opts)`, and small source objects from
+`cmp_source(opts)` or `blink_source(opts)`.
+`require("typst").completion.signature()` returns signature metadata from local/project
+declarations or compact generated stdlib signatures, while Tinymist remains the
+semantic hover/signature source.
+
+Provider registration is the public extension registry. >
+
+  require("typst").providers.register(kind, name, provider)
+  require("typst").providers.unregister(kind, name)
+  require("typst").providers.get(kind, name)
+  require("typst").providers.names(kind)
+  require("typst").providers.register(kind, name, provider)
+<
+
+Supported provider kinds are `compiler`, `format`, `lint`, `grammar`,
+`viewer`, `picker`, `toc`, `index`, `export`, `eval`, `init`, `profile`,
+`test`, `bench`, `coverage`, `semantic`, and `render`. Aliases such as
+`compile`, `formatter`, `linter`, `view`, `exports`, `template`, `benchmark`,
+and `terminal_image` are
+accepted. Registered provider names are valid string values in the
+matching config fields and per-call `opts.provider` where applicable.
+`unregister_provider()` removes and returns the provider, `get_provider()`
+inspects one registered provider, and `provider_names()` returns sorted names.
+Provider return, callback, timeout, and cancellation rules are documented in
+`docs/provider-contracts.md`.
+
+`picker.provider` controls |:TypstPick|. The default `"auto"` tries Telescope,
+fzf-lua, fzf.vim, Snacks, then `vim.ui.select`. It may also be `"fzf_vim"` or
+a registered provider name. Use `picker.provider = "custom"` with `picker.custom`, or call
+`require("typst").picker.items()` directly, to feed the normalized project and
+TOC items to another consumer. Custom TOC layer names registered by providers
+can be passed as picker kinds and are returned as their own item kind.
+
+==============================================================================
+VIMTEX PARITY AND TYPST DIFFERENCES                    *typst-vimtex-parity*
+
+typst.nvim aims for VimTeX-style capability parity, not a literal TeX port.
+The table below is a quick translation guide for users coming from VimTeX.
+
+  VimTeX concept                  typst.nvim interpretation
+
+  TeX root                        Typst `(root, main)` project state,
+                                  |:TypstSetMain|, `.typstmain`, comments,
+                                  dependency output, and import scanning.
+
+  `latexmk` / compiler backend    |:TypstCompile|, |:TypstWatch|, custom
+                                  compiler providers, export profiles, and
+                                  process-owned diagnostics.
+
+  Quickfix errors                 Compiler diagnostics through
+                                  `vim.diagnostic` plus |:TypstDiagnostics|
+                                  and |:TypstErrors| quickfix reports.
+
+  SyncTeX                         Browser-preview source maps and explicit
+                                  viewer capabilities. PDF forward/inverse
+                                  search is enabled only when a backend
+                                  declares support.
+
+  Package detection               Typst package/import detection through the
+                                  project index, cached package manifests,
+                                  package resources, and package-extension
+                                  providers.
+
+  `texdoc`                        No direct Typst equivalent. typst.nvim uses
+                                  package resources, cached READMEs/source,
+                                  Universe links, generated symbol metadata,
+                                  and Tinymist hover instead of a fake
+                                  `texdoc` clone.
+
+  LaTeX commands/environments     Typst calls, content/code/raw blocks,
+                                  equations, headings, labels, imports,
+                                  arguments, and structural blocks.
+
+  Surrounding edits               Typst-native delete/change/toggle commands
+                                  for calls, delimiters, equations, argument
+                                  groups, labels/references, lists, raw text,
+                                  figures, strong/emphasis, and line breaks.
+
+  Insert-mode math shortcuts      Configurable Typst insert mappings through
+                                  |:TypstImapsList| and the `imaps` Lua API.
+
+  VimTeX TOC                      |:TypstToc| dedicated outline window or
+                                  quickfix fallback, plus |:TypstPick|.
+
+  LaTeX package syntax            Typst package-extension providers and
+                                  project-index-driven package highlighting.
+
+  Snippets                        Delegated to snippet engines. typst.nvim
+                                  may provide examples or metadata sources,
+                                  but it is not a snippet framework.
+
+This deliberate boundary keeps typst.nvim closer to VimTeX's philosophy: own
+project workflow, editing structure, navigation, conceal, and integration, but
+compose with specialized tools where they are the better engine.
+
+==============================================================================
+TROUBLESHOOTING                                        *typst-troubleshooting*
+
+Start with these commands:
+
+- |:checkhealth| `typst` for executable, parser, query, Tinymist, preview,
+  configuration, and attached-project state;
+- |:TypstInfo| or `:TypstInfo!` for root/main/output decisions, active
+  compiler provider, Tinymist state, diagnostics policy, and watcher/process
+  details;
+- |:TypstCompileOutput| for the exact compiler command, cwd, stdout, stderr,
+  and exit code from the last compile;
+- |:TypstLog| for lifecycle, provider, and callback errors.
+
+If the wrong document is compiled, inspect `root_source` and `main_source` in
+|:TypstInfo|. Use |:TypstSetMain| for an explicit main, a `.typstmain` file for
+project-local policy, or a `main` setup callback/table for editor-wide policy.
+
+If no output opens, check `output_dir`, `output_name`, `output_format`, and the
+viewer provider in |:TypstInfo|. With custom compiler providers, ensure the
+provider's `output(project, run_config)` path matches the file the command
+actually writes.
+
+If diagnostics appear twice, check `diagnostics.source`. The default
+`"fallback"` publishes compiler diagnostics only when Tinymist is not attached
+to the project through Neovim's built-in LSP client and coc.nvim does not appear
+to own the Typst LSP session.
+
+If motions, text objects, folds, indentation, package syntax, or conceal are
+missing, check that the Typst Tree-sitter parser and shipped queries load in
+`:checkhealth typst`.
+
+If browser preview opens but source sync does not work, check the preview
+backend capabilities. PDF viewing, browser preview, forward search, and inverse
+search are separate capabilities in Typst workflows.
+
+If cached project data looks stale, run |:TypstReloadState| to re-resolve the
+current buffer or |:TypstClearCache| to clear generated metadata selection,
+package resources, symbol search caches, project index caches, and conceal
+match caches.
+
+If `:helptags` reports missing help tags, run a link/tag audit on `doc/typst.txt`.
+Command argument alternatives should be written with commas, for example
+`[toggle, add, remove]`, not literal `|` characters, because Vim help treats
+pipe-delimited help tags as links.
+
+==============================================================================
+REFERENCE NOTES                                           *typst-project-docs*
+
+The repository includes project-level documentation for the non-command
+workflow surface and compatibility contract:
+
+- `README.md`: quick project overview, requirements, and common commands.
+- `API.md`: public API compatibility surface and stable namespaces.
+- `ARCHITECTURE.md`: maintainer-facing lifecycle and ownership invariants.
+- `CONTRIBUTING.md`: local gates and patch expectations.
+- `docs/api.md`: structured API notes and extension contracts.
+- `docs/provider-contracts.md`: provider return, callback, timeout, and
+  cancellation contract.
+- `docs/internal-contracts.md`: maintainer-facing module and lifecycle
+  expectations.
+- `docs/release-gates.md`: checks and expectations for stable releases.
+- `docs/vimtex-parity.md`: VimTeX-inspired capability matrix and Typst-native
+  reinterpretations.
+- `CREDITS.md`: acknowledgements for VimTeX, Typst, Tinymist,
+  typst-preview.nvim, tree-sitter-typst, math-conceal.nvim, Neovim, and the
+  preserved `nvim-oxi` prototype.
+
+The local verification gate covers spaces and Unicode in Typst project paths,
+plus conservative runtime performance budgets for project indexing, TOC
+collection, conceal matching, and completion latency.
+
+==============================================================================
+LUA API                                                              *typst-lua*
+
+The main module exposes editing helpers in addition to the command-backed
+workflow functions:
+
+>
+  require("typst").project.attach(bufnr)
+  require("typst").project.detach(bufnr)
+  require("typst").api_version()
+  require("typst").version()
+  require("typst").ui.status()
+  require("typst").ui.status({ telemetry = true })
+  require("typst").ui.status_report()
+  require("typst").ui.statusline()
+  require("typst").ui.count()
+  require("typst").tools.format()
+  require("typst").tools.lint()
+  require("typst").tools.grammar()
+  require("typst").tools.font_diagnostics()
+  require("typst").viewer.view()
+  require("typst").viewer.view_forward()
+  require("typst").viewer.view_inverse()
+  require("typst").viewer.capabilities()
+  require("typst").providers.register("format", "my-format", provider)
+  require("typst").providers.unregister("format", "my-format")
+  require("typst").providers.get("format", "my-format")
+  require("typst").providers.names("format")
+  require("typst").project.reload_state()
+  require("typst").project.clear_cache()
+  require("typst").diagnostics.quickfix()
+  require("typst").diagnostics.errors()
+  require("typst").project.edit_main()
+  require("typst").project.toggle_main()
+  require("typst").navigation.files()
+  require("typst").project.cd()
+  require("typst").compiler.compile()
+  require("typst").compiler.compile_selected()
+  require("typst").compiler.output()
+  require("typst").compiler.stop_all()
+  require("typst").viewer.view_forward()
+  require("typst").viewer.preview_stop()
+  require("typst").viewer.preview_toggle()
+  require("typst").context.open()
+  require("typst").picker.open()
+  require("typst").picker.items()
+  require("typst").viewer.clean()
+  require("typst").edit.next_heading()
+  require("typst").edit.previous_heading()
+  require("typst").edit.next_heading_end()
+  require("typst").edit.previous_heading_end()
+  require("typst").edit.next_block()
+  require("typst").edit.previous_block()
+  require("typst").edit.next_block_end()
+  require("typst").edit.previous_block_end()
+  require("typst").edit.next_equation()
+  require("typst").edit.previous_equation()
+  require("typst").edit.next_equation_end()
+  require("typst").edit.previous_equation_end()
+  require("typst").edit.next_raw_block()
+  require("typst").edit.previous_raw_block()
+  require("typst").edit.next_comment()
+  require("typst").edit.previous_comment()
+  require("typst").edit.select_textobject("heading", "inner")
+  require("typst").edit.select_textobject("section", "outer")
+  require("typst").edit.select_textobject("equation", "inner")
+  require("typst").edit.select_textobject("content", "inner")
+  require("typst").edit.select_textobject("code_block", "outer")
+  require("typst").edit.select_textobject("raw_block", "inner")
+  require("typst").edit.select_textobject("call", "inner")
+  require("typst").edit.select_textobject("argument", "outer")
+  require("typst").edit.select_textobject("list_item", "inner")
+  require("typst").edit.select_textobject("label", "inner")
+  require("typst").edit.select_textobject("import", "outer")
+  require("typst").edit.promote_heading()
+  require("typst").edit.demote_heading()
+  require("typst").edit.unwrap_function()
+  require("typst").edit.change_function("emph")
+  require("typst").edit.change_delimiter("block")
+  require("typst").edit.split_arguments()
+  require("typst").edit.join_arguments()
+  require("typst").edit.toggle_arguments()
+  require("typst").edit.name_arguments()
+  require("typst").edit.toggle_trailing_comma("toggle")
+  require("typst").edit.add_trailing_comma()
+  require("typst").edit.remove_trailing_comma()
+  require("typst").edit.toggle_label()
+  require("typst").edit.toggle_reference()
+  require("typst").edit.toggle_label_reference()
+  require("typst").edit.surround("equation")
+  require("typst").edit.surround_function("quote")
+  require("typst").edit.surround_content()
+  require("typst").edit.surround_strong()
+  require("typst").edit.insert("math")
+  require("typst").edit.insert_strong()
+  require("typst").edit.insert_emph()
+  require("typst").edit.insert_math()
+  require("typst").edit.insert_content()
+  require("typst").edit.insert_code()
+  require("typst").edit.insert_raw()
+  require("typst").edit.toggle_markup("strong")
+  require("typst").edit.toggle_strong()
+  require("typst").edit.toggle_emph()
+  require("typst").edit.toggle_figure()
+  require("typst").edit.toggle_list("toggle")
+  require("typst").edit.toggle_bullet_list()
+  require("typst").edit.toggle_numbered_list()
+  require("typst").edit.convert_equation("block")
+  require("typst").edit.toggle_equation_numbering("toggle")
+  require("typst").edit.convert_raw("block")
+  require("typst").symbol.info({ query = "arrow.r" })
+  require("typst").symbol.variants({ query = "arrow.r" })
+  require("typst").package.info({ query = "@preview/cetz:0.3.4" })
+  require("typst").package.readme({ query = "@preview/cetz:0.3.4" })
+  require("typst").package.source({ query = "@preview/cetz:0.3.4" })
+  require("typst").package.open({ query = "@preview/cetz:0.3.4" })
+  require("typst").completion.complete({ base = "sym.arrow", context = "markup" })
+  require("typst").completion.omnifunc(findstart, base)
+  require("typst").completion.signature()
+  require("typst").navigation.labels()
+  require("typst").navigation.citations()
+  require("typst").navigation.symbols()
+  require("typst").navigation.follow()
+  require("typst").navigation.hover()
+  require("typst").index.headings(project)
+  require("typst").index.labels(project)
+  require("typst").index.citations(project)
+  require("typst").index.imports(project)
+  require("typst").index.todos(project)
+  require("typst").index.definitions(project)
+  require("typst").index.glossary_entries(project)
+  require("typst").index.paths(project)
+  require("typst").conceal.enable(bufnr)
+  require("typst").conceal.disable(bufnr)
+  require("typst").conceal.toggle(bufnr)
+  require("typst").conceal.refresh(bufnr)
+  require("typst").conceal.inspect()
+  require("typst").conceal.register("math", "customop", "∗")
+  require("typst").conceal.unregister("math", "customop")
+  require("typst").conceal.custom("math")
+  require("typst").providers.register(kind, name, provider)
+<
+
+The public Lua API is versioned. `api_version()` returns the current API level,
+currently `1`; `version()` returns a table with the same level as `api` and
+`api_version`. Stable API level 1 symbols are additive unless a migration is
+documented. Before 1.0, the deliberately stable namespaces are `project`,
+`compiler`, `viewer`, `artifact`, `edit`, `completion`, and `metadata`.
+`stable_symbols()` returns the exact dotted stable list.
+`experimental_symbols()` returns installed helper APIs that are intentionally
+outside the stable compatibility contract for now.
+
+Process-backed async calls such as export, eval, template init,
+profile/test/bench/coverage, and rendered preview compiles return a pending
+result table with `cancel()`. Cancellation marks the result as cancelled,
+stops the originating process tree, and ignores late process-exit callbacks.
+If graceful and forceful shutdown cannot prove the process exited, the
+operation first becomes `orphaned-running`, then `orphaned-retained` after
+bounded stop attempts so normal active-operation waits can continue. A later
+real exit reports `was_orphaned = true` and `exited_after_orphan = true`
+without synthesizing `stopped = true`.
+Compiler/watch runs are cancelled with `stop()` and `stop_all()`. Reset and
+clear-cache paths cancel pending background probes such as Tinymist completion,
+package info, font scans, and metadata version detection.
+
+Cursor-sensitive Lua APIs use `bufnr`, `winid`, and `pos` to resolve the source
+context. A non-current buffer needs an explicit `pos` or a `winid` that displays
+that buffer; otherwise APIs that need a cursor position return no action or a
+`position_required` result instead of reading the active window by accident.
+
+Opening and jumping use a separate destination-window option. File-target
+navigation, context actions, package/source actions, and viewer or preview
+inverse jumps open in the current window by default. Pass `open_winid` to make a
+specific window receive the opened target. `jump_winid` and `target_winid` are
+accepted aliases for integrations. `winid` continues to mean source window, not
+destination window.
+
+`status()` returns a table with `attached`, `bufnr`, `status`, `root`, `main`,
+`main_name`, `output`, `output_name`, `profile`, `root_source`, `main_source`,
+`cwd`, `command`, active process/watcher details, viewer/preview backend
+details, `diagnostics`, current-buffer `words`, `characters`,
+`characters_with_spaces`, `compiler_diagnostics`, `tinymist_lsp_backend`,
+`tinymist_lsp_mode`, `tinymist_lsp_enabled`, `tinymist_lsp_attached`,
+`buffers`, `dependencies`, `index_generation`, and `index_stats` fields when a
+Typst project is attached. `index_stats` reports project-index collect, file,
+and bibliography cache hits and misses. Pass `{ telemetry = true }` to include
+`telemetry` and `telemetry_report`, matching the data shown by
+|:TypstTelemetry|. The `status` field is read through the active compiler
+provider's `status(project)` method.
+`compiler_diagnostics` is one of `fallback_active`,
+`fallback_suppressed_by_tinymist`, `always`, or `off`.
+`statusline()` returns a compact string such as `Typst:success main.typ
+[draft]`. Pass `{ words = true }` to append the current-buffer word count.
+
+Package and symbol helpers accept `{ open = false }` to return normalized result
+tables or URLs without opening a scratch buffer or browser. Without `query`,
+cursor token resolution is used where applicable.
+
+Provider helpers register named Lua providers for `compiler`, `format`, `lint`,
+`grammar`, `viewer`, `picker`, `toc`, `index`, `export`, `eval`, `init`,
+`profile`, `test`, `bench`, `coverage`, `semantic`, and `render`. Registered
+names are accepted by the matching configuration keys, for example
+`format.provider = "my-format"` or `viewer.provider = "my-viewer"`.
+
+==============================================================================
+PUBLIC API                                                        *typst-api*
+
+The public API surface is documented in `API.md`. In short, public surfaces
+are documented commands, the main `require("typst")` module functions, emitted
+`User` events, configuration keys, and documented `<Plug>(typst-...)` mappings.
+
+Internal modules under `lua/typst/` are implementation details unless they are
+explicitly documented as public.
+
+==============================================================================
+EVENTS                                                            *typst-events*
+
+The plugin emits these public `User` events:
+
+- `TypstEventInitPre`
+- `TypstEventInitPost`
+- `TypstEventProjectAttach`
+- `TypstEventProjectDetach`
+- `TypstEventCompileStarted`
+- `TypstEventCompiling`
+- `TypstEventCompileSuccess`
+- `TypstEventCompileFailed`
+- `TypstEventCompileStopped`
+- `TypstEventPreviewStarted`
+- `TypstEventPreviewForwarded`
+- `TypstEventPreviewInverse`
+- `TypstEventPreviewStopped`
+- `TypstEventViewInverse`
+- `TypstEventArtifactCreated`
+- `TypstEventArtifactsCleaned`
+- `TypstEventRenderCreated`
+- `TypstEventTocCreated`
+- `TypstEventTocActivated`
+- `TypstEventQuit`
+
+Project reassignments through public APIs such as |:TypstSetMain|,
+|:TypstToggleMain|, lazy `project.get()`, or buffer reattachment emit
+`TypstEventProjectDetach` for the old project and `TypstEventProjectAttach` for
+the new project when the project key changes. Reassignments that keep the same
+project key do not emit duplicate project events.
+
+The older event names remain emitted for compatibility:
+
+- `TypstProjectAttach`
+- `TypstProjectDetach`
+- `TypstCompileStarted`
+- `TypstCompileSuccess`
+- `TypstCompileFailed`
+- `TypstCompileStopped`
+- `TypstDiagnosticsPublished`
+- `TypstDiagnosticsCleared`
+- `TypstViewOpened`
+- `TypstViewForwarded`
+- `TypstViewInverse`
+- `TypstOutputCleaned`
+- `TypstArtifactCreated`
+- `TypstArtifactsCleaned`
+- `TypstPreviewOpened`
+- `TypstPreviewForwarded`
+- `TypstPreviewInverse`
+- `TypstPreviewStopped`
+- `TypstRenderCreated`
+
+The event `data` table contains `key`, `root`, `main`, `output`, `status`,
+`provider`, `profile`, `cwd`, and `command`. `profile` and `command` are `nil`
+before any profiled compile or background command has been run.
+`TypstDiagnosticsPublished` and `TypstDiagnosticsCleared` include
+`diagnostics_count` and `diagnostic_buffers`.
+`TypstViewOpened` also includes `viewer_provider`, `viewer_backend`, and may
+include `viewer_command` and `viewer_cwd` when an external viewer executable is
+used. `TypstViewForwarded` includes `viewer_provider`, `viewer_backend`, `line`,
+and `column`. `TypstViewInverse` includes `viewer_provider`, `viewer_backend`,
+`path`, `line`, and `column`.
+`TypstPreviewOpened` and `TypstPreviewStopped` also include `backend`,
+`preview_backend`, `preview_command`, `preview_cwd`, `preview_active`, and may
+include `mode` or `preview_mode`. Artifact events include artifact metadata
+such as `path`, `format`, `producer`, `generation`, and clean results such as
+`deleted`, `skipped`, and `failed`. `TypstRenderCreated` includes `kind`,
+`path`, `source_path`, `cached`, and `generation`. TOC events include `items`.
+Initialization events include `provider` and `did_setup`; quit events include
+`provider` and `projects`.
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:

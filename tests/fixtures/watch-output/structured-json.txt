@@ -1,0 +1,4 @@
+start|{"event":"compile-start","status":"running","path":"main.typ"}
+success|{"event":"compile-success","status":"success","path":"main.typ"}
+error|{"event":"compile-error","status":"error","path":"main.typ"}
+unknown|{"event":"compile-progress","status":"queued","path":"main.typ"}

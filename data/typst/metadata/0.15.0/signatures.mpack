@@ -1,0 +1,576 @@
+–¦0.15.0Ü£int§integer§Integer¤bool§boolean§Boolean¥float¥Float§decimal§Decimal£str¦string¦String¢10¥value¤base¤self£rhs¥shift¥false§logical¥bytes¥Bytes¨"little"¥"big"ÙOBig-endian byte order: The highest-value byte is at the beginning of the
+bytes.ÙQLittle-endian byte order: The lowest-value byte is at the beginning of
+the bytes.¤true¦endian¦signed¡8¤size¥ratio¥Ratio§version§Version¥label¥Label¤type¤Type§default¥index¤none¤None¥start£end¥count¥array¥Array©character¥"nfc"Ù]Canonical composition where e.g. accented letters are turned into a
+single Unicode codepoint.¥"nfd"ÙaCanonical decomposition where e.g. accented letters are split into a
+separate base and diacritic.¦"nfkc"Ù=Like NFC, but using the Unicode compatibility decompositions.¦"nfkd"Ù=Like NFD, but using the Unicode compatibility decompositions.¤form¥regex¥Regex§patternªdictionaryªDictionary¨function¨Function«replacement©alignment©Alignment¢at¦repeat¤name§content§Content¥field¨location¨Location¨searcher¡0¡1©inclusive¤step¤test¦mapper¥exact¦others¤init¦folder©separator¤lastªchunk-size«window-size£key¢by§reducer¦module¦Module©arguments¨selector¨Selector¦fields©Arguments¦target¨ancestor¨datetime¨Datetime¤year¥month£day¤hour¦minute¦second¤auto¨duration¨Duration¤Auto¦offset¦symbol¦Symbol¨variants§seconds§minutes¥hours¤days¥weeksªcomponents¤path¤Path¦values©condition§message¤left¥right¦"code"¨"markup"Ù'Evaluate as markup, as in a Typst file.¦"math"Ù$Evaluate as math, as in an equation.Ù"Evaluate as code, as after a hash.£(:)¦source¤mode¥scope¤func§"paged"Ù:The target that is used for paged, fully laid-out content.¦"html"Ù(The target that is used for HTML export.¨"bundle"ÙThe target for _bundle_ export. This export target can produce multiple
+[documents]($document) and [assets]($asset) from a single Typst project.¦length¦Length¥angle¥Angle¨fraction¨Fraction¨exponent¨radicand¡x¡y¤10.0¦number§numbers¡n¡k¡a¡b¦digits£min£max¨dividend§divisor£2.0¡p¥"pdf"ÙVHigh-fidelity document and graphics format, with focus on exact
+reproduction in print.¥"png"Ù9Raster format for illustrations and transparent graphics.¥"svg"Ù&The vector graphics format of the web.¿The document format of the web.¢()¦format¥title¦author«description¨keywords¤date¤body¦0.65em¥1.2emÙV(
+  spacing: (min: 66.67% + 0pt, max: 150% + 0pt),
+  tracking: (min: 0pt, max: 0pt),
+)¨"simple"Ù6Determine the line breaks in a simple first-fit style.«"optimized"Ù®Optimize the line breaks for the whole paragraph.
+
+Typst will try to produce more evenly filled lines of text by
+considering the whole paragraph when calculating line breaks.¹(amount: 0pt, all: false)£0pt§leading§spacing§justify´justification-limitsªlinebreaks±first-line-indent®hanging-indentª"document"ÙfIndicates that the line number counter spans the whole document, i.e.,
+it's never automatically reset.¦"page"ÙVIndicates that the line number counter should be reset at the start of
+every new page.©numbering¬number-align­number-margin°number-clearance¯numbering-scope£300¥deltaµ([â€¢], [â€£], [â€“])¥0.5em¥tight¦marker¦indent«body-indent¬marker-align¨children¤"1."¤full¨reversed¼h(amount: 0.6em, weak: true)£2em¤term¤dest¥level¥depthªsupplement¨outlinedªbookmarked¨"column"¾Place into the current column.¨"parent"ÙHPlace relative to the parent, letting the content span over all columns.£"1"£alt©placement§caption¤kind£gap¦bottom¨position¥block¦quotes«attributionÙ'line(length: 30% + 0pt, stroke: 0.05em)£1em¤note©clearance§heading¨relative¯relative length¯Relative Length¾repeat(body: [.], gap: 0.15em)§element¤fill¦prefix¥inner¨"normal"Ù(Produces a textual reference to a label.Ù%Produces a page reference to a label.Ù1Display in the standard way for the active style.§"prose"ÙAProduces a citation that is suitable for inclusion in a sentence.¦"full"ÙHMimics a bibliography entry, with full information about the cited work.¨"author"Ù&Shows only the cited work's author(s).¦"year"Ù!Shows only the cited work's year.®"alphanumeric"¬AlphanumericÙ&"american-anthropological-association"Ù$American Anthropological Association»"american-chemical-society"·ACS Guide 2022 revision¼"american-geophysical-union"ºAmerican Geophysical UnionÙ4"american-institute-of-aeronautics-and-astronautics"Ù2American Institute of Aeronautics and Astronautics¿"american-institute-of-physics"¼AIP Style Manual 4th edition¾"american-medical-association"Ù AMA Manual of Style 11th editionÙ!"american-meteorological-society"¿American Meteorological Societyº"american-physics-society"¹American Physical SocietyÙ "american-physiological-society"¾American Physiological SocietyÙ("american-political-science-association"Ù&APSA Style Manual revised 2018 editionÙ$"american-psychological-association"µAPA Style 7th edition¥"apa"Ù5A short alias of `american-psychological-association`Ù#"american-society-for-microbiology"Ù!American Society for MicrobiologyÙ%"american-society-of-civil-engineers"Ù#American Society of Civil EngineersÙ*"american-society-of-mechanical-engineers"Ù(American Society of Mechanical EngineersÙ#"american-sociological-association"¿ASA Style Guide 6th/7th edition³"angewandte-chemie"Ù'Angewandte Chemie International Edition°"annual-reviews"Ù.Annual Reviews (sorted by order of appearance)¼"annual-reviews-author-date"¼Annual Reviews (author-date)Ù*"associacao-brasileira-de-normas-tecnicas"ÙAAssociaÃ§Ã£o Brasileira de Normas TÃ©cnicas (PortuguÃªs - Brasil)Ù%"association-for-computing-machinery"Ù#Association for Computing Machinery°"biomed-central"®BioMed Centralº"bristol-university-press"¸Bristol University Press¹"british-medical-journal"£BMJ¥"bmj"Ù*A short alias of `british-medical-journal`¦"cell"¤Cellµ"chicago-author-date"Ù2Chicago Manual of Style 18th edition (author-date)¯"chicago-notes"Ù=Chicago Manual of Style 18th edition (notes and bibliography)³"chicago-fullnotes"Ù A short alias of `chicago-notes`¹"chicago-shortened-notes"ÙGChicago Manual of Style 18th edition (shortened notes and bibliography)¬"copernicus"·Copernicus PublicationsÙ,"cse-citation-sequence-brackets-8th-edition"ÙQCSE Manual: Scientific Style and Format 8th edition (citation-sequence, brackets)¼"council-of-science-editors"Ù=A short alias of `cse-citation-sequence-brackets-8th-edition`¯"cse-name-year"Ù?CSE Manual: Scientific Style and Format 9th edition (name-year)Ù("council-of-science-editors-author-date"Ù A short alias of `cse-name-year`±"current-opinion"¸Current Opinion journalsÙ("deutsche-gesellschaft-fÃ¼r-psychologie"Ù;Deutsche Gesellschaft fÃ¼r Psychologie 5. Auflage (Deutsch)²"deutsche-sprache"ºDeutsche Sprache (Deutsch)²"elsevier-harvard"Ù+Elsevier (author-date/Harvard, with titles)´"elsevier-vancouver"Ù,Elsevier - NLM/Vancouver (citation-sequence)¶"elsevier-with-titles"¿Elsevier (numeric, with titles)«"frontiers"²Frontiers journals±"future-medicine"¸Future Medicine journals°"future-science"´Future Science Group¶"gb-7714-2005-numeric"Ù8China National Standard GB/T 7714-2005 (numeric, ä¸­æ–‡)º"gb-7714-2015-author-date"Ù<China National Standard GB/T 7714-2015 (author-date, ä¸­æ–‡)³"gb-7714-2015-note"Ù5China National Standard GB/T 7714-2015 (note, ä¸­æ–‡)¶"gb-7714-2015-numeric"Ù8China National Standard GB/T 7714-2015 (numeric, ä¸­æ–‡)¹"gost-r-705-2008-numeric"Ù#Russian GOST R 7.0.5-2008 (numeric)¹"harvard-cite-them-right"Ù2Cite Them Right 12th edition (author-date/Harvard)Ù3"institute-of-electrical-and-electronics-engineers"Ù'IEEE Reference Guide version 11.29.2023¦"ieee"ÙDA short alias of `institute-of-electrical-and-electronics-engineers`¾"institute-of-physics-numeric"¾Institute of Physics (numeric)µ"iso-690-author-date"¾ISO-690 (author-date, English)±"iso-690-numeric"ºISO-690 (numeric, English)¨"karger"¯Karger journals¼"mary-ann-liebert-vancouver"Ù Mary Ann Liebert - NLM/VancouverÙ."modern-humanities-research-association-notes"Ù$MHRA Style Guide 4th edition (notes)Ù("modern-humanities-research-association"Ù?A short alias of `modern-humanities-research-association-notes`½"modern-language-association"Ù,MLA Handbook 9th edition (in-text citations)¥"mla"Ù.A short alias of `modern-language-association`¿"modern-language-association-8"§"mla-8"Ù0"multidisciplinary-digital-publishing-institute"Ù.Multidisciplinary Digital Publishing Institute¨"nature"¦Nature·"nlm-citation-sequence"Ù>NLM/Vancouver: Citing Medicine 2nd edition (citation-sequence)«"vancouver"Ù(A short alias of `nlm-citation-sequence`Ù#"nlm-citation-sequence-superscript"ÙKNLM/Vancouver: Citing Medicine 2nd edition (citation-sequence, superscript)·"vancouver-superscript"Ù4A short alias of `nlm-citation-sequence-superscript`©"pensoft"°Pensoft Journals»"public-library-of-science"¹Public Library of Science¦"plos"Ù,A short alias of `public-library-of-science`¼"royal-society-of-chemistry"ºRoyal Society of Chemistry°"sage-vancouver"´SAGE - NLM/Vancouver¨"sist02"²SIST02 (æ—¥æœ¬èª)¦"spie"­SPIE journals°"springer-basic"Ù$Springer - Basic (numeric, brackets)¼"springer-basic-author-date"¾Springer - Basic (author-date)Ù0"springer-fachzeitschriften-medizin-psychologie"Ù:Springer - Fachzeitschriften Medizin Psychologie (Deutsch)Ù!"springer-humanities-author-date"Ù#Springer - Humanities (author-date)Ù,"springer-lecture-notes-in-computer-science"Ù,Springer - Lecture Notes in Computer Science³"springer-mathphys"Ù'Springer - MathPhys (numeric, brackets)¿"springer-socpsych-author-date"Ù!Springer - SocPsych (author-date)´"springer-vancouver"Ù6Springer - NLM/Vancouver (citation-sequence, brackets)Ù("taylor-and-francis-chicago-author-date"ÙYTaylor & Francis Journals Standard Reference Style Guide: Chicago author-date version 2.0Ù1"taylor-and-francis-national-library-of-medicine"Ù>Taylor & Francis - NLM/Vancouver (citation-sequence, brackets)Ù/"the-institution-of-engineering-and-technology"Ù-The Institution of Engineering and Technology¬"the-lancet"ªThe Lancet¨"thieme"·Thieme-German (Deutsch)¨"trends"¯Trends journals¶"turabian-author-date"Ù2Chicago Manual of Style 17th edition (author-date)µ"turabian-fullnote-8"ÙVChicago Manual of Style 17th edition (notes and bibliography, subsequent author-title)¥style§sources¥group¨0% + 5pt¥color¥Color¨gradient¨Gradient¦tiling¦Tiling«1pt + black¦stroke¦Stroke§columns¤rows¦gutter­column-gutterªrow-gutter¥inset¥align§colspan§rowspan©breakable£top²"libertinus serif"Ù%The default, typically upright style.¨"italic"Ù'A cursive style with custom letterform.©"oblique"Ù+Just a slanted version of the normal style.©"regular"¦"thin"²Thin weight (100).¬"extralight"¹Extra light weight (200).§"light"³Light weight (300).µRegular weight (400).¨"medium"´Medium weight (500).ª"semibold"¶Semibold weight (600).¦"bold"²Bold weight (700).«"extrabold"·Extrabold weight (800).§"black"³Black weight (900).¤100%¤11pt¨luma(0%)ª100% + 0pt¬"cap-height"ª"ascender"ÙFThe font's ascender, which typically exceeds the height of all glyphs.Ù,The approximate height of uppercase letters.ª"x-height"Ù:The approximate height of non-ascending lowercase letters.ª"baseline"Ù'The baseline on which the letters rest.¨"bounds"Ù)The top edge of the glyph's bounding box.«"descender"ÙFThe font's descender, which typically exceeds the depth of all glyphs.Ù,The bottom edge of the glyph's bounding box.¤"en"©direction©DirectionÙE(
+  hyphenation: 100%,
+  runt: 100%,
+  widow: 100%,
+  orphan: 100%,
+)¨"lining"ÙKNumbers that fit well with capital text (the OpenType `lnum`
+font feature).«"old-style"ÙbNumbers that fit well into a flow of upper- and lowercase text (the
+OpenType `onum` font feature).®"proportional"ÙFNumbers with glyph-specific widths (the OpenType `pnum` font feature).©"tabular"Ù:Numbers of equal width (the OpenType `tnum` font feature).¢[]¤font¨fallback¦weight§stretch¨tracking±cjk-latin-spacing¨baseline¨overhang¨top-edge«bottom-edge¤lang¦region¦script£dir©hyphenate¥costs§kerningªalternates­stylistic-set©ligatures·discretionary-ligatures´historical-ligatures«number-type¬number-width¬slashed-zero©fractions¨featuresªvariations¤text¦double§enabled«alternative«typographic¦extent¥evadeªbackground°rgb("#fffd11a1")¦radius£all¡2¨syntaxes¥theme¨tab-size¥words¤side¬"horizontal"ª"vertical"¤"a4"¤"a0"Ù4A paper that is
+841.0
+Ã—
+1189.0
+millimeters in size.¤"a1"Ù3A paper that is
+594.0
+Ã—
+841.0
+millimeters in size.¤"a2"Ù3A paper that is
+420.0
+Ã—
+594.0
+millimeters in size.¤"a3"Ù3A paper that is
+297.0
+Ã—
+420.0
+millimeters in size.Ù3A paper that is
+210.0
+Ã—
+297.0
+millimeters in size.¤"a5"Ù3A paper that is
+148.0
+Ã—
+210.0
+millimeters in size.¤"a6"Ù3A paper that is
+105.0
+Ã—
+148.0
+millimeters in size.¤"a7"Ù2A paper that is
+74.0
+Ã—
+105.0
+millimeters in size.¤"a8"Ù1A paper that is
+52.0
+Ã—
+74.0
+millimeters in size.¤"a9"Ù1A paper that is
+37.0
+Ã—
+52.0
+millimeters in size.¥"a10"Ù1A paper that is
+26.0
+Ã—
+37.0
+millimeters in size.¥"a11"Ù1A paper that is
+18.0
+Ã—
+26.0
+millimeters in size.¨"iso-b1"Ù4A paper that is
+707.0
+Ã—
+1000.0
+millimeters in size.¨"iso-b2"Ù3A paper that is
+500.0
+Ã—
+707.0
+millimeters in size.¨"iso-b3"Ù3A paper that is
+353.0
+Ã—
+500.0
+millimeters in size.¨"iso-b4"Ù3A paper that is
+250.0
+Ã—
+353.0
+millimeters in size.¨"iso-b5"Ù3A paper that is
+176.0
+Ã—
+250.0
+millimeters in size.¨"iso-b6"Ù3A paper that is
+125.0
+Ã—
+176.0
+millimeters in size.¨"iso-b7"Ù2A paper that is
+88.0
+Ã—
+125.0
+millimeters in size.¨"iso-b8"Ù1A paper that is
+62.0
+Ã—
+88.0
+millimeters in size.¨"iso-c3"Ù3A paper that is
+324.0
+Ã—
+458.0
+millimeters in size.¨"iso-c4"Ù3A paper that is
+229.0
+Ã—
+324.0
+millimeters in size.¨"iso-c5"Ù3A paper that is
+162.0
+Ã—
+229.0
+millimeters in size.¨"iso-c6"Ù3A paper that is
+114.0
+Ã—
+162.0
+millimeters in size.¨"iso-c7"Ù2A paper that is
+81.0
+Ã—
+114.0
+millimeters in size.¨"iso-c8"Ù1A paper that is
+57.0
+Ã—
+81.0
+millimeters in size.¨"din-d3"Ù3A paper that is
+272.0
+Ã—
+385.0
+millimeters in size.¨"din-d4"Ù3A paper that is
+192.0
+Ã—
+272.0
+millimeters in size.¨"din-d5"Ù3A paper that is
+136.0
+Ã—
+192.0
+millimeters in size.¨"din-d6"Ù2A paper that is
+96.0
+Ã—
+136.0
+millimeters in size.¨"din-d7"Ù1A paper that is
+68.0
+Ã—
+96.0
+millimeters in size.¨"din-d8"Ù1A paper that is
+48.0
+Ã—
+68.0
+millimeters in size.¨"sis-g5"Ù3A paper that is
+169.0
+Ã—
+239.0
+millimeters in size.¨"sis-e5"Ù3A paper that is
+115.0
+Ã—
+220.0
+millimeters in size.¨"ansi-a"Ù3A paper that is
+216.0
+Ã—
+279.0
+millimeters in size.¨"ansi-b"Ù3A paper that is
+279.0
+Ã—
+432.0
+millimeters in size.¨"ansi-c"Ù3A paper that is
+432.0
+Ã—
+559.0
+millimeters in size.¨"ansi-d"Ù3A paper that is
+559.0
+Ã—
+864.0
+millimeters in size.¨"ansi-e"Ù4A paper that is
+864.0
+Ã—
+1118.0
+millimeters in size.¨"arch-a"Ù3A paper that is
+229.0
+Ã—
+305.0
+millimeters in size.¨"arch-b"Ù3A paper that is
+305.0
+Ã—
+457.0
+millimeters in size.¨"arch-c"Ù3A paper that is
+457.0
+Ã—
+610.0
+millimeters in size.¨"arch-d"Ù3A paper that is
+610.0
+Ã—
+914.0
+millimeters in size.©"arch-e1"Ù4A paper that is
+762.0
+Ã—
+1067.0
+millimeters in size.¨"arch-e"Ù4A paper that is
+914.0
+Ã—
+1219.0
+millimeters in size.¨"jis-b0"Ù5A paper that is
+1030.0
+Ã—
+1456.0
+millimeters in size.¨"jis-b1"Ù4A paper that is
+728.0
+Ã—
+1030.0
+millimeters in size.¨"jis-b2"Ù3A paper that is
+515.0
+Ã—
+728.0
+millimeters in size.¨"jis-b3"Ù3A paper that is
+364.0
+Ã—
+515.0
+millimeters in size.¨"jis-b4"Ù3A paper that is
+257.0
+Ã—
+364.0
+millimeters in size.¨"jis-b5"Ù3A paper that is
+182.0
+Ã—
+257.0
+millimeters in size.¨"jis-b6"Ù3A paper that is
+128.0
+Ã—
+182.0
+millimeters in size.¨"jis-b7"Ù2A paper that is
+91.0
+Ã—
+128.0
+millimeters in size.¨"jis-b8"Ù1A paper that is
+64.0
+Ã—
+91.0
+millimeters in size.¨"jis-b9"Ù1A paper that is
+45.0
+Ã—
+64.0
+millimeters in size.©"jis-b10"Ù1A paper that is
+32.0
+Ã—
+45.0
+millimeters in size.©"jis-b11"Ù1A paper that is
+22.0
+Ã—
+32.0
+millimeters in size.¨"sac-d0"Ù4A paper that is
+764.0
+Ã—
+1064.0
+millimeters in size.¨"sac-d1"Ù3A paper that is
+532.0
+Ã—
+760.0
+millimeters in size.¨"sac-d2"Ù3A paper that is
+380.0
+Ã—
+528.0
+millimeters in size.¨"sac-d3"Ù3A paper that is
+264.0
+Ã—
+376.0
+millimeters in size.¨"sac-d4"Ù3A paper that is
+188.0
+Ã—
+260.0
+millimeters in size.¨"sac-d5"Ù3A paper that is
+130.0
+Ã—
+184.0
+millimeters in size.¨"sac-d6"Ù2A paper that is
+92.0
+Ã—
+126.0
+millimeters in size.ª"iso-id-1"Ù2A paper that is
+85.6
+Ã—
+53.98
+millimeters in size.ª"iso-id-2"ª"iso-id-3"©"asia-f4"Ù3A paper that is
+210.0
+Ã—
+330.0
+millimeters in size.²"jp-shiroku-ban-4"Ù3A paper that is
+264.0
+Ã—
+379.0
+millimeters in size.²"jp-shiroku-ban-5"Ù3A paper that is
+189.0
+Ã—
+262.0
+millimeters in size.²"jp-shiroku-ban-6"Ù3A paper that is
+127.0
+Ã—
+188.0
+millimeters in size.«"jp-kiku-4"Ù3A paper that is
+227.0
+Ã—
+306.0
+millimeters in size.«"jp-kiku-5"Ù3A paper that is
+151.0
+Ã—
+227.0
+millimeters in size.²"jp-business-card"Ù1A paper that is
+91.0
+Ã—
+55.0
+millimeters in size.²"cn-business-card"Ù1A paper that is
+90.0
+Ã—
+54.0
+millimeters in size.²"eu-business-card"Ù1A paper that is
+85.0
+Ã—
+55.0
+millimeters in size.®"fr-telliÃ¨re"Ù3A paper that is
+340.0
+Ã—
+440.0
+millimeters in size.·"fr-couronne-Ã©criture"Ù3A paper that is
+360.0
+Ã—
+460.0
+millimeters in size.¶"fr-couronne-Ã©dition"Ù3A paper that is
+370.0
+Ã—
+470.0
+millimeters in size.«"fr-raisin"Ù3A paper that is
+500.0
+Ã—
+650.0
+millimeters in size.«"fr-carrÃ©"Ù3A paper that is
+450.0
+Ã—
+560.0
+millimeters in size.«"fr-jÃ©sus"Ù3A paper that is
+560.0
+Ã—
+760.0
+millimeters in size.ª"uk-brief"Ù3A paper that is
+406.4
+Ã—
+342.9
+millimeters in size.ª"uk-draft"Ù3A paper that is
+254.0
+Ã—
+406.4
+millimeters in size.­"uk-foolscap"Ù3A paper that is
+203.2
+Ã—
+330.2
+millimeters in size.«"uk-quarto"Ù3A paper that is
+203.2
+Ã—
+254.0
+millimeters in size.ª"uk-crown"Ù3A paper that is
+508.0
+Ã—
+381.0
+millimeters in size.«"uk-book-a"Ù3A paper that is
+111.0
+Ã—
+178.0
+millimeters in size.«"uk-book-b"Ù3A paper that is
+129.0
+Ã—
+198.0
+millimeters in size.«"us-letter"Ù3A paper that is
+215.9
+Ã—
+279.4
+millimeters in size.ª"us-legal"Ù3A paper that is
+215.9
+Ã—
+355.6
+millimeters in size.¬"us-tabloid"Ù3A paper that is
+279.4
+Ã—
+431.8
+millimeters in size.®"us-executive"Ù4A paper that is
+184.15
+Ã—
+266.7
+millimeters in size.³"us-foolscap-folio"Ù3A paper that is
+215.9
+Ã—
+342.9
+millimeters in size.®"us-statement"Ù3A paper that is
+139.7
+Ã—
+215.9
+millimeters in size.«"us-ledger"Ù3A paper that is
+431.8
+Ã—
+279.4
+millimeters in size.«"us-oficio"Ù4A paper that is
+215.9
+Ã—
+340.36
+millimeters in size.¯"us-gov-letter"Ù3A paper that is
+203.2
+Ã—
+266.7
+millimeters in size.®"us-gov-legal"Ù3A paper that is
+215.9
+Ã—
+330.2
+millimeters in size.²"us-business-card"Ù1A paper that is
+88.9
+Ã—
+50.8
+millimeters in size.«"us-digest"ª"us-trade"Ù3A paper that is
+152.4
+Ã—
+228.6
+millimeters in size.³"newspaper-compact"Ù3A paper that is
+280.0
+Ã—
+430.0
+millimeters in size.´"newspaper-berliner"Ù3A paper that is
+315.0
+Ã—
+470.0
+millimeters in size.¶"newspaper-broadsheet"Ù3A paper that is
+381.0
+Ã—
+578.0
+millimeters in size.³"presentation-16-9"Ù6A paper that is
+297.0
+Ã—
+167.0625
+millimeters in size.²"presentation-4-3"Ù3A paper that is
+280.0
+Ã—
+210.0
+millimeters in size.¨595.28pt¨841.89pt¯center + bottom©30% + 0pt¥paper¥width¦height§flipped¦margin¥bleed§binding¦header­header-ascent¦footer®footer-descentªforeground¦"even"¿Next page will be an even page.¥"odd"¾Next page will be an odd page.¤weak¢to¦amount»(at: auto, shift: 0% + 0pt)¦outset¤clip¥above¥below¦sticky£ttb¨4% + 0pt¥1.5em¨0% + 0pt¢dx¢dy«start + top¤rest°center + horizon¦factor¦origin¦reflow¤0deg¢ax¢ay©lightness¥alpha¦chroma£hue£red¥green¤blue£hex¤cyan§magenta¦yellowªsaturation¤spot­spot colorant­Spot Colorant¥space¥oklch¦colors¥scale¥"all"ÙCUse all available color plates instead of only a specific colorant.¦"self"Ù*Relative to itself (its own bounding box).Ù3Relative to its parent (the parent's bounding box).£ltr¥stopsª(50%, 50%)£50%¢0%¦center¬focal-center¬focal-radius¥stepsªsmoothness«repetitions¦mirror¡t¢tsª(0pt, 0pt)´(0% + 0pt, 0% + 0pt)¦"butt"Ù:Square stroke cap with the edge at the stroke's end point.§"round"Ù7Circular stroke cap centered at the stroke's end point.¨"square"Ù5Square stroke cap centered at the stroke's end point.§"miter"ÙaSegments are joined with sharp edges. Sharp bends exceeding the miter
+limit are bevelled instead.Ù*Segments are joined with circular corners.§"bevel"Ù_Segments are joined with a bevel (a straight edge connecting the butts
+of the joined segments).§"solid"¦`{()}`¨"dotted"°`{("dot", 2pt)}`°"densely-dotted"°`{("dot", 1pt)}`°"loosely-dotted"°`{("dot", 4pt)}`¨"dashed"®`{(3pt, 3pt)}`°"densely-dashed"®`{(3pt, 2pt)}`°"loosely-dashed"®`{(3pt, 6pt)}`­"dash-dotted"º`{(3pt, 2pt, "dot", 2pt)}`µ"densely-dash-dotted"º`{(3pt, 1pt, "dot", 1pt)}`µ"loosely-dash-dotted"º`{(3pt, 4pt, "dot", 4pt)}`¥paint©thickness£cap¤join¤dash«miter-limit¥"jpg"Ù(Lossy raster format suitable for photos.¥"gif"ÙpRaster format that is typically used for short animated clips. Typst can
+load GIFs, but they will become static.¦"webp"Ù@Raster format that supports both lossy and lossless compression.§"cover"ÙThe image should completely cover the area (preserves aspect ratio by
+cropping the image only horizontally or vertically). This is the
+default.©"contain"ÙThe image should be fully contained in the area (preserves aspect
+ratio; doesn't crop the image; one dimension can be narrower than
+specified).©"stretch"Ù°The image should be stretched so that it exactly fills the area, even if
+this means that the image will be distorted (doesn't preserve aspect
+ratio and doesn't crop the image).¨"smooth"Ù@Scale with a smoothing algorithm such as bilinear interpolation.«"pixelated"Ù_Scale with nearest neighbor or a similar algorithm to preserve the
+pixelated look of the image.¤page£fit§scaling£icc©0% + 30ptª"non-zero"ÙOSpecifies that "inside" is computed by a non-zero sum of signed edge crossings.ª"even-odd"ÙGSpecifies that "inside" is computed by an odd number of edge crossings.©fill-rule¨vertices¡3§control­control-start«control-endÙjCloses the curve with a smooth segment that takes into account the
+control point opposite the start point.ª"straight"Ù&Closes the curve with a straight line.§counter§Counter¤both¦update¥state¥State¦"utf8"»The Unicode UTF-8 encoding.¨encoding£","©delimiter¨row-type¦pretty­end + horizon¢tl¢bl¢tr¢br¦inline¦accent§dotlessªannotation¬100% + 0.3em¦0.05em¨inverted¥crossÙ-Stacked numerator and denominator with a bar.¨"skewed"Ù/Numerator and denominator separated by a slash.ÙINumerator and denominator placed inline and parentheses are not
+absorbed.£num¥denom¥upper¥lowerª("(", ")")ª0% + 0.2em¥delimª0% + 0.5em§augment§row-gapªcolumn-gapª("{", "}")§reverseÙ)The default class for non-special things.­"punctuation"ºPunctuation, e.g. a comma.©"opening"¿An opening delimiter, e.g. `(`.©"closing"¾A closing delimiter, e.g. `)`.§"fence"Ù5A delimiter that is the same on both sides, e.g. `|`.§"large"¼A large operator like `sum`.ª"relation"¾A relation like `=` or `prec`.§"unary"¼A unary operator like `not`.¨"binary"¿A binary operator like `times`.¦"vary"Ù6An operator that can be both unary or binary like `+`.¥class¦limits§cramped¨"source"Ù2The PDF document was created from the source file.¦"data"Ù=The file was used to derive a visual presentation in the PDF.­"alternative"Ù.An alternative representation of the document.¬"supplement"Ù&Additional resources for the document.¤data¬relationship©mime-type§"other"¨"header"Ù Repeats on the top of each page.¨"footer"Ù#Repeats at the bottom of each page.«"watermark"Ù9Text or graphics in the back- or foreground of all pages.­"page-number"Ù Page numbers. Note that if your page numbers are contained in a footer
+or header instead, the whole header or footer should an artifact of the
+appropriate type.­"line-number"ºLine or paragraph numbers.«"redaction"ÙtPlaceholders for areas in which there was content in another rendition
+of the document which has since been removed.§"bates"Ù¥Bates numbering. Note that if your Bates numbering is contained in a
+footer or header instead, the whole header or footer should an artifact
+of the appropriate type.ÙlNot part of the document, but rather the page it is printed on. An
+example would be cut marks or color bars.²"pagination-other"ÚArtifacts arising from paginating the document not covered by other
+artifact types. This category generally applies if this artifact would
+not appear in your document if it was a website instead. If your
+artifact is covered by other categories, prefer them over this.¨"layout"Ù`Purely cosmetric content or typographical flourishes not contributing to
+the document's content.¬"background"Ú4Background of a page or a graphical element. This artifact kind was
+added in PDF 1.7. However, due to requirements in the PDF 1.7
+specification that later specifications lifted, Typst only uses this
+artifact type in PDF 2.0. If you use it in a PDF 1.7 or earlier, Typst
+will use the `{"other"}` type instead.°Other artifacts.Üò””””		
+”’•”””’’	”!!"’–”##$”%%&”''(’˜‘”++,’’”001”34”56”78”9:’””<<=’’’’”??@’’”AAB’’’“”DDE’“”IIJ”LLM’’%’“’’”``a”ccd”bbf’’’–%*’”%*”iij”rrs”qqt’“01’’1’•’’”vvw’’”Ì€’’8’”Ì‡Ìˆ”Ì‰ÌŠ”Ì†Ì‹’“;<=’“8”Ì‘Ì’”Ì“Ì””Ì•Ì–’“@AB”Ì—Ì—Ì˜”Ì™Ì™Ìš”Ì›Ì›Ìœ’—DEF’“’’’“E”Ì¯Ì°”Ì±Ì²”Ì³Ì´”Ì“Ìµ’•KLMN1’’$’“/1”ÌÁÌÂ”ÌÃÌÄ’“RS1’’D’“’’"1’’D1”ÌÎÌÏ”ÌĞÌÑ’’YZ’“$’’1’’$’”%’’$1’”$1’’1’“"1”ÌíÌî”ÌïÌğ’’de’“1’“$’’$’“$1”ÍÍÍ’“k1”Í	Í
+”ÌĞÍ’’mn”Í	Í”ÍÍ”ÍÍ”ÍÍ”ÍÍ’–pqrst”ÍÍ”ÍÍ”ÍÍ”ÍÍ”ÍÍ”ÍÍ ”Í!Í"”Í#Í$”Í%Í&”Í'Í(”Í)Í*”Í+Í,”Í-Í.”Í/Í0”Í1Í2”Í3Í4”Í5Í6”Í7Í8”Í9Í:”Í;Í<”Í=Í>”Í?Í@”ÍAÍB”ÍCÍD”ÍEÍF”ÍGÍH”ÍIÍJ”ÍKÍL”ÍMÍN”ÍOÍP”ÍQÍR”ÍSÍT”ÍUÍV”ÍWÍX”ÍYÍZ”Í[Í\”Í]Í^”Í_Í`”ÍaÍb”ÍcÍd”ÍeÍf”ÍgÍh”ÍiÍj”ÍkÍl”ÍmÍn”ÍoÍp”ÍqÍr”ÍsÍt”ÍuÍv”ÍwÍx”ÍyÍz”Í{Í|”Í}Í~”ÍÍ€”ÍÍ‚”ÍƒÍ„”Í…Í†”Í‡Íˆ”Í‰ÍŠ”Í‹ÍŒ”ÍÍ”ÍÍ”Í‘Í”Í’Í”Í“Í””Í•Í–”Í—Í˜”Í™Íš”Í›Íœ”ÍÍ”ÍŸÍ ”Í¡Í¢”Í£Í¤”Í¥Í¦”Í§Í¨”Í©Íª”Í«Í¬”Í­Í®”Í¯Í°”Í±Í²”Í³Í´”ÍµÍ¶”Í·Í¸”Í¹Íº”Í»Í¼”Í½Í¾”Í¿ÍÀ”ÍÁÍÂ”ÍÃÍÄ”ÍÅÍÆ”ÍÇÍÈ”ÍÉÍÊ”ÍËÍÌ’Ü _?vwxyz{|}~Ì€ÌÌ‚ÌƒÌ„Ì…Ì†Ì‡ÌˆÌ‰ÌŠÌ‹ÌŒÌÌÌÌÌ‘Ì’Ì“Ì”Ì•Ì–Ì—Ì˜Ì™ÌšÌ›ÌœÌÌÌŸÌ Ì¡Ì¢Ì£Ì¤Ì¥Ì¦Ì§Ì¨Ì©ÌªÌ«Ì¬Ì­Ì®Ì¯Ì°Ì±Ì²Ì³Ì´ÌµÌ¶Ì·Ì¸Ì¹ÌºÌ»Ì¼Ì½Ì¾Ì¿ÌÀÌÁÌÂÌÃÌÄÌÅÌÆÌÇÌÈÌÉÌÊÌËÌÌÌÍÌÎÌÏÌĞÌÑÌÒ1’”8’Ü ^?vwxyz{|}~Ì€ÌÌ‚ÌƒÌ„Ì…Ì†Ì‡ÌˆÌ‰ÌŠÌ‹ÌŒÌÌÌÌÌ‘Ì’Ì“Ì”Ì•Ì–Ì—Ì˜Ì™ÌšÌ›ÌœÌÌÌŸÌ Ì¡Ì¢Ì£Ì¤Ì¥Ì¦Ì§Ì¨Ì©ÌªÌ«Ì¬Ì­Ì®Ì¯Ì°Ì±Ì²Ì³Ì´ÌµÌ¶Ì·Ì¸Ì¹ÌºÌ»Ì¼Ì½Ì¾Ì¿ÌÀÌÁÌÂÌÃÌÄÌÅÌÆÌÇÌÈÌÉÌÊÌËÌÌÌÍÌÎÌÏÌĞÌÑÌÒ’•%*1’“1’•1kF’”k’”"1”ÍÑÍÑÍÒ”ÍÓÍÓÍÔ”ÍÕÍÕÍÖ’–ÌÛÌÜÌİ”ÍØÍØÍÙ’™DÌÛÌÜÌİÌß’“k1’•ÌÛÌÜÌİ1’—DÌÛÌÜÌİÌß’“”Í	Íæ”ÍçÍè”ÍéÍê’“ÌåÌæÌç”ÍìÍí”ÍîÍï”ÍğÍñ”ÍëÍò”ÍóÍô”ÍõÍö”Í÷Íø”ÍùÍú”ÍûÍü’šÌéÌêÌëÌìÌíÌîÌïÌğÌñ’“ÌÛÌÜÌİ’’1”ÍÍ”ÍÍ”ÍÍ”ÍÍ”Í	Í
+’–ÌõÌöÌ÷ÌøÌùD”ÍÍ”Í	Í’”ÌøÌûÌüD”ÍÍÍ’’Ìş1’’’“”ÍÍ”ÍÍ’“ÍÍ1”ÍÍ”ÍÍ’“ÍÍ1’’’”1’—DÌÛÌÜÌİÌß1’”ÌÛÌÜÌİ’’k’•81’’$”ÍH ”ÍI ’’ÍÍ’“ÍÍ”ÍKÍL”ÍMÍN”ÍOÍP”ÍQÍR”ÍJÍS”ÍTÍU”ÍVÍW”ÍXÍY”ÍZÍ[”Í\Í]”Í^Í_”Í`Ía”ÍbÍc”ÍdÍe”ÍfÍg”ÍhÍi”ÍjÍk”ÍlÍm”ÍnÍo”ÍpÍq”ÍrÍs”ÍtÍu”ÍvÍw”ÍxÍy”ÍzÍ{”Í|Í}”Í~Í”Í€Í”Í‚Íƒ”Í„Í…”Í†Í‡”ÍˆÍ‰”ÍŠÍ‹”ÍŒÍ”ÍÍ”ÍÍ‘”Í’Í“”Í”Í•”Í–Í—”Í˜Í™”ÍšÍ›”ÍœÍ”ÍÍŸ”Í Í¡”Í¢Í£”Í¤Í¥”Í¦Í§”Í¨Í©”ÍªÍ«”Í¬Í­”Í®Í¯”Í°Í±”Í²Í³”Í´Íµ”Í¶Í·”Í¸Í¹”ÍºÍ»”Í¼Í½”Í¾Í¿”ÍÀÍÁ”ÍÂÍÃ”ÍÄÍÅ”ÍÆÍÇ”ÍÈÍÉ”ÍÊÍË”ÍÌÍY”ÍÍÍo”ÍÎÍÏ”ÍĞÍÑ”ÍÒÍÓ”ÍÔÍÕ”ÍÖÍ×”ÍØÍÙ”ÍÚÍÛ”ÍÜÍİ”ÍŞÍß”ÍàÍá”ÍâÍã”ÍäÍå”ÍæÍç”ÍèÍé”ÍêÍë”ÍìÍí”ÍîÍï”ÍğÍñ”ÍòÍó”ÍôÍõ”ÍöÍ÷”ÍøÍù”ÍúÍû”ÍüÍı”ÍşÍÿ”Í Í”ÍÍ”ÍÍ”ÍÍ”ÍÍ	”Í
+Í”ÍÍ”ÍÍ”ÍÍ”ÍÍ”ÍÍ”ÍÍ”ÍÍ”ÍÍ”ÍÍ’Ü kÍÍÍÍÍÍÍÍÍÍÍÍÍÍ Í!Í"Í#Í$Í%Í&Í'Í(Í)Í*Í+Í,Í-Í.Í/Í0Í1Í2Í3Í4Í5Í6Í7Í8Í9Í:Í;Í<Í=Í>Í?Í@ÍAÍBÍCÍDÍEÍFÍGÍHÍIÍJÍKÍLÍMÍNÍOÍPÍQÍRÍSÍTÍUÍVÍWÍXÍYÍZÍ[Í\Í]Í^Í_Í`ÍaÍbÍcÍdÍeÍfÍgÍhÍiÍjÍkÍlÍmÍnÍoÍpÍqÍrÍsÍtÍuÍvÍwÍxÍyÍzÍ{Í|Í}’“k1”Í-Í.”Í/Í0’“Í€Í’’kF’“1kF’’k1’”"1k’“kF1’“kF’“kF$’“D1’’’’”ÍUÍVÍW’’Í’“Í1’’ÌÛ”Í\Í]’“Í‘”Í^Í_”ÌïÍ`’“Í“Í”1’’1’’E’’’’’’E’”ÌÛÌÜÌİ1”ÍqÍr”ÍsÍt”ÍuÍv’”ÍœÍÍ1”ÍwÍx”ÍsÍy”ÍzÍ{’”Í Í¡Í¢1”Í|Í}”Í~Í”Í€Í”Í‚Íƒ”Í„Í…”Í†Í‡”ÍˆÍ‰”ÍŠÍ‹”ÍŒÍ”ÍÍ’Í¤Í¥Í¦Í§Í¨Í©ÍªÍ«Í¬Í­1’’1”Í–Í—”Í˜Í™”ÍšÍ›’˜LÍ°Í±Í²MK1”ÍœÍ”ÍÍŸ”Í Í¡’“Í´ÍµÍ¶”Í¢Í£”Í¤Í¥’“Í¸Í¹1’”81’–DÌÛÌÜÌİÌß’˜DÌÛÌÜÌİÌß1”Í«Í¬”Í­Í®’’Í¾Í¿’“1’“1”Í¢Íµ”Í¶Í·’’ÍÃÍÄ’•%*”Í¸Í¸Í¹’“1’“”Í¼Í¼Í½’’”Í¾Í¿’’ÍÌ’’’“E1”ÍIÍÒ”ÍÓÍÔ”ÍHÍÕ’“ÍĞÍÑÍÒ’”6’“”Í	Íã”ÍäÍå”ÍæÍç”ÍèÍé”ÍêÍë”ÍìÍí”ÍîÍï”ÍğÍñ”ÍòÍó”ÍôÍõ’šÍÖÍ×ÍØÍÙÍÚÍÛÍÜÍİÍŞÍß”ÍùÍú”ÍûÍü”ÍıÍş”ÍÿÍ ’•ÍáÍâÍãÍä”ÍÍ”ÍÍ”Í	Í
+”ÍÍ”ÍÍ”ÍÍ”ÍÍ”ÌĞÍ”ÍÍ”ÍÍ”ÍÍ”ÍÍ’œÍæÍçÍèÍéÍêÍëÍìÍíÍîÍïÍğÍñÜ ^’’’’’’++’3’O’P’qq’Ì†’ÌŒ?’Ì¡’Ì­’Ì¶0’Ì¾Ì—’Ì¿Ì—’ÌÀ?’ÌÅ?’ÌÆÌ—’-D’ÌÎ’Ì×’ÌÙ0’ÌÚÌ—’.D’Ìá’ÌäI’ÌåÌ—’Ìí’Ìñ’Ì÷D’ÌüI’ÌıÌ—’Í c’ÍI’Í	’Í}’ÍĞÍ’Í×ÍØ’ÍäD’Íå’Íë’Íı!’ÍşÌ—’ÍÿÍÑ’Í Í’Í’Í’Í’Í?’ÍI’Í?ÍÑ’Í’Í’ÍB’ÍJ’ÍÌ—’ÍÌ—’ÍD’Í Í’Í4?’Í:Í’Í;Í’Í<Ì—’Í=Í’Í@D’ÍBD’ÍFÌ™’ÍYA’ÍaÍ’Íc0’Íd!’Íe!’Ío0’Íp0’Íœ’ÍªÍ’Í«’Í±’Í¢’Í¾’ÍÁ’0'’ÍÅD’ÍÎÍ’ÍÏÍØ’ÍI’ÍÚ0’ÍfD’ÍÛÍ’ÍİÍ’Íá0’ÍÜ/’’” ”’‘” ’’” ” ’’” ” ’“” ” ”’“” ”
+”’“” ”
+” ’‘” ’‘” ’‘” ’’” ”
+’“” ”
+” ’’” ”’‘” ’’” ”) ’“” ”* ”) ’”” ”- ”.”/ ’‘” ’‘”2 ’‘” ’’” ”;’’” ”> ’’” ”> ’’” ”> ’’” ”> ’’” ”> ’”” ”> ”C  ”/ ’”” ”>!”F" ”G’’” ”>!’‘” ’‘”H ’‘”# ’‘” ’“” ”* ”) ’”” ”- ”.”/ ’‘”$ ’’”$ ”K ’“”$ ”K ”) ’‘”$ ’&‘”$ ’‘”' ’‘” ’’” ”) ’“” ”* ”) ’’” ” ’‘” ’“” ”* ” ’”” ”- ”.”/ ’’” ” ’(’” ”N ’’” ”N ’””-”. ”Q”R	’’” ”S ’’” ”T ’’” ”-’“” ”U”V ’“” ”W ”X ’’” ”S ’‘” ’’” ”F ’”” ”Y(”Z ”)(’’” ”Y ’“” ”[ ”U’’” ”\ ’“” ”] ”^ ’’” ”] ’‘” ’’” ”_ ’‘”) ’‘” ’“” ”] ”) ’“” ”] ” ’‘” ’’” ”S ’’” ”T ’’” ”b ’*’” ”e ’+‘”b ’‘”+ ’“”+ ”], ”) ’‘”+ ’‘”+ ’+’”+ ”S ’+’”+ ”T ’‘” ’‘”< ’*‘”g- ’*’”- ”V- ’*“”- ”.. ”Q’*“”- ”-. ”Q’*’”- ”h. ’/–”k ”l ”m ”n ”o ”p ’/‘”u2
+’’”/ ”>3
+’‘”/ ’‘”4 ’6‘”x5 ’0•”y”z”{”|”}’‘”0 ’‘”~7 ’’” ”* ’8‘”9 ’‘” ’:‘”Ì ’’”Ì‚ ”Ìƒ ’“”Ì„ ”Ì… ”Ìƒ ’“”Ì ”Ì>”Ì’)‘”Ì? ’)’”Ì ”b ’C’‘”G ’H’”H ”ÌI ’‘”ÌI ’‘”I ’’”Ì ”* ’‘”Ì™J ’E‘”I ’E’”ÌŸI ”Ì I ’‘” ’’”I ”’‘”Ì¢ ’’” ”Ì£ ’’”Ì¤ ”Ì¥ ’’”Ì¦ ”Ì§ ’‘”H ’H‘”H ’H’”H ”Ì¨’H“”H ”Ì©H ”ÌªH ’‘”Ì ’‘” ’H’”Ì«H ”Ì¬H ’’”Ì«H ”Ì¬H ’’”Ì®”Ì ’$˜” ”Ì·O
+”Ì¸P”Ì¹5”ÌºP”Ì»5”Ì¼Q
+”Ì½$ ’$˜”ÌÇD”ÌÈD”ÌÉ”ÌÊ”ÌËT
+”ÌÌU”ÌÍD”Ì½$ ’$•”ÌÒV”ÌÓW
+”ÌÔ"”ÌÕX
+”ÌÖ[’$’$’”ÌØ”Ì½$ ’$‘”Ì½$ ’$—”ÌÛ”ÌÜ\”ÌİD”ÌŞD”ÌÈX
+”Ìß"”Ìà$ ’$š”ÌÛ”ÌÒ ”-]
+”Ìâ”Ìã”ÌİD”ÌŞD”ÌÈX
+”ÌÓ"”Ìà^ ’$’”Ì¢]
+”Ì½$ ’$–”ÌÛ”Y$”ÌİD”ÌÍD”ÌÈX
+”Ìà^ ’$’”Ìæ$ ”Ìº$ ’$’”Ìç_ ”Ì½$ ’$‘”Ì½`
+’$™”Ìè]
+”Ìé	”u”ÌÒV”Ìêa
+”Ìë”Ììb
+”ÌÍX
+”Ì½$ ’$š”Ì½$ ”Ìò”Ìóc”Ìf”ÌôP”Ìõg
+”Ìêa
+”ÌÒV”ÌöD”Ìë’$“”Ìø" ”Y`
+”Ì½$ ’$””Ìù”Ìúb
+”Ìûh”Ì½$ ’$’”ÌÒ ”Ì½i ’$•”Ìş$ ”Y$!”ÌÿD"”ÌöD”ÌİD"’$””Ì¸j
+”g.#”Ìé”Ìİl
+’$“”Ìè ”Í$ ”ÍP$’$””$ ”ÍP ”Í$ ”ÌöD’P‘”$ ’$‘”$ ’$“”g ”Ìêa
+”;o%’$””] ”ÌêP”;u%”ÍÍÌÓ
+’$–”ÍÎÌÔ ”Ì¸j
+”Ìâ”ÍÍÌÕ&”gÌÖ
+”ÍÏÌ×
+’$š”ÍÚÌØ”ÍÛÌØ”ÍÜÌØ”ÍİÌØ”ÍŞÌØ”ÍßÌÙ'”ÍàÌÚ
+”ÍÌŞ”ÍØÌà(”Ìà$ ’$š”Ì½$ ”ÌŸ]
+”Ì ]
+”Íá	”Íâ	”ÍßÌá
+”ÍàW
+”ÍÌâ
+”ÍØÌã”Íãb
+’$•”Ì ]
+”-”.”ÍØÌã(”Ìø")’$•”ÌŸ]
+”-”.”ÍØÌã(”Ìø"’$“”G”Ìè	”Ìà$ ’$’”G”Ìà$ ’’”ÌÒ  ”Ì£ ’$Ü #”ÍÌä*”Í”ÍÍÌè%”ÍÌò+”Í,” D-”ÍÌó.”ÍØÌã”ÍD”ÌÈk/”Í Ìô
+”Í!D”Í"”Í#Ìú0”Í$Ìı1”Í%2”Í&”Í'3
+”Í(Ìÿ
+”Í)b
+”Í*3”Í+”Í,Í ”Í-Í”Í.”Í/”Í0”Í1Í
+”Í2Í
+”Í3”Í4”Í5Í”Í6”Ì½$4”Í7 ’$‘”ÌÉ’$””Í8”Í9”Í:”ÌúÍ	
+’$””Í;”Í!X
+” X
+”Ì½$ ’$–”ÍØÍ
+
+”uX
+”Í<D”Í=”Í>”Ì½$ ’$•”ÍØÍ
+
+”uX
+”Í<D”Í>”Ì½$ ’$—”ÍÍ5”ÍØÌã”Í#Ìú6”Í$Ìı7”Í<D”Í@Í”Ì½$ ’$’”ÍA”Ì½$ ’$—”Í7 ”Ìù”Í%”Íà"”ÍCÌÔ”ÍDÍ
+”ÍE8’$””Ì¢ ”/ ”Í7 ”Ì½$ ’Í‘”Í7Í ’‘”ÍF ’‘”D ’D‘”D ’‘”E ’Ìş‘”ÍG" ’Í‘”Ìş ’‘”Ìş ’"‘”Ìş ’Ìş‘”Ìş ’Í‘”" ’"‘”" ’$Ü ”Í!Í~9”Í"X:”Í#X;”Í$”Í%Í
+”Í&Í”Í'W
+”ÍÚ	”ÍÌâ
+”ÌÒV”Ìêj
+”ÌÓ"<”Í(j
+”Í)k=”Í*j
+”Í+k=”Í>P”Í,P”Ì½$4’$’”Í1”Í2Í‚’$’”Í3Íƒ ”Í1’$š”Í"Í„
+”Í#Í…
+”Í!Í†>”ÍÍ”ÍØÌã”Í@Í”ÍßÍ”Í5Í”Í6”Ì½P’$”Í"Í…
+”Í#Í„
+”Íã”ÍÍ”ÍØÌã”Í@Í”ÍßÍ”Í5Í”ÌÈÍ‡”Í7Í‡
+”Í8Í‡
+”Í6”Í9”Ì½P’$“”Í(Ìş?”ÌÈÍˆ”ÌàÍ‰ ’$š”ÍÚÌØ”ÍÛÌØ”ÍÜÌØ”ÍİÌØ”ÍŞÌØ”ÍßÌÙ”ÍàÌÚ
+”ÍÌŞ”ÍØÌà”Ìà$ ’$“”/8”ÍÜk@”Ì½$ ’$‘”Í1’$—”DW”Ìf””ÌÿDA”Í>kB”Í?kB”Ì½$ ’$’”D"C”Ì½$ ’$˜”Ì„kB”ÍäkB”Ì…kB”Ì÷kB”ÌŸkB”Ì kB”ÍAkB”Ì½$ ’$“”Ì½$ ”ÌöD”ÌÉ’$“”Í>kB”Í?kB”Ì½$ ’$–”ÍCÍŠ,”ÌŸÍŠ,”Ì ÍŠ,”ÍD"D”ÍE”Ì½$ ’$””Ì™EE”ÍD"D”ÍE”Ì½$ ’$•”ÍGEE”ÍHEE”ÍD"D”ÍE”Ì½$ ’“”Í"X
+”Í#X
+”I$ ’$‘”Ì ’ÌÛ“”ÍIÍ‹ ”ÍJ ”ÍÑÌÛ ’ÌÛ•”ÍI ”Ì¦ÍŒ ”Ì§ÍŒ ”ÍJ ”ÍÑÌÛ ’ÌÛ•”ÍI ”ÍKÍŒ ”ÍLE ”ÍJ ”ÍÑÌÛ ’ÌÛ•”ÍMÍ‹ ”ÍNÍ‹ ”ÍOÍ‹ ”ÍJÍ‹ ”ÍÑÌÛ ’ÌÛ–”ÍMÍ‹ ”ÍNÍ‹ ”ÍOÍ‹ ”ÍJÍ‹ ”ÍP ”ÍÑÌÛ ’ÌÛ•”ÍQ ”ÍR ”ÍS ”] ”ÍÑÌÛ ’ÌÛ•”ÍLE ”ÍTÍ‹ ”ÍIÍ‹ ”ÍJÍ‹ ”ÍÑÌÛ ’ÌÛ•”ÍLE ”ÍTÍ‹ ”Í‹ ”ÍJÍ‹ ”ÍÑÌÛ ’’”ÌÛ ”ÍJ’Í‘”ÌÛ ’‘”ÌÛ ’ÌÛ’”ÌÛ ”ÍC ’ÌÛ’”ÌÛ ”ÍXÍ
+’ÌÛ“”ÌÛ ”Ì™E ”ÍXF’ÌÛ’”ÍZÍ ”ÍXÍ
+’ÌÛ’”ÌÛ ”Í[ ’Í’”HÍ’ ”ÍÌÛ ’ÌÛ’”Í ” ’ÌÜ•”ÍbÍ ”ÍXÍ
+”ÍÍ•
+”Í(ÌşG”Ì™E ’ÌÜ—”ÍbÍ ”ÍXÍ
+”ÍÍ•
+”ÍfH”Í@I”ÍgÍ–
+”ÍhJ’ÌÜ•”ÍbÍ ”Ì™EE”ÍXÍ
+”ÍÍ•
+”ÍfH’ÌÜ“”ÌÜ ”Íi ”ÍjJ’ÌÜ“”ÌÜ ”Ík ”Íl’‘”ÌÜ ’‘”ÌÜ ’Í‘”ÌÜ ’Í•‘”ÌÜ ’Í—‘”ÌÜ ’Í˜‘”ÌÜ ’Í™‘”ÌÜ ’ÌÛ’”ÌÜ ”ÍmÍš ’’”ÌÜ ”ÍnÍš ’Ìİ•” Í–
+”ÌÈK”uL”ÍÍ•
+”Ì½$ ’Ìß–”ÍÍ› ”Í‘X ”Í’ÍŸ ”Í“Í£ ”Í”Í® ”Í•Í¯ ’$™”Ì? ”Ì·Í³
+”Í"Í…
+”Í#Í„
+”Ìò”Í¦	”Í§Í·M”Í¨Íº
+”Í©Í»
+’$•”-L”.Í˜”Ì—kN”Ì™EE”ÍØÍ¼(’$˜”Í"Í…
+”Í#Í„
+”ÍÍ”ÍØÍ½
+”Í@Í”ÍßÍ'”Í5Í”Ì½P’$™” X
+”Í"Í…
+”Í#Í„
+”ÍÍ”ÍØÍ½
+”Í@Í”ÍßÍ'”Í5Í”Ì½P’$—”Í"Í…
+”Í#Í„
+”ÍÍ”ÍØÍ½
+”ÍßÍ'”Í5Í”Ì½P’$˜”Í@D”Í"Í…
+”Í#Í„
+”ÍÍ”ÍØÍ½
+”ÍßÍ'”Í5Í”Ì½P’$””ÍÍ”Í¯ÍÀO”ÍØÍ½
+”Í° ’$””ÍÍ ”ÍØÍ½ ” D"”Í°P’$””ÍÍ”Í¯ÍÀO”ÍØÍ½
+”~$ ’$’”- ”Í’$’”. ”Í’$“”Í²ÍÁ ”. ”Í’$””Í³ÍÂ ”Í´Í˜ ”. ”Í’$‘”ÌÍÅQ’‘”% ’‘”% ’V‘”% ’ÍÇ‘”]ÍÆ ’7‘”ÍÇ ’””ÍÇ ”ÌÒÍÈ
+”FÌÖ
+”Íº’7’”ÍÇ ”c. ’$’”ÍÇ ”Ìè	’$’”ÍÇ ”Í»ÍÉ ’ÍÊ’”] ”W’‘”ÍÊ ’’”ÍÊ ”c. ’$’”ÍÊ ”Í»ÍË ’$‘” ’%’‘”g. ’%‘”c. ’ÍÎ’”9 ”ÍÀÍÍR’“”Ì? ”ÍÂS”ÍÃT’‘”Ì? ’’” ”ÍÄ’‘”Ì? ’’” ”ÍÄ’‘” ’$–”Ìù”ÌÒV”ÌÓ"U”Ìêa
+”Ìò”Ì½$ ’$’” k/”Ì½$ ’$—”$ ”ÍmP”Ì§P”ÍÆP”ÍÇP”ÍÈP”ÍÉP’$’”Ì½$ ” k/’$’”Ì½$ ”ÍÊ’$””$ ”ÍËÍ ” k/”ÍÌ’$’”Ì½$ ”ÍÍP’$–”Ì½$ ”Ì—kV”ÍĞ”ÍÑ”Ì™ÍÏ
+”ÍØÍ¼W’$“”ÍÖ$ ”Í×$ ”ÍÍÍÓX’$’”ÍØ$ ”ÍÙ$ ’$””ÍÜÍÔY”Íà"Z”Ìök[”Ìà$ ’$—”ÍÜÍÔY”Íà"Z”ÍŞÍÕ”ÌökB”Íßk[”Íàk\”ÍÛ ’$””ÍÜÍÔ]”Íâ”Ìök[”Ìà$ ’$’”*P”Ì$ ’$’”ÍöÍà ”Ì½$ ’$’”Í7$ ”Í÷’$‘”/ ’$’” k ”Ì½$ ’$‘”Ì$ ’$’”Ì½$ ”Íø’$’”Ì½$ ”Íø’$•”9 ”Í ”ÍÍå”Í”Ìº’$’”ÌõÍò^”Ì½$ 

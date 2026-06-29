@@ -1,0 +1,3 @@
+start|typst watch: compiling ...
+success|compiled in 24ms
+error|compilation failed

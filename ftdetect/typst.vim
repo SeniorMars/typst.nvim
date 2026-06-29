@@ -1,1 +1,4 @@
- autocmd BufRead,BufNewFile *.typ setlocal filetype=typst
+augroup typst_nvim_ftdetect
+  autocmd!
+  autocmd BufRead,BufNewFile *.typ setfiletype typst
+augroup END

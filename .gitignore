@@ -15,3 +15,5 @@ Cargo.lock
 
 # Lua
 lua/typst.so
+.deps/
+nvim.log

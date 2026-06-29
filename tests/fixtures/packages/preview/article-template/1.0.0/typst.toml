@@ -1,0 +1,13 @@
+[package]
+name = "article-template"
+version = "1.0.0"
+entrypoint = "lib.typ"
+authors = ["Test Author"]
+license = "MIT"
+description = "A deterministic article template fixture."
+keywords = ["article", "template"]
+compiler = "0.13.0"
+
+[template]
+path = "template"
+entrypoint = "main.typ"

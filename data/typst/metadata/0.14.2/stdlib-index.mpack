@@ -1,0 +1,747 @@
+”¦0.14.2ÜÆ¢AA¤math¦symbol¤ğ”¸¥Alpha¢Î‘¢BB¤ğ”¹¤Beta¢Î’¢CC£â„‚£Chi¢Î§¢DD¤ğ”»¥Delta¢Î”£Dif§contentÙFsequence(
+  h(amount: 0.17em, weak: true),
+  styled(child: [D], ..),
+)§Digamma¢Ïœ¢EE¤ğ”¼§Epsilon¢Î•£Eta¢Î—¢FF¤ğ”½¢GG¤ğ”¾¥Gamma¢Î“¢HH£â„¢II¤ğ•€¢Im£â„‘¤Iota¢Î™¢JJ¤ğ•¢KK¤ğ•‚Ù0`Kai` is deprecated, use Ï or `\u{3c5}` instead£Kai¢Ï¥Kappa¢Îš¢LL¤ğ•ƒ¦Lambda¢Î›¢MM¤ğ•„¢Mu¢Îœ¢NN£â„•¢Nu¢Î¢OO¤ğ•†¥Omega¢Î©§Omicron¢ÎŸ¢PP£â„™£Phi¢Î¦¢Pi¢Î ¢Pr¼op(text: [Pr], limits: true)£Psi¢Î¨¢QQ£â„š¢RR£â„¢Re£â„œ£Rho¢Î¡¢SS¤ğ•Š£Sha¢Ğ¨¥Sigma¢Î£¢TT¤ğ•‹£Tau¢Î¤¥Theta¢Î˜¢UU¤ğ•Œ§Upsilon¢Î¥¢VV¤ğ•¢WW¤ğ•¢XX¤ğ•¢Xi¢Î¢YY¤ğ•¢ZZ£â„¤¤Zeta¢Î–£abs£Abs¦accent¦Accent¥acute¢Â´§afghani¢Ø‹Ù)`alef` is deprecated, use `aleph` instead¤alef¢×¥aleph¥align¦layout¥Align©alignment©Alignment®alignment.axis¤axis¤Axis°alignment.bottom¦bottom°alignment.center¦center­alignment.end£end±alignment.horizon§horizon­alignment.inv£inv§Inverse®alignment.left¤left¯alignment.right¥right¯alignment.start¥start­alignment.top£top¥alpha¢Î±£amp¡&£and£âˆ§¥angle£âˆ ¥Angle©angle.deg£deg§Degrees©angle.rad£rad§Radians¨angstrom¢Ã…§angzarr£â¼¦approx£â‰ˆ¤aqua¥color®rgb("#7fdbff")¦arccosÙ!op(text: [arccos], limits: false)¦arcsinÙ!op(text: [arcsin], limits: false)¦arctanÙ!op(text: [arctan], limits: false)£arg¾op(text: [arg], limits: false)©arguments«foundations©Arguments¬arguments.at¢at¢At¯arguments.named¥named¥Named­arguments.pos£posªPositional¥array¥Array©array.all£all£All©array.any£any£Any¨array.at¬array.chunks¦chunks¦Chunks®array.contains¨contains¨Contains«array.dedup¥dedup«Deduplicate¯array.enumerate©enumerate©Enumerate¬array.filter¦filter¦Filterªarray.find¤find¤Find«array.first¥first¥First­array.flatten§flatten§Flattenªarray.fold¤fold¤Fold¬array.insert¦insert¦Insert±array.intersperse«intersperse«Intersperseªarray.join¤join¤Joinªarray.last¤last¤Last©array.len£len¦Length©array.map£map£Map©array.pop£pop£Pop®array.position¨position¨Position­array.product§product§Productªarray.push¤push¤Push«array.range¥range¥Range¬array.reduce¦reduce¦Reduce¬array.remove¦remove¦Remove©array.rev£rev§Reverse«array.slice¥slice¥Slice¬array.sorted¦sorted¦Sorted«array.split¥split¥Split©array.sum£sum£Sum­array.to-dict§to-dict§To Dict­array.windows§windows§Windows©array.zip£zip£Zip¥arrow£â†’©arrowhead£âŒƒ¦arrows£â‡‰¦assert¦Assert©assert.eq¢eq¬Assert Equal©assert.ne¢ne°Assert Not Equal£ast£âˆ—¥asymp£â‰¡@¦attach¦Attach©backslash¡\£bag£âŸ…¤baht£à¸¿¦ballot£â˜£bar¡|¦mathbb¢bb¯Blackboard Bold§because£âˆµÙ'`bet` is deprecated, use `beth` instead£bet¢×‘¤beta¢Î²¤beth¬bibliography¥model¬Bibliography¥binom¨Binomial§bitcoin£â‚¿¥black¨luma(0%)¥block¥Block¤blue®rgb("#0074d9")¦mathbf¤bold¤Bold¤bool§Boolean£bot£âŠ¥£box£Box¥brace¡{§bracket¡[¥breve¢Ë˜£btt©direction¦bullet£â€¢¥bytes¥Bytes¨bytes.at©bytes.len«bytes.slice§mathcal¨chancery£cal¬Calligraphic¤calc¦module­<module calc>¨calc.abs¨Absolute©calc.acos¤acos©Arccosine©calc.asin¤asin§Arcsine©calc.atan¤atanªArctangentªcalc.atan2¥atan2¸Four-quadrant Arctangentªcalc.binom©calc.ceil¤ceil¤Ceilªcalc.clamp¥clamp¥Clamp¨calc.cos£cos¦Cosine©calc.cosh¤cosh±Hyperbolic Cosine¯calc.div-euclidªdiv-euclid²Euclidean Division¦calc.e¡e¥float±2.718281828459045©calc.even¤even¤Even¨calc.exp£exp«Exponential©calc.fact¤fact©Factorialªcalc.floor¥floor¥Floorªcalc.fract¥fractªFractional¨calc.gcd£gcd·Greatest Common Divisor¨calc.inf£inf©float.inf¨calc.lcm£lcmµLeast Common Multiple§calc.ln¢ln±Natural Logarithm¨calc.log£log©Logarithm¨calc.max£max§Maximum¨calc.min£min§Minimum©calc.norm¤norm©ğ‘-Norm¨calc.odd£odd£Odd©calc.perm¤perm«Permutation§calc.pi¢pi±3.141592653589793¨calc.pow£pow¥Power¨calc.quo£quo¨Quotient¨calc.rem£rem©Remainder¦modulo§modulus¯calc.rem-euclidªrem-euclid³Euclidean Remainder©calc.root¤root¤Rootªcalc.round¥round¥Round¨calc.sin£sin¤Sine©calc.sinh¤sinh¯Hyperbolic Sine©calc.sqrt¤sqrt«Square Root¨calc.tan£tan§Tangent©calc.tanh¤tanh²Hyperbolic Tangent¨calc.tau£tau±6.283185307179586ªcalc.trunc¥trunc¨Truncate¦cancel¦Cancel¥caret£â€¸¥caron¢Ë‡¥cases¥Cases¤cbor¬data-loading¤CBORÙB`cbor.decode` is deprecated, directly pass bytes to `cbor` instead¦0.15.0«cbor.decode¦decode«Decode CBOR«cbor.encode¦encode«Encode CBOR¢cc¤ğŸ…­¤cedi£â‚µ£âŒˆ¤cent¢Â¢©checkmark£âœ“§chevron£âŸ¨£chi¢Ï‡¦circle©visualize£â—‹¦Circle¤cite¤Cite¥class¥Class¤cmyk¤CMYK¢co£â„…¨colbreak¬Column Break¥colon¡:¥Colorªcolor.aqua«color.blackªcolor.blueªcolor.cmyk°color.componentsªcomponentsªComponents¬color.darken¦darken¦Darken°color.desaturateªdesaturateªDesaturate­color.eastern§eastern®rgb("#239dad")­color.fuchsia§fuchsia®rgb("#f012be")ªcolor.gray¤gray¬luma(66.67%)«color.green¥green®rgb("#2ecc40")©color.hsl£hsl£HSL©color.hsv£hsv£HSV­color.lighten§lighten§Lightenªcolor.lime¤lime®rgb("#01ff70")°color.linear-rgbªlinear-rgbªLinear RGBªcolor.luma¤luma¤Luma©color.map¬<module map>±color.map.cividis§cividisÚí(
+  rgb("#002051"),
+  rgb("#002153"),
+  rgb("#002255"),
+  rgb("#002356"),
+  rgb("#002358"),
+  rgb("#002459"),
+  rgb("#00255a"),
+  rgb("#00255c"),
+  rgb("#00265d"),
+  rgb("#00275e"),
+  rgb("#00275f"),
+  rgb("#002860"),
+  rgb("#002961"),
+  rgb("#002962"),
+  rgb("#002a63"),
+  rgb("#002b64"),
+  rgb("#012b65"),
+  rgb("#022c65"),
+  rgb("#032d66"),
+  rgb("#042d67"),
+  rgb("#052e67"),
+  rgb("#052f68"),
+  rgb("#063069"),
+  rgb("#073069"),
+  rgb("#08316a"),
+  rgb("#09326a"),
+  rgb("#0b326a"),
+  rgb("#0c336b"),
+  rgb("#0d346b"),
+  rgb("#0e346b"),
+  rgb("#0f356c"),
+  rgb("#10366c"),
+  rgb("#12376c"),
+  rgb("#13376d"),
+  rgb("#14386d"),
+  rgb("#15396d"),
+  rgb("#17396d"),
+  rgb("#183a6d"),
+  rgb("#193b6d"),
+  rgb("#1a3b6d"),
+  .. (216 items omitted),
+)¯color.map.crest¥crestÚí(
+  rgb("#a5cd90"),
+  rgb("#a4cc90"),
+  rgb("#a3cc91"),
+  rgb("#a2cb91"),
+  rgb("#a0cb91"),
+  rgb("#9fca91"),
+  rgb("#9eca91"),
+  rgb("#9dc991"),
+  rgb("#9cc891"),
+  rgb("#9bc891"),
+  rgb("#9ac791"),
+  rgb("#99c791"),
+  rgb("#98c691"),
+  rgb("#96c691"),
+  rgb("#95c591"),
+  rgb("#94c591"),
+  rgb("#93c491"),
+  rgb("#92c491"),
+  rgb("#91c391"),
+  rgb("#90c391"),
+  rgb("#8fc291"),
+  rgb("#8ec291"),
+  rgb("#8dc191"),
+  rgb("#8bc191"),
+  rgb("#8ac091"),
+  rgb("#89bf91"),
+  rgb("#88bf91"),
+  rgb("#87be91"),
+  rgb("#86be91"),
+  rgb("#85bd91"),
+  rgb("#84bd91"),
+  rgb("#82bc91"),
+  rgb("#81bc91"),
+  rgb("#80bb91"),
+  rgb("#7fbb91"),
+  rgb("#7eba91"),
+  rgb("#7dba91"),
+  rgb("#7cb991"),
+  rgb("#7bb991"),
+  rgb("#79b891"),
+  .. (216 items omitted),
+)¯color.map.flare¥flareÚí(
+  rgb("#edb081"),
+  rgb("#edaf80"),
+  rgb("#edae7f"),
+  rgb("#edad7f"),
+  rgb("#edac7e"),
+  rgb("#edab7e"),
+  rgb("#ecaa7d"),
+  rgb("#eca97c"),
+  rgb("#eca87c"),
+  rgb("#eca77b"),
+  rgb("#eca67b"),
+  rgb("#eca57a"),
+  rgb("#eca479"),
+  rgb("#eca379"),
+  rgb("#eca278"),
+  rgb("#eca178"),
+  rgb("#eca077"),
+  rgb("#ec9f76"),
+  rgb("#eb9e76"),
+  rgb("#eb9d75"),
+  rgb("#eb9c75"),
+  rgb("#eb9b74"),
+  rgb("#eb9a73"),
+  rgb("#eb9973"),
+  rgb("#eb9972"),
+  rgb("#eb9872"),
+  rgb("#eb9771"),
+  rgb("#ea9671"),
+  rgb("#ea9570"),
+  rgb("#ea946f"),
+  rgb("#ea936f"),
+  rgb("#ea926e"),
+  rgb("#ea916e"),
+  rgb("#ea906d"),
+  rgb("#ea8f6c"),
+  rgb("#ea8e6c"),
+  rgb("#e98d6b"),
+  rgb("#e98c6b"),
+  rgb("#e98b6a"),
+  rgb("#e98a6a"),
+  .. (216 items omitted),
+)±color.map.icefire§icefireÚí(
+  rgb("#bde7db"),
+  rgb("#bae5da"),
+  rgb("#b7e3d9"),
+  rgb("#b4e1d9"),
+  rgb("#b2dfd8"),
+  rgb("#afddd7"),
+  rgb("#acdbd7"),
+  rgb("#a9d9d6"),
+  rgb("#a7d7d5"),
+  rgb("#a4d5d5"),
+  rgb("#a1d3d4"),
+  rgb("#9ed1d3"),
+  rgb("#9bcfd3"),
+  rgb("#98cdd2"),
+  rgb("#95cbd2"),
+  rgb("#93cad1"),
+  rgb("#90c8d1"),
+  rgb("#8dc6d0"),
+  rgb("#8ac4d0"),
+  rgb("#87c2cf"),
+  rgb("#84c1cf"),
+  rgb("#81bfcf"),
+  rgb("#7ebdce"),
+  rgb("#7bbbce"),
+  rgb("#78b9ce"),
+  rgb("#75b8ce"),
+  rgb("#72b6ce"),
+  rgb("#6eb4cd"),
+  rgb("#6bb2cd"),
+  rgb("#68b0cd"),
+  rgb("#65afcd"),
+  rgb("#63adcd"),
+  rgb("#60abcd"),
+  rgb("#5da9cd"),
+  rgb("#5aa7cd"),
+  rgb("#58a5cd"),
+  rgb("#55a3cd"),
+  rgb("#53a2cd"),
+  rgb("#50a0cd"),
+  rgb("#4e9ecd"),
+  .. (216 items omitted),
+)±color.map.inferno§infernoÙÉ(
+  rgb("#000004"),
+  rgb("#170b3a"),
+  rgb("#420a68"),
+  rgb("#6b176e"),
+  rgb("#932667"),
+  rgb("#bb3654"),
+  rgb("#dd513a"),
+  rgb("#f3771a"),
+  rgb("#fca50a"),
+  rgb("#f6d644"),
+  rgb("#fcffa4"),
+)¯color.map.magma¥magmaÙÉ(
+  rgb("#000004"),
+  rgb("#140e37"),
+  rgb("#3b0f70"),
+  rgb("#641a80"),
+  rgb("#8c2981"),
+  rgb("#b63679"),
+  rgb("#de4968"),
+  rgb("#f66f5c"),
+  rgb("#fe9f6d"),
+  rgb("#fece91"),
+  rgb("#fcfdbf"),
+)®color.map.mako¤makoÚí(
+  rgb("#0b0405"),
+  rgb("#0d0406"),
+  rgb("#0e0508"),
+  rgb("#0f0609"),
+  rgb("#10060a"),
+  rgb("#11070c"),
+  rgb("#12080d"),
+  rgb("#13090f"),
+  rgb("#140910"),
+  rgb("#150a12"),
+  rgb("#160b13"),
+  rgb("#170c15"),
+  rgb("#180d16"),
+  rgb("#190e18"),
+  rgb("#1a0e19"),
+  rgb("#1b0f1a"),
+  rgb("#1c101c"),
+  rgb("#1d111d"),
+  rgb("#1e111f"),
+  rgb("#1f1220"),
+  rgb("#201322"),
+  rgb("#211423"),
+  rgb("#221425"),
+  rgb("#231526"),
+  rgb("#241628"),
+  rgb("#251729"),
+  rgb("#26172b"),
+  rgb("#27182d"),
+  rgb("#28192e"),
+  rgb("#291930"),
+  rgb("#291a31"),
+  rgb("#2a1b33"),
+  rgb("#2b1c35"),
+  rgb("#2c1c36"),
+  rgb("#2d1d38"),
+  rgb("#2e1e39"),
+  rgb("#2e1e3b"),
+  rgb("#2f1f3d"),
+  rgb("#30203e"),
+  rgb("#312140"),
+  .. (216 items omitted),
+)°color.map.plasma¦plasmaÙÉ(
+  rgb("#0d0887"),
+  rgb("#42039d"),
+  rgb("#6a00a8"),
+  rgb("#900da3"),
+  rgb("#b12a90"),
+  rgb("#cb4678"),
+  rgb("#e16462"),
+  rgb("#f1834b"),
+  rgb("#fca636"),
+  rgb("#fccd25"),
+  rgb("#f0f921"),
+)±color.map.rainbow§rainbowÚí(
+  rgb("#7c4bbb"),
+  rgb("#7f4bbc"),
+  rgb("#824bbd"),
+  rgb("#854abe"),
+  rgb("#884abe"),
+  rgb("#8b4abf"),
+  rgb("#8e49bf"),
+  rgb("#9149c0"),
+  rgb("#9449c0"),
+  rgb("#9748c0"),
+  rgb("#9a48c1"),
+  rgb("#9e48c1"),
+  rgb("#a148c1"),
+  rgb("#a447c1"),
+  rgb("#a747c1"),
+  rgb("#aa47c0"),
+  rgb("#ad47c0"),
+  rgb("#b046c0"),
+  rgb("#b446bf"),
+  rgb("#b746bf"),
+  rgb("#ba46be"),
+  rgb("#bd46be"),
+  rgb("#c046bd"),
+  rgb("#c346bc"),
+  rgb("#c646bb"),
+  rgb("#c946ba"),
+  rgb("#cc46b9"),
+  rgb("#cf46b8"),
+  rgb("#d246b7"),
+  rgb("#d446b5"),
+  rgb("#d747b4"),
+  rgb("#da47b3"),
+  rgb("#dd47b1"),
+  rgb("#df47b0"),
+  rgb("#e248ae"),
+  rgb("#e448ac"),
+  rgb("#e748ab"),
+  rgb("#e949a9"),
+  rgb("#ec49a7"),
+  rgb("#ee4aa5"),
+  .. (216 items omitted),
+)°color.map.rocket¦rocketÚí(
+  rgb("#03051a"),
+  rgb("#04051a"),
+  rgb("#05061b"),
+  rgb("#06071c"),
+  rgb("#07071d"),
+  rgb("#08081e"),
+  rgb("#0a091f"),
+  rgb("#0b0920"),
+  rgb("#0d0a21"),
+  rgb("#0e0b22"),
+  rgb("#100b23"),
+  rgb("#110c24"),
+  rgb("#130d25"),
+  rgb("#140e26"),
+  rgb("#160e27"),
+  rgb("#170f28"),
+  rgb("#180f29"),
+  rgb("#1a102a"),
+  rgb("#1b112b"),
+  rgb("#1d112c"),
+  rgb("#1e122d"),
+  rgb("#20122e"),
+  rgb("#211330"),
+  rgb("#221331"),
+  rgb("#241432"),
+  rgb("#251433"),
+  rgb("#271534"),
+  rgb("#281535"),
+  rgb("#2a1636"),
+  rgb("#2b1637"),
+  rgb("#2d1738"),
+  rgb("#2e1739"),
+  rgb("#30173a"),
+  rgb("#31183b"),
+  rgb("#33183c"),
+  rgb("#34193d"),
+  rgb("#35193e"),
+  rgb("#37193f"),
+  rgb("#381a40"),
+  rgb("#3a1a41"),
+  .. (216 items omitted),
+)²color.map.spectral¨spectralÙÉ(
+  rgb("#9e0142"),
+  rgb("#d53e4f"),
+  rgb("#f46d43"),
+  rgb("#fdae61"),
+  rgb("#fee08b"),
+  rgb("#ffffbf"),
+  rgb("#e6f598"),
+  rgb("#abdda4"),
+  rgb("#66c2a5"),
+  rgb("#3288bd"),
+  rgb("#5e4fa2"),
+)¯color.map.turbo¥turboÚí(
+  rgb("#23171b"),
+  rgb("#271a28"),
+  rgb("#2b1c33"),
+  rgb("#2f1e3f"),
+  rgb("#32204a"),
+  rgb("#362354"),
+  rgb("#39255f"),
+  rgb("#3b2768"),
+  rgb("#3e2a72"),
+  rgb("#402c7b"),
+  rgb("#422f83"),
+  rgb("#44318b"),
+  rgb("#453493"),
+  rgb("#46369b"),
+  rgb("#4839a2"),
+  rgb("#493ca8"),
+  rgb("#493eaf"),
+  rgb("#4a41b5"),
+  rgb("#4a44bb"),
+  rgb("#4b46c0"),
+  rgb("#4b49c5"),
+  rgb("#4b4cca"),
+  rgb("#4b4ecf"),
+  rgb("#4b51d3"),
+  rgb("#4a54d7"),
+  rgb("#4a56db"),
+  rgb("#4959de"),
+  rgb("#495ce2"),
+  rgb("#485fe5"),
+  rgb("#4761e7"),
+  rgb("#4664ea"),
+  rgb("#4567ec"),
+  rgb("#446aee"),
+  rgb("#446df0"),
+  rgb("#426ff2"),
+  rgb("#4172f3"),
+  rgb("#4075f5"),
+  rgb("#3f78f6"),
+  rgb("#3e7af7"),
+  rgb("#3d7df7"),
+  .. (216 items omitted),
+)±color.map.viridis§viridisÙ¥(
+  rgb("#440154"),
+  rgb("#482777"),
+  rgb("#3f4a8a"),
+  rgb("#31678e"),
+  rgb("#26838f"),
+  rgb("#1f9d8a"),
+  rgb("#6cce5a"),
+  rgb("#b6de2b"),
+  rgb("#fee825"),
+)®color.map.vlag¤vlagÚí(
+  rgb("#2369bd"),
+  rgb("#266abd"),
+  rgb("#296cbc"),
+  rgb("#2c6dbc"),
+  rgb("#2f6ebc"),
+  rgb("#316fbc"),
+  rgb("#3470bc"),
+  rgb("#3671bc"),
+  rgb("#3972bc"),
+  rgb("#3b73bc"),
+  rgb("#3d74bc"),
+  rgb("#3f75bc"),
+  rgb("#4276bc"),
+  rgb("#4477bc"),
+  rgb("#4678bc"),
+  rgb("#4879bc"),
+  rgb("#4a7bbc"),
+  rgb("#4c7cbc"),
+  rgb("#4e7dbc"),
+  rgb("#507ebc"),
+  rgb("#517fbc"),
+  rgb("#5380bc"),
+  rgb("#5581bc"),
+  rgb("#5782bc"),
+  rgb("#5983bd"),
+  rgb("#5b84bd"),
+  rgb("#5c85bd"),
+  rgb("#5e86bd"),
+  rgb("#6087bd"),
+  rgb("#6288bd"),
+  rgb("#6489be"),
+  rgb("#658abe"),
+  rgb("#678bbe"),
+  rgb("#698cbe"),
+  rgb("#6a8dbf"),
+  rgb("#6c8ebf"),
+  rgb("#6e90bf"),
+  rgb("#6f91bf"),
+  rgb("#7192c0"),
+  rgb("#7393c0"),
+  .. (216 items omitted),
+)¬color.maroon¦maroon®rgb("#85144b")©color.mix£mix£Mixªcolor.navy¤navy®rgb("#001f3f")¬color.negate¦negate¦Negate«color.oklab¥oklab¥Oklab«color.oklch¥oklch¥Oklch«color.olive¥olive®rgb("#3d9970")­color.opacify§opacify§Opacify¬color.orange¦orange®rgb("#ff851b")¬color.purple¦purple®rgb("#b10dc9")©color.red£red®rgb("#ff4136")©color.rgb£rgb£RGB¬color.rotate¦rotate¦Rotate®color.saturate¨saturate¨Saturate¬color.silver¦silver¬luma(86.67%)«color.space¥space¥Spaceªcolor.teal¤teal®rgb("#39cccc")¬color.to-hex¦to-hex¦To Hex´color.transparentize®transparentize®Transparentize«color.white¥whiteªluma(100%)¬color.yellow¦yellow®rgb("#ffdc00")§columns§Columns¥comma¡,ªcomplement£âˆ§compose£âˆ˜§Contentªcontent.at®content.fields¦fields¦Fields¬content.func¤func¤Func«content.has£has£Has°content.location¨location¨Location¨convolve¨copyleft¤ğŸ„¯©copyright¥Â©ï¸¦corner£âŒœ¾op(text: [cos], limits: false)¿op(text: [cosh], limits: false)£cot¾op(text: [cot], limits: false)¤coth¿op(text: [coth], limits: false)§counter­introspection§Counterªcounter.at¯counter.display§display§Display­counter.final¥final¥Final«counter.get£get£Get¬counter.step¤step¤Step®counter.update¦update¦Update©crossmark£âœ—£csc¾op(text: [csc], limits: false)¤csch¿op(text: [csch], limits: false)£csv£CSVÙ@`csv.decode` is deprecated, directly pass bytes to `csv` insteadªcsv.decodeªDecode CSV£ctg¾op(text: [ctg], limits: false)¨currency¢Â¤¥curve¥Curve«curve.close¥close«Curve Close«curve.cubic¥cubic³Curve Cubic Segmentªcurve.line¤lineªCurve Lineªcurve.move¤moveªCurve Moveªcurve.quad¤quad·Curve Quadratic Segment¦dagger£â€ Ù+`dalet` is deprecated, use `daleth` instead¥dalet¢×“¦daleth¤dash£â€“¨datetime¨Datetime¬datetime.day£day£Day°datetime.display­datetime.hour¤hour¤Hour¯datetime.minute¦minute¦Minute®datetime.month¥month¥Month°datetime.ordinal§ordinal§Ordinal¯datetime.second¦second¦Second®datetime.today¥today¥Today°datetime.weekday§weekday§Weekday­datetime.year¤year¤Year§decimal§Decimal¾op(text: [deg], limits: false)¦degree¢Â°¥delta¢Î´£det½op(text: [det], limits: true)¥diaer¢Â¨¨diameter£âŒ€§diamond£â—‡ªdictionaryªDictionary­dictionary.at±dictionary.insert¯dictionary.keys¤keys¤Keys®dictionary.len°dictionary.pairs¥pairs¥Pairs±dictionary.remove±dictionary.values¦values¦Values£die£âš…£difÙFsequence(
+  h(amount: 0.17em, weak: true),
+  styled(child: [d], ..),
+)Ù+`diff` is deprecated, use `partial` instead¤diff£âˆ‚§digamma¢Ï£dim¾op(text: [dim], limits: false)©Direction®direction.axis­direction.btt­direction.end£End®direction.from¤from¤From­direction.inv­direction.ltr£ltr­direction.rtl£rtl®direction.sign¤sign¤Sign¯direction.start¥Start¬direction.to¢to¢To­direction.ttb£ttb¬displaystyle¬Display Size£div¢Ã·§divides£âˆ£¨document¨Document¦dollar¡$¤dong£â‚«¦dorome¢ß¾£dot£â‹…§dotless¢Ä±¤dots£â€¦¤dram¢Ö¨duration¨Duration­duration.days¤days¤Days®duration.hours¥hours¥Hours°duration.minutes§minutes§Minutes°duration.seconds§seconds§Seconds®duration.weeks¥weeks¥Weeks¥earth¤ğŸœ¨£ell£â„“§ellipse£â¬­§Ellipse¥emoji§symbols®<module emoji>ªemoji.ABCD¤ABCD¤ğŸ” §emoji.a¡a§ğŸ…°ï¸¨emoji.ab¢ab¤ğŸ†¬emoji.abacus¦abacus¤ğŸ§®©emoji.abc£abc¤ğŸ”¤ªemoji.abcd¤abcd¤ğŸ”¡¯emoji.accordion©accordion¤ğŸª—±emoji.aesculapius«aesculapius¦âš•ï¸®emoji.airplane¨airplane¦âœˆï¸­emoji.alembic§alembic¦âš—ï¸«emoji.alien¥alien§ğŸ‘½ï¸¯emoji.ambulance©ambulance§ğŸš‘ï¸­emoji.amphora§amphora¤ğŸº¬emoji.anchor¦anchor¦âš“ï¸«emoji.anger¥anger¤ğŸ’¢©emoji.ant£ant¤ğŸœ«emoji.apple¥apple¤ğŸ©emoji.arm£arm¤ğŸ¦¾«emoji.arrow¦â†™ï¸¬emoji.arrows¤ğŸ”„©emoji.ast¤*ï¸©emoji.atm£atm¤ğŸ§ªemoji.atom¤atom¦âš›ï¸¯emoji.aubergine©aubergine¤ğŸ†­emoji.avocado§avocado¤ğŸ¥‘©emoji.axe£axe¤ğŸª“§emoji.b¡b§ğŸ…±ï¸ªemoji.baby¤baby¤ğŸ‘¶°emoji.babybottleªbabybottle¤ğŸ¼®emoji.backpack¨backpack¤ğŸ’«emoji.bacon¥bacon¤ğŸ¥“¬emoji.badger¦badger¤ğŸ¦¡¯emoji.badminton©badminton¤ğŸ¸«emoji.bagel¥bagel¤ğŸ¥¯²emoji.baggageclaim¬baggageclaim¤ğŸ›„®emoji.baguette¨baguette¤ğŸ¥–­emoji.balloon§balloon¤ğŸˆ¬emoji.ballot¦â˜‘ï¸¯emoji.ballotbox©ballotbox§ğŸ—³ï¸¬emoji.banana¦banana¤ğŸŒ«emoji.banjo¥banjo¤ğŸª•ªemoji.bank¤bank¤ğŸ¦°emoji.barberpoleªbarberpole¤ğŸ’ˆ®emoji.baseball¨baseball¦âš¾ï¸­emoji.basecap§basecap¤ğŸ§¢¬emoji.basket¦basket¤ğŸ§º°emoji.basketballªbasketball¦â›¹ï¸©emoji.bat£bat¤ğŸ¦‡­emoji.bathtub§bathtub¤ğŸ›€­emoji.battery§battery¤ğŸ”‹«emoji.beach¥beach§ğŸï¸«emoji.beads¥beads¤ğŸ“¿«emoji.beans¥beans¤ğŸ«˜ªemoji.bear¤bear¤ğŸ»¬emoji.beaver¦beaver¤ğŸ¦«©emoji.bed£bed§ğŸ›ï¸©emoji.bee£bee¤ğŸªemoji.beer¤beer¤ğŸºªemoji.beet¤beet¤ğŸ«œ¬emoji.beetle¦beetle¤ğŸª²ªemoji.bell¤bell¤ğŸ””«emoji.bento¥bento¤ğŸ±¯emoji.bicyclist©bicyclist¤ğŸš´ªemoji.bike¤bike§ğŸš²ï¸¬emoji.bikini¦bikini¤ğŸ‘™¯emoji.billiards©billiards¤ğŸ±©emoji.bin£bin§ğŸ—‘ï¸¯emoji.biohazard©biohazard¦â˜£ï¸ªemoji.bird¤bird§ğŸ¦ï¸«emoji.bison¥bison¤ğŸ¦¬«emoji.blood¥blood¤ğŸ©¸¬emoji.blouse¦blouse¤ğŸ‘š®emoji.blowfish¨blowfish¤ğŸ¡±emoji.blueberries«blueberries¤ğŸ«ªemoji.boar¤boar¤ğŸ—ªemoji.boat¤boat¦â›µï¸ªemoji.bolt¤bolt¤ğŸ”©ªemoji.bomb¤bomb§ğŸ’£ï¸ªemoji.bone¤bone¤ğŸ¦´ªemoji.book¤book¤ğŸ“•®emoji.bookmark¨bookmark¤ğŸ”–«emoji.books¥books§ğŸ“šï¸¯emoji.boomerang©boomerang¤ğŸªƒ³emoji.bordercontrol­bordercontrol¤ğŸ›‚­emoji.bouquet§bouquet¤ğŸ’©emoji.bow£bow¤ğŸ¹ªemoji.bowl¤bowl¤ğŸ¥£­emoji.bowling§bowling¤ğŸ³¬emoji.boxing¦boxing¤ğŸ¥Š©emoji.boy£boy¤ğŸ‘¦«emoji.brain¥brain¤ğŸ§ «emoji.bread¥bread¤ğŸ«emoji.brick¥brick¤ğŸ§±«emoji.bride¥bride¤ğŸ‘°¬emoji.bridge¦bridge¤ğŸŒ¯emoji.briefcase©briefcase¤ğŸ’¼¬emoji.briefs¦briefs¤ğŸ©²°emoji.brightnessªbrightness¤ğŸ”†®emoji.broccoli¨broccoli¤ğŸ¥¦«emoji.broom¥broom¤ğŸ§¹«emoji.brush¥brush§ğŸ–Œï¸¬emoji.bubble¦bubble¤ğŸ’­­emoji.bubbles§bubbles¤ğŸ«§¯emoji.bubbletea©bubbletea¤ğŸ§‹¬emoji.bucket¦bucket¤ğŸª£­emoji.buffalo§buffalo¤ğŸƒ©emoji.bug£bug¤ğŸ›­emoji.builder§builder¤ğŸ‘·¬emoji.burger¦burger¤ğŸ”­emoji.burrito§burrito¤ğŸŒ¯©emoji.bus£bus¤ğŸšŒ¬emoji.butter¦butter¤ğŸ§ˆ¯emoji.butterfly©butterfly¤ğŸ¦‹¬emoji.button¦button¤ğŸ”²­emoji.cabinet§cabinet§ğŸ—„ï¸®emoji.cablecar¨cablecar¤ğŸš ¬emoji.cactus¦cactus¤ğŸŒµªemoji.cake¤cake¤ğŸ‚®emoji.calendar¨calendar¤ğŸ“…«emoji.camel¥camel¤ğŸ«¬emoji.camera¦camera§ğŸ“·ï¸­emoji.camping§camping§ğŸ•ï¸©emoji.can£can¤ğŸ¥«¬emoji.candle¦candle§ğŸ•¯ï¸«emoji.candy¥candy¤ğŸ¬ªemoji.cane¤cane¤ğŸ¦¯©emoji.car£car¤ğŸš—ªemoji.card¤card§ğŸ’³ï¸¯emoji.cardindex©cardindex¤ğŸ“‡¬emoji.carrot¦carrot¤ğŸ¥•ªemoji.cart¤cart¤ğŸ›’®emoji.cassette¨cassette¤ğŸ“¼¬emoji.castle¦castle¤ğŸ°©emoji.cat£cat§ğŸˆï¸«emoji.chain¥chain¤ğŸ”—¬emoji.chains¦chains¦â›“ï¸«emoji.chair¥chair¤ğŸª‘¯emoji.champagne©champagne¤ğŸ¾«emoji.chart¥chart¤ğŸ“Š¯emoji.checkmark¦âœ”ï¸¬emoji.cheese¦cheese¤ğŸ§€®emoji.cherries¨cherries¤ğŸ’«emoji.chess¥chess¦â™Ÿï¸®emoji.chestnut¨chestnut¤ğŸŒ°­emoji.chicken§chicken¤ğŸ”«emoji.child¥child¤ğŸ§’®emoji.chipmunk¨chipmunk§ğŸ¿ï¸¯emoji.chocolate©chocolate¤ğŸ«°emoji.chopsticksªchopsticks¤ğŸ¥¢¬emoji.church¦church¦â›ªï¸¯emoji.cigarette©cigarette¤ğŸš¬¬emoji.circle¦âš«ï¸¬emoji.circus¦circus¤ğŸªªemoji.city¤city§ğŸ™ï¸¨emoji.cl¢cl¤ğŸ†‘«emoji.clamp§ğŸ—œï¸²emoji.clapperboard¬clapperboard§ğŸ¬ï¸®emoji.climbing¨climbing¤ğŸ§—ªemoji.clip¤clip¤ğŸ“¯emoji.clipboard©clipboard§ğŸ“‹ï¸«emoji.clips¥clips§ğŸ–‡ï¸«emoji.clock¥clock§ğŸ•ï¸«emoji.cloud¥cloud¦â˜ï¸ªemoji.coat¤coat¤ğŸ§¥¯emoji.cockroach©cockroach¤ğŸª³®emoji.cocktail¨cocktail§ğŸ¸ï¸­emoji.coconut§coconut¤ğŸ¥¥¬emoji.coffee¦coffee¦â˜•ï¸¬emoji.coffin¦coffin¦âš°ï¸ªemoji.coin¤coin¤ğŸª™«emoji.comet¥comet¦â˜„ï¸­emoji.compass§compass¤ğŸ§­®emoji.computer¨computer§ğŸ–¥ï¸³emoji.computermouse­computermouse§ğŸ–±ï¸®emoji.confetti¨confetti¤ğŸŠ²emoji.construction¬construction¤ğŸš§°emoji.controllerªcontroller§ğŸ®ï¸¬emoji.cookie¦cookie¤ğŸª­emoji.cooking§cooking¤ğŸ³ªemoji.cool¤cool¤ğŸ†’¯emoji.copyright¥Â©ï¸«emoji.coral¥coral¤ğŸª¸ªemoji.corn¤corn¤ğŸŒ½«emoji.couch¥couch§ğŸ›‹ï¸¬emoji.couple¦couple¤ğŸ’‘©emoji.cow£cow¤ğŸ„ªemoji.crab¤crab¤ğŸ¦€«emoji.crane¥crane§ğŸ—ï¸¬emoji.crayon¦crayon§ğŸ–ï¸­emoji.cricket§cricket¤ğŸ¦—°emoji.cricketbatªcricketbat¤ğŸ¯emoji.crocodile©crocodile¤ğŸŠ¯emoji.croissant©croissant¤ğŸ¥¯emoji.crossmark¦âŒï¸«emoji.crown¥crown¤ğŸ‘‘¬emoji.crutch¦crutch¤ğŸ©¼­emoji.crystal§crystal¤ğŸ”®®emoji.cucumber¨cucumber¤ğŸ¥’©emoji.cup£cup¤ğŸ¥¤­emoji.cupcake§cupcake¤ğŸ§­emoji.curling§curling¤ğŸ¥Œ«emoji.curry¥curry¤ğŸ›­emoji.custard§custard¤ğŸ®­emoji.customs§customs¤ğŸ›ƒ­emoji.cutlery§cutlery¤ğŸ´­emoji.cyclone§cyclone¤ğŸŒ€­emoji.dancing§dancing¤ğŸ•º«emoji.darts¥darts¤ğŸ¯ªemoji.dash¦ã€°ï¸ªemoji.deer¤deer¤ğŸ¦Œ¬emoji.desert¦desert§ğŸœï¸¯emoji.detective©detective§ğŸ•µï¸­emoji.diamond¤ğŸ”·©emoji.die¤ğŸ²ªemoji.dino¤dino¤ğŸ¦•ªemoji.disc¤disc§ğŸ’¿ï¸¯emoji.discoball©discoball¤ğŸª©¬emoji.diving¦diving¤ğŸ¤¿ªemoji.dodo¤dodo¤ğŸ¦¤©emoji.dog£dog§ğŸ•ï¸¬emoji.dollar¤ğŸ’²­emoji.dolphin§dolphin¤ğŸ¬¬emoji.donkey¦donkey¤ğŸ««emoji.donut¥donut¤ğŸ©ªemoji.door¤door¤ğŸšªªemoji.dove¤dove§ğŸ•Šï¸¬emoji.dragon¦dragon¤ğŸ‰«emoji.dress¥dress¤ğŸ‘—ªemoji.drop¤drop¤ğŸ’§«emoji.drops¥drops¤ğŸ’¦ªemoji.drum¤drum¤ğŸ¥ªemoji.duck¤duck¤ğŸ¦†®emoji.dumpling¨dumpling¤ğŸ¥Ÿ«emoji.eagle¥eagle¤ğŸ¦…©emoji.ear£ear§ğŸ‘‚ï¸©emoji.egg£egg¤ğŸ¥š®emoji.eighteen¨eighteen¤ğŸ”®emoji.elephant¨elephant¤ğŸ˜®emoji.elevator¨elevator¤ğŸ›—©emoji.elf£elf¤ğŸ§«emoji.email¥email¤ğŸ“§ªemoji.excl¤excl¦â—ï¸¯emoji.explosion©explosion¤ğŸ’¥²emoji.extinguisher¬extinguisher¤ğŸ§¯©emoji.eye£eye§ğŸ‘ï¸ªemoji.eyes¤eyes¤ğŸ‘€ªemoji.face¤face¤ğŸ˜€­emoji.factory§factory§ğŸ­ï¸«emoji.fairy¥fairy¤ğŸ§š«emoji.faith¥faith¦âœï¸­emoji.falafel§falafel¤ğŸ§†¬emoji.family¦family§ğŸ‘ªï¸©emoji.fax£fax¤ğŸ“ ­emoji.feather§feather¤ğŸª¶­emoji.feeding§feeding¤ğŸ¤±­emoji.fencing§fencing¤ğŸ¤º±emoji.ferriswheel«ferriswheel¤ğŸ¡­emoji.filebox§filebox§ğŸ—ƒï¸²emoji.filedividers¬filedividers§ğŸ—‚ï¸ªemoji.film¤film§ğŸï¸¬emoji.finger¦finger§ğŸ‘‰ï¸±emoji.fingerprint«fingerprint¤ğŸ«†­emoji.fingers§fingers¤ğŸ¤ªemoji.fire¤fire¤ğŸ”¥±emoji.firecracker«firecracker¤ğŸ§¨°emoji.fireengineªfireengine¤ğŸš’¯emoji.fireworks©fireworks¤ğŸ†ªemoji.fish¤fish§ğŸŸï¸­emoji.fishing§fishing¤ğŸ£ªemoji.fist¤fist¤ğŸ‘Šªemoji.flag¤flag¤ğŸ´«emoji.flags¥flags¤ğŸŒ®emoji.flamingo¨flamingo¤ğŸ¦©°emoji.flashlightªflashlight¤ğŸ”¦¯emoji.flatbread©flatbread¤ğŸ«“«emoji.fleur¥fleur¦âšœï¸¬emoji.floppy¦floppy¤ğŸ’¾¬emoji.flower¦flower¤ğŸŒº«emoji.flute¥flute¤ğŸªˆ©emoji.fly£fly¤ğŸª°©emoji.fog£fog§ğŸŒ«ï¸¬emoji.folder¦folder¤ğŸ“¬emoji.fondue¦fondue¤ğŸ«•ªemoji.foot¤foot¤ğŸ¦¶®emoji.football¨football¦âš½ï¸«emoji.forex¥forex¤ğŸ’±®emoji.fountain¨fountain¦â›²ï¸©emoji.fox£fox¤ğŸ¦Šªemoji.free¤free¤ğŸ†“«emoji.fries¥fries¤ğŸŸ­emoji.frisbee§frisbee¤ğŸ¥ªemoji.frog¤frog¤ğŸ¸®emoji.fuelpump¨fuelpump¦â›½ï¸«emoji.gachi¥gachi§ğŸˆ·ï¸¬emoji.garlic¦garlic¤ğŸ§„ªemoji.gear¤gear¦âš™ï¸©emoji.gem£gem¤ğŸ’«emoji.genie¥genie¤ğŸ§«emoji.ghost¥ghost¤ğŸ‘»¬emoji.ginger¦ginger¤ğŸ«š­emoji.giraffe§giraffe¤ğŸ¦’ªemoji.girl¤girl¤ğŸ‘§«emoji.glass¥glass¤ğŸ¥‚­emoji.glasses§glasses§ğŸ‘“ï¸«emoji.globe¥globe§ğŸŒï¸¬emoji.gloves¦gloves¤ğŸ§¤¨emoji.go¢go¤ğŸˆ´ªemoji.goal¤goal¤ğŸ¥…ªemoji.goat¤goat¤ğŸ­emoji.goggles§goggles¤ğŸ¥½­emoji.golfing§golfing§ğŸŒï¸«emoji.goose¥goose¤ğŸª¿­emoji.gorilla§gorilla¤ğŸ¦¬emoji.grapes¦grapes¤ğŸ‡«emoji.guard¥guard¤ğŸ’‚¬emoji.guitar¦guitar¤ğŸ¸°emoji.gymnasticsªgymnastics¤ğŸ¤¸­emoji.haircut§haircut¤ğŸ’‡®emoji.hairpick¨hairpick¤ğŸª®¬emoji.hammer¦hammer¤ğŸ”¨«emoji.hamsa¥hamsa¤ğŸª¬­emoji.hamster§hamster¤ğŸ¹ªemoji.hand¤hand¦âœ‹ï¸­emoji.handbag§handbag¤ğŸ‘œ®emoji.handball¨handball¤ğŸ¤¾­emoji.handfan§handfan¤ğŸª­±emoji.handholding«handholding²ğŸ§‘â€ğŸ¤â€ğŸ§‘«emoji.hands¥hands¤ğŸ™ªemoji.harp¤harp¤ğŸª‰ªemoji.hash¤hash¤#ï¸©emoji.hat£hat¤ğŸ‘’¯emoji.headphone©headphone§ğŸ§ï¸«emoji.heart¥heart¦â¤ï¸®emoji.hedgehog¨hedgehog¤ğŸ¦”°emoji.helicopterªhelicopter¤ğŸš«emoji.helix¥helix¤ğŸ§¬¬emoji.helmet¦helmet¦â›‘ï¸¨emoji.hi¢hi¦ãŠ™ï¸«emoji.hippo¥hippo¤ğŸ¦›¬emoji.hockey¦hockey¤ğŸ‘ªemoji.hole¤hole§ğŸ•³ï¸«emoji.honey¥honey¤ğŸ¯­emoji.hongbao§hongbao¤ğŸ§§ªemoji.hook¤hook¤ğŸªªemoji.horn¤horn¤ğŸ“¯«emoji.horse¥horse¤ğŸ®emoji.hospital¨hospital¤ğŸ¥¬emoji.hotdog¦hotdog¤ğŸŒ­«emoji.hotel¥hotel¤ğŸ¨¯emoji.hotspring©hotspring¦â™¨ï¸¯emoji.hourglass©hourglass¦âŒ›ï¸«emoji.house¥house§ğŸ ï¸­emoji.hundred§hundred¤ğŸ’¯©emoji.hut£hut¤ğŸ›–©emoji.ice£ice¤ğŸ§Š®emoji.icecream¨icecream¤ğŸ¨¯emoji.icehockey©icehockey¤ğŸ’¨emoji.id¢id¤ğŸ†”ªemoji.info¤info¦â„¹ï¸­emoji.izakaya§izakaya¤ğŸ®©emoji.jar£jar¤ğŸ«™«emoji.jeans¥jeans¤ğŸ‘–¯emoji.jellyfish©jellyfish¤ğŸª¼¬emoji.jigsaw¦jigsaw¤ğŸ§©®emoji.joystick¨joystick§ğŸ•¹ï¸®emoji.juggling¨juggling¤ğŸ¤¹«emoji.juice¥juice¤ğŸ§ƒ¨emoji.ka¢ka¤ğŸ‰‘«emoji.kaaba¥kaaba¤ğŸ•‹«emoji.kachi¥kachi¤ğŸˆ¹¯emoji.kadomatsu©kadomatsu¤ğŸ®emoji.kangaroo¨kangaroo¤ğŸ¦˜ªemoji.kara¤kara¤ğŸˆ³«emoji.kebab¥kebab¤ğŸ¥™©emoji.key£key¤ğŸ”‘®emoji.keyboard¨keyboard¦âŒ¨ï¸ªemoji.kiss¤kiss¤ğŸ’®emoji.kissmark¨kissmark¤ğŸ’‹ªemoji.kite¤kite¤ğŸªªemoji.kiwi¤kiwi¤ğŸ¥«emoji.knife¥knife¤ğŸ”ªªemoji.knot¤knot¤ğŸª¢«emoji.koala¥koala¤ğŸ¨¯emoji.koinobori©koinobori¤ğŸªemoji.koko¤koko¤ğŸˆ©emoji.kon£kon¤ğŸˆ²«emoji.label¥label§ğŸ·ï¸®emoji.lacrosse¨lacrosse¤ğŸ¥¬emoji.ladder¦ladder¤ğŸªœªemoji.lamp¤lamp¤ğŸª”¬emoji.laptop¦laptop§ğŸ’»ï¸ªemoji.leaf¤leaf¤ğŸ‚±emoji.leftluggage«leftluggage¤ğŸ›…©emoji.leg£leg¤ğŸ¦µ«emoji.lemon¥lemon¤ğŸ‹­emoji.leopard§leopard¤ğŸ†¬emoji.letter¦letter¤ğŸ’Œ­emoji.liberty§liberty¤ğŸ—½¯emoji.lightbulb©lightbulb¤ğŸ’¡¯emoji.lightning©lightning¦âš¡ï¸ªemoji.lion¤lion¤ğŸ¦®emoji.lipstick¨lipstick¤ğŸ’„¬emoji.litter¦litter¤ğŸš®¬emoji.lizard¦lizard¤ğŸ¦«emoji.llama¥llama¤ğŸ¦™­emoji.lobster§lobster¤ğŸ¦ªemoji.lock¤lock§ğŸ”’ï¸®emoji.lollipop¨lollipop¤ğŸ­¬emoji.lotion¦lotion¤ğŸ§´­emoji.luggage§luggage¤ğŸ§³«emoji.lungs¥lungs¤ğŸ«ªemoji.mage¤mage¤ğŸ§™¬emoji.magnet¦magnet¤ğŸ§²­emoji.magnify§magnify¤ğŸ”­emoji.mahjong§mahjong§ğŸ€„ï¸ªemoji.mail¤mail¦âœ‰ï¸­emoji.mailbox§mailbox§ğŸ“ªï¸­emoji.mammoth§mammoth¤ğŸ¦£©emoji.man£man¤ğŸ‘¨«emoji.mango¥mango¤ğŸ¥­©emoji.map§ğŸ—ºï¸­emoji.maracas§maracas¤ğŸª‡±emoji.martialarts«martialarts¤ğŸ¥‹«emoji.masks¥masks§ğŸ­ï¸ªemoji.mate¤mate¤ğŸ§‰°emoji.matryoshkaªmatryoshka¤ğŸª†ªemoji.meat¤meat¤ğŸ¥©«emoji.medal¥medal¤ğŸ¥‡¯emoji.megaphone©megaphone¤ğŸ“¢«emoji.melon¥melon¤ğŸˆ¯emoji.merperson©merperson¤ğŸ§œ«emoji.metro¥metro¦â“‚ï¸­emoji.microbe§microbe¤ğŸ¦ °emoji.microphoneªmicrophone¤ğŸ¤°emoji.microscopeªmicroscope¤ğŸ”¬®emoji.milkyway¨milkyway¤ğŸŒŒ¬emoji.mirror¦mirror¤ğŸª«emoji.mixer¥mixer§ğŸ›ï¸«emoji.money¥money§ğŸ’°ï¸¬emoji.monkey¦monkey¤ğŸ’ªemoji.moon¤moon¤ğŸŒ™«emoji.moose¥moose¤ğŸ«±emoji.mortarboard«mortarboard§ğŸ“ï¸¬emoji.mosque¦mosque¤ğŸ•Œ®emoji.mosquito¨mosquito¤ğŸ¦Ÿ°emoji.motorcycleªmotorcycle§ğŸï¸®emoji.motorway¨motorway§ğŸ›£ï¸®emoji.mountain¨mountain¦â›°ï¸«emoji.mouse¥mouse¤ğŸ¯emoji.mousetrap©mousetrap¤ğŸª¤«emoji.mouth¥mouth¤ğŸ‘„«emoji.moyai¥moyai¤ğŸ—¿«emoji.muryo¥muryo§ğŸˆšï¸¬emoji.museum¦museum§ğŸ›ï¸®emoji.mushroom¨mushroom¤ğŸ„²emoji.musicalscore¬musicalscore¤ğŸ¼«emoji.nails¥nails¤ğŸ’…¯emoji.namebadge©namebadge¤ğŸ“›«emoji.nazar¥nazar¤ğŸ§¿­emoji.necktie§necktie¤ğŸ‘”¬emoji.needle¦needle¤ğŸª¡ªemoji.nest¤nest¤ğŸª¹©emoji.new£new¤ğŸ†•¯emoji.newspaper©newspaper¤ğŸ“°¨emoji.ng¢ng¤ğŸ†–¬emoji.ningyo¦ningyo¤ğŸ«emoji.ninja¥ninja¤ğŸ¥·­emoji.noentry§noentry¦â›”ï¸ªemoji.nose¤nose¤ğŸ‘ƒ®emoji.notebook¨notebook¤ğŸ““­emoji.notepad§notepad§ğŸ—’ï¸«emoji.notes¥notes¤ğŸµ­emoji.numbers§numbers¤ğŸ”¢§emoji.o¡o§ğŸ…¾ï¸­emoji.octopus§octopus¤ğŸ™¬emoji.office¦office¤ğŸ¢©emoji.oil£oil§ğŸ›¢ï¸¨emoji.ok¢ok¤ğŸ†—«emoji.olive¤ğŸ«’©emoji.oni£oni¤ğŸ‘¹«emoji.onion¥onion¤ğŸ§…¯emoji.orangutan©orangutan¤ğŸ¦§«emoji.otter¥otter¤ğŸ¦¦©emoji.owl£owl¤ğŸ¦‰¨emoji.ox¢ox¤ğŸ‚¬emoji.oyster¦oyster¤ğŸ¦ª­emoji.package§package§ğŸ“¦ï¸¬emoji.paella¦paella¤ğŸ¥˜ªemoji.page¤page¤ğŸ“„«emoji.pager¥pager§ğŸ“Ÿï¸«emoji.pages¥pages¤ğŸ“‘®emoji.painting¨painting§ğŸ–¼ï¸­emoji.palette§palette¤ğŸ¨®emoji.pancakes¨pancakes¤ğŸ¥«emoji.panda¥panda¤ğŸ¼¯emoji.parachute©parachute¤ğŸª‚ªemoji.park¤park§ğŸï¸­emoji.parking§parking§ğŸ…¿ï¸¬emoji.parrot¦parrot¤ğŸ¦œ´emoji.partalteration®partalteration¦ã€½ï¸«emoji.party¥party¤ğŸ‰«emoji.peach¥peach¤ğŸ‘­emoji.peacock§peacock¤ğŸ¦š­emoji.peanuts§peanuts¤ğŸ¥œ¬emoji.peapod¦peapod¤ğŸ«›ªemoji.pear¤pear¤ğŸ°emoji.pedestrianªpedestrian¤ğŸš¶©emoji.pen£pen§ğŸ–Šï¸¬emoji.pencil¦pencil¦âœï¸­emoji.penguin§penguin¤ğŸ§¬emoji.pepper¦pepper¤ğŸ«‘¬emoji.person¦person¤ğŸ§‘«emoji.petri¥petri¤ğŸ§««emoji.phone¥phone¤ğŸ“±«emoji.piano¥piano¤ğŸ¹ªemoji.pick¤pick¦â›ï¸©emoji.pie£pie¤ğŸ¥§©emoji.pig£pig¤ğŸ–ªemoji.pill¤pill¤ğŸ’Š©emoji.pin£pin¤ğŸ“Œ¬emoji.pinata¦pinata¤ğŸª…¯emoji.pineapple©pineapple¤ğŸ®emoji.pingpong¨pingpong¤ğŸ“¬emoji.pistol¦pistol¤ğŸ”««emoji.pizza¥pizza¤ğŸ•­emoji.placard§placard¤ğŸª§¬emoji.planet¦planet¤ğŸª«emoji.plant¥plant¤ğŸª´­emoji.plaster§plaster¤ğŸ©¹«emoji.plate¥plate§ğŸ½ï¸®emoji.playback¨playback¦â¬ï¸±emoji.playingcard«playingcard¤ğŸ´­emoji.plunger§plunger¤ğŸª ³emoji.policeofficer­policeofficer¤ğŸ‘®©emoji.poo£poo¤ğŸ’©­emoji.popcorn§popcorn¤ğŸ¿ªemoji.post¤post¤ğŸ¤­emoji.postbox§postbox¤ğŸ“®¬emoji.potato¦potato¤ğŸ¥”«emoji.pouch¥pouch¤ğŸ‘¯emoji.powerplug©powerplug¤ğŸ”Œ­emoji.present§present¤ğŸ­emoji.pretzel§pretzel¤ğŸ¥¨­emoji.printer§printer§ğŸ–¨ï¸¬emoji.prints¦prints¤ğŸ‘£°emoji.prohibitedªprohibited¤ğŸš«¯emoji.projector©projector§ğŸ“½ï¸­emoji.pumpkin§pumpkin¤ğŸƒ«emoji.purse¥purse¤ğŸ‘›«emoji.quest¥quest¦â“ï¸¬emoji.rabbit¦rabbit¤ğŸ‡­emoji.raccoon§raccoon¤ğŸ¦«emoji.radio¥radio§ğŸ“»ï¸±emoji.radioactive«radioactive¦â˜¢ï¸­emoji.railway§railway§ğŸ›¤ï¸­emoji.rainbow¤ğŸŒˆ©emoji.ram£ram¤ğŸ©emoji.rat£rat¤ğŸ€«emoji.razor¥razor¤ğŸª’­emoji.receipt§receipt¤ğŸ§¾¯emoji.recycling©recycling¦â™»ï¸©emoji.reg£reg¥Â®ï¸®emoji.restroom¨restroom¤ğŸš»«emoji.rhino¥rhino¤ğŸ¦¬emoji.ribbon¦ribbon¤ğŸ€ªemoji.rice¤rice¤ğŸšªemoji.ring¤ring¤ğŸ’®emoji.ringbuoy¨ringbuoy¤ğŸ›Ÿ«emoji.robot¥robot¤ğŸ¤–ªemoji.rock¤rock¤ğŸª¨¬emoji.rocket¤ğŸš€³emoji.rollercoaster­rollercoaster¤ğŸ¢­emoji.rosette§rosette§ğŸµï¸«emoji.rugby¥rugby¤ğŸ‰«emoji.ruler¥ruler¤ğŸ“­emoji.running§running¤ğŸƒ¨emoji.sa¢sa§ğŸˆ‚ï¸¯emoji.safetypin©safetypin¤ğŸ§·°emoji.safetyvestªsafetyvest¤ğŸ¦ºªemoji.sake¤sake¤ğŸ¶«emoji.salad¥salad¤ğŸ¥—ªemoji.salt¤salt¤ğŸ§‚®emoji.sandwich¨sandwich¤ğŸ¥ª«emoji.santa¥santa¤ğŸ…­emoji.satdish§satdish¤ğŸ“¡¯emoji.satellite©satellite§ğŸ›°ï¸©emoji.saw£saw¤ğŸªš¯emoji.saxophone©saxophone¤ğŸ·¬emoji.scales¦scales¦âš–ï¸«emoji.scarf¥scarf¤ğŸ§£¬emoji.school¦school¤ğŸ«®emoji.scissors¨scissors¦âœ‚ï¸­emoji.scooter§scooter¤ğŸ›´®emoji.scorpion¨scorpion¤ğŸ¦‚±emoji.screwdriver«screwdriver¤ğŸª›¬emoji.scroll¦scroll¤ğŸ“œªemoji.seal¤seal¤ğŸ¦­ªemoji.seat¤seat¤ğŸ’º®emoji.seedling¨seedling¤ğŸŒ±«emoji.shark¥shark¤ğŸ¦ˆ«emoji.sheep¥sheep¤ğŸ‘«emoji.shell¥shell¤ğŸš¬emoji.shield¦shield§ğŸ›¡ï¸ªemoji.shin¤shin¤ğŸˆ¸ªemoji.ship¤ship¤ğŸš¢«emoji.shirt¥shirt¤ğŸ½ªemoji.shoe¤shoe¤ğŸ‘®emoji.shopping¨shopping§ğŸ›ï¸¬emoji.shorts¦shorts¤ğŸ©³°emoji.shoshinshaªshoshinsha¤ğŸ”°¬emoji.shovel¦shovel¤ğŸª¬emoji.shower¦shower¤ğŸš¿¬emoji.shrimp¦shrimp¤ğŸ¦¬emoji.shrine¦shrine¦â›©ï¸«emoji.shuku¥shuku¦ãŠ—ï¸ªemoji.sign¤ğŸš¸°emoji.silhouetteªsilhouette¤ğŸ‘¤«emoji.siren¥siren¤ğŸš¨°emoji.skateboardªskateboard¤ğŸ›¹¬emoji.skewer¦skewer¤ğŸ¡¬emoji.skiing¦skiing¦â›·ï¸«emoji.skull¥skull¤ğŸ’€«emoji.skunk¥skunk¤ğŸ¦¨ªemoji.sled¤sled¤ğŸ›·«emoji.slide¥slide¤ğŸ›¬emoji.slider¦slider§ğŸšï¸«emoji.sloth¥sloth¤ğŸ¦¥«emoji.slots¥slots¤ğŸ°«emoji.snail¥snail¤ğŸŒ«emoji.snake¥snake¤ğŸ²emoji.snowboarding¬snowboarding§ğŸ‚ï¸¯emoji.snowflake©snowflake¦â„ï¸­emoji.snowman§snowman¦â›„ï¸ªemoji.soap¤soap¤ğŸ§¼«emoji.socks¥socks¤ğŸ§¦®emoji.softball¨softball¤ğŸ¥©emoji.sos£sos¤ğŸ†˜ªemoji.soup¤soup¤ğŸ²¯emoji.spaghetti©spaghetti¤ğŸ­emoji.sparkle§sparkle¦â‡ï¸®emoji.sparkler¨sparkler¤ğŸ‡®emoji.sparkles¨sparkles¦âœ¨ï¸­emoji.speaker§speaker§ğŸ”ˆï¸¬emoji.spider¦spider§ğŸ•·ï¸¯emoji.spiderweb©spiderweb§ğŸ•¸ï¸­emoji.spinach§spinach¤ğŸ¥¬®emoji.splatter¨splatter¤ğŸ«Ÿ¬emoji.sponge¦sponge¤ğŸ§½«emoji.spoon¥spoon¤ğŸ¥„¬emoji.square¦square¦â¬›ï¸«emoji.squid¥squid¤ğŸ¦‘­emoji.stadium§stadium§ğŸŸï¸ªemoji.star¤star¦â­ï¸±emoji.stethoscope«stethoscope¤ğŸ©º«emoji.store¥store¤ğŸ¬°emoji.strawberryªstrawberry¤ğŸ“ªemoji.suit¤suit¦â™£ï¸©emoji.sun£sun¦â˜€ï¸­emoji.sunrise§sunrise¤ğŸŒ…¯emoji.superhero©superhero¤ğŸ¦¸²emoji.supervillain¬supervillain¤ğŸ¦¹­emoji.surfing§surfing§ğŸ„ï¸«emoji.sushi¥sushi¤ğŸ£ªemoji.swan¤swan¤ğŸ¦¢®emoji.swimming¨swimming§ğŸŠï¸®emoji.swimsuit¨swimsuit¤ğŸ©±¬emoji.swords¦swords¦âš”ï¸­emoji.symbols¤ğŸ”£¯emoji.synagogue©synagogue¤ğŸ•­emoji.syringe§syringe¤ğŸ’‰ªemoji.taco¤taco¤ğŸŒ®­emoji.takeout§takeout¤ğŸ¥¡¬emoji.tamale¦tamale¤ğŸ«”®emoji.tanabata¨tanabata¤ğŸ‹¯emoji.tangerine©tangerine¤ğŸŠ©emoji.tap£tap¤ğŸš°ªemoji.taxi¤taxi¤ğŸš•¬emoji.teacup¦teacup¤ğŸµ¬emoji.teapot¦teapot¤ğŸ«–«emoji.teddy¥teddy¤ğŸ§¸¯emoji.telescope©telescope¤ğŸ”­¬emoji.temple¦temple¤ğŸ›•©emoji.ten£ten¤ğŸ”Ÿ«emoji.tengu¥tengu¤ğŸ‘º¬emoji.tennis¦tennis¤ğŸ¾ªemoji.tent¤tent¦â›ºï¸®emoji.testtube¨testtube¤ğŸ§ª±emoji.thermometer«thermometer§ğŸŒ¡ï¸¬emoji.thread¦thread¤ğŸ§µ«emoji.thumb¥thumb§ğŸ‘ï¸¬emoji.ticket¦ticket§ğŸŸï¸«emoji.tiger¥tiger¤ğŸ…¨emoji.tm¢tm¦â„¢ï¸¬emoji.toilet¦toilet¤ğŸš½±emoji.toiletpaper«toiletpaper¤ğŸ§»ªemoji.toku¤toku¤ğŸ‰¬emoji.tomato¦tomato¤ğŸ…¯emoji.tombstone©tombstone¤ğŸª¦¬emoji.tongue¦tongue¤ğŸ‘…­emoji.toolbox§toolbox¤ğŸ§°«emoji.tooth¥tooth¤ğŸ¦·°emoji.toothbrushªtoothbrush¤ğŸª¥­emoji.tornado§tornado§ğŸŒªï¸«emoji.tower¥tower¤ğŸ—¼¯emoji.trackball©trackball§ğŸ–²ï¸­emoji.tractor§tractor¤ğŸšœ²emoji.trafficlight¬trafficlight¤ğŸš¦«emoji.train¥train¤ğŸš†±emoji.transgender«transgender¦âš§ï¸ªemoji.tray¤tray§ğŸ“¥ï¸ªemoji.tree¤tree¤ğŸŒ³®emoji.triangle¨triangle¦â–¶ï¸­emoji.trident§trident¤ğŸ”±«emoji.troll¥troll¤ğŸ§Œ¬emoji.trophy¦trophy§ğŸ†ï¸«emoji.truck¥truck¤ğŸšš­emoji.trumpet§trumpet¤ğŸº­emoji.tsukimi§tsukimi¤ğŸ‘¬emoji.turkey¦turkey¤ğŸ¦ƒ¬emoji.turtle¦turtle¤ğŸ¢¨emoji.tv¢tv§ğŸ“ºï¸©emoji.ufo£ufo¤ğŸ›¸®emoji.umbrella¨umbrella¦â˜‚ï¸­emoji.unicorn§unicorn¤ğŸ¦„­emoji.unknown§unknown¤ğŸ¦³¨emoji.up¢up¤ğŸ†™©emoji.urn£urn¦âš±ï¸­emoji.vampire§vampire¤ğŸ§›¬emoji.violin¦violin¤ğŸ»­emoji.volcano§volcano¤ğŸŒ‹°emoji.volleyballªvolleyball¤ğŸ¨emoji.vs¢vs¤ğŸ†š¬emoji.waffle¦waffle¤ğŸ§‡ªemoji.wand¤wand¤ğŸª„­emoji.warning§warning¦âš ï¸«emoji.watch¥watch¦âŒšï¸°emoji.watermelonªwatermelon¤ğŸ‰¯emoji.waterpolo©waterpolo¤ğŸ¤½ªemoji.wave¤wave¤ğŸŒŠ¨emoji.wc¢wc¤ğŸš¾³emoji.weightlifting­weightlifting§ğŸ‹ï¸«emoji.whale¥whale¤ğŸ‹«emoji.wheel¥wheel¤ğŸ›°emoji.wheelchairªwheelchair¤ğŸ¦½ªemoji.wind¤wind§ğŸŒ¬ï¸¯emoji.windchime©windchime¤ğŸ¬emoji.window¦window¤ğŸªŸªemoji.wine¤wine¤ğŸ·ªemoji.wing¤wing¤ğŸª½®emoji.wireless¨wireless¤ğŸ›œªemoji.wolf¤wolf¤ğŸº«emoji.woman¥woman¤ğŸ‘©ªemoji.wood¤wood¤ğŸªµªemoji.worm¤worm¤ğŸª±¬emoji.wrench¦wrench¤ğŸ”§¯emoji.wrestling©wrestling¤ğŸ¤¼ªemoji.xray¤xray¤ğŸ©»ªemoji.yarn¤yarn¤ğŸ§¶¨emoji.yo¢yo¤ğŸˆºªemoji.yoyo¤yoyo¤ğŸª€ªemoji.yubi¤yubi§ğŸˆ¯ï¸«emoji.yuryo¥yuryo¤ğŸˆ¶«emoji.zebra¥zebra¤ğŸ¦“¬emoji.zodiac¦zodiac¦â™’ï¸¬emoji.zombie¦zombie¤ğŸ§Ÿ©emoji.zzz£zzz¤ğŸ’¤¦italic¤emph¨Emphasis¨emptyset£âˆ…¤enum­Numbered List©enum.item¤item²Numbered List Item§epsilon¢Îµ¡=¨equation¨Equation¥equiv£â‰¡¨errorbar£â§®£eta¢Î·¤euro£â‚¬¤eval¨Evaluate¡!¦exists£âˆƒ¾op(text: [exp], limits: false)¥fence£â§˜¦figure¦Figure®figure.caption§caption§Caption¤flat£â™­¥Float°float.from-bytesªfrom-bytesªFrom Bytes±float.is-infinite«is-infinite«Is Infinite¬float.is-nan¦is-nan¦Is Nan©float.nan£nan¬float.signum¦signum¦Signum®float.to-bytes¨to-bytes¨To Bytes£âŒŠ¦floral£â¦¨footnote¨Footnote®footnote.entry¥entry®Footnote Entry¦forall£âˆ€¦forces£âŠ©¤frac¨Fraction¨fraction¨mathfrak¤frak§FrakturÙE`franc` is deprecated, unadopted symbol for currency no longer in use¥franc£â‚£¥frown£âŒ¢¨function¨Function®function.where¥where¥Where­function.with¤with¤With¥gamma¢Î³½op(text: [gcd], limits: true)¦gender¯<module gender>­gender.female¦female¦â™€ï¸¯gender.intersex¨intersex£âš¥«gender.male¤male¦â™‚ï¸­gender.neuter¦neuter£âš²¬gender.trans¥trans¦âš§ï¸¥gimel¢×’Ù+`gimmel` is deprecated, use `gimel` instead¦gimmel¨gradient£âˆ‡¨Gradient®gradient.angle¯gradient.center¦Center®gradient.conic¥conic®Conic Gradientµgradient.focal-center¬focal-center¬Focal Centerµgradient.focal-radius¬focal-radius¬Focal Radius­gradient.kind¤kind¤Kind¯gradient.linear¦linear¯Linear Gradient¯gradient.radial¦radial¯Radial Gradient¯gradient.radius¦radius¦Radius±gradient.relative¨relative¨Relative¯gradient.repeat¦repeat¦Repeat¯gradient.sample¦sample¦Sample°gradient.samples§samples§Samples®gradient.sharp¥sharp¥Sharp®gradient.space®gradient.stops¥stops¥Stops¥grave¡`¤grid¤Grid©grid.cell¤cell©Grid Cell«grid.footer¦footer«Grid Footer«grid.header¦header«Grid Headerªgrid.hline¥hline´Grid Horizontal Lineªgrid.vline¥vline²Grid Vertical Line¢gt¡>§guarani£â‚²¡h«Spacing (H)§harpoon£â‡€¨harpoons£â¥¤¤#ï¸¡^§heading§Heading¤here¤Here¤hexa£â¬¡¤hide¤Hide©highlight¤text©Highlight£hom¾op(text: [hom], limits: false)£â§–§hryvnia£â‚´¤hyph£â€½op(text: [id], limits: false)¢im½op(text: [im], limits: false)¥image£âŠ·¥ImageÙD`image.decode` is deprecated, directly pass bytes to `image` instead¬image.decode¬Decode Image¢in£âˆˆ½op(text: [inf], limits: true)¨infinity£âˆ©textstyle¦inline«Inline Size£int§Integer«int.bit-and§bit-and«Bitwise AND®int.bit-lshiftªbit-lshift²Bitwise Left Shift«int.bit-not§bit-not«Bitwise NOTªint.bit-or¦bit-orªBitwise OR®int.bit-rshiftªbit-rshift³Bitwise Right Shift«int.bit-xor§bit-xor«Bitwise XOR®int.from-bytesªint.signum¬int.to-bytes¨integral£âˆ«¥inter£âˆ©ªinterleave£â«´«interrobang£â€½¤iota¢Î¹¦mathit¦Italic£â¨¤json¤JSONÙB`json.decode` is deprecated, directly pass bytes to `json` instead«json.decode«Decode JSON«json.encode«Encode JSON§jupiter£â™ƒÙ0`kai` is deprecated, use Ï— or `\u{3d7}` instead£kai¢Ï—¥kappa¢Îº£ker¾op(text: [ker], limits: false)£kip£â‚­¥Label¦lambda¢Î»§laplace£âˆ†¤lari£â‚¾£lat£âª«¦Layout½op(text: [lcm], limits: true)¦length©length.cm¢cm«Centimeters­length.inches¦inches¦Inches©length.mm¢mm«Millimeters©length.pt¢pt¦Points²length.to-absolute«to-absolute«To Absolute¢lg½op(text: [lg], limits: false)£lim½op(text: [lim], limits: true)¦liminfÙ#op(text: [limâ€‰inf], limits: true)¦limits¦Limits¦limsupÙ#op(text: [limâ€‰sup], limits: true)¤Line©linebreakªLine Break¤link¤Link¤lira£â‚º¤list«Bullet List©list.item°Bullet List Item½op(text: [ln], limits: false)¦locate¦Locate­location.page¤Page·location.page-numbering®page-numbering®Page Numbering±location.position¾op(text: [log], limits: false)ªBlind Text¥lorem¥Lorem¥lower©Lowercase§lozenge£â—Š¢lrªLeft/Right£lrm£â€¢lt¡<¦macron¢Â¯§maltese£âœ ¥manat£â‚¼¦mapsto£â†¦¤mars£mat¦Matrix­<module math>§math.AAªmath.Alpha§math.BB©math.Beta§math.CC¨math.Chi§math.DDªmath.Delta¨math.Dif¬math.Digamma§math.EE¬math.Epsilon¨math.Eta§math.FF§math.GGªmath.Gamma§math.HH§math.II§math.Im©math.Iota§math.JJ§math.KK¨math.Kaiªmath.Kappa§math.LL«math.Lambda§math.MM§math.Mu§math.NN§math.Nu§math.OOªmath.Omega¬math.Omicron§math.PP¨math.Phi§math.Pi§math.Pr¨math.Psi§math.QQ§math.RR§math.Re¨math.Rho§math.SS¨math.Shaªmath.Sigma§math.TT¨math.Tauªmath.Theta§math.UU¬math.Upsilon§math.VV§math.WW§math.XX§math.Xi§math.YY§math.ZZ©math.Zeta¨math.abs«math.accentªmath.acute¬math.afghani©math.alefªmath.alephªmath.alpha¨math.amp¨math.andªmath.angle­math.angstrom¬math.angzarr«math.approx«math.arccos«math.arcsin«math.arctan¨math.argªmath.arrow®math.arrowhead«math.arrows¨math.astªmath.asymp§math.at«math.attach®math.backslash¨math.bag©math.baht«math.ballot¨math.bar§math.bb¬math.because¨math.bet©math.beta©math.bethªmath.binom¬math.bitcoin©math.bold¨math.botªmath.brace¬math.bracketªmath.breve«math.bullet¨math.cal«math.cancelªmath.caretªmath.caronªmath.cases§math.cc©math.cedi©math.ceil©math.cent®math.checkmark¬math.chevron¨math.chi«math.circleªmath.class§math.coªmath.colonªmath.comma¯math.complement¬math.compose­math.convolve­math.copyleft®math.copyright«math.corner¨math.cos©math.cosh¨math.cot©math.coth®math.crossmark¨math.csc©math.csch¨math.ctg­math.currency«math.daggerªmath.dalet«math.daleth©math.dash¨math.deg«math.degreeªmath.delta¨math.detªmath.diaer­math.diameter¬math.diamond¨math.die¨math.dif©math.diff¬math.digamma¨math.dim¬math.display¨math.div¬math.divides«math.dollar©math.dong«math.dorome¨math.dot¬math.dotless©math.dots©math.dramªmath.earth¨math.ell¬math.ellipse­math.emptyset¬math.epsilon§math.eq­math.equationªmath.equiv­math.errorbar¨math.eta©math.euro©math.excl«math.exists¨math.expªmath.fence©math.flatªmath.floor«math.floral«math.forall«math.forces©math.frac©math.frakªmath.francªmath.frownªmath.gamma¨math.gcd«math.gender²math.gender.female´math.gender.intersex°math.gender.male²math.gender.neuter±math.gender.transªmath.gimel«math.gimmel­math.gradientªmath.grave§math.gt¬math.guarani¬math.harpoon­math.harpoons©math.hash¨math.hat©math.hexa¨math.hom®math.hourglass¬math.hryvnia©math.hyph§math.id§math.imªmath.image§math.in¨math.inf­math.infinity«math.inline­math.integralªmath.inter¯math.interleave°math.interrobang©math.iota«math.italic©math.join¬math.jupiter¨math.kaiªmath.kappa¨math.ker¨math.kip«math.lambda¬math.laplace©math.lari¨math.lat¨math.lcm§math.lg¨math.lim«math.liminf«math.limits«math.limsup©math.lira§math.ln¨math.log¬math.lozenge§math.lr¨math.lrm§math.lt«math.macron¬math.malteseªmath.manat«math.mapsto©math.mars¨math.mat¨math.max½op(text: [max], limits: true)¨math.med£med±h(amount: 0.22em)¬math.mercury§mercury£â˜¿¨math.mid£mid£Mid¨math.min½op(text: [min], limits: true)ªmath.minus¥minus£âˆ’©math.miny¤miny£â§¿¨math.mod£mod¾op(text: [mod], limits: false)«math.models¦models£âŠ§¦mathtt©math.mono¤mono©Monospace§math.mu¢mu¢Î¼­math.multimap¨multimap£âŠ¸­math.mustache¨mustache£â°ªmath.nabla¥nablaªmath.naira¥naira£â‚¦¬math.natural§natural£â™®¬math.neptune§neptune£â™†©math.norm¤Norm¨math.not£not¢Â¬©math.note¤note¤ğŸœ¬math.nothing§nothing§math.nu¢nu¢Î½«math.numero¦numero£â„–ªmath.omega¥omega¢Ï‰¬math.omicron§omicron¢Î¿§math.oo¢oo§math.op¢op­Text Operator§math.or¢or£âˆ¨­math.original¨original£âŠ¶®math.overbrace©overbrace©Overbrace°math.overbracket«overbracket«Overbracket­math.overline¨overline¨Overline®math.overparen©overparen©Overparen®math.overshell©overshell©Overshell­math.parallel¨parallel£âˆ¥²math.parallelogram­parallelogram£â–±ªmath.paren¥paren¡(¬math.partial§partial«math.pataca¦patacaªmath.penta¥penta£â¬ ¬math.percent§percent¡%­math.permille¨permille£â€°®math.permyriad©permyriad£â€±©math.perp¤perp£âŸ‚©math.peso¤peso¨math.phi£phi¢Ï†§math.pi¢Ï€¬math.pilcrow§pilcrow¢Â¶«math.planck¦planck¢Ä§©math.plus¤plus¡+ªmath.pound¥pound¢Â£ªmath.power¥power£â»©math.prec¤prec£â‰ºªmath.prime¥prime£â€²«math.primes¦primes¦Primes¬math.product£âˆ©math.prop¤prop£âˆ¨math.psi£psi¢Ïˆ¨math.qed£qed£âˆ©math.quad®h(amount: 1em)ªmath.quest¡?ªmath.quote¥quote¡"ªmath.ratio¥ratio£âˆ¶©math.rect¤rect£â–­¬math.refmark§refmark£â€»©math.rest¤rest¤ğ„»¨math.rho£rho¢Ï©math.riel¤riel£áŸ›¨math.rlm£rlm£â€©math.rootªmath.roundªmath.ruble¥ruble£â‚½ªmath.rupee¥rupee£â‚¹¦mathsf©math.sans¤sansªSans Serif«math.saturn¦saturn£â™„§mathscr©roundhand¨math.scr£scr¬Script Style«scriptstyle«math.script¦script«Script Size¬math.scripts§scripts§Scripts¨math.sec£sec¾op(text: [sec], limits: false)©math.sech¤sech¿op(text: [sech], limits: false)Ù)`sect` is deprecated, use `inter` instead©math.sect¤sect¬math.section§section¢Â§©math.semi¤semi¡;¦mathrmªmath.serif¥serif¥Serif¨math.sha£sha¢Ñˆªmath.sharp£â™¯«math.shekel¦shekel£â‚ªªmath.shell£â²Ù<`shin` is deprecated, perhaps you meant to use `sha` instead©math.shin¢×©ªmath.sigma¥sigma¢Ïƒ¨math.sin¾op(text: [sin], limits: false)©math.sinc¤sinc¿op(text: [sinc], limits: false)©math.sinh¿op(text: [sinh], limits: false)ªmath.slash¥slash¡/ªmath.smash¥smash£â¨³ªmath.smile¥smile£âŒ£¨math.smt£smt£âªª¨math.som£som£âƒ€ªmath.space¡ ©math.sqrt«math.square£â–¡±scriptscriptstyle¬math.sscript§sscript²Script-Script Size©math.star£â‹†¬math.stretch§stretch§Stretch«math.subset¦subset£âŠ‚©math.succ¤succ£â‰»©math.suit¦â™£ï¸¨math.sum£âˆ‘¨math.sun£â˜‰¨math.sup£sup½op(text: [sup], limits: true)«math.supset¦supset£âŠƒ©math.tack¤tack£âŠ¢©math.taka¤taka£à§³ªmath.taman¥taman¢ß¿¨math.tan¾op(text: [tan], limits: false)©math.tanh¿op(text: [tanh], limits: false)¨math.tau¢Ï„ªmath.tenge¥tenge£â‚¸©math.text¤Text§math.tg¢tg½op(text: [tg], limits: false)®math.therefore©therefore£âˆ´ªmath.theta¥theta¢Î¸ªmath.thick¥thick±h(amount: 0.28em)©math.thin¤thin±h(amount: 0.17em)ªmath.tilde¥tilde£âˆ¼ªmath.times¥times¢Ã—©math.tiny¤tiny£â§¾«math.togrog¦togrog£â‚®¨math.top£âŠ¤§math.tr¢tr½op(text: [tr], limits: false)®math.trademark©trademark¦â„¢ï¸­math.triangle£â–³¯math.underbraceªunderbraceªUnderbrace±math.underbracket¬underbracket¬Underbracket®math.underline©underline©Underline¯math.underparenªunderparenªUnderparen¯math.undershellªundershellªUndershellªmath.union¥union£âˆª¦mathup¬math.upright§upright§Upright¬math.upsilon§upsilon¢Ï…«math.uranus¦uranus£â›¢¨math.vec£vec¦Vectorªmath.venus¥venus©math.wide¤wide®h(amount: 2em)¬math.without§without£âˆ–§math.wj¢wj£â ¨math.won£won£â‚©«math.wreath¦wreath£â‰€§math.xi¢xi¢Î¾¨math.xor£xor£âŠ•¨math.yen£yen¢Â¥©math.yuan¤yuan©math.zeta¤zeta¢Î¶¨math.zwj£zwj£â€©math.zwnj¤zwnj£â€Œ¨math.zws£zws£â€‹§measure§Measure¨metadata¨Metadata¦Module¤Move©numbering©Numbering±Table of Contents£toc§outline§Outline­outline.entry­Outline Entry²outline.entry.body¤body¤Body¶outline.entry.indented¨indented¨Indented³outline.entry.inner¥inner¥Inner²outline.entry.page´outline.entry.prefix¦prefix¦Prefix£pad§Padding©pagebreakªPage Break¥error¥panic¥Panic£par©Paragraph®line numbering¨par.line®Paragraph Line¨parbreak¯Paragraph BreakÙ6the `path` function is deprecated, use `curve` instead¤path¤Path§patternÙ6the name `pattern` is deprecated, use `tiling` instead¦tiling¦Tiling£pdf¬<module pdf>¬pdf.artifact¨artifact¨Artifact¥embedªpdf.attachÙ4the name `embed` is deprecated, use `attach` instead©pdf.embed¥place¥Place«place.flush¥flush¥Flush¦plugin¦Plugin±plugin.transitionªtransitionªTransition§polygon§Polygon¯polygon.regular§regular¯Regular Polygon¥query¥Query¥Quote¥Ratio£raw¯Raw Text / Code¨raw.line´Raw Text / Code Line¤read¤Read©Rectangle£ref©Reference¥regex¥Regex¯Relative Length¤repr®Representation¥scale¥Scale¨selector¨Selector®selector.after¥after¥After¬selector.and£And¯selector.before¦before¦Before«selector.or¢Or¤skew¤Skew©smallcaps®Small CapitalsªsmartquoteªSmartquote¦Square¥stack¥Stack¥state¥State¨state.at«state.final©state.get¬state.update£str¦String¦str.at¬str.clusters¨clusters¨Clusters®str.codepointsªcodepointsªCodepoints¬str.contains­str.ends-with©ends-with©Ends With¨str.find©str.first°str.from-unicode¬from-unicode¬From Unicode¨str.last§str.len©str.match¥match¥Match«str.matches§matches§Matches­str.normalize©normalize©Normalize¬str.position«str.replace§replace§Replace§str.rev©str.slice©str.split¯str.starts-with«starts-with«Starts With®str.to-unicodeªto-unicodeªTo Unicode¨str.trim¤trim¤Trim¦strike­Strikethrough¦stroke¦Stroke¦weight¦strong¯Strong Emphasis£sub©Subscript¥super«Superscript£sym¬<module sym>¦sym.AA©sym.Alpha¦sym.BB¨sym.Beta¦sym.CC§sym.Chi¦sym.DD©sym.Delta«sym.Digamma¦sym.EE«sym.Epsilon§sym.Eta¦sym.FF¦sym.GG©sym.Gamma¦sym.HH¦sym.II¦sym.Im¨sym.Iota¦sym.JJ¦sym.KK§sym.Kai©sym.Kappa¦sym.LLªsym.Lambda¦sym.MM¦sym.Mu¦sym.NN¦sym.Nu¦sym.OO©sym.Omega«sym.Omicron¦sym.PP§sym.Phi¦sym.Pi§sym.Psi¦sym.QQ¦sym.RR¦sym.Re§sym.Rho¦sym.SS§sym.Sha©sym.Sigma¦sym.TT§sym.Tau©sym.Theta¦sym.UU«sym.Upsilon¦sym.VV¦sym.WW¦sym.XX¦sym.Xi¦sym.YY¦sym.ZZ¨sym.Zeta©sym.acute«sym.afghani¨sym.alef©sym.aleph©sym.alpha§sym.amp§sym.and©sym.angle¬sym.angstrom«sym.angzarrªsym.approx©sym.arrow­sym.arrowheadªsym.arrows§sym.ast©sym.asymp¦sym.at­sym.backslash§sym.bag¨sym.bahtªsym.ballot§sym.bar«sym.because§sym.bet¨sym.beta¨sym.beth«sym.bitcoin§sym.bot©sym.brace«sym.bracket©sym.breveªsym.bullet©sym.caret©sym.caron¦sym.cc¨sym.cedi¨sym.ceil¨sym.cent­sym.checkmark«sym.chevron§sym.chiªsym.circle¦sym.co©sym.colon©sym.comma®sym.complement«sym.compose¬sym.convolve¬sym.copyleft­sym.copyrightªsym.corner­sym.crossmark¬sym.currencyªsym.dagger©sym.daletªsym.daleth¨sym.dashªsym.degree©sym.delta©sym.diaer¬sym.diameter«sym.diamond§sym.die¨sym.diff«sym.digamma§sym.div«sym.dividesªsym.dollar¨sym.dongªsym.dorome§sym.dot«sym.dotless¨sym.dots¨sym.dram©sym.earth§sym.ell«sym.ellipse¬sym.emptyset«sym.epsilon¦sym.eq©sym.equiv¬sym.errorbar§sym.eta¨sym.euro¨sym.exclªsym.exists©sym.fence¨sym.flat©sym.floorªsym.floralªsym.forallªsym.forces©sym.franc©sym.frown©sym.gammaªsym.gender±sym.gender.female³sym.gender.intersex¯sym.gender.male±sym.gender.neuter°sym.gender.trans©sym.gimelªsym.gimmel¬sym.gradient©sym.grave¦sym.gt«sym.guarani«sym.harpoon¬sym.harpoons¨sym.hash§sym.hat¨sym.hexa­sym.hourglass«sym.hryvnia¨sym.hyph©sym.image¦sym.in¬sym.infinity¬sym.integral©sym.inter®sym.interleave¯sym.interrobang¨sym.iota¨sym.join«sym.jupiter§sym.kai©sym.kappa§sym.kipªsym.lambda«sym.laplace¨sym.lari§sym.lat¨sym.lira«sym.lozenge§sym.lrm¦sym.ltªsym.macron«sym.maltese©sym.manatªsym.mapsto¨sym.mars«sym.mercury©sym.minus¨sym.minyªsym.models¦sym.mu¬sym.multimap¬sym.mustache©sym.nabla©sym.naira«sym.natural«sym.neptune§sym.not¨sym.note«sym.nothing¦sym.nuªsym.numero©sym.omega«sym.omicron¦sym.oo¦sym.or¬sym.original¬sym.parallel±sym.parallelogram©sym.paren«sym.partialªsym.pataca©sym.penta«sym.percent¬sym.permille­sym.permyriad¨sym.perp¨sym.peso§sym.phi¦sym.pi«sym.pilcrowªsym.planck¨sym.plus©sym.pound©sym.power¨sym.prec©sym.prime«sym.product¨sym.prop§sym.psi§sym.qed©sym.quest©sym.quote©sym.ratio¨sym.rect«sym.refmark¨sym.rest§sym.rho¨sym.riel§sym.rlm©sym.ruble©sym.rupeeªsym.saturn¨sym.sect«sym.section¨sym.semi§sym.sha©sym.sharpªsym.shekel©sym.shell¨sym.shin©sym.sigma©sym.slash©sym.smash©sym.smile§sym.smt§sym.som©sym.spaceªsym.square¨sym.starªsym.subset¨sym.succ¨sym.suit§sym.sum§sym.sunªsym.supset¨sym.tack¨sym.taka©sym.taman§sym.tau©sym.tenge­sym.therefore©sym.theta©sym.tilde©sym.times¨sym.tinyªsym.togrog§sym.top­sym.trademark¬sym.triangle©sym.union«sym.upsilonªsym.uranus©sym.venus«sym.without¦sym.wj§sym.wonªsym.wreath¦sym.xi§sym.xor§sym.yen¨sym.yuan¨sym.zeta§sym.zwj¨sym.zwnj§sym.zws¦Symbol£sys¬<module sys>ªsys.inputs¦inputs£(:)«sys.version§version±version(0, 14, 2)¥table¥Tableªtable.cellªTable Cell¬table.footer¬Table Footer¬table.header¬Table Header«table.hlineµTable Horizontal Line«table.vline³Table Vertical Line¥terms©Term Listªterms.item®Term List Item¥title¥Title¤toml¤TOMLÙB`toml.decode` is deprecated, directly pass bytes to `toml` instead«toml.decode«Decode TOML«toml.encode«Encode TOML¤type¤Type¥upper©Uppercase¡v«Spacing (V)§Versionªversion.at£xml£XMLÙ@`xml.decode` is deprecated, directly pass bytes to `xml` insteadªxml.decodeªDecode XML¤yaml¤YAMLÙB`yaml.decode` is deprecated, directly pass bytes to `yaml` instead«yaml.decode«Decode YAML«yaml.encode«Encode YAMLÜ	                  		   
+                                                                    !   ""   #   $$   %   &&   '   ((   )   **   +   ,,   -   ..   /   11  2 0 33   4   55   6   77   8   99   :   ;;   <   ==   >   ??   @   AA   B   CC   D   EE   F   GG   H   II   J   KK   L   MM   N   OO   P   QQ   R   SS   T   UU   V   WW   X   YY   Z   [[   \   ]]   ^   __   `   aa   b   cc   d   ee   f   gg   h   ii   j   kk   l   mm   n   oo   p   qq   r   ss   t   uu   v   ww Í&   x  yy Í   z  {{   |   }}   ~   Ì€Ì€  Ì  Ì‚Ì‚   Ì   ÌƒÌƒÌ„ ÌÀ   Ì…  Ì†Ì†Ì„   Ì† Ì‡  ÌˆÌ‰  Ì´   ÌŠ  Ì‹ÌŒ    Ì†ÌŒ   ÌÌ    Ì†Ì   ÌÌ    Ì†Ì   Ì‘Ì’    Ì†Ì’   Ì“Ì”  Ìµ   Ì•  Ì–Ì—    Ì†Ì—   Ì˜Ì™    Ì†Ì™   ÌšÌ›    Ì†Ì›   ÌœÌ    Ì†Ì   ÌÌ   ÌŸ   Ì Ì    Ì¡   Ì¢Ì¢   Ì£   Ì¤Ì¤Ì„   Ì¤Ì¥Ì¦  Ì§Ì¨  Ì®   Ì©  ÌªÌ«  Ì®   Ì¬  Ì­Ì­   Ì®   Ì¯Ì¯   Ì°   Ì±Ì±   Ì²   Ì³Ì³    Ì´Ìµ   Ì¶Ì¶   Ì·   Ì¸Ì¸   Ì¹   ÌºÌº   Ì»   Ì¼Ì¼   Ì½   Ì¾Ì¾Ì¿ LÌ¾ ÌÀ  ÌÁÌÂ  M   ÌÃ  ÌÄÌÅ  O   ÌÆ  ÌÇÌÈ  N   ÌÉ  ÌÊÌÊÌ¿ )ÌÊ ÌË  ÌÌÌÍ  :   ÌÎ  ÌÏÌĞ  :   ÌÑ  ÌÒÌÂ  ,   ÌÃ  ÌÓÌÔ  ?   ÌÕ  ÌÖÌ×  1   ÌØ  ÌÙÌÚ  B   ÌÛ  ÌÜÌİ  7   ÌŞ  ÌßÌà  5   Ìá  ÌâÌã  2   Ìä  ÌåÌæ  +   Ìç  ÌèÌé  ;   Ìê  ÌëÌì  9   Ìí  ÌîÌï  /   Ìğ  ÌñÌò  >   Ìó  ÌôÌõ  =   Ìö  Ì÷Ìø  +   Ìù  ÌúÌû  *   Ìü  ÌıÌş  6   Ìÿ  Í Í  .   Í  ÍÍ  3   Í  ÍÍ  +   Í  Í	Í
+  -   Í  ÍÍ  4   Í  ÍÍ  D   Í  ÍÍ  ,   Í  ÍÍ  ;   Í  ÍÍ  0   Í  ÍÍ  A   Í  ÍÍ  <   Í   Í!Í"  +   Í#  Í$Í%  C   Í&  Í'Í(  @   Í)  Í*Í+  8   Í,  Í-Í-   Í.   Í/Í/   Í0   Í1Í1   Í2   Í3Í3Ì¿ b   Í4  Í5Í6  c   Í7  Í8Í9  c   Í:  Í;Í;   Í<   Í=Í=   Í>   ÌÂÌÂ   Í?   Í@Í@ Í   ÍA  ÍBÍB   ÍC   ÍDÍD   ÍE   ÍFÍF   ÍG   ÍHÍH   ÍI   ÍJÍJ   ÍK   ÍMÍM Ìƒ   ÍN  ‘ÍLÍOÍO   ÍP   ÍRÍR  ÍS ÍQ ÍTÍT   ÍU   ÍVÍV   ÍS   ÍWÍWÍX Ì˜   ÍY  ÍZÍZ Í   Í[  Í\Í\   Í]   Í^Í^    Ì´Í_   Í`Í`Ì„ Ìº   Ía  ÍbÍb    Ì´Íc   ÍeÍe Ìƒ   Íf  ‘ÍdÍgÍgÌ¿   Íg Íh  ÍiÍi   Íj   ÌŒÌŒ    Ì†ÌŒ   ÍkÍkÌ„ Ì¹   Íl  ÍmÍm   Ín   ÍoÍo   Íp   ÍqÍq   Ír   ÍsÍs    ÍtÍs   ÍuÍu   Ív   ÍwÍwÌ¿  Íw Íx  ÍyÌÂ  "   ÌÃ  ÍzÌû  !   Ìü  Í{Í  #   Í  Í~Í~ Ìƒ   Í  ’Í|Í}Í€Í€Ì¿   ÍÍ‚   Íƒw  g   Í„  Í…Í†  m   Í‡  ÍˆÍ‰  m   ÍŠ  Í‹ÍŒ  m   Í  ÍÍ  n   Í  Í‘ÍZ  s   Í[  Í’Í“  u   Í”  Í•Í–  x   Í—  Í˜Í™  l   Íš  Í›Íœ  o   Í  ÍÍŸ  {   Í   Í¡Í¢    Í£Í¤   Í¥Í¦  z   Í§  Í¨Í©  i   Íª  Í«Í¬  q   Í­  Í®Í¯  u   Í°  Í±Í²  v   Í³  Í´Íµ  t   Í¶  Í·Í¸    Í£Í¹   ÍºÍ»  t   Í¼  Í½Í¾  j   Í¿  ÍÀÍÁ  p   ÍÂ  ÍÃÍÄ  y   ÍÅ  ÍÆÍÇ  y   ÍÈ  ÍÉÍÊ  }   ÍË  ÍÌÍÍ  z   ÍÎ  ÍÏÍĞ  r   ÍÑ  ÍÒÍÓ    Í£ÍÔ   ÍÕÍÖ  h   Í×  ÍØÍÙ  |   ÍÚ  ÍÛÍÜ  {   Íİ  ÍàÍá  {   Íâ  ’ÍŞÍßÍãÍä  k   Íå  ÍæÍç  w   Íè  ÍéÍê  l   Íë  ÍìÍí  o   Íî  ÍïÍğ  j   Íñ  ÍòÍó  l   Íô  ÍõÍö  o   Í÷  ÍøÍù    Í£Íú   ÍûÍü  u   Íı  ÍşÍş Í   Íÿ  Í Í    Í   ÍÍ   Í   ÍÍ Í!   Í  ÍÍÍ Í   Í  ÍÍ Í   ÍÍ	Í
+ÍÍ  Í   Í  ÍÍ   Í   ÍÍ   Í   Í“Í“   Í   ÍÍ   Í   ÌÌ    Ì†Ì   ÍÍ   Í   ÍÍ   Í   ÍÍ   Í   ÍÍÍ Ìï Í Í!  Í"Í"ÍX Ì—   Í#  Í$Í$ Í#   Í%  Í&Í&  ÌÎ   Í'  Í(Í(   Í)   Í*Í*Ì„ Ì¾   Í+  Í,Í,   Í-   Ì´Ì´Í   Ì´ Í.  Í/Ì³    Ì´Ìµ   Í0Í^    Ì´Í_   Í1Íb    Ì´Íc   Í2Í&  ÌÎ   Í'  Í3Í4  ÌÑ   Í5  Í6Í7  ÌÔ   Í8  Í9Í:  ÌÔ   Í;  Í<Í=    Ì´Í>   Í?Í@    Ì´ÍA   ÍBÍC    Ì´ÍD   ÍEÍF    Ì´ÍG   ÍHÍI  ÌÏ   ÍJ  ÍKÍL  ÌĞ   ÍM  ÍNÍO  ÌÔ   ÍP  ÍQÍR    Ì´ÍS   ÍTÍU  ÌÌ   ÍV  ÍWÍX  ÌÉ   ÍY  ÍZÌş    ÍÍ[   Í\Í]    ÌÊÍ^   Í_Í`    ÌÊÍa   ÍbÍc    ÌÊÍd   ÍeÍf    ÌÊÍg   ÍhÍi    ÌÊÍj   ÍkÍl    ÌÊÍm   ÍnÍo    ÌÊÍp   ÍqÍr    ÌÊÍs   ÍtÍu    ÌÊÍv   ÍwÍx    ÌÊÍy   ÍzÍ{    ÌÊÍ|   Í}Í~    ÌÊÍ   Í€Í    ÌÊÍ‚   ÍƒÍ„    ÌÊÍ…   Í†Í‡    Ì´Íˆ   Í‰ÍŠ  Ì×   Í‹  ÍŒÍ    Ì´Í   ÍÍ  ÌÕ   Í‘  Í’Í“  ÌÊ   Í”  Í•Í–  ÌË   Í—  Í˜Í™    Ì´Íš   Í›Íœ  ÌØ   Í  ÍÍŸ    Ì´Í    Í¡Í¢    Ì´Í£   Í¤Í¥    Ì´Í¦   Í§Í¨  ÌÍ   Í©  ÍªÍ«  ÌÖ   Í¬  Í­Í®  ÌÔ   Í¯  Í°Í±    Ì´Í²   Í³Í´  ÌÒ   Íµ  Í¶Í·    Ì´Í¸   Í¹Íº  ÌÓ   Í»  Í¼Í½  ÌØ   Í¾  Í¿ÍÀ    Ì´ÍÁ   ÍÂÍÃ    Ì´ÍÄ   ÍÅÍÅÌ„ Ì½   ÍÆ  ÍÇÍÇ   ÍÈ   ÍÉÍÉ   ÍÊ   ÍËÍË   ÍÌ   Ì¿    ÍÍ  ÍÎÌÂ  &   ÌÃ  ÍÏÍĞ  '   ÍÑ  ÍÒÍÓ  $   ÍÔ  ÍÕÍÖ  %   Í×  ÍØÍÙ  (   ÍÚ  ÍÛÍÛ   Í<   ÍÜÍÜ   Íİ   ÍŞÍŞ   Íß   ÍàÍà   Íá   Í™Í™   Íâ   ÍœÍœ   Íã   ÍäÍä   Íå   ÍæÍæ   Íç   ÍèÍèÍé ÌüÍè Íê  ÍëÌÂ Ìÿ   ÌÃ  ÍìÍí Ìş   Íî  ÍïÍğ Ìı   Íñ  ÍòÍó Ìı   Íô  ÍõÍö  Í    Í÷  ÍøÍù  Í   Íú  ÍûÍû   Íü   ÍıÍı   Íş   ÍÿÍÿ   Í    ÍÍÍ Í   Í  ÍÍ Í   ÍÍÍ
+ÍÍ   Í   ÍÍ   Í	   Í
+Í
+Í Ìò   Í  ÍÍ  Ì÷   Í  ÍÍ  Ìö   Í  ÍÍ  Ìô   Í  ÍÍ  Ìó   Í  ÍÍ  Ìõ   Í  ÍÍ   Í   ÍÍ  Í Í Í Í    Í   Í!Í!   Í"   Í#Í#Ì¿ VÍ# Í$  Í%Í&  Y   Í'  Í(Íí  X   Íî  Í)Í*  Y   Í+  Í,Í-  Y   Í.  Í/Í0  Y   Í1  Í2Í3  Y   Í4  Í5Í6  Y   Í7  Í8Í9  W   Í:  Í;Í<  Y   Í=  Í>Í?  Y   Í@  ÍAÍAÌ¿ ZÍA ÍB  Ì¨Ì¨   ÍC   ÍDÍD   ÍE   ÍFÍF   ÍG   ÍHÍH   ÍI   ÍJÍJ   ÍK   ÍLÍL   ÍM   ÍNÍN   ÍO   ÍPÍPÌ¿ EÍP ÍQ  ÍRÌÂ  G   ÌÃ  ÍSÌï  H   Ìğ  ÍTÍU  I   ÍV  ÍWÌû  F   Ìü  ÍXÍY  I   ÍZ  Í[Í  G   Í  Í\Í]  I   Í^  Í_Í_   Í`   ÍaÍa   Íb   ÍdÍd  Íe Íc ÍfÍf   Íg   ÍhÍh   Íi   ÍtÍtÌ„   Ít Íj  ÍkÌ‰  Ì°   ÌŠ  ÍlÍs    ÍtÍs   ÍmÌ  Ì²   Ín  ÍoÍp  Ì¯   Íq  ÍrÌ”  Ì³   Ì•  ÍsÍt    ÍtÍt   ÍuÍv    ÍtÍv   ÍwÍx  Ì±   Íy  ÍzÌ›  Ì²   Í{  Í|Í}  Ì¯   Í~  ÍÍ€    ÍtÍ€   ÍíÍí Í(   Í‚  ‘ÍÍƒÍƒ   Í„   Í…Í…   Í†   Í‡Í‡ÍX ~   Íˆ  Í‰Í‰   ÍŠ   Í‹Í‹   ÍŒ   ÍÍ   Í   ÍÍ   Í   Í‘Í‘   Í’   Í“Í“   Í”   Í•Í•   Í–   Í—Í—Ì¿ \Í— Í˜  Í™Íš  ]   Í›  ÍœÍ  ]   Í  ÍŸÍ   ]   Í¡  Í¢Í£  ]   Í¤  Í¥Í¦  ]   Í§  Í¨Í¨   Í©   Í=Í=    Ì´Í>   ÍªÍª   Í«   Í¬Í¬Í Ìî Í­Í®  Í¯Í¯Í°   ÍÍ±   Í²Í³    Í´   ÍµÍ¶    Í·   Í¸Í¹    Íº   Í»Í¼    Í½   Í¾Í¿    ÍÀ   ÍÁÍÂ    ÍÃ   ÍÄÍÅ    ÍÆ   ÍÇÍÈ    ÍÉ   ÍÊÍË    ÍÌ   ÍÍÍÎ    ÍÏ   ÍĞÍÑ    ÍÒ   ÍÓÍÔ    ÍÕ   ÍÖÍ×    ÍØ   ÍÙÍÚ    ÍÛ   ÍÜÍİ    ÍŞ   ÍßÍà    Íá   ÍâÍã    Íä   ÍåÍæ    Íç   ÍèÍ-    Íé   ÍêÍ1    Íë   ÍìÍ;    Íí   ÍîÍï    Íğ   ÍñÍò    Íó   ÍôÍõ    Íö   Í÷Íø    Íù   ÍúÍû    Íü   ÍıÍş    Íÿ   Í Í    Í   ÍÍ    Í   ÍÍ    Í   Í	Í
+    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍH    Í   Í Í!    Í"   Í#Í$    Í%   Í&Í'    Í(   Í)Í*    Í+   Í,Í-    Í.   Í/Í0    Í1   Í2Í3    Í4   Í5Í6    Í7   Í8Í9    Í:   Í;Í<    Í=   Í>Í?    Í@   ÍAÍB    ÍC   ÍDÍE    ÍF   ÍGÍH    ÍI   ÍJÍK    ÍL   ÍMÍN    ÍO   ÍPÍQ    ÍR   ÍSÍT    ÍU   ÍVÍW    ÍX   ÍYÍZ    Í[   Í\Í]    Í^   Í_Í`    Ía   ÍbÍc    Íd   ÍeÍf    Íg   ÍhÍi    Íj   ÍkÍl    Ím   ÍnÍo    Íp   ÍqÍr    Ís   ÍtÍu    Ív   ÍwÍx    Íy   ÍzÍ{    Í|   Í}Í~    Í   Í€Í    Í‚   ÍƒÍ„    Í…   Í†Í‡    Íˆ   Í‰ÍŠ    Í‹   ÍŒÍ    Í   ÍÍ    Í‘   Í’Í“    Í”   Í•Í–    Í—   Í˜Í™    Íš   Í›Íœ    Í   ÍÍŸ    Í    Í¡Í¢    Í£   Í¤Í¥    Í¦   Í§Í¨    Í©   ÍªÍ«    Í¬   Í­Í®    Í¯   Í°Í±    Í²   Í³Í´    Íµ   Í¶Í·    Í¸   Í¹Íº    Í»   Í¼Í½    Í¾   Í¿ÍÀ    ÍÁ   ÍÂÍÃ    ÍÄ   ÍÅÍÆ    ÍÇ   ÍÈÍÉ    ÍÊ   ÍËÍÌ    ÍÍ   ÍÎÍÏ    ÍĞ   ÍÑÍÒ    ÍÓ   ÍÔÍÕ    ÍÖ   Í×ÍØ    ÍÙ   ÍÚÍÛ    ÍÜ   ÍİÍŞ    Íß   ÍàÍá    Íâ   ÍãÍä    Íå   ÍæÍç    Íè   ÍéÍê    Íë   ÍìÍí    Íî   ÍïÍğ    Íñ   ÍòÍó    Íô   ÍõÍö    Í÷   ÍøÍù    Íú   ÍûÍü    Íı   ÍşÍÿ    Í    ÍÍ    Í   ÍÍ    Í   ÍÍ    Í	   Í
+Í    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ     Í!   Í"Í#    Í$   Í%Í&    Í'   Í(Í)    Í*   Í+Í,    Í-   Í.Í/    Í0   Í1Í2    Í3   Í4Í5    Í6   Í7Í8    Í9   Í:Í;    Í<   Í=Í>    Í?   Í@ÍA    ÍB   ÍCÍD    ÍE   ÍFÍG    ÍH   ÍIÍJ    ÍK   ÍLÍM    ÍN   ÍOÍ    ÍP   ÍQÍR    ÍS   ÍTÍU    ÍV   ÍWÍX    ÍY   ÍZÍ[    Í\   Í]Í^    Í_   Í`Ía    Íb   ÍcÍd    Íe   ÍfÍg    Íh   ÍiÍj    Ík   ÍlÍm    Ín   ÍoÍp    Íq   ÍrÍ    Ís   ÍtÍu    Ív   ÍwÍx    Íy   ÍzÍ{    Í|   Í}Í–    Í~   ÍÍ€    Í   Í‚Íƒ    Í„   Í…Í†    Í‡   ÍˆÍ‰    ÍŠ   Í‹ÍŒ    Í   ÍÍ    Í   Í‘Í’    Í“   Í”Í•    Í–   Í—Í˜    Í™   ÍšÍ›    Íœ   ÍÍ    ÍŸ   Í Í¡    Í¢   Í£Í¤    Í¥   Í¦Í§    Í¨   Í©Íª    Í«   Í¬Í­    Í®   Í¯Í°    Í±   Í²Í³    Í´   ÍµÍ¶    Í·   Í¸Í¹    Íº   Í»Í¼    Í½   Í¾Í¿    ÍÀ   ÍÁÍÂ    ÍÃ   ÍÄÍÅ    ÍÆ   ÍÇÍŞ    ÍÈ   ÍÉÍÊ    ÍË   ÍÌÍÍ    ÍÎ   ÍÏÍĞ    ÍÑ   ÍÒÍÓ    ÍÔ   ÍÕÍÖ    Í×   ÍØÍÙ    ÍÚ   ÍÛÍÜ    Íİ   ÍŞÍß    Íà   ÍáÍâ    Íã   ÍäÍå    Íæ   ÍçÍè    Íé   ÍêÍë    Íì   ÍíÍû    Íî   ÍïÍğ    Íñ   ÍòÍó    Íô   ÍõÍö    Í÷   ÍøÍù    Íú   ÍûÍü    Íı   ÍşÍÿ    Í    ÍÍ    Í   ÍÍ    Í   ÍÍ    Í	   Í
+Í    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ!    Í   ÍÍ    Í   ÍÍ    Í    Í!Í"    Í#   Í$ÍN    Í%   Í&Í_    Í'   Í(Í)    Í*   Í+Í,    Í-   Í.Í/    Í0   Í1Í2    Í3   Í4Í5    Í6   Í7Í8    Í9   Í:Í‰    Í;   Í<Í=    Í>   Í?Í@    ÍA   ÍBÍC    ÍD   ÍEÍF    ÍG   ÍHÍI    ÍJ   ÍKÍL    ÍM   ÍNÍO    ÍP   ÍQÍR    ÍS   ÍTÍU    ÍV   ÍWÍX    ÍY   ÍZÍ[    Í\   Í]Í^    Í_   Í`Ía    Íb   ÍcÍd    Íe   ÍfÍg    Íh   ÍiÍj    Ík   ÍlÍm    Ín   ÍoÍp    Íq   ÍrÍs    Ít   ÍuÍv    Íw   ÍxÍy    Íz   Í{Í|    Í}   Í~Í    Í€   ÍÍ‚    Íƒ   Í„Í…    Í†   Í‡Íˆ    Í‰   ÍŠÍ‹    ÍŒ   ÍÍ    Í   ÍÍ‘    Í’   Í“Í”    Í•   Í–Í—    Í˜   Í™Íš    Í›   ÍœÍ    Í   ÍŸÍ     Í¡   Í¢Í£    Í¤   Í¥Í¦    Í§   Í¨Í©    Íª   Í«Í¬    Í­   Í®Í¯    Í°   Í±Í²    Í³   Í´Íµ    Í¶   Í·Í¸    Í¹   ÍºÍ»    Í¼   Í½Í¾    Í¿   ÍÀÍÁ    ÍÂ   ÍÃÍÄ    ÍÅ   ÍÆÍÇ    ÍÈ   ÍÉÍÊ    ÍË   ÍÌÍÍ    ÍÎ   ÍÏÍĞ    ÍÑ   ÍÒÍÓ    ÍÔ   ÍÕÍÖ    Í×   ÍØÍÙ    ÍÚ   ÍÛÍÜ    Íİ   ÍŞÍß    Íà   ÍáÍâ    Íã   ÍäÍå    Íæ   ÍçÍè    Íé   ÍêÍë    Íì   ÍíÍî    Íï   ÍğÍñ    Íò   ÍóÍô    Íõ   ÍöÍ÷    Íø   ÍùÍú    Íû   ÍüÍı    Íş   ÍÿÍ     Í   ÍÍ    Í   ÍÍ    Í   ÍÍ	    Í
+   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   Í Í!    Í"   Í#Í$    Í%   Í&Í'    Í(   Í)Í*    Í+   Í,Í-    Í.   Í/Í0    Í1   Í2Í3    Í4   Í5Í6    Í7   Í8Í9    Í:   Í;Í<    Í=   Í>Í?    Í@   ÍAÍB    ÍC   ÍDÍE    ÍF   ÍGÍH    ÍI   ÍJÍK    ÍL   ÍMÍN    ÍO   ÍPÍQ    ÍR   ÍSÍT    ÍU   ÍVÍW    ÍX   ÍYÍZ    Í[   Í\Í]    Í^   Í_Í`    Ía   ÍbÍc    Íd   ÍeÍf    Íg   ÍhÍi    Íj   ÍkÍl    Ím   ÍnÍo    Íp   ÍqÍr    Ís   ÍtÍu    Ív   ÍwÍx    Íy   ÍzÍ{    Í|   Í}Í~    Í   Í€Í    Í‚   ÍƒÍ„    Í…   Í†Í‡    Íˆ   Í‰ÍŠ    Í‹   ÍŒÍ    Í   ÍÍ    Í‘   Í’Í“    Í”   Í•Í–    Í—   Í˜Í™    Íš   Í›Íœ    Í   ÍÍŸ    Í    Í¡Í¢    Í£   Í¤Í¥    Í¦   Í§Í¨    Í©   ÍªÍ«    Í¬   Í­Í®    Í¯   Í°Í±    Í²   Í³Í´    Íµ   Í¶Í·    Í¸   Í¹Íº    Í»   Í¼Í½    Í¾   Í¿ÍÀ    ÍÁ   ÍÂÍÃ    ÍÄ   ÍÅÍÆ    ÍÇ   ÍÈÍÉ    ÍÊ   ÍËÍÌ    ÍÍ   ÍÎÍÏ    ÍĞ   ÍÑÍÒ    ÍÓ   ÍÔÍÕ    ÍÖ   Í×ÍØ    ÍÙ   ÍÚÍÛ    ÍÜ   ÍİÍŞ    Íß   ÍàÍá    Íâ   ÍãÍä    Íå   ÍæÍç    Íè   ÍéÍê    Íë   ÍìÍí    Íî   ÍïÍğ    Íñ   ÍòÍó    Íô   ÍõÍö    Í÷   ÍøÍù    Íú   ÍûÍü    Íı   ÍşÍÿ    Í    ÍÍ    Í   ÍÍ    Í   ÍÍ    Í	   Í
+Í    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ     Í!   Í"Í#    Í$   Í%Í&    Í'   Í(Í)    Í*   Í+Í,    Í-   Í.Í/    Í0   Í1Í2    Í3   Í4Í5    Í6   Í7Í8    Í9   Í:Í;    Í<   Í=Í>    Í?   Í@ÍA    ÍB   ÍCÍD    ÍE   ÍFÍG    ÍH   ÍIÍJ    ÍK   ÍLÍM    ÍN   ÍOÍP    ÍQ   ÍRÍS    ÍT   ÍUÍV    ÍW   ÍXÍY    ÍZ   Í[Í\    Í]   Í^Í_    Í`   ÍaÍb    Íc   ÍdÍe    Íf   ÍgÍh    Íi   ÍjÍk    Íl   ÍmÍn    Ío   ÍpÍq    Ír   ÍsÍt    Íu   ÍvÍw    Íx   ÍyÍz    Í{   Í|Í}    Í~   ÍÍ€    Í   Í‚Íƒ    Í„   Í…Í†    Í‡   ÍˆÍ‰    ÍŠ   Í‹ÍŒ    Í   ÍÍ    Í   Í‘Ìş    Í’   Í“Í”    Í•   Í–Í—    Í˜   Í™Íš    Í›   ÍœÍ    Í   ÍŸÍ     Í¡   Í¢Í£    Í¤   Í¥Í¦    Í§   Í¨Í©    Íª   Í«Í¬    Í­   Í®Í¯    Í°   Í±Í²    Í³   Í´Íµ    Í¶   Í·Í¸    Í¹   ÍºÍ»    Í¼   Í½Í¾    Í¿   ÍÀÍÁ    ÍÂ   ÍÃÍÄ    ÍÅ   ÍÆÍÇ    ÍÈ   ÍÉÍÊ    ÍË   ÍÌÍÍ    ÍÎ   ÍÏÍĞ    ÍÑ   ÍÒÍÓ    ÍÔ   ÍÕÍÖ    Í×   ÍØÍÙ    ÍÚ   ÍÛÍÜ    Íİ   ÍŞÍß    Íà   ÍáÍâ    Íã   ÍäÍå    Íæ   ÍçÍè    Íé   ÍêÍë    Íì   ÍíÍî    Íï   ÍğÍñ    Íò   ÍóÍô    Íõ   ÍöÍ÷    Íø   ÍùÍú    Íû   ÍüÍı    Íş   ÍÿÍ	     Í	   Í	Í	    Í	   Í	Í	    Í	   Í	Í		    Í	
+   Í	Í	    Í	   Í	Í	    Í	   Í	Í	    Í	   Í	Í	    Í	   Í	Í	    Í	   Í	Í	    Í	   Í	Í	    Í	   Í	 Í	!    Í	"   Í	#Í	$    Í	%   Í	&Í	'    Í	(   Í	)Í	*    Í	+   Í	,Í	-    Í	.   Í	/Í	0    Í	1   Í	2Í	3    Í	4   Í	5Í	6    Í	7   Í	8Í	9    Í	:   Í	;Í	<    Í	=   Í	>Í™    Í	?   Í	@Í	A    Í	B   Í	CÍ	D    Í	E   Í	FÍ	G    Í	H   Í	IÍ	J    Í	K   Í	LÍ	M    Í	N   Í	OÍ	P    Í	Q   Í	RÍ	S    Í	T   Í	UÍ	V    Í	W   Í	XÍ	Y    Í	Z   Í	[Í	\    Í	]   Í	^Í	_    Í	`   Í	aÍ	b    Í	c   Í	dÍ	e    Í	f   Í	gÍ	h    Í	i   Í	jÍ	k    Í	l   Í	mÍ	n    Í	o   Í	pÍ	q    Í	r   Í	sÍ	t    Í	u   Í	vÍ	w    Í	x   Í	yÍ	z    Í	{   Í	|Í	}    Í	~   Í	Í	€    Í	   Í	‚Í	ƒ    Í	„   Í	…Í	†    Í	‡   Í	ˆÍ	‰    Í	Š   Í	‹Í	Œ    Í	   Í	Í	    Í	   Í	‘Í	’    Í	“   Í	”Í	•    Í	–   Í	—Í	˜    Í	™   Í	šÍ	›    Í	œ   Í	Í	    Í	Ÿ   Í	 Í	¡    Í	¢   Í	£Í	¤    Í	¥   Í	¦Í	§    Í	¨   Í	©Í	ª    Í	«   Í	¬Í	­    Í	®   Í	¯Í	°    Í	±   Í	²Í	³    Í	´   Í	µÍ	¶    Í	·   Í	¸Í	¹    Í	º   Í	»Í	¼    Í	½   Í	¾Í	¿    Í	À   Í	ÁÍ	Â    Í	Ã   Í	ÄÍ	Å    Í	Æ   Í	ÇÍ	È    Í	É   Í	ÊÍ	Ë    Í	Ì   Í	ÍÍ	Î    Í	Ï   Í	ĞÍ	Ñ    Í	Ò   Í	ÓÍ	Ô    Í	Õ   Í	ÖÍ	×    Í	Ø   Í	ÙÍ	Ú    Í	Û   Í	ÜÍ	İ    Í	Ş   Í	ßÍ	à    Í	á   Í	âÍ	ã    Í	ä   Í	åÍ	æ    Í	ç   Í	èÍ	é    Í	ê   Í	ëÍ	ì    Í	í   Í	îÍ	ï    Í	ğ   Í	ñÍ	ò    Í	ó   Í	ôÍ	õ    Í	ö   Í	÷Í	ø    Í	ù   Í	úÍ	û    Í	ü   Í	ıÍ	ş    Í	ÿ   Í
+ Í
+    Í
+   Í
+Í
+    Í
+   Í
+Í
+    Í
+   Í
+	Í
+
+    Í
+   Í
+Í
+    Í
+   Í
+Í
+    Í
+   Í
+Í
+    Í
+   Í
+Í
+    Í
+   Í
+Í
+    Í
+   Í
+Í
+    Í
+   Í
+Í
+    Í
+    Í
+!Í
+"    Í
+#   Í
+$Íu    Í
+%   Í
+&Í
+'    Í
+(   Í
+)Í
+*    Í
++   Í
+,Í
+-    Í
+.   Í
+/Í
+0    Í
+1   Í
+2Í
+3    Í
+4   Í
+5Í
+6    Í
+7   Í
+8Í
+9    Í
+:   Í
+;Í
+<    Í
+=   Í
+>Í
+?    Í
+@   Í
+AÍ
+B    Í
+C   Í
+DÍ
+E    Í
+F   Í
+GÍ
+H    Í
+I   Í
+JÍ
+K    Í
+L   Í
+MÍ
+N    Í
+O   Í
+PÍx    Í
+Q   Í
+RÍ
+S    Í
+T   Í
+UÍ
+V    Í
+W   Í
+XÍ
+Y    Í
+Z   Í
+[Í
+\    Í
+]   Í
+^Í
+_    Í
+`   Í
+aÍ
+b    Í
+c   Í
+dÍ
+e    Í
+f   Í
+gÍ
+h    Í
+i   Í
+jÍ
+k    Í
+l   Í
+mÍ
+n    Í
+o   Í
+pÍ
+q    Í
+r   Í
+sÍ
+t    Í
+u   Í
+vÍ
+w    Í
+x   Í
+yÍ
+z    Í
+{   Í
+|Í
+}    Í
+~   Í
+Í
+€    Í
+   Í
+‚Í
+ƒ    Í
+„   Í
+…Í
+†    Í
+‡   Í
+ˆÍ
+‰    Í
+Š   Í
+‹Í
+Œ    Í
+   Í
+Í
+    Í
+   Í
+‘Í
+’    Í
+“   Í
+”Í
+•    Í
+–   Í
+—Í
+˜    Í
+™   Í
+šÍ
+›    Í
+œ   Í
+Í
+    Í
+Ÿ   Í
+ Í
+¡    Í
+¢   Í
+£Í
+¤    Í
+¥   Í
+¦Í
+§    Í
+¨   Í
+©Í
+ª    Í
+«   Í
+¬Í
+­    Í
+®   Í
+¯Í
+°    Í
+±   Í
+²Í
+³    Í
+´   Í
+µÍ
+¶    Í
+·   Í
+¸Í
+¹    Í
+º   Í
+»Í
+¼    Í
+½   Í
+¾Í
+¿    Í
+À   Í
+ÁÍ
+Â    Í
+Ã   Í
+ÄÍ
+Å    Í
+Æ   Í
+ÇÍ
+È    Í
+É   Í
+ÊÍ
+Ë    Í
+Ì   Í
+ÍÍ
+Î    Í
+Ï   Í
+ĞÍ
+Ñ    Í
+Ò   Í
+ÓÍ
+Ô    Í
+Õ   Í
+ÖÍx    Í
+×   Í
+ØÍ
+Ù    Í
+Ú   Í
+ÛÍ
+Ü    Í
+İ   Í
+ŞÍ
+ß    Í
+à   Í
+áÍ
+â    Í
+ã   Í
+äÍ
+å    Í
+æ   Í
+çÍ
+è    Í
+é   Í
+êÍ
+ë    Í
+ì   Í
+íÍ
+î    Í
+ï   Í
+ğÍ
+ñ    Í
+ò   Í
+óÍ
+ô    Í
+õ   Í
+öÍ
+÷    Í
+ø   Í
+ùÍ
+ú    Í
+û   Í
+üÍ
+ı    Í
+ş   Í
+ÿÍ     Í   ÍÍ    Í   ÍÍ    Í   ÍÍ	    Í
+   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   Í Í!    Í"   Í#Í$    Í%   Í&Í'    Í(   Í)Í*    Í+   Í,Í-    Í.   Í/Í0    Í1   Í2Í3    Í4   Í5Í6    Í7   Í8Í9    Í:   Í;Í<    Í=   Í>Í?    Í@   ÍAÍB    ÍC   ÍDÍE    ÍF   ÍGÍH    ÍI   ÍJÍK    ÍL   ÍMÍN    ÍO   ÍPÍQ    ÍR   ÍSÍT    ÍU   ÍVÍW    ÍX   ÍYÍZ    Í[   Í\Í]    Í^   Í_Í`    Ía   ÍbÍc    Íd   ÍeÍf    Íg   ÍhÍi    Íj   ÍkÍl    Ím   ÍnÍo    Íp   ÍqÍ°    Ír   ÍsÍt    Íu   ÍvÍw    Íx   ÍyÍz    Í{   Í|Í}    Í~   ÍÍ€    Í   Í‚Íƒ    Í„   Í…Í†    Í‡   ÍˆÍ‰    ÍŠ   Í‹ÍŒ    Í   ÍÍ    Í   Í‘Í’    Í“   Í”Í•    Í–   Í—Í˜    Í™   ÍšÍ›    Íœ   ÍÍ    ÍŸ   Í Í¡    Í¢   Í£Í¤    Í¥   Í¦Í§    Í¨   Í©Íª    Í«   Í¬Í­    Í®   Í¯Í°    Í±   Í²Í³    Í´   ÍµÍ¶    Í·   Í¸Í¹    Íº   Í»Í¼    Í½   Í¾Í¿    ÍÀ   ÍÁÍÂ    ÍÃ   ÍÄÍÅ    ÍÆ   ÍÇÍÈ    ÍÉ   ÍÊÍË    ÍÌ   ÍÍÍÎ    ÍÏ   ÍĞÍÑ    ÍÒ   ÍÓÍÔ    ÍÕ   ÍÖÍ×    ÍØ   ÍÙÍÚ    ÍÛ   ÍÜÍİ    ÍŞ   ÍßÍà    Íá   ÍâÍã    Íä   ÍåÍæ    Íç   ÍèÍé    Íê   ÍëÍì    Íí   ÍîÍï    Íğ   ÍñÍò    Íó   ÍôÍõ    Íö   Í÷Íø    Íù   ÍúÍû    Íü   ÍıÍş    Íÿ   Í Í    Í   ÍÍ    Í   ÍÍ    Í   Í	Í
+    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í   ÍÍ    Í    Í!Í"    Í#   Í$Í%    Í&   Í'Í(    Í)   Í*Í+    Í,   Í-Í.    Í/   Í0Í1    Í2   Í3Í4    Í5   Í6Í7    Í8   Í9Í:    Í;   Í<Í=    Í>   Í?Í@    ÍA   ÍBÍC    ÍD   ÍEÍF    ÍG   ÍHÍI    ÍJ   ÍKÍL    ÍM   ÍNÍO    ÍP   ÍQÍR    ÍS   ÍTÍU    ÍV   ÍWÍX    ÍY   ÍZÍ[    Í\   Í]Í^    Í_   Í`Ía    Íb   ÍcÍd    Íe   ÍfÍg    Íh   ÍiÍj    Ík   ÍlÍm    Ín   ÍoÍp    Íq   ÍrÍs    Ít   ÍuÍv    Íw   ÍxÍy    Íz   Í{Í|    Í}   Í~Í    Í€   ÍÍ‚    Íƒ   Í„Í…    Í†   Í‡Íˆ    Í‰   ÍŠÍ‹    ÍŒ   ÍÍ    Í   ÍÍ‘    Í’   Í“Í”    Í•   Í–Í—    Í˜   ÍšÍšÍX Ìƒ   Í›  ‘Í™ÍœÍœ   Í   ÌÌ    Ì†Ì   ÍÍÍX Ì…   ÍŸ  Í Í¡  Ì†   Í¢  Í£Í£   Í¤   Í6Í6   Í¥   Í¦Í¦ Í   Í§  Í¨Í¨   Í©   ÍªÍª   Í«   Í¬Í¬   Í­   Í®Í®   Í¯   Í°Í°Ì¿ d   Í±  ÍyÍy   Í²   Í³Í³   Í´   Í©Í©   Íµ   Í¶Í¶   Í·   Í¸Í¸ÍX ÌŒ   Í¹  ÍºÍ»  Ì   Í¼  Í½Í½   Í¾   Í£Í£Ì¿ Í£ Í¿  ÍÀÍÁ     ÍÂ  Í¹Í¸    Í£Í¹   ÍÃÍÄ  	   ÍÅ  ÍÆÍÇ  	   ÍÈ  ÍÉÍÊ    Í£ÍÉ   ÍËÍÌ  
+   ÍÍ  ÍÎÍÏ     ÍĞ  Í¯Í¯   ÍÑ   ÍÒÍÒ   ÍÓ   ÍÔÍÔÍX Ì   ÍÕ  ÍÖÍ×  Ì   ÍØ  ÍÙÍÙ   ÍÚ   ÍÛÍÛ   ÍÜ   ÍİÍİ Í   ÍŞ  ÍßÍßÌ„   Íß ÍŞ  ÍáÍá Ìƒ   Íâ  ‘ÍàÍäÍä  Íå Íã ÍæÍæ   Íç   Í@Í@    Ì´ÍA   ÍèÍèÌ¿   Íè Íé  ÍêÍë  K   Íì  ÍíÍî  J   Íï  ÍğÍğ   Íñ   ÍµÍµ   Íò   ÍóÍó   ÍÍô   ÍõÍö    Í÷   ÍøÍù    Íú   ÍûÍü    Íı   ÍşÍÿ    Í    ÍÍ    Í   ÍÍ   Í   ÍÍ  Í Í ÍÍÍ   ÍÍ	Í
+  ÍÌ¤  Ìâ   Ì¦  ÍÌ  Ìã   Í  ÍÍ  ÌÛ   Í  ÍÍ  Ìã   Í  ÍÍ  Ìä   Í  ÍÍ  ÌŞ   Í  ÍÍ  ÌÙ   Í  ÍÍ  ÌÚ   Í  Í Í!  Ìä   Í"  Í#Í$  Ìá   Í%  Í&Í'  Ìİ   Í(  Í)Í*  Ìå   Í+  Í,Í-  Ìæ   Í.  Í/Í0  ÌÜ   Í1  Í2Í´  Ìà   Íµ  Í3Í4  Ìß   Í5  Í6Í6   Í7   ÍCÍC    Ì´ÍD   ÍFÍF    Ì´ÍG   Í8Í8Ì„ Ì¼   Í9  Í:Í;  Ìš   Í<  Í=Í>  Ì   Í?  Í@ÍA  Ì   ÍB  ÍCÍD  Ì›   ÍE  ÍFÍG  Ìœ   ÍH  ÍIÍI   ÍJ   ÍKÍK   ÍL   ÍMÍMÌ„ Ì¸   ÍN  ÍOÍO   ÍP   ÍQÍQ   ÍR   ÍÍ   ÍS   Í„Í„   ÍT   ÍUÍUÍX Ì‹   ÍV  ÍWÍWÍéÍ   ÍX  ÍYÍY   ÍZ   Í[Í[Ì„ Ìƒ   Í\  Í]Í]Í^ Ì¦   Í_  Í`Í`   Ía   Ì’Ì’    Ì†Ì’   ÍÀÍÀ   Íb   ÍcÍc   Íd   ÍeÍe   Íf   ÍÕÍÕ   Íg   ÍhÍh   Íi   ÍjÍjÍ Ìé ÍkÍl  ÍnÍ Ìê   ÍoÍmÍ
+ÍpÍp   Íq   Í¸Í¸   Ír   ÍsÍs   Ít   ÍvÍv Í(   Íw  ‘ÍuÍxÍxÌ¿ Íx Íy  ÍzÍ{     Í|  Í}Í~     Í  Í€Í     Í‚  ÍƒÍ„     Í…  Í†Í‡     Íˆ  Í‰ÍŠ     Í‹  ÍŒÍÁ     ÍÂ  ÍÍÌ     ÍÍ  ÍÍÏ     ÍĞ  ÍÍ   Í   Í‘Í‘   Í’   Í“Í“   Í”   Í•Í•   Í–   Í—Í—   Í˜   Í™Í™ Ìƒ   Íš  ‘Í™ÌõÌõ   Í›   ÍœÍœÍ Í   Í  ÍŸÍ Í   Í ÍÍ
+Í¡Í  Í   Í¢  Í£Í£   Í¤   Í¦Í¦  Í§ Í¥ Í¨Í¨   Í©   ÍªÍª   Í«   Í¬Í¬   Í­   Í,Í,Ì¿ Í, Í®  Í¯Í¯   Í°   Í±Í±   Í²   Í³Í³   Í´   ÍµÍµ   Í¶   Ì„Ì„Ì„ ÌÈ   Í·  Í»Í»   Í¸   Ì—Ì—    Ì†Ì—   Í¹Í¹Ì„   Í¹ Ìü  ÍºÍ»  Ì¬   Í¼  Í½Í¾  Ì¬   Í¿  ÍÀÍÁ  Ì¬   ÍÂ  ÍÃÍÄ  Ì¬   ÍÅ  ÍÆÍÇ  Ì­   ÍÈ  ÍÉÍÉ   ÍÊ   ÍËÍË   ÍÌ   ÍRÍR    Ì´ÍS   ÍÍÍÍ   ÍÎ   ÍÏÍÏ Í   ÍĞ  ÍÑÍÑ   ÍÒ   ÍÍÍ Ìë   ÍÓ  ÍÔÍÔÍ^ Ì¡   ÍÕ  ÍÖÍÖÍX Ì‰   Í×  ÍØÍØ   ÍÙ   ÍÚÍÚÍX Ì„   ÍÛ  ÍÜÍ¡  Ìƒ   Íİ  Í¾Í¾   ÍŞ   ÍßÍßÍéÍ	   Íà  ÍÙÍÙÍé   ÍÙ ÍÚ  ÍáÍ	\  Ìù   Íâ  ÍãÍä  Ìû   Íå  ÍæÍ  Ìú   Í  ÍÁÍÁ   Íç   ÍéÍéÍ^ Ì«   Íê  ‘ÍèÍëÍëÍ^ Ìª   Íì  ÍíÍí   Íî   ÍïÍï Í   Íğ  ÍñÍñ   Íò   ÍóÍó   Íô   ÍtÍt    ÍtÍt   ÍXÍX  ÌÉ   ÍY  ÍõÍõ   Íö   Í÷Í÷   Íø   ÍùÍù   Íú   ÍûÍû   Íü   Í‡Í‡    Ì´Íˆ   ÍıÍı   Íı   ÍşÍş Í    Íÿ      ÍÍ    Í      Í      Í      Í	   
+   Í      Í      Í      Í      Í	      Í
+      Í      Í      Í      Í      Í    !   Í"   #   Í$   %   Í&   '   Í(   )   Í*   +   Í,   -   Í.   /   Í1  2 0 Í3   4   Í5   6   Í7   8   Í9   :   Í;   <   Í=   >   Í?   @   ÍA   B   Í C   D   Í!E   F   Í"G   H   Í#I   J   Í$K   L   Í%M   N   Í&O   P   Í'Q   R   Í(S   T   Í)U   V   Í*W   X   Í+Y   Z   Í,[   \   Í-]   ^   Í._   `   Í/a   b   Í0c   d   Í1e   f   Í2g   h   Í3i   j   Í4k   l   Í5m   n   Í6o   p   Í7q   r   Í8s   t   Í9u   v   Í:w Í&   x  Í;y Í   z  Í<{   |   Í=}   ~   Í>Ì€  Ì  Í?Ì‚   Ì   Í@Ì   ÌŸ   ÍAÌ    Ì¡   ÍBÌ¢   Ì£   ÍCÌ¤   Ì¥   ÍDÌ­   Ì®   ÍEÌ¯   Ì°   ÍFÌ±   Ì²   ÍGÌ¶   Ì·   ÍHÌ¸   Ì¹   ÍIÌº   Ì»   ÍJÌ¼   Ì½   ÍKÍ-   Í.   ÍLÍ/   Í0   ÍMÍ1   Í2   ÍNÍ;   Í<   ÍOÍ=   Í>   ÍPÌÂ   Í?   ÍQÍ@ Í   ÍA  ÍRÍB   ÍC   ÍSÍD   ÍE   ÍTÍF   ÍG   ÍUÍH   ÍI   ÍVÍJ   ÍK   ÍWÍM Ìƒ   ÍN  ‘ÍLÍXÍO   ÍP   ÍYÍR  ÍS ÍQ ÍZÍT   ÍU   Í[ÍV   ÍS   Í\ÍZ Í   Í[  Í]Í\   Í]   Í^Íe Ìƒ   Íf  ‘ÍdÍ_Íi   Íj   Í`Ím   Ín   ÍaÍo   Íp   ÍbÍq   Ír   ÍcÍu   Ív   ÍdÍ~ Ìƒ   Í  ’Í|Í}ÍeÍş Í   Íÿ  ÍfÍ    Í   ÍgÍ   Í   ÍhÍ Í!   Í  ÍiÍ   Í   ÍjÍ   Í   ÍkÍ“   Í   ÍlÍ   Í   ÍmÍ   Í   ÍnÍ   Í   ÍoÍ   Í   ÍpÍ   Í    ÍqÍ$ Í#   Í%  ÍrÍ(   Í)   ÍsÍ,   Í-   ÍtÍÇ   ÍÈ   ÍuÍÉ   ÍÊ   ÍvÍË   ÍÌ   ÍwÍÛ   Í<   ÍxÍÜ   Íİ   ÍyÍŞ   Íß   ÍzÍà   Íá   Í{Í™   Íâ   Í|Íœ   Íã   Í}Íä   Íå   Í~Íæ   Íç   ÍÍû   Íü   Í€Íı   Íş   ÍÍÿ   Í    Í‚Í   Í   ÍƒÍ   Í	   Í„Í   Í   Í…Í  Í Í Í†Í    Í   Í‡Í!   Í"   ÍˆÌ¨   ÍC   Í‰ÍD   ÍE   ÍŠÍF   ÍG   Í‹ÍH   ÍI   ÍŒÍJ   ÍK   ÍÍL   ÍM   ÍÍN   ÍO   ÍÍ_   Í`   ÍÍa   Íb   Í‘Íd  Íe Íc Í’Íf   Íg   Í“Íh   Íi   Í”Íí Í(   Í‚  ‘ÍÍ•Íƒ   Í„   Í–Í…   Í†   Í—Í‰   ÍŠ   Í˜Í‹   ÍŒ   Í™Í   Í   ÍšÍ   Í   Í›Í‘   Í’   ÍœÍ“   Í”   ÍÍ•   Í–   ÍÍ¨   Í©   ÍŸÍª   Í«   Í Í¬   Í­   Í¡Íœ   Í   Í¢Í£   Í¤   Í£Í6   Í¥   Í¤Í¦ Í   Í§  Í¥Í¨   Í©   Í¦Íª   Í«   Í§Í¬   Í­   Í¨Í®   Í¯   Í©Íy   Í²   ÍªÍ³   Í´   Í«Í©   Íµ   Í¬Í¶   Í·   Í­Í½   Í¾   Í®Í¯   ÍÑ   Í¯ÍÒ   ÍÓ   Í°ÍÙ   ÍÚ   Í±ÍÛ   ÍÜ   Í²Íİ Í   ÍŞ  Í³Íá Ìƒ   Íâ  ‘ÍàÍ´Íä  Íå Íã ÍµÍæ   Íç   Í¶Íğ   Íñ   Í·Íµ   Íò   Í¸Íó   ÍÍô   Í¹Íö    Í÷   ÍºÍù    Íú   Í»Íü    Íı   Í¼Íÿ    Í    Í½Í    Í   Í¾Í   Í   Í¿Í  Í Í ÍÀÍ   Í	   ÍÁÍ6   Í7   ÍÂÍI   ÍJ   ÍÃÍK   ÍL   ÍÄÍO   ÍP   ÍÅÍQ   ÍR   ÍÆÍ   ÍS   ÍÇÍ„   ÍT   ÍÈÍY   ÍZ   ÍÉÍ`   Ía   ÍÊÍÀ   Íb   ÍËÍc   Íd   ÍÌÍe   Íf   ÍÍÍÕ   Íg   ÍÎÍh   Íi   ÍÏÍj   Ík   ÍĞÍp   Íq   ÍÑÍ¸   Ír   ÍÒÍs   Ít   ÍÓÍv Í(   Íw  ‘ÍuÍÔÍ   Í   ÍÕÍ‘   Í’   ÍÖÍ“   Í”   Í×Í•   Í–   ÍØÍ—   Í˜   ÍÙÍ™ Ìƒ   Íš  ‘Í™ÍÚÌõ   Í›   ÍÛÍ£   Í¤   ÍÜÍ¦  Í§ Í¥ ÍİÍ¨   Í©   ÍŞÍª   Í«   ÍßÍ¬   Í­   ÍàÍ¯   Í°   ÍáÍ±   Í²   ÍâÍ³   Í´   ÍãÍµ   Í¶   ÍäÍ»   Í¸   ÍåÍÉ   ÍÊ   ÍæÍË   ÍÌ   ÍçÍÍ   ÍÎ   ÍèÍÏ Í   ÍĞ  ÍéÍÑ   ÍÒ   ÍêÍØ   ÍÙ   ÍëÍ¾   ÍŞ   ÍìÍÁ   Íç   ÍíÍí   Íî   ÍîÍï Í   Íğ  ÍïÍñ   Íò   ÍğÍó   Íô   ÍñÍõ   Íö   ÍòÍ÷   Íø   ÍóÍù   Íú   ÍôÍû   Íü   ÍõÍı   Íı   ÍöÍş Í    Íÿ  Í÷ÍÄ   Íø   ÍùÍú   Íû   ÍüÍı   Íş   ÍÿÍ  Ìƒ   Í  ÍÍÇ   Í   ÍÍ   Í   ÍÍ   Í	   Í
+Í   Í   ÍÍ   Í   ÍÍ Ìƒ   Í  ‘ÍÍÍ   Í   ÍÍ   Í   ÍÍ   Í   ÍÍ   Í	   ÍÍ    Í!   Í"Í#   Í$   Í%Í&   Í'   Í(ÍÊ Í&   Í)  Í*Í+   Í,   Í-Í.   Í/   Í0Í1   Í   Í2Í3   Í4   Í5Í6   Í7   Í8Í9   Í:   Í;Í<   Í=   Í>Í?   Ít   Í@ÍA Í$   ÍB  ÍCÍD   ÍE   ÍFÍG   ÍH   ÍIÍJ Í   ÍK  ÍLÍM Í   ÍN  ÍOÍP Ìƒ   ÍQ  ÍRÍS Í   ÍT  ÍUÍV Í   ÍW  ÍXÍY   ÍZ   Í[Í\   Í]   Í^Í_   Í`   ÍaÍb   Íe   ÍcÍd   ÍŠ   ÍeÍf   Íg   ÍhÍi   Íj   ÍkÍl   Ím   ÍnÍo   Íp   ÍqÍr   Ís   ÍtÍu   ÍŠ   ÍvÍw   Íx   ÍyÍÓ   Íz   Í{Í|   Í}   Í~Í   Í€   ÍÍ‚   Íƒ   Í„Í…   Í†   Í‡Íˆ   Í‰   ÍŠÍ‹   ÍŒ   ÍÍ   Í   ÍÍ‘ Í%   Í’  Í“Í   Í”   Í•Í–   Í—   Í˜Í™   Íš   Í›Íœ   Í   ÍÍ   ÍŸ   Í Í
+   Í¡   Í¢Í£   Í¤   Í¥Í¦   Í§   Í¨Í©   Íª   Í«Í¬   Í­   Í®Í¯   Í°   Í±Í²   Í³   Í´Íµ   Í¶   Í·Í¸   Í¹   ÍºÍä Í"   Íå  Í»Íç Í&   Íè  Í¼Í½   Í¾   Í¿ÍÀ   ÍÁ   ÍÃÍÄ Ìƒ   ÍÅ  ‘ÍÂÍÆÍÇ   ÍÈ   ÍËÍÌ Ìƒ   ÍÍ  ’ÍÉÍÊÍÏÍĞ Í)   ÍÑ  ‘ÍÎÍÒÍÓ Ìƒ   ÍÔ  ÍÕÍÖ   Í×   ÍØÍÙ   ÍÚ   ÍÜÍİ  Í’ ÍÛ ÍŞÍß   Íà   ÍáÍâ   Íã   ÍåÍæ Ìƒ   Íç  ‘ÍäÍèÍé   Íê   ÍëÍ0   Íì   ÍíÍî   Íï   ÍğÍ
+­   Íñ   ÍóÍ
+³  Íô Íò ÍõÍö   Í÷   ÍøÍê   Íù   ÍúÍû   Íü   ÍıÍí   Íş   ÍÿÍ    Í   ÍÍ   Í   ÍÍ   Í   ÍÍ	   Í
+   ÍÍ   Í   ÍÍ´   Í   ÍÍğ Í'   Íñ  ÍÍ<   Í   ÍÍ Í)   Í  ‘ÍÍÍE   Í   ÍÍ Í   Í  ÍÍ   Í   ÍÍ    Í!   Í"ÍQ   Í#   Í$Í"   Í%   Í&ÍT   Í'   Í(Í)   Í*   Í+Í,   Í-   Í.Í/   Í0   Í1Í2   Í3   Í4Í5   Í6   Í7Íó   Í8   Í9Íö   Í:   Í;Íù   Í<   Í=Í>   Í?   Í@Í^ Ì    ÍA  ÍBÍC   ÍD   ÍEÍF   ÍG   ÍHÍI   ÍJ   ÍKÍL   ÍM   ÍNÍO   ÍP   ÍQÍR   ÍS   ÍTÍU   ÍV   ÍWÍX   ÍY   ÍZÍ[   Í\   Í]Ì   Í^   Í_Í`   Ía   ÍbÍc   Íd   ÍeÍõ   Íf   ÍgÍh Í   Íi  ÍjÍk Í   Íl  ÍmÍn Ìƒ   Ío  ÍpÍq Í   Ír  ÍsÍt Í   Íu  ÍvÍw   Íx   ÍzÍ{ Ìƒ   Í|  ‘ÍyÍ}Í~   Í   Í€Í   Í‚   ÍƒÍ„ Í   Í…  Í†Í‡   Í÷   ÍˆÍ‰   ÍŠ   Í‹ÍŒ   Í   ÍÍ   Í   Í‘Í’   Í“   Í”Í•   Í–   Í—Í˜   Í™   ÍšÍ›   Íœ   ÍÍ   ÍŸ   Í Í¡   ÍŸ   Í¢Í£   Í¤   Í¥Í¦   Í§   Í¨Í©   Íª   Í«Í¬   Í­   ÍÄÍÄ   Íø   Í®Í®Ì„ÌÇ   Í¯  ÍúÍú   Íû   ÍıÍı   Íş   Í°Í°Íé Í   Í±  Í Í  Ìƒ   Í  ÍÇÍÇ   Í   ÍÍ   Í   ÍÍ   Í	   ÍÍ   Í   ÍÍ   Í   ÍÍÌ¿   Í Í²  ÍÍ Ìƒ   Í  ‘ÍÍÍÌ„ ÌÃ   Í³  ÍÍ   Í   ÍÍ   Í   ÍÍ   Í   ÍÍ   Í	   Í Í    Í!   Í#Í#   Í$   ÍÍ    Ì´Í   Í&Í&   Í'   ÍÊÍÊ Í&   Í)  Í+Í+   Í,   Í.Í.   Í/   Í1Í1   Í   Í3Í3   Í4   Í´Í´ÍX ÌŸ   Íµ  Í6Í6   Í7   Í“Í“  ÌÊ   Í”  Í–Í–  ÌË   Í—  Í™Í™    Ì´Íš   Í9Í9   Í:   Í<Í<   Í=   Í?Í?   Ít   ÍAÍA Í$   ÍB  ÍDÍD   ÍE   ÍŸÍŸ    Ì´Í    ÍGÍG   ÍH   Í¸Í¸ÍX Ì‘   Í¹  ’Í¶Í·ÍºÍ×  Ì’   Í»  Í¼Í½  Ì•   Í¾  Í¿ÍÀ Ì“   ÍÁ  ÍÂÍÃ Ì•   ÍÄ  ÍÅÍ	\ Ì•   Íâ  ÍÆÍÇ Ì”   ÍÈ  ÍJÍJ Í   ÍK  ÍMÍM Í   ÍN  ÍPÍPÍ^ Ì¤   ÍQ  ÍSÍS Í   ÍT  ÍVÍV Í   ÍW  ÍÉÍÉÌ„ ÌÁ   ÍÊ  Í	\Í	\Ì„ Ì¶   Íâ  ÍËÍËÌ„ Ì·   ÍÌ  ÍÎÍÎÌ¿ a   ÍÏ  ‘ÍÍÍĞÍĞÍX    ÍÑ  ÍÓÍ  Ì€   ÍÔ  ‘ÍÒÍYÍY   ÍZ   Í\Í\   Í]   ÍÕÍÕÍX Ì   ÍÖ  Í_Í_   Í`   ÍbÍb   Íe   ÍdÍd   ÍŠ   ÍØÍØÍÌø   ÍÙÍ× ÍÚÍÚÍ ÌçÍÜ ÍİÍÛÍ
+‘ÍÚÍŞÍŞ    ÍÍß   ÍàÍáÍŞ Í+   Íâ  ÍäÍ@ÍŞ Í*   ÍA  ‘ÍãÍæÍãÍŞÍ*   ÍAÍåÍ
+‘ÍãÍfÍf   Íg   ÍiÍi   Íj   ÍlÍl   Ím   ÍoÍo   Íp   ÍrÍr   Ís   ÍuÍu   ÍŠ   ÍwÍw   Íx   ÍÓÍÓ   Íz   Í|Í|   Í}   ÍçÍçÌ„ Ì¿   Íè  ÍéÍê  Ì   Íë  ÍÍ   Í€   ÍìÍìÌ¿ e   Íí  ÍîÍï  f   Íğ  Í‚Í‚   Íƒ   ÍñÍñÍ Ìğ   Íò  ÍóÍô  Ìñ   Íõ  Í…Í…   Í†   ÍˆÍˆ   Í‰   Í‹Í‹   ÍŒ   ÍÍ   Í   Í‘Í‘ Í%   Í’  ÍÍ   Í”   Í–Í–   Í—   Í™Í™   Íš   Í¢Í¢    Ì´Í£   ÍœÍœ   Í   ÍÍ   ÍŸ   ÍöÍöÍéÍ   Í÷  Í
+Í
+   Í¡   Í£Í£ÍX Ì Í¤Íø  ÍÍ  4   Í  Í¦Í¦Ì„   Í¦Í§Íù  ÍúÍúÍ^ Ì¨   Íû  ÍüÍ  Ì©   Íı  ÍşÍşÍ Í
+   Íÿ  Í©Í©Í Ìì ÍªÍ   Í¥Í¥    Ì´Í¦   ÍÍÍX Ì–   Í  Í¬Í¬   Í­   ÍÍÌ¿ QÍ Í  Í$Í$Ì„   Í$ Í  Í'Í'Ì„ ÌÂ   Í(  ÍÍÌ¿ `   Í  Í¯Í¯   Í°   Í¨Í¨  ÌÍ   Í©  Í²Í²   Í³   ÍµÍµ   Í¶   Ì™Ì™    Ì†Ì™   Í¸Í¸   Í¹   ÍäÍä Í"   Íå  Í«Í«Ì„ ÌÅ   Í¬  ÍçÍç Í&   Íè  ÍvÍv    ÍtÍv   Í½Í½   Í¾   ÍÀÍÀ   ÍÁ   ÍÄÍÄ Ìƒ   ÍÅ  ‘ÍÂÍÇÍÇ   ÍÈ   ÍÍÌ„ ÌÄ   Í	  ÍÌÍÌ Ìƒ   ÍÍ  ’ÍÉÍÊÍĞÍĞ Í)   ÍÑ  ‘ÍÎÍÓÍÓ Ìƒ   ÍÔ  ÍÖÍÖ   Í×   ÍÙÍÙ   ÍÚ   ÍİÍİ  Í’ ÍÛ ÍßÍß   Íà   Í
+Í
+Ì¿ RÍ
+ Í  ÍÍ  U   Í  ÍÌ¢  S   Í  ÍÍ  T   Í  ÍÍD  S   Í  ÍâÍâ   Íã   ÍæÍæ Ìƒ   Íç  ‘ÍäÍéÍé   Íê   Í0Í0   Íì   ÍîÍî   Íï   Í
+­Í
+­   Íñ   Í
+³Í
+³  Íô Íò ÍöÍö   Í÷   Í±Í±    Ì´Í²   ÍêÍê   Íù   ÍûÍû   Íü   ÍíÍí   Íş   ÍÍÌ„ ÌÆ   Í  Í Í    Í   ÍÍÍ^ Ì§   Í  ÍÍÍ^ Ì¢   Í  ÍÍ   Í   ÍÍ   Í   Í	Í	   Í
+   ÍÍ   Í   Í´Í´   Í   ÍğÍğ Í'   Íñ  Í<Í<Í Ìí ÍÍ  ÍÍ Í)   Í  ‘ÍÍÍÌ„ Ì»   Í  ÍEÍE   Í   Ì›Ì›    Ì†Ì›   ÍÍÍé ÍÍ Í   Í!ÌÂ Í   ÌÃ  Í"Íğ Í   Íñ  Í#Íó Í   Íô  Í$Íù  Í   Íú  Í%Í%Ì¿ Í% Í&  Í'ÌÂ     ÌÃ  Í(Í)     Í*  Í+Í,     Í-  Í.Ì×     ÌØ  Í/Í0     Í1  Í2Ìã     Ìä  Í3Ìæ     Ìç  Í4Í5     Í6  Í7Ìø     Ìù  Í8Ìû     Ìü  Í9Í:     Í;  Í<Í=     Í>  Í?Í@     ÍA  ÍBÍ     Í  ÍCÍD     ÍE  ÍFÍ     Í  ÍGÍ     Í  ÍHÍ     Í   ÍIÍJ     ÍK  ÍLÍM     ÍN  ÍOÍP     ÍQ  ÍÍ Í   Í  ÍRÍRÍ^ Ì¥   ÍS  ÍTÍTÍ ÌèÍT ÍU  ÍWÍWÍX Ì‚   ÍX  ’ÍeÍVÍYÍYÍ^ Ì£   ÍZ  ÍÍ   Í   Í Í    Í!   ÍQÍQ   Í#   Í"Í"   Í%   ÍTÍT   Í'   Í)Í)   Í*   Í[Í[Í^ Ì£   Í\  Í,Í,   Í-   Í]Í]Í°   ÍÍ^   Í_       Í`       Ía       Íb	    
+   Íc       Íd       Íe       Íf       Íg       Íh       Íi       Íj       Ík       Íl     !   Ím"    #   Ín$    %   Ío&    '   Íp(    )   Íq*    +   Ír,    -   Ís.    /   Ít1   2 0 Íu3    4   Ív5    6   Íw7    8   Íx9    :   Íy;    <   Íz=    >   Í{?    @   Í|A    B   Í}C    D   Í~E    F   ÍG    H   Í€I    J   ÍK    L   Í‚O    P   ÍƒQ    R   Í„S    T   Í…U    V   Í†W    X   Í‡Y    Z   Íˆ[    \   Í‰]    ^   ÍŠ_    `   Í‹a    b   ÍŒc    d   Íe    f   Íg    h   Íi    j   Ík    l   Í‘m    n   Í’o    p   Í“q    r   Í”s    t   Í•u    v   Í–{    |   Í—}    ~   Í˜Ì€   Ì  Í™Ì‚    Ì   ÍšÌ    ÌŸ   Í›Ì     Ì¡   ÍœÌ¢    Ì£   ÍÌ¤    Ì¥   ÍÌ­    Ì®   ÍŸÌ¯    Ì°   Í Ì±    Ì²   Í¡Í-    Í.   Í¢Í/    Í0   Í£Í1    Í2   Í¤Í;    Í<   Í¥Í=    Í>   Í¦ÌÂ    Í?   Í§ÍB    ÍC   Í¨ÍD    ÍE   Í©ÍF    ÍG   ÍªÍH    ÍI   Í«ÍJ    ÍK   Í¬ÍO    ÍP   Í­ÍR   ÍS ÍQ Í®ÍT    ÍU   Í¯ÍV    ÍS   Í°Í\    Í]   Í±Íi    Íj   Í²Ím    Ín   Í³Ío    Íp   Í´Íq    Ír   ÍµÍu    Ív   Í¶Í     Í   Í·Í    Í   Í¸Í    Í   Í¹Í    Í   ÍºÍ“    Í   Í»Í    Í   Í¼Í    Í   Í½Í    Í   Í¾Í    Í   Í¿Í    Í    ÍÀÍ(    Í)   ÍÁÍ,    Í-   ÍÂÍÇ    ÍÈ   ÍÃÍÉ    ÍÊ   ÍÄÍË    ÍÌ   ÍÅÍÛ    Í<   ÍÆÍÜ    Íİ   ÍÇÍŞ    Íß   ÍÈÍà    Íá   ÍÉÍû    Íü   ÍÊÍ    Í	   ÍËÍ    Í   ÍÌÍ   Í Í ÍÍÍ     Í   ÍÎÍ!    Í"   ÍÏÍD    ÍE   ÍĞÍF    ÍG   ÍÑÍJ    ÍK   ÍÒÍL    ÍM   ÍÓÍN    ÍO   ÍÔÍ_    Í`   ÍÕÍd   Íe Íc ÍÖÍf    Íg   Í×Íƒ    Í„   ÍØÍ…    Í†   ÍÙÍ‰    ÍŠ   ÍÚÍ‹    ÍŒ   ÍÛÍ    Í   ÍÜÍ    Í   ÍİÍ‘    Í’   ÍŞÍ“    Í”   ÍßÍ•    Í–   ÍàÍ¨    Í©   ÍáÍª    Í«   ÍâÍ¬    Í­   ÍãÍœ    Í   ÍäÍ£    Í¤   ÍåÍ6    Í¥   ÍæÍ¨    Í©   ÍçÍª    Í«   ÍèÍ¬    Í­   ÍéÍ®    Í¯   ÍêÍy    Í²   ÍëÍ³    Í´   ÍìÍ¶    Í·   ÍíÍ½    Í¾   ÍîÍ¯    ÍÑ   ÍïÍÒ    ÍÓ   ÍğÍÙ    ÍÚ   ÍñÍÛ    ÍÜ   ÍòÍä   Íå Íã ÍóÍæ    Íç   ÍôÍğ    Íñ   ÍõÍó    ÍÍô   ÍöÍö    Í÷   Í÷Íù    Íú   ÍøÍü    Íı   ÍùÍÿ    Í    ÍúÍ    Í   ÍûÍ    Í   ÍüÍ   Í Í ÍıÍ    Í	   ÍşÍ6    Í7   ÍÿÍI    ÍJ   Í ÍK    ÍL   ÍÍO    ÍP   ÍÍQ    ÍR   ÍÍ    ÍS   ÍÍ„    ÍT   ÍÍY    ÍZ   ÍÍÀ    Íb   ÍÍc    Íd   ÍÍe    Íf   Í	Íj    Ík   Í
+Íp    Íq   ÍÍs    Ít   ÍÍ    Í   ÍÍ‘    Í’   ÍÍ“    Í”   ÍÍ•    Í–   ÍÍ—    Í˜   ÍÌõ    Í›   ÍÍ£    Í¤   ÍÍ¦   Í§ Í¥ ÍÍ¨    Í©   ÍÍ¬    Í­   ÍÍ¯    Í°   ÍÍ±    Í²   ÍÍ³    Í´   ÍÍµ    Í¶   ÍÍØ    ÍÙ   ÍÍí    Íî   ÍÍñ    Íò   ÍÍó    Íô   ÍÍõ    Íö   ÍÍ÷    Íø   Í Íù    Íú   Í!Íû    Íü   Í"Íı    Íı   Í#Íı    Íş   Í$Í    Í   Í%Í    Í	   Í&Í    Í   Í'Í    Í   Í(Í    Í   Í)Í    Í   Í*Í    Í	   Í+Í     Í!   Í,Í#    Í$   Í-Í&    Í'   Í.Í+    Í,   Í/Í.    Í/   Í0Í1    Í   Í1Í3    Í4   Í2Í6    Í7   Í3Í9    Í:   Í4Í<    Í=   Í5Í?    Ít   Í6ÍD    ÍE   Í7ÍG    ÍH   Í8ÍY    ÍZ   Í9Í\    Í]   Í:Í_    Í`   Í;Íb    Íe   Í<Íd    ÍŠ   Í=Íf    Íg   Í>Íi    Íj   Í?Íl    Ím   Í@Ío    Íp   ÍAÍr    Ís   ÍBÍu    ÍŠ   ÍCÍw    Íx   ÍDÍÓ    Íz   ÍEÍ|    Í}   ÍFÍ    Í€   ÍGÍ‚    Íƒ   ÍHÍ…    Í†   ÍIÍˆ    Í‰   ÍJÍ‹    ÍŒ   ÍKÍ    Í   ÍLÍ    Í”   ÍMÍ–    Í—   ÍNÍ™    Íš   ÍOÍœ    Í   ÍPÍ
+    Í¡   ÍQÍ£    Í¤   ÍRÍ¦    Í§   ÍSÍ©    Íª   ÍTÍ¬    Í­   ÍUÍ¯    Í°   ÍVÍ²    Í³   ÍWÍµ    Í¶   ÍXÍ¸    Í¹   ÍYÍ½    Í¾   ÍZÍÀ    ÍÁ   Í[ÍÇ    ÍÈ   Í\Íİ   Í’ ÍÛ Í]Íß    Íà   Í^Íâ    Íã   Í_Íé    Íê   Í`Í0    Íì   ÍaÍî    Íï   ÍbÍ
+­    Íñ   ÍcÍ
+³   Íô Íò ÍdÍö    Í÷   ÍeÍ     Í   ÍfÍ    Í   ÍgÍ    Í   ÍhÍ	    Í
+   ÍiÍ    Í   ÍjÍ´    Í   ÍkÍ<    Í   ÍlÍE    Í   ÍmÍ    Í   ÍnÍ     Í!   ÍoÍQ    Í#   ÍpÍ"    Í%   ÍqÍT    Í'   ÍrÍ,    Í-   ÍsÍ/    Í0   ÍtÍ2    Í3   ÍuÍ5    Í6   ÍvÍù    Í<   ÍwÍ>    Í?   ÍxÍF    ÍG   ÍyÍI    ÍJ   ÍzÍR    ÍS   Í{ÍU    ÍV   Í|ÍX    ÍY   Í}Í[    Í\   Í~Ì    Í^   ÍÍc    Íd   Í€Íõ    Íf   ÍÍw    Íx   Í‚Í~    Í   ÍƒÍ    Í‚   Í„Í‡    Í÷   Í…ÍŒ    Í   Í†Í    Í   Í‡Í’    Í“   ÍˆÍ•    Í–   Í‰Í˜    Í™   ÍŠÍ›    Íœ   Í‹Í    ÍŸ   ÍŒÍ¡    ÍŸ   ÍÍ£    Í¤   ÍÍ¦    Í§   ÍÍ©    Íª   ÍÍ¬    Í­   Ì¿ [ Í‘  Í’Í’Ì¿   ÍÍ“   Í”Í•    ÍPÍ–   Í—Í˜    Í˜Í™   ÍšÍšÍX Ì™   Í›  ÍœÍ;  Ìš   Í  ÍÍ>  Ì   ÍŸ  Í ÍA  Ì   Í¡  Í¢ÍD  Ì›   Í£  Í¤ÍG  Ìœ   Í¥  Í/Í/   Í0   Í2Í2   Í3   Í5Í5   Í6   ÍóÍó   Í8   ÍöÍö   Í:   ÍùÍù   Í<   Í·Í·    Ì´Í¸   Í>Í>   Í?   Í¦Í¦ÍX Ì‡   Í§  Í¨Í¡  Ìˆ   Í©  Í^Í^Í^ Ì    ÍA  ÍCÍC   ÍD   ÍFÍF   ÍG   ÍIÍI   ÍJ   ÍLÍL   ÍM   ÍOÍO   ÍP   ÍRÍR   ÍS   ÍÜÍÜÍ ÌçÍÜ Íİ  ‘ÍÚÍUÍU   ÍV   ÍXÍX   ÍY   ÍªÍªÍX ÌŠ   Í«  Í[Í[   Í\   Í¬Í¬Í Í   Í­  Í¯Í Í   Í°Í®Í
+Í±Í  Í   Í²  ÌÌ   Ì†Ì   Í`Í`   Ía   ÍcÍc   Íd   ÍõÍõ   Íf   Í€Í€    ÍtÍ€   Í³Í³Ì¿ PÍ³ Í´  ÍhÍh Í   Íi  ÍkÍk Í   Íl  ÍnÍnÍ^ Ì¤   Ío  ÍqÍq Í   Ír  ÍtÍt Í   Íu  ÍwÍw   Íx   ÍµÍµÍ^ Ìª   Í¶  Í{Í{ Ìƒ   Í|  ‘ÍyÍ~Í~   Í   ÍÍ   Í‚   Í·Í·Ì„ Ì¸   Í¸  Í„Í„ Í   Í…  Í‡Í‡   Í÷   Í˜Í˜Ì¿ ^Í˜ Í¹  ÍºÌÂ  _   ÌÃ  ÍÀÍÀ    Ì´ÍÁ   Í‰Í‰   ÍŠ   ÍŒÍŒ   Í   ÍÍ   Í   Í’Í’   Í“   Í•Í•   Í–   Í˜Í˜   Í™   Í»Í»Í Í   Í¼  Í¾Í Í   Í¿Í½Í
+Í›Í›   Íœ   ÍÀÍÀÍ Í   ÍÁ  ÍÃÍ Í   ÍÄÍÂÍ
+ÍÅÍ  `   ÍÆ  ÍÃÍÃ    Ì´ÍÄ   ÍÍ   ÍŸ   Í¡Í¡   ÍŸ   Í£Í£   Í¤   Í¦Í¦   Í§   Í©Í©   Íª   Í¬Í¬   Í­   

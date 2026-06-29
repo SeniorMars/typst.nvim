@@ -1,0 +1,3 @@
+start|[12:34:56] compiling ...
+success|[12:34:56] compiled successfully in 31 ms
+error|[12:34:57] compiled with errors

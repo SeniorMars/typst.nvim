@@ -1,0 +1,43 @@
+yaml2022:
+  type: article
+  title: >
+    YAML
+    Fixture
+  author:
+    - Doe, Jane
+    - Roe, Richard
+  serial-number:
+    doi: "10.2000/yaml"
+  url: "https://example.com/yaml"
+  file: attachments/yaml-paper.pdf
+
+yaml2023:
+  type: web
+  title: 'Quoted YAML Fixture' # trailing comment
+  url: https://example.com/yaml-2023
+
+yaml2024:
+  type: article
+  title: Structured Person Fixture
+  author:
+    - given-name: Ada
+      family-name: Lovelace
+    - given-name: Alan
+      family-name: Turing
+
+yaml2025:
+  type: article
+  title: Inline Structured Fixture
+  author: [{ given-name: Grace, family-name: Hopper }, { name: "ACM Team" }]
+  serial-number: { doi: "10.2000/inline" }
+  url: https://example.com/yaml-inline
+
+yaml2026:
+  type: article
+  title: Inline Scalar Sequence Fixture
+  author: ["Inline, Alice", "Inline, Bob"]
+
+yaml2027:
+  type: article
+  title: Don't Hide YAML Comments # trailing comment
+  author: Alice's Research Group

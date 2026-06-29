@@ -1,0 +1,36 @@
+@string{fixtureprefix = "Proceedings of "}
+@string{fixtureconf = fixtureprefix # "FixtureConf"}
+
+% @article{commented2024,
+%   title = {Commented Fixture},
+% }
+
+@article{doe2020,
+  title = {Fixture
+    Reference},
+  author = {Doe, Jane},
+  year = {2020},
+  doi = "10.1000/" # "fixture",
+  url = "https://example.com/" #
+    "doe2020",
+  file = {attachments/} # {paper.pdf},
+}
+
+@inproceedings{smith2021,
+  title = "Second " #
+    "Fixture",
+  author = {Smith, Alex},
+  month = jan,
+  booktitle = fixtureconf # " 2021",
+  publisher = fixturepress # " imprint",
+  year = {2021},
+}
+
+@article{commentedFields2025,
+  title = {Commented Field Fixture},
+  % This comment should not stop field parsing.
+  author = {Comment, Casey},
+  year = {2025},
+}
+
+@string{fixturepress = "Fixture Press"}

@@ -1,0 +1,235 @@
+local M = {}
+
+local uv = vim.uv or vim.loop
+
+-- Path identity helpers sit between Neovim buffers and external Typst tools.
+-- They canonicalize through symlinks when possible, but also recognize
+-- Windows-looking paths reported by tools so diagnostics and indexes can match
+-- buffers even when Neovim itself is running on another platform.
+function M.is_windows()
+    return vim.fn.has("win32") == 1 or vim.fn.has("win64") == 1
+end
+
+function M.path_sep()
+    return M.is_windows() and "\\" or "/"
+end
+
+local function looks_like_windows_path(path)
+    return type(path) == "string"
+        and (path:match("^%a:") ~= nil or path:match("^[/\\][/\\]") ~= nil)
+end
+
+local function looks_like_windows_absolute(path)
+    return type(path) == "string"
+        and (path:match("^%a:[/\\]") ~= nil or path:match("^[/\\][/\\]") ~= nil)
+end
+
+local function normalize_foreign_windows_path(path)
+    local normalized = path:gsub("\\", "/")
+    if normalized:match("^//") then
+        normalized = "//" .. normalized:gsub("^/+", ""):gsub("/+", "/")
+    else
+        normalized = normalized:gsub("/+", "/")
+    end
+    if normalized:match("^%a:") then
+        normalized = normalized:sub(1, 1):upper() .. normalized:sub(2)
+    end
+    return normalized
+end
+
+function M.join(...)
+    local parts = vim.iter({ ... })
+        :flatten()
+        :filter(function(part)
+            return part ~= nil and part ~= ""
+        end)
+        :totable()
+
+    if #parts == 0 then
+        return ""
+    end
+
+    return table.concat(parts, M.path_sep())
+end
+
+function M.normalize(path)
+    if not path or path == "" then
+        return path
+    end
+
+    if not M.is_windows() and looks_like_windows_path(path) then
+        return normalize_foreign_windows_path(path)
+    end
+
+    local expanded = vim.fn.fnamemodify(path, ":p")
+    local real = uv.fs_realpath(expanded)
+    local normalized = vim.fs.normalize(real or expanded)
+    if M.is_windows() and normalized:match("^%a:") then
+        normalized = normalized:sub(1, 1):upper() .. normalized:sub(2)
+    end
+    return normalized
+end
+
+function M.basename(path)
+    return vim.fn.fnamemodify(path, ":t")
+end
+
+function M.canonical(path)
+    if not path or path == "" then
+        return path
+    end
+
+    local normalized = M.normalize(path)
+    local real = uv.fs_realpath(normalized)
+    if real then
+        return M.normalize(real)
+    end
+
+    local unresolved = {}
+    local current = normalized
+    -- Generated outputs and soon-to-exist sidecar files may not be present yet.
+    -- Resolve the nearest existing parent so their future path still compares
+    -- against the same project key after symlink normalization.
+    while current and current ~= "" do
+        local parent = vim.fs.dirname(current)
+        if not parent or parent == current then
+            break
+        end
+
+        table.insert(unresolved, 1, M.basename(current))
+        current = parent
+        real = uv.fs_realpath(current)
+        if real then
+            return M.normalize(M.join(real, unresolved))
+        end
+    end
+
+    return normalized
+end
+
+function M.path_identity(path)
+    if not path or path == "" then
+        return path
+    end
+
+    local identity = vim.fs.normalize(path)
+    if
+        M.is_windows()
+        or looks_like_windows_path(path)
+        or looks_like_windows_path(identity)
+    then
+        identity = identity:gsub("\\", "/")
+        if identity:match("^%a:") then
+            identity = identity:sub(1, 1):upper() .. identity:sub(2)
+        end
+        identity = identity:lower()
+    end
+
+    return identity
+end
+
+function M.path_key(path)
+    if not path or path == "" then
+        return path
+    end
+
+    -- Do not pass foreign Windows paths through fnamemodify(":p"). On Unix that
+    -- would turn "C:/..." into a path under the current directory instead of a
+    -- stable identity from Typst/LSP output.
+    if looks_like_windows_path(path) then
+        return M.path_identity(path)
+    end
+
+    return M.path_identity(M.normalize(path))
+end
+
+local function comparison_key(path)
+    if looks_like_windows_path(path) then
+        return M.path_identity(path)
+    end
+
+    return M.path_key(path)
+end
+
+function M.same_path(left, right)
+    if not left or not right then
+        return false
+    end
+
+    return comparison_key(left) == comparison_key(right)
+end
+
+function M.path_within(path, root)
+    if not path or not root then
+        return false
+    end
+
+    local path_key = comparison_key(path)
+    local root_key = comparison_key(root)
+    if path_key == root_key then
+        return true
+    end
+
+    local trimmed_root = root_key:gsub("[/\\]+$", "")
+    local prefix = trimmed_root .. "/"
+    return path_key:sub(1, #prefix) == prefix
+end
+
+function M.dirname(path)
+    return vim.fs.dirname(M.normalize(path))
+end
+
+function M.stem(path)
+    return vim.fn.fnamemodify(path, ":t:r")
+end
+
+function M.with_extension(path, extension)
+    return vim.fn.fnamemodify(path, ":r") .. "." .. extension
+end
+
+function M.is_absolute(path)
+    if not path or path == "" then
+        return false
+    end
+
+    if looks_like_windows_absolute(path) then
+        return true
+    end
+
+    if M.is_windows() then
+        return path:match("^%a:[/\\]") ~= nil
+            or path:match("^[/\\][/\\]") ~= nil
+    end
+
+    return path:sub(1, 1) == "/"
+end
+
+function M.resolve_path(path, base)
+    if not path or path == "" then
+        return nil
+    end
+
+    if M.is_absolute(path) then
+        return M.normalize(path)
+    end
+
+    return M.normalize(M.join(base or vim.fn.getcwd(), path))
+end
+
+function M.relpath(path, root)
+    path = M.normalize(path)
+    root = M.normalize(root)
+
+    if vim.fs.relpath then
+        return vim.fs.relpath(root, path) or path
+    end
+
+    local prefix = root .. M.path_sep()
+    if path:sub(1, #prefix) == prefix then
+        return path:sub(#prefix + 1)
+    end
+
+    return path
+end
+
+return M

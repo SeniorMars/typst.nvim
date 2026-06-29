@@ -1,0 +1,456 @@
+local M = {}
+
+local core_lifecycle = require("typst.core.lifecycle")
+local events = require("typst.core.events")
+local ftplugin_state = require("typst.core.ftplugin_state")
+local log = require("typst.core.log")
+local project = require("typst.project")
+local telemetry = require("typst.core.telemetry")
+local util = require("typst.core.util")
+
+local normalize_bufnr = require("typst.core.buffer").normalize_bufnr
+local last_text_dirty_ticks = {}
+
+local function toc_module()
+    return require("typst.navigation.toc")
+end
+
+local function follow_open_toc(attached, bufnr)
+    local toc = toc_module()
+    if toc.is_open(attached) then
+        toc.follow(attached, bufnr)
+    end
+end
+
+local function schedule_follow_open_toc(attached, bufnr)
+    toc_module().schedule_follow(attached, bufnr)
+end
+
+local function should_mark_dirty_for_buffer(attached, args)
+    if args.event ~= "TextChanged" and args.event ~= "TextChangedI" then
+        return true
+    end
+
+    local ok, changedtick = pcall(vim.api.nvim_buf_get_changedtick, args.buf)
+    if not ok then
+        return true
+    end
+
+    local key = ("%s:%d"):format(attached.key or "", args.buf)
+    if last_text_dirty_ticks[key] == changedtick then
+        return false
+    end
+
+    last_text_dirty_ticks[key] = changedtick
+    return true
+end
+
+local function clear_dirty_ticks_for_buffer(bufnr)
+    local suffix = ":" .. tostring(bufnr)
+    for key in pairs(last_text_dirty_ticks) do
+        if key:sub(-#suffix) == suffix then
+            last_text_dirty_ticks[key] = nil
+        end
+    end
+end
+
+local function emit_reassign_events(previous, state)
+    local previous_key = previous and previous.key or nil
+    local state_key = state and state.key or nil
+    if previous_key == state_key then
+        return
+    end
+
+    if previous then
+        events.emit("TypstProjectDetach", previous)
+    end
+    if state then
+        events.emit("TypstProjectAttach", state)
+    end
+end
+
+local function stop_previous_if_reassigned(previous, reason, message)
+    core_lifecycle.stop_before_prune(previous, reason, message)
+end
+
+local function install_buffer_attach(api, bufnr)
+    clear_dirty_ticks_for_buffer(bufnr)
+    require("typst.edit.mappings").apply(bufnr)
+    core_lifecycle.apply_buffer_features(bufnr)
+    if vim.bo[bufnr].omnifunc == "" then
+        ftplugin_state.set_buffer_option(
+            bufnr,
+            "omnifunc",
+            "v:lua.typst_nvim_omnifunc"
+        )
+    end
+
+    local group = vim.api.nvim_create_augroup(
+        core_lifecycle.buffer_augroup_name(bufnr),
+        { clear = true }
+    )
+    -- Use one augroup per buffer so reloads replace lifecycle handlers instead
+    -- of stacking duplicate TOC refreshes, index invalidations, and detaches.
+    vim.api.nvim_create_autocmd({ "BufWinEnter", "WinEnter" }, {
+        group = group,
+        buffer = bufnr,
+        callback = function(args)
+            core_lifecycle.apply_buffer_features(args.buf)
+            local attached = project.get(args.buf)
+            if attached then
+                follow_open_toc(attached, args.buf)
+            end
+        end,
+    })
+    vim.api.nvim_create_autocmd("BufEnter", {
+        group = group,
+        buffer = bufnr,
+        callback = function(args)
+            local attached = project.get(args.buf)
+            if attached then
+                follow_open_toc(attached, args.buf)
+            end
+        end,
+    })
+    vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+        group = group,
+        buffer = bufnr,
+        callback = function(args)
+            local attached = project.get(args.buf)
+            if attached then
+                schedule_follow_open_toc(attached, args.buf)
+            end
+        end,
+    })
+    vim.api.nvim_create_autocmd(
+        { "TextChanged", "TextChangedI", "BufWritePost" },
+        {
+            group = group,
+            buffer = bufnr,
+            callback = function(args)
+                local attached = project.get(args.buf)
+                if attached then
+                    if should_mark_dirty_for_buffer(attached, args) then
+                        require("typst.index").mark_dirty(
+                            attached,
+                            "buffer changed"
+                        )
+                    end
+                    toc_module().schedule_refresh(attached)
+                end
+            end,
+        }
+    )
+    vim.api.nvim_create_autocmd("BufFilePost", {
+        group = group,
+        buffer = bufnr,
+        callback = function(args)
+            -- Neovim fires this after :saveas or file rename. Move persisted
+            -- main-file choices before resolving again so the new path keeps the
+            -- user's explicit main.
+            core_lifecycle.migrate_persisted_main_for_rename(
+                args.buf,
+                project.get(args.buf)
+            )
+            api.attach(args.buf)
+        end,
+    })
+    vim.api.nvim_create_autocmd("BufHidden", {
+        group = group,
+        buffer = bufnr,
+        callback = function(args)
+            local policy = vim.bo[args.buf].bufhidden
+            if policy == "unload" or policy == "delete" or policy == "wipe" then
+                api.detach(args.buf)
+            end
+        end,
+    })
+    vim.api.nvim_create_autocmd({ "BufUnload", "BufDelete", "BufWipeout" }, {
+        group = group,
+        buffer = bufnr,
+        callback = function(args)
+            api.detach(args.buf)
+        end,
+    })
+end
+
+local function set_omnifunc_if_empty(bufnr)
+    if vim.bo[bufnr].omnifunc == "" then
+        ftplugin_state.set_buffer_option(
+            bufnr,
+            "omnifunc",
+            "v:lua.typst_nvim_omnifunc"
+        )
+    end
+end
+
+local function attached_buffers()
+    local seen = {}
+    local buffers = {}
+    for _, state in pairs(project.all()) do
+        for bufnr in pairs(state.bufs or {}) do
+            if not seen[bufnr] then
+                seen[bufnr] = true
+                buffers[#buffers + 1] = bufnr
+            end
+        end
+    end
+    table.sort(buffers)
+    return buffers
+end
+
+--- Reapply setup-sensitive editor state for already attached Typst buffers.
+---@return table summary Counts of reapplied and skipped buffers.
+function M.reapply_attached_buffers()
+    local summary = {
+        applied = 0,
+        skipped = 0,
+    }
+    for _, bufnr in ipairs(attached_buffers()) do
+        if vim.api.nvim_buf_is_valid(bufnr) then
+            ftplugin_state.restore_buffer_mappings(bufnr)
+            require("typst.edit.mappings").apply(bufnr)
+            core_lifecycle.apply_buffer_features(bufnr, { force = true })
+            set_omnifunc_if_empty(bufnr)
+            summary.applied = summary.applied + 1
+        else
+            summary.skipped = summary.skipped + 1
+        end
+    end
+
+    if summary.applied > 0 or summary.skipped > 0 then
+        log.add(
+            "info",
+            "reapplied setup state to attached Typst buffers",
+            summary
+        )
+    end
+    return summary
+end
+
+local function attach_impl(api, bufnr)
+    bufnr = normalize_bufnr(bufnr)
+    local previous = project.get(bufnr)
+    local ok, candidate = pcall(project.resolve_candidate, bufnr)
+    if ok then
+        local commit_ok, state = pcall(project.commit_attach, candidate)
+        if not commit_ok then
+            core_lifecycle.clear_buffer(bufnr)
+            log.add("warn", "failed to commit Typst project attachment", {
+                bufnr = bufnr,
+                error = state,
+            })
+            return nil
+        end
+
+        local install_ok, install_err = pcall(install_buffer_attach, api, bufnr)
+        if not install_ok then
+            project.detach(bufnr)
+            core_lifecycle.clear_buffer(bufnr)
+            log.add("warn", "failed to attach Typst buffer", {
+                bufnr = bufnr,
+                error = install_err,
+            })
+            return nil
+        end
+
+        -- If resolution moved this buffer to another project, the old project
+        -- may now have no buffers but still own a watcher/preview.
+        emit_reassign_events(previous, state)
+        stop_previous_if_reassigned(
+            previous,
+            "stopping compiler after buffer moved to another project",
+            "compiler stopped after buffer moved"
+        )
+        require("typst.integrations.tinymist").ensure(bufnr, state)
+        return state
+    end
+
+    log.add("warn", candidate)
+    return nil
+end
+
+--- Resolve, commit, and install Typst project lifecycle state for a buffer.
+---@param api table Public project API facade used by buffer autocmd callbacks.
+---@param bufnr? integer Buffer to attach.
+---@return table|nil state Attached project state.
+function M.attach(api, bufnr)
+    return telemetry.time("project.attach", function()
+        return attach_impl(api, bufnr)
+    end)
+end
+
+--- Detach a Typst buffer and emit lifecycle cleanup/events.
+---@param bufnr? integer Buffer to detach.
+---@return table|nil state Project state the buffer belonged to before detach.
+function M.detach(bufnr)
+    bufnr = normalize_bufnr(bufnr)
+    local state = project.detach(bufnr)
+    core_lifecycle.clear_buffer(bufnr)
+    if vim.api.nvim_buf_is_valid(bufnr) then
+        util.del_buf_var(bufnr, "did_typst_nvim_ftplugin")
+    end
+    if state then
+        events.emit("TypstProjectDetach", state)
+        stop_previous_if_reassigned(
+            state,
+            "stopping compiler after last buffer detached",
+            "compiler stopped after detach"
+        )
+    end
+    return state
+end
+
+--- Return a fresh project state for a buffer, re-resolving stale main choices.
+---@param bufnr? integer Buffer whose Typst project should be resolved.
+---@return table state Project state associated with the buffer.
+function M.get_project(bufnr)
+    bufnr = normalize_bufnr(bufnr)
+    local previous = project.get(bufnr)
+    if
+        previous
+        and not core_lifecycle.explicit_main_changed(bufnr, previous)
+        and not project.main_stale(previous, bufnr)
+    then
+        return previous
+    end
+
+    -- Commands call get_project lazily so changes to vim.b.typst_main,
+    -- deleted main files, or renamed buffers are reflected before compile,
+    -- preview, navigation, or diagnostics operate on project state.
+    local state = project.resolve(
+        bufnr,
+        previous and { ignore_project_key = previous.key } or nil
+    )
+    emit_reassign_events(previous, state)
+    stop_previous_if_reassigned(
+        previous,
+        "stopping compiler after buffer main changed",
+        "compiler stopped after buffer main changed"
+    )
+    return state
+end
+
+--- Set an explicit main file for a buffer and reattach project services.
+---@param path string Main Typst file path selected by the user.
+---@param bufnr? integer Buffer receiving the explicit main setting.
+---@param set_opts? table Main-file persistence and resolution options.
+---@param notify? fun(message:string, level?:integer)
+---@return table state Project state after the main-file change.
+function M.set_main(path, bufnr, set_opts, notify)
+    set_opts = set_opts or {}
+    bufnr = normalize_bufnr(bufnr)
+    local previous = project.get(bufnr)
+    local state = project.set_main(bufnr, path, set_opts)
+    emit_reassign_events(previous, state)
+    stop_previous_if_reassigned(
+        previous,
+        "stopping compiler after main changed",
+        "compiler stopped after main changed"
+    )
+    if notify then
+        notify(("Typst main: %s"):format(state.main))
+    end
+    return state
+end
+
+--- Toggle the current buffer between local-main and project-main behavior.
+---@param toggle_opts? table Toggle controls, including `bufnr` and `notify`.
+---@param notify? fun(message:string, level?:integer)
+---@return table result Toggle result with `local_main` and project `state`.
+function M.toggle_main(toggle_opts, notify)
+    toggle_opts = toggle_opts or {}
+    local bufnr = normalize_bufnr(toggle_opts.bufnr)
+    local path = vim.api.nvim_buf_get_name(bufnr)
+    if path == "" then
+        error("typst.nvim: current buffer has no file name")
+    end
+
+    path = util.normalize(path)
+    local previous = project.get(bufnr)
+    local current = util.get_buf_var(bufnr, "typst_main")
+    local local_main = type(current) == "string"
+        and current ~= ""
+        and util.same_path(current, path)
+    local state
+
+    if local_main then
+        state = project.clear_main(bufnr, { clear_persisted = false })
+        emit_reassign_events(previous, state)
+        stop_previous_if_reassigned(
+            previous,
+            "stopping compiler after local main cleared",
+            "compiler stopped after local main cleared"
+        )
+        if toggle_opts.notify ~= false and notify then
+            notify(("Typst project main: %s"):format(state.main))
+        end
+        return {
+            local_main = false,
+            state = state,
+        }
+    end
+
+    state = project.set_main(bufnr, path)
+    emit_reassign_events(previous, state)
+    stop_previous_if_reassigned(
+        previous,
+        "stopping compiler after local main enabled",
+        "compiler stopped after local main enabled"
+    )
+    if toggle_opts.notify ~= false and notify then
+        notify(("Typst local main: %s"):format(state.main))
+    end
+    return {
+        local_main = true,
+        state = state,
+    }
+end
+
+--- Rebuild project attachment and metadata caches for a buffer.
+---@param api table Public project API facade used to reattach the buffer.
+---@param reload_opts? table Reload controls, including `bufnr` and `notify`.
+---@param notify? fun(message:string, level?:integer)
+---@return table state Reattached project state.
+function M.reload_state(api, reload_opts, notify)
+    reload_opts = reload_opts or {}
+    local bufnr = normalize_bufnr(reload_opts.bufnr)
+    local previous = project.detach(bufnr)
+    if previous then
+        events.emit("TypstProjectDetach", previous)
+    end
+
+    require("typst.metadata").reset()
+    require("typst.completion").reset()
+    require("typst.package").reset()
+    require("typst.metadata.symbol").reset()
+    require("typst.conceal").refresh(bufnr)
+
+    local state = api.attach(bufnr)
+    if not state then
+        error("typst.nvim: failed to reload Typst state for current buffer")
+    end
+    if previous and previous.key ~= state.key then
+        stop_previous_if_reassigned(
+            previous,
+            "stopping compiler after state reload",
+            "compiler stopped after state reload"
+        )
+    end
+
+    log.add(
+        "info",
+        "state reloaded",
+        { bufnr = bufnr, main = state.main, root = state.root }
+    )
+    if reload_opts.notify ~= false and notify then
+        notify(
+            ("Reloaded Typst state: %s"):format(
+                util.relpath(state.main, state.root)
+            )
+        )
+    end
+    return state
+end
+
+return M

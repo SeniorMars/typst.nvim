@@ -1,0 +1,22 @@
+{
+  "packages": [
+    {
+      "namespace": "preview",
+      "name": "universe-only",
+      "version": "2.1.0",
+      "description": "Package from optional Universe index data.",
+      "entrypoint": "lib.typ",
+      "compiler": "0.14.0"
+    },
+    {
+      "namespace": "preview",
+      "name": "starter-template",
+      "version": "0.2.0",
+      "description": "Template from optional Universe index data.",
+      "template": {
+        "path": "template",
+        "entrypoint": "main.typ"
+      }
+    }
+  ]
+}

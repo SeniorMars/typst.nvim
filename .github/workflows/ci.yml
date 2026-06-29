@@ -1,0 +1,402 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / neovim ${{ matrix.neovim }} / typst ${{ matrix.typst }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        neovim:
+          - v0.11.0
+          - stable
+          - nightly
+        typst:
+          - 0.15.x
+        include:
+          - os: ubuntu-latest
+            neovim: stable
+            typst: 0.14.x
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      TYPST_NVIM_TEST_DEPS: ${{ github.workspace }}/.deps/nvim-treesitter
+      TYPST_NVIM_TEST_PARSER_REPO: https://github.com/SeniorMars/tree-sitter-typst
+      TYPST_NVIM_TEST_PARSER_REVISION: e3785aaa8b832e03d3559d912cd09b0577537c64
+      TYPST_NVIM_REQUIRE_TREESITTER: "1"
+      XDG_STATE_HOME: ${{ runner.temp }}/typst-nvim-xdg/state
+      XDG_DATA_HOME: ${{ runner.temp }}/typst-nvim-xdg/data
+      XDG_CACHE_HOME: ${{ runner.temp }}/typst-nvim-xdg/cache
+      XDG_CONFIG_HOME: ${{ runner.temp }}/typst-nvim-xdg/config
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.neovim }}
+
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: ${{ matrix.typst }}
+
+      - name: Install nvim-treesitter
+        run: git clone --depth=1 https://github.com/nvim-treesitter/nvim-treesitter "${TYPST_NVIM_TEST_DEPS}"
+
+      - name: Install SeniorMars Typst parser
+        run: |
+          mkdir -p "${XDG_STATE_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}" "${XDG_CONFIG_HOME}"
+          nvim --headless -u tests/minimal_init.lua -l "${TYPST_NVIM_TEST_DEPS}/scripts/install-parsers.lua" typst
+
+      - name: Run unit tests
+        run: bash tests/run_unit.sh
+
+      - name: Run health check
+        run: nvim --headless -u tests/minimal_init.lua -c 'checkhealth typst' -c 'qa'
+
+  test-no-treesitter:
+    name: ubuntu-latest / neovim stable / typst 0.15.x / no tree-sitter
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      XDG_STATE_HOME: ${{ runner.temp }}/typst-nvim-xdg/state
+      XDG_DATA_HOME: ${{ runner.temp }}/typst-nvim-xdg/data
+      XDG_CACHE_HOME: ${{ runner.temp }}/typst-nvim-xdg/cache
+      XDG_CONFIG_HOME: ${{ runner.temp }}/typst-nvim-xdg/config
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: 0.15.x
+
+      - name: Prepare state directories
+        run: mkdir -p "${XDG_STATE_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}" "${XDG_CONFIG_HOME}"
+
+      - name: Run unit tests without Tree-sitter
+        run: bash tests/run_unit.sh
+
+      - name: Run health check without Tree-sitter
+        run: nvim --headless -u tests/minimal_init.lua -c 'checkhealth typst' -c 'qa'
+
+  minitest:
+    name: ubuntu-latest / neovim stable / mini.test pilot
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      TYPST_NVIM_TEST_MINI: ${{ github.workspace }}/.deps/mini.nvim
+      XDG_STATE_HOME: ${{ runner.temp }}/typst-nvim-xdg/state
+      XDG_DATA_HOME: ${{ runner.temp }}/typst-nvim-xdg/data
+      XDG_CACHE_HOME: ${{ runner.temp }}/typst-nvim-xdg/cache
+      XDG_CONFIG_HOME: ${{ runner.temp }}/typst-nvim-xdg/config
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: 0.15.x
+
+      - name: Install mini.nvim
+        run: |
+          mkdir -p .deps "${XDG_STATE_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}" "${XDG_CONFIG_HOME}"
+          git clone --depth=1 https://github.com/echasnovski/mini.nvim "${TYPST_NVIM_TEST_MINI}"
+
+      - name: Run mini.test pilot
+        run: bash tests/run_minitest.sh
+
+  performance-gate:
+    name: ubuntu-latest / large-project performance gate
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      TYPST_NVIM_TEST_DEPS: ${{ github.workspace }}/.deps/nvim-treesitter
+      TYPST_NVIM_TEST_PARSER_REPO: https://github.com/SeniorMars/tree-sitter-typst
+      TYPST_NVIM_TEST_PARSER_REVISION: e3785aaa8b832e03d3559d912cd09b0577537c64
+      TYPST_NVIM_REQUIRE_TREESITTER: "1"
+      TYPST_NVIM_PERF_STRICT: "1"
+      XDG_STATE_HOME: ${{ runner.temp }}/typst-nvim-xdg/state
+      XDG_DATA_HOME: ${{ runner.temp }}/typst-nvim-xdg/data
+      XDG_CACHE_HOME: ${{ runner.temp }}/typst-nvim-xdg/cache
+      XDG_CONFIG_HOME: ${{ runner.temp }}/typst-nvim-xdg/config
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: 0.15.x
+
+      - name: Install nvim-treesitter
+        run: git clone --depth=1 https://github.com/nvim-treesitter/nvim-treesitter "${TYPST_NVIM_TEST_DEPS}"
+
+      - name: Install SeniorMars Typst parser
+        run: |
+          mkdir -p "${XDG_STATE_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}" "${XDG_CONFIG_HOME}"
+          nvim --headless -u tests/minimal_init.lua -l "${TYPST_NVIM_TEST_DEPS}/scripts/install-parsers.lua" typst
+
+      - name: Run performance gate
+        run: bash tests/run_performance_gate.sh
+
+      - name: Upload performance reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: typst-nvim-performance-reports
+          path: ${{ runner.temp }}/typst-nvim-xdg/cache/performance-reports/*.json
+
+  windows-edge:
+    name: windows-latest / process tree and path edge gate
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      TYPST_NVIM_REQUIRE_WINDOWS: "1"
+      XDG_STATE_HOME: ${{ runner.temp }}/typst-nvim-xdg/state
+      XDG_DATA_HOME: ${{ runner.temp }}/typst-nvim-xdg/data
+      XDG_CACHE_HOME: ${{ runner.temp }}/typst-nvim-xdg/cache
+      XDG_CONFIG_HOME: ${{ runner.temp }}/typst-nvim-xdg/config
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: 0.15.x
+
+      - name: Prepare state directories
+        run: mkdir -p "${XDG_STATE_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}" "${XDG_CONFIG_HOME}"
+
+      - name: Run Windows edge gate
+        run: bash tests/run_windows_edge.sh
+
+  provider-matrix:
+    name: ${{ matrix.os }} / neovim ${{ matrix.neovim }} / provider contract / ${{ matrix.provider_suite }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        provider_suite:
+          - compiler
+          - async
+          - workflow
+          - tools-viewer
+        neovim:
+          - stable
+        include:
+          - os: ubuntu-latest
+            provider_suite: compiler
+            neovim: nightly
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      TYPST_NVIM_PROVIDER_SUITE: ${{ matrix.provider_suite }}
+      XDG_STATE_HOME: ${{ runner.temp }}/typst-nvim-xdg/state
+      XDG_DATA_HOME: ${{ runner.temp }}/typst-nvim-xdg/data
+      XDG_CACHE_HOME: ${{ runner.temp }}/typst-nvim-xdg/cache
+      XDG_CONFIG_HOME: ${{ runner.temp }}/typst-nvim-xdg/config
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.neovim }}
+
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: 0.15.x
+
+      - name: Prepare state directories
+        run: mkdir -p "${XDG_STATE_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}" "${XDG_CONFIG_HOME}"
+
+      - name: Run provider matrix gate
+        run: bash tests/run_provider_matrix.sh
+
+  api-stability:
+    name: ubuntu-latest / public API stability gate
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      TYPST_NVIM_API_STABILITY: "1"
+      XDG_STATE_HOME: ${{ runner.temp }}/typst-nvim-xdg/state
+      XDG_DATA_HOME: ${{ runner.temp }}/typst-nvim-xdg/data
+      XDG_CACHE_HOME: ${{ runner.temp }}/typst-nvim-xdg/cache
+      XDG_CONFIG_HOME: ${{ runner.temp }}/typst-nvim-xdg/config
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: 0.15.x
+
+      - name: Prepare state directories
+        run: mkdir -p "${XDG_STATE_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}" "${XDG_CONFIG_HOME}"
+
+      - name: Run public API stability gate
+        run: bash tests/run_api_stability.sh
+
+  frontend-smoke:
+    name: ubuntu-latest / cmp and blink frontend smoke
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      TYPST_NVIM_REQUIRE_FRONTENDS: "1"
+      TYPST_NVIM_FRONTEND_POPUP_E2E: "1"
+      TYPST_NVIM_TEST_EXTRA_RTP: ${{ github.workspace }}/.deps/nvim-cmp:${{ github.workspace }}/.deps/blink.lib:${{ github.workspace }}/.deps/blink.cmp
+      XDG_STATE_HOME: ${{ runner.temp }}/typst-nvim-xdg/state
+      XDG_DATA_HOME: ${{ runner.temp }}/typst-nvim-xdg/data
+      XDG_CACHE_HOME: ${{ runner.temp }}/typst-nvim-xdg/cache
+      XDG_CONFIG_HOME: ${{ runner.temp }}/typst-nvim-xdg/config
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: 0.15.x
+
+      - name: Install completion frontends
+        run: |
+          mkdir -p .deps "${XDG_STATE_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}" "${XDG_CONFIG_HOME}"
+          git clone --depth=1 https://github.com/hrsh7th/nvim-cmp .deps/nvim-cmp
+          git clone --depth=1 https://github.com/Saghen/blink.lib .deps/blink.lib
+          git clone --depth=1 https://github.com/Saghen/blink.cmp .deps/blink.cmp
+
+      - name: Run frontend smoke tests
+        run: bash tests/run_frontend_smoke.sh
+
+  quality:
+    name: ubuntu-latest / formatting and metadata tool
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      XDG_STATE_HOME: ${{ runner.temp }}/typst-nvim-xdg/state
+      XDG_DATA_HOME: ${{ runner.temp }}/typst-nvim-xdg/data
+      XDG_CACHE_HOME: ${{ runner.temp }}/typst-nvim-xdg/cache
+      XDG_CONFIG_HOME: ${{ runner.temp }}/typst-nvim-xdg/config
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: 0.15.x
+
+      - name: Prepare state directories
+        run: mkdir -p "${XDG_STATE_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}" "${XDG_CONFIG_HOME}"
+
+      - name: Install Lua 5.1
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1
+
+      - name: Check Lua 5.1 syntax
+        run: find lua plugin ftplugin tests -name '*.lua' -print0 | xargs -0 luac5.1 -p
+
+      - name: Check Lua formatting
+        uses: JohnnyMorganz/stylua-action@v4
+        with:
+          version: 2.1.0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --check lua plugin ftplugin tests
+
+      - name: Check metadata generator formatting
+        run: cargo fmt --manifest-path tools/typst-metadata/Cargo.toml -- --check
+
+      - name: Check metadata generator
+        run: cargo check --manifest-path tools/typst-metadata/Cargo.toml
+
+      - name: Lint metadata generator
+        run: cargo clippy --manifest-path tools/typst-metadata/Cargo.toml --all-targets -- -D warnings
+
+      - name: Test metadata generator
+        run: cargo test --manifest-path tools/typst-metadata/Cargo.toml
+
+      - name: Run health gate
+        run: nvim --headless -u tests/minimal_init.lua -c 'checkhealth typst' -c 'qa'
