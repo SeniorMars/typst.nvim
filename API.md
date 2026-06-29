@@ -12,6 +12,9 @@ The documented surface is covered by `tests/unit/api_symbols_spec.lua`,
 `require("typst").api_version()` returns the stable public API level. The
 current level is `1`. `require("typst").version()` returns a table containing
 that same API level as `api` and `api_version`.
+`require("typst").contract()` returns the versioned API/event contract,
+including stable root symbols, documented `TypstEvent*` names, compatibility
+aliases, and payload field names.
 
 Within API level 1, the stable functions listed below, command names, event
 names, provider kinds, and result-table fields are additive unless the project
@@ -135,6 +138,7 @@ code and this document together when the public symbol surface changes.
 - `completion.native`
 - `completion.omnifunc`
 - `completion.signature`
+- `contract`
 - `edit.add_trailing_comma`
 - `edit.change_delimiter`
 - `edit.change_delimiter_block`
@@ -1190,9 +1194,13 @@ Package completion scans cached Typst package roots and optional
 or when requested with `include_packages = true`; template packages are labeled
 separately and carry manifest/index template metadata. The filesystem path completion source is available with `context = "path"` and is detected automatically in
 `#import`, `#include`, `image`, `bibliography`, `read`, and raw/data-style
-string paths; disable it with `completion.include_paths = false` or cap it with
-`completion.path_scan_max`. CSL bibliography style
-completion is available with `context = "csl_style"` and is detected automatically inside
+string paths; disable it with `completion.include_paths = false`.
+`completion.path_scan_entry_max` caps raw directory entries consumed per scan,
+while `completion.path_scan_max` caps returned path completion items. Directory
+scans are cached briefly with `completion.path_scan_cache_ms`; set it to `0` to
+disable that cache. CSL bibliography style completion is available with
+`context = "csl_style"` and is
+detected automatically inside
 `bibliography(..., style: "...")` and `cite(..., style: "...")`; it combines
 bundled Typst style IDs, configured `completion.csl_styles`, and project-local
 `.csl` files. Raw block language completion is available with
@@ -1421,7 +1429,9 @@ The plugin emits these public `User` events:
 - `TypstEventInitPre`
 - `TypstEventInitPost`
 - `TypstEventProjectAttach`
+- `TypstEventBufferDetach`
 - `TypstEventProjectDetach`
+- `TypstEventProjectPruned`
 - `TypstEventCompileStarted`
 - `TypstEventCompiling`
 - `TypstEventCompileSuccess`
@@ -1442,7 +1452,9 @@ The plugin emits these public `User` events:
 For compatibility, the plugin also emits the older event names:
 
 - `TypstProjectAttach`
+- `TypstBufferDetach`
 - `TypstProjectDetach`
+- `TypstProjectPruned`
 - `TypstCompileStarted`
 - `TypstCompileSuccess`
 - `TypstCompileFailed`
@@ -1463,18 +1475,27 @@ For compatibility, the plugin also emits the older event names:
 
 Event `data` contains `key`, `root`, `main`, `output`, `status`, `provider`,
 `profile`, `cwd`, and `command`. `profile` and `command` are `nil` before any
-profiled compile or background command has been run. Diagnostic events include
+profiled compile or background command has been run. Project attach events add
+`event_kind`, `bufnr`, `buffer`, `reason`, and `remaining_buffers`. Buffer
+detach events add those same fields plus `project_pruned`. `TypstEventBufferDetach`
+is the precise event for a buffer leaving a project. `TypstEventProjectDetach`
+remains a compatibility alias for that buffer-detach moment. `TypstEventProjectPruned`
+fires only when an empty project is removed from typst.nvim's registry and
+includes `event_kind`, `reason`, `remaining_buffers`, and `project_pruned`.
+Diagnostic events include
 `diagnostics_count` and `diagnostic_buffers`. View events include
 `viewer_provider`, `viewer_backend`, and may include `viewer_command` and
 `viewer_cwd` when an external viewer executable is used. `TypstViewForwarded`
 also includes `line` and `column`. Preview events also include `backend`,
 `preview_backend`, `preview_command`, `preview_cwd`, `preview_active`, and may
 include `mode`, `preview_mode`, `path`, `line`, `column`, or `source_sync`.
-Artifact events include artifact metadata such as `path`, `format`, `producer`,
-`generation`, and clean results such as `deleted`, `skipped`, and `failed`.
-Render events include `kind`, `path`, `source_path`, `cached`, and
-`generation`. TOC events include `items`. Initialization events include
-`provider` and `did_setup`; quit events include `provider` and `projects`.
+Artifact-created events include artifact metadata such as `id`, `path`,
+`canonical_path`, `format`, `signature`, `freshness`, `reason`, `producer`, and
+`preview_export`. Artifact-cleaned events include `deleted`, `skipped`,
+`failed`, and `producer`. Render events include `kind`, `path`, `source`,
+`format`, and may include `page`. TOC events include `items`. Initialization
+events include `provider` and `did_setup`; quit events include `provider` and
+`projects`.
 
 ## Stable Mappings
 

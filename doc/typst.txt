@@ -486,6 +486,9 @@ Conceal is syntax-aware but not semantic Typst evaluation. Built-in symbol
 conceal is suppressed when a local declaration or import could shadow a
 stdlib meaning. With `conceal.reveal = "node"`, the source form is revealed
 only under the current window's cursor while neighboring matches stay concealed.
+Use `conceal.reveal = "line"` to reveal the cursor line, `conceal.reveal_insert`
+to override Insert-mode behavior, and `conceal.reveal_by_category` for
+category-specific reveal policy.
 
 ==============================================================================
 COMMANDS                                                        *typst-commands*
@@ -550,12 +553,12 @@ Command groups:
     root, main, compiler provider, root/main decision sources, output, status,
     process working directory, last command, active compile PID, active watcher
     command, viewer backend/command, preview backend/command, dependencies, and
-    diagnostics state. It also shows whether typst.nvim can see a Tinymist
-    Neovim LSP client for the project and whether compiler diagnostics are
-    active, always enabled, off, or suppressed by Tinymist/Coc ownership. The
-    status value is read through the active compiler provider's
-    `status(project)` method. With bang, open the same detailed current-project
-    report in a scratch buffer.
+    diagnostics state. It also shows the active semantic provider, whether
+    typst.nvim can see a Tinymist Neovim LSP client for the project, and
+    whether compiler diagnostics are active, always enabled, off, or suppressed
+    by semantic-provider ownership. The status value is read through the active
+    compiler provider's `status(project)` method. With bang, open the same
+    detailed current-project report in a scratch buffer.
 
                                                         *:TypstReloadState*
 :TypstReloadState
@@ -567,7 +570,8 @@ Command groups:
                                                         *:TypstClearCache*
 :TypstClearCache
     Clear generated metadata selection, package resource cache state, symbol
-    search caches, project index caches, and conceal match caches, then redraw
+    search caches, project index caches, Tree-sitter collection caches, and
+    conceal match caches through typst.nvim's cache registry, then redraw
     conceal decorations.
 
                                                         *:TypstSetMain*
@@ -1269,7 +1273,9 @@ Implement `render(project, opts, callback)` to replace rendering.
 
                                                         *:TypstConcealRefresh*
 :TypstConcealRefresh
-    Clear cached Typst metadata and redraw conceal decorations.
+    Redraw conceal decorations and refresh conceal-owned match state. This does
+    not reset global Typst metadata; use |:TypstClearCache| for metadata,
+    package, symbol, Tree-sitter, and project-index cache invalidation.
 
                                                         *:TypstConcealInspect*
 :TypstConcealInspect
@@ -2159,6 +2165,7 @@ Defaults: >
       enabled = true,
       source = "fallback",
       use_quickfix = false,
+      list = "quickfix",
       fonts = true,
       font_scan_timeout_ms = 250,
     },
@@ -2260,11 +2267,17 @@ Defaults: >
     conceal = {
       enabled = true,
       reveal = "node",
+      reveal_insert = nil,
+      reveal_by_category = {},
       conceallevel = 2,
       viewport_margin = 25,
       categories = {
         math_symbols = true,
         math_scripts = true,
+        math_fonts = true,
+        math_operators = true,
+        math_wrappers = true,
+        math_accents = false,
         math_delimiters = true,
         markup_delimiters = true,
         headings = false,
@@ -2280,6 +2293,42 @@ Defaults: >
           strike = true,
         },
         emoji = false,
+      },
+      math = {
+        scripts = {
+          digits = true,
+          signs = true,
+          simple_letters = true,
+          grouped = false,
+          max_group_len = 4,
+        },
+        fonts = {
+          enabled = true,
+          styles = {
+            cal = true,
+            bb = true,
+            frak = true,
+            bold = true,
+            sans = false,
+            mono = false,
+            italic = false,
+          },
+        },
+        accents = {
+          enabled = false,
+          allow_combining = false,
+          simple_ascii_only = true,
+        },
+      },
+      renderer = {
+        mode = "unicode",
+        image = {
+          enabled = false,
+          max_inline_height = 8,
+          debounce_ms = 250,
+          cache = true,
+          reveal = "node",
+        },
       },
       safety = {
         max_display_width = 1,
@@ -2306,6 +2355,8 @@ Defaults: >
       font_families = {},
       font_scan_timeout_ms = 250,
       path_scan_max = 200,
+      path_scan_entry_max = 2000,
+      path_scan_cache_ms = 300,
       csl_scan_max = 100,
       scan_cache_ttl_ms = 5000,
       package_scan_max = 500,
@@ -2522,16 +2573,24 @@ insert paired Typst markup. The same helpers are available through
 
 `diagnostics.source` controls compiler diagnostics:
 
-- `"fallback"` publishes compiler diagnostics only when Tinymist is not
-  attached to the project through Neovim's built-in LSP client and coc.nvim
-  does not appear to own the Typst LSP session.
+- `"fallback"` publishes compiler diagnostics unless Tinymist owns diagnostics
+  through Neovim's built-in LSP client or coc.nvim, or a custom semantic
+  provider explicitly declares diagnostic ownership.
 - `"always"` always publishes compiler diagnostics in typst.nvim's namespace.
 - `"off"` disables compiler diagnostics.
 
 Tinymist diagnostics are owned by Neovim's LSP client. typst.nvim's compiler
 diagnostics are project/source namespaced and follow `diagnostics.source`;
 health and `:TypstInfo` report whether they are active, suppressed by
-Tinymist/Coc ownership, always enabled, or off.
+semantic-provider ownership, always enabled, or off. Custom semantic providers
+that only provide symbols, links, colors, or editor actions do not suppress
+compiler diagnostics by default.
+
+`diagnostics.list` controls where `:TypstDiagnostics` and automatic
+`diagnostics.use_quickfix` publishing put compiler diagnostics. The default
+`"quickfix"` uses the global quickfix list. `"loclist"` uses the current
+window's location list, which is better when multiple Typst projects are open
+in different windows.
 
 `integrations.tinymist.lsp` controls typst.nvim's Tinymist Neovim LSP
 integration. The default `"auto"` starts or reuses a Neovim built-in LSP client
@@ -2624,10 +2683,15 @@ extmarks and can be inspected through
 `conceal.enabled` controls the default for new Typst buffers. Commands can set
 a buffer-local override. With `conceal.reveal = "node"`, reveal is window-local:
 the candidate under the window's cursor is left as source text while
-neighboring candidates remain concealed. `categories.math_symbols` enables
-built-in symbol conceal;
-`math_scripts` enables conservative one-cell subscript and superscript
-replacements; `math_delimiters` and `markup_delimiters` hide only punctuation;
+neighboring candidates remain concealed. `conceal.reveal = "line"` reveals all
+matches on the cursor line, `conceal.reveal_insert` can override Insert-mode
+behavior, and `conceal.reveal_by_category` can override specific categories.
+`categories.math_symbols` enables built-in symbol conceal; `math_scripts`
+enables conservative subscript and superscript replacements including
+multi-digit scripts; `math_fonts` handles `cal(A)`, `bb(R)`, `frak(g)`, and
+`bold(x)`; `math_operators` handles shorthand relations such as `<=`, `->`,
+and `!=`; `math_wrappers` hides supported math wrapper syntax such as `abs(x)`
+and `norm(x)`; `math_delimiters` and `markup_delimiters` hide only punctuation;
 `function_wrappers` hides supported style-call wrappers such as `#strong[` and
 ]`; `emoji` hides explicit `emoji.*` symbols when explicitly enabled; `headings`
 hides heading markers when explicitly enabled; `lists` hides list markers;
@@ -2642,9 +2706,12 @@ character must pass display-width safety checks, so most emoji glyphs also need
 before generated Typst metadata. Runtime integrations can call
 `require("typst").conceal.register("math", name, replacement)` and
 `require("typst").conceal.unregister("math", name)`; runtime custom mappings
-override config mappings. Resolved matches are cached per buffer, changedtick,
-conceal generation, and conceal config, then filtered to the visible range and
-invalidated by edits and `:TypstConcealRefresh`. Implicit symbol conceal is
+override config mappings. Resolved matches use cached lookup tables derived from
+the active metadata/config/custom generations. They are cached per buffer,
+changedtick, conceal generation, and conceal config, then filtered to the
+visible range. Rendered viewport matches are cached per window so cursor
+movement can reapply reveal policy without recollecting Tree-sitter matches.
+Both caches are invalidated by edits and `:TypstConcealRefresh`. Implicit symbol conceal is
 suppressed when a local `#let`, function parameter, explicit import binding,
 import alias, or wildcard import makes the built-in meaning uncertain.
 Shadowing uses a Tree-sitter lexical approximation that considers declaration order
@@ -2655,11 +2722,13 @@ Explicit `emoji.*` symbols resolve through generated emoji metadata when
 
 `compile.profiles` defines named per-run overrides for `:TypstCompile [profile]`
 and `:TypstWatch [profile]`. A profile may set `output_dir`, `output_name`,
-`output_format`, `extra_args`, `deps`, `open`, and `typst_open`; these values
-do not mutate the base configuration. `open = true` opens the successful output
-through typst.nvim's configured viewer. `typst_open = true` passes Typst's raw
-`--open` flag. When `deps = false`, typst.nvim does not refresh dependency
-knowledge for that run and preserves the existing project graph.
+`output_format`, `extra_args`, `watch_output`, `watch_structured_args`,
+`deps`, `open`, and `typst_open`; these values do not mutate the base
+configuration. Unsupported profile keys fail validation instead of being
+silently ignored. `open = true` opens the successful output through
+typst.nvim's configured viewer. `typst_open = true` passes Typst's raw `--open`
+flag. When `deps = false`, typst.nvim does not refresh dependency knowledge for
+that run and preserves the existing project graph.
 `executable` may be a string such as `"typst"` or a list prefix such as
 `{ "uv", "run", "typst" }`; typst.nvim appends the Typst subcommand and
 arguments without going through a shell.
@@ -2864,8 +2933,11 @@ Typst stdlib color constants, configured `completion.color_names`, and
 generated `color.map.*` presets. In `font:` arguments, it completes configured
 `completion.font_families`, families discovered by `typst fonts`, and a small
 embedded fallback set when the CLI scan is unavailable.
-`completion.include_paths` disables filesystem path completion and
-`completion.path_scan_max` caps each directory scan.
+`completion.include_paths` disables filesystem path completion,
+`completion.path_scan_entry_max` caps raw directory entries consumed per path
+scan, `completion.path_scan_max` caps returned path completion items, and
+`completion.path_scan_cache_ms` briefly caches path directory entries; set it
+to `0` to disable that cache.
 `completion.include_csl_styles` disables this source and
 `completion.csl_scan_max` caps local `.csl` file discovery.
 `completion.include_raw_languages` disables raw language completion.
@@ -2905,6 +2977,17 @@ matching config fields and per-call `opts.provider` where applicable.
 inspects one registered provider, and `provider_names()` returns sorted names.
 Provider return, callback, timeout, and cancellation rules are documented in
 `docs/provider-contracts.md`.
+
+`integrations.semantic.provider` selects the default semantic provider for
+semantic actions, status reporting, and fallback compiler-diagnostic ownership.
+It defaults to `"tinymist"` and accepts registered provider names,
+inline provider tables, or callbacks. Semantic providers can implement
+`color_info`, `document_links`, `code_lens`, `workspace_symbols`,
+`references`, `rename_preview`, or a generic `run(method, project, opts)`
+dispatcher; status helpers may expose `enabled`, `available_for_project`,
+`mode`, `backend`, and `capabilities`. Custom semantic providers suppress
+compiler fallback diagnostics only when they explicitly opt in with
+`owns_diagnostics = true`, `diagnostics = true`, or a matching capability flag.
 
 `picker.provider` controls |:TypstPick|. The default `"auto"` tries Telescope,
 fzf-lua, fzf.vim, Snacks, then `vim.ui.select`. It may also be `"fzf_vim"` or
@@ -3192,9 +3275,11 @@ workflow functions:
 
 The public Lua API is versioned. `api_version()` returns the current API level,
 currently `1`; `version()` returns a table with the same level as `api` and
-`api_version`. Stable API level 1 symbols are additive unless a migration is
-documented. Before 1.0, the deliberately stable namespaces are `project`,
-`compiler`, `viewer`, `artifact`, `edit`, `completion`, and `metadata`.
+`api_version`; `contract()` returns the versioned API/event contract, including
+documented `TypstEvent*` names and payload fields. Stable API level 1 symbols
+are additive unless a migration is documented. Before 1.0, the deliberately
+stable namespaces are `project`, `compiler`, `viewer`, `artifact`, `edit`,
+`completion`, and `metadata`.
 `stable_symbols()` returns the exact dotted stable list.
 `experimental_symbols()` returns installed helper APIs that are intentionally
 outside the stable compatibility contract for now.
@@ -3269,7 +3354,9 @@ The plugin emits these public `User` events:
 - `TypstEventInitPre`
 - `TypstEventInitPost`
 - `TypstEventProjectAttach`
+- `TypstEventBufferDetach`
 - `TypstEventProjectDetach`
+- `TypstEventProjectPruned`
 - `TypstEventCompileStarted`
 - `TypstEventCompiling`
 - `TypstEventCompileSuccess`
@@ -3289,14 +3376,20 @@ The plugin emits these public `User` events:
 
 Project reassignments through public APIs such as |:TypstSetMain|,
 |:TypstToggleMain|, lazy `project.get()`, or buffer reattachment emit
-`TypstEventProjectDetach` for the old project and `TypstEventProjectAttach` for
-the new project when the project key changes. Reassignments that keep the same
-project key do not emit duplicate project events.
+`TypstEventBufferDetach` for the old project and `TypstEventProjectAttach` for
+the new project when the project key changes. `TypstEventProjectDetach` remains
+emitted as a compatibility alias for the same buffer-detach moment; it does not
+mean the project registry entry was removed. `TypstEventProjectPruned` fires
+only when an empty project is removed from typst.nvim's registry.
+Reassignments that keep the same project key do not emit duplicate project
+events.
 
 The older event names remain emitted for compatibility:
 
 - `TypstProjectAttach`
+- `TypstBufferDetach`
 - `TypstProjectDetach`
+- `TypstProjectPruned`
 - `TypstCompileStarted`
 - `TypstCompileSuccess`
 - `TypstCompileFailed`
@@ -3318,6 +3411,10 @@ The older event names remain emitted for compatibility:
 The event `data` table contains `key`, `root`, `main`, `output`, `status`,
 `provider`, `profile`, `cwd`, and `command`. `profile` and `command` are `nil`
 before any profiled compile or background command has been run.
+Project attach events add `event_kind`, `bufnr`, `buffer`, `reason`, and
+`remaining_buffers`. Buffer detach events add those same fields plus
+`project_pruned`. `TypstEventProjectPruned` includes `event_kind`, `reason`,
+`remaining_buffers`, and `project_pruned`.
 `TypstDiagnosticsPublished` and `TypstDiagnosticsCleared` include
 `diagnostics_count` and `diagnostic_buffers`.
 `TypstViewOpened` also includes `viewer_provider`, `viewer_backend`, and may
@@ -3327,12 +3424,13 @@ and `column`. `TypstViewInverse` includes `viewer_provider`, `viewer_backend`,
 `path`, `line`, and `column`.
 `TypstPreviewOpened` and `TypstPreviewStopped` also include `backend`,
 `preview_backend`, `preview_command`, `preview_cwd`, `preview_active`, and may
-include `mode` or `preview_mode`. Artifact events include artifact metadata
-such as `path`, `format`, `producer`, `generation`, and clean results such as
-`deleted`, `skipped`, and `failed`. `TypstRenderCreated` includes `kind`,
-`path`, `source_path`, `cached`, and `generation`. TOC events include `items`.
-Initialization events include `provider` and `did_setup`; quit events include
-`provider` and `projects`.
+include `mode` or `preview_mode`. Artifact-created events include artifact
+metadata such as `id`, `path`, `canonical_path`, `format`, `signature`,
+`freshness`, `reason`, `producer`, and `preview_export`. Artifact-cleaned
+events include `deleted`, `skipped`, `failed`, and `producer`.
+`TypstRenderCreated` includes `kind`, `path`, `source`, `format`, and may
+include `page`. TOC events include `items`. Initialization events include
+`provider` and `did_setup`; quit events include `provider` and `projects`.
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:

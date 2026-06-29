@@ -33,6 +33,43 @@ Stable provider kinds are:
 - `toc`
 - `viewer`
 
+## Semantic Providers
+
+`integrations.semantic.provider` selects the default semantic provider for
+provider-backed semantic actions, status reporting, and compiler fallback
+diagnostic ownership. It defaults to `"tinymist"`. Registered semantic
+provider names, inline provider tables, and callbacks are accepted:
+
+```lua
+require("typst").providers.register("semantic", "my-semantic", {
+  name = "my-semantic",
+  available_for_project = function(project)
+    return true
+  end,
+  workspace_symbols = function(project, opts)
+    return { ok = true, symbols = {} }
+  end,
+})
+
+require("typst").setup({
+  integrations = {
+    semantic = {
+      provider = "my-semantic",
+    },
+  },
+})
+```
+
+Semantic provider methods receive the provider-safe project context and the
+per-call opts table. Supported method names are `color_info`,
+`document_links`, `code_lens`, `workspace_symbols`, `references`,
+`rename_preview`, or a generic `run(method, project, opts)` dispatcher.
+Providers can also expose `enabled`, `available_for_project`, `available`,
+`mode`, `backend`, and `capabilities` for status and diagnostics policy.
+Custom providers do not suppress compiler fallback diagnostics merely by being
+available. They must opt in with `owns_diagnostics = true`,
+`diagnostics = true`, or `capabilities = { diagnostics = true }`.
+
 ## Invocation Shapes
 
 Provider methods may complete in one of four ways:
