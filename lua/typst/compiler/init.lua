@@ -1,11 +1,10 @@
-local events = require("typst.core.events")
 local path_leases = require("typst.core.path_leases")
 local process = require("typst.core.process")
+local lifecycle = require("typst.compiler.lifecycle")
 local compiler_service = require("typst.project.services.compiler")
 local provider_binding = require("typst.compiler.provider_binding")
 local provider_adapter = require("typst.integrations.provider_adapter")
 local compiler_result = require("typst.compiler.state_machine")
-local restart_handle = require("typst.core.restart_handle")
 local util = require("typst.core.util")
 
 local M = {}
@@ -29,88 +28,14 @@ local M = {}
 -- providers all report through this module so project compiler state, events,
 -- output leases, and restart behavior stay consistent.
 
-local function with_started_event(
-    project,
-    callback,
-    invoke,
-    started_status,
-    opts
-)
-    opts = opts or {}
-    local pending = {}
-    local invoking = true
-
-    -- Some providers can finish synchronously while they are being invoked.
-    -- Buffer those terminal results until after TypstCompileStarted so event
-    -- consumers always observe started -> terminal ordering.
-    local function wrapped(result)
-        result = compiler_result.normalize(result)
-        if invoking then
-            pending[#pending + 1] = result
-            return
-        end
-
-        if opts.on_terminal then
-            opts.on_terminal(result)
-        end
-        compiler_result.emit(project, result, opts.active_field)
-        if callback then
-            callback(result)
-        end
-    end
-
-    local handle = invoke(wrapped)
-    invoking = false
-    events.emit("TypstCompileStarted", project, { status = started_status })
-
-    if opts.after_started then
-        opts.after_started(handle, pending)
-    end
-    for _, result in ipairs(pending) do
-        result = compiler_result.normalize(result)
-        if opts.on_terminal then
-            opts.on_terminal(result)
-        end
-        compiler_result.emit(project, result, opts.active_field)
-        if callback then
-            callback(result)
-        end
-    end
-
-    return handle
-end
-
 local function replace_active(project, start_next, callback)
     if not provider_binding.has_active_operation(project) then
         return nil
     end
 
-    -- Do not run two providers against the same project output. A restart first
-    -- asks the old provider to stop, then starts the replacement from the stop
-    -- callback once ownership of the output path is released.
-    local restart = restart_handle.new()
-    local stop_handle = M.stop(project, function(result)
-        if restart.result ~= nil or restart.cancel_requested then
-            return
-        end
-        if result.stopped then
-            local next_handle = start_next(function(next_result)
-                restart:finish(next_result)
-                if callback then
-                    callback(next_result)
-                end
-            end)
-            restart:set_next_handle(next_handle)
-        elseif callback then
-            restart:finish(result)
-            callback(result)
-        else
-            restart:finish(result)
-        end
-    end)
-    restart:set_stop_handle(stop_handle)
-
-    return restart
+    return lifecycle.replace_active(function(done)
+        return M.stop(project, done)
+    end, start_next, callback)
 end
 
 local function provider_name(provider)
@@ -236,7 +161,7 @@ function M.compile(project, callback, run_config)
         return nil
     end
 
-    return with_started_event(
+    return lifecycle.with_started_event(
         project,
         callback,
         function(wrapped)
@@ -322,7 +247,7 @@ function M.start(project, callback, run_config)
         return nil
     end
 
-    return with_started_event(
+    return lifecycle.with_started_event(
         project,
         callback,
         function(wrapped)

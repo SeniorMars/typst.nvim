@@ -33,7 +33,9 @@ assert(
 local scratch_dir = util.join(vim.fn.stdpath("cache"), "typst.nvim", "unsaved")
 assert(
     scratch_project.main:find(scratch_dir, 1, true) == 1
-        and scratch_project.main:match("buffer%-%d+%.typ$"),
+        and scratch_project.main:match(
+            "unsaved[/\\][^/\\]+[/\\]buffer%-%d+%-%d+%.typ$"
+        ),
     "unnamed buffer should use an XDG cache scratch main path"
 )
 assert(

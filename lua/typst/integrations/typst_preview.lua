@@ -76,6 +76,53 @@ local function restart_stop_failed(result)
         and (result.ok == false or result.stopped == false)
 end
 
+local function pending_unobservable(stage, err)
+    return {
+        ok = false,
+        reason = "finish_subscription_failed",
+        message = ("Pending Typst preview %s could not be observed"):format(
+            stage
+        ),
+        error = err,
+    }
+end
+
+local function record_stop_failed(project, result)
+    preview_service.set(project, {
+        active = true,
+        stopping = false,
+        status = "stopping_failed",
+        last_result = type(result) == "table" and result or nil,
+        last_error = type(result) == "table"
+                and (result.error or result.message or result.reason)
+            or result,
+    })
+end
+
+local function record_open_failed(project, result)
+    preview_service.set(project, {
+        clear = {
+            "active_backend",
+            "active_mode",
+            "active_command",
+            "active_cwd",
+            "active_url",
+            "active_output",
+            "active_export",
+            "active_transport",
+            "active_shell",
+            "active_server_port",
+            "stopping",
+        },
+        active = false,
+        status = "open_failed",
+        last_result = type(result) == "table" and result or nil,
+        last_error = type(result) == "table"
+                and (result.error or result.message or result.reason)
+            or result,
+    })
+end
+
 local function open_after_pending_stop(project, stop_handle, opts)
     local handle =
         restart_handle.new({ kind = "preview" }):set_stop_handle(stop_handle)
@@ -88,6 +135,7 @@ local function open_after_pending_stop(project, stop_handle, opts)
         handle.stop_result = stop_result
 
         if restart_stop_failed(stop_result) then
+            record_stop_failed(project, stop_result)
             handle.ok = false
             handle.reason = stop_result.reason or "stop_failed"
             handle.message = stop_result.message
@@ -118,29 +166,40 @@ local function open_after_pending_stop(project, stop_handle, opts)
                 local subscribed, subscribe_error = subscribe_on_finish(
                     open_result,
                     function(result)
+                        if type(result) == "table" and result.ok == false then
+                            record_open_failed(project, result)
+                        end
                         handle:finish(result)
                     end
                 )
                 if subscribed then
                     return
                 end
-                handle:finish({
-                    ok = false,
-                    reason = "finish_subscription_failed",
-                    message = "Pending Typst preview open could not be observed",
-                    error = subscribe_error,
-                })
+                local failed = pending_unobservable("open", subscribe_error)
+                record_open_failed(project, failed)
+                handle:finish(failed)
                 return
             end
+            local failed = pending_unobservable("open")
+            record_open_failed(project, failed)
+            handle:finish(failed)
+            return
+        end
+
+        if type(open_result) == "table" and open_result.ok == false then
+            record_open_failed(project, open_result)
         end
 
         handle:finish(open_result)
     end
 
-    if
-        type(stop_handle) == "table"
-        and type(stop_handle.on_finish) == "function"
-    then
+    if type(stop_handle) == "table" and stop_handle.pending == true then
+        if type(stop_handle.on_finish) ~= "function" then
+            local failed = pending_unobservable("stop")
+            record_stop_failed(project, failed)
+            handle:finish(failed)
+            return handle
+        end
         local subscribed, subscribe_error = subscribe_on_finish(
             stop_handle,
             function(result)
@@ -148,18 +207,12 @@ local function open_after_pending_stop(project, stop_handle, opts)
             end
         )
         if not subscribed then
-            handle:finish({
-                ok = false,
-                reason = "finish_subscription_failed",
-                message = "Pending Typst preview stop could not be observed",
-                error = subscribe_error,
-            })
+            local failed = pending_unobservable("stop", subscribe_error)
+            record_stop_failed(project, failed)
+            handle:finish(failed)
         end
     else
         vim.schedule(function()
-            if type(stop_handle) == "table" and stop_handle.pending == true then
-                return
-            end
             complete_stop(stop_handle)
         end)
     end

@@ -541,6 +541,55 @@ assert(
     "stopped provider results should return compiler to idle"
 )
 
+local idle_restart_calls = {}
+local idle_restart_provider = {
+    name = "idle-restart-provider",
+    compile = function(_, callback)
+        idle_restart_calls[#idle_restart_calls + 1] = "compile"
+        callback({ ok = true, stale = false })
+        return { provider = "idle-restart-compile" }
+    end,
+    start = function()
+        idle_restart_calls[#idle_restart_calls + 1] = "start"
+        return { provider = "idle-restart-watch" }
+    end,
+    stop = function(_, callback)
+        idle_restart_calls[#idle_restart_calls + 1] = "stop"
+        callback({ idle = true, stale = false })
+        return { provider = "idle-restart-stop" }
+    end,
+    status = function()
+        return typst_test_compiler(project).status
+    end,
+    output = function()
+        return typst_test_cache_path("provider-output/idle-restart.pdf")
+    end,
+}
+
+typst.setup({
+    root = root,
+    compile = {
+        provider = idle_restart_provider,
+    },
+})
+assert(typst.compiler.watch(), "idle restart provider watch should start")
+local idle_restarted = typst.compiler.compile({})
+assert(
+    idle_restarted
+        and idle_restarted.restart == true
+        and idle_restarted.next_handle
+        and idle_restarted.next_handle.provider == "idle-restart-compile",
+    "idle stop result should allow the replacement compile to start"
+)
+assert(
+    table.concat(idle_restart_calls, ",") == "start,stop,compile",
+    "idle restart should stop the watcher then compile"
+)
+assert(
+    typst_test_compiler(project).status == "success",
+    "idle restart replacement compile should finish successfully"
+)
+
 local ok, err = pcall(function()
     typst.setup({
         compile = {

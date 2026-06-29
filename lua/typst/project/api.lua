@@ -4,6 +4,7 @@ local log = require("typst.core.log")
 local project = require("typst.project")
 local project_lifecycle = require("typst.project.lifecycle")
 local util = require("typst.core.util")
+local cache_registry = require("typst.core.cache_registry")
 
 local normalize_bufnr = require("typst.core.buffer").normalize_bufnr
 
@@ -99,23 +100,17 @@ function M.create(opts)
     ---@return table summary Cache groups that were cleared.
     function api.clear_cache(cache_opts)
         cache_opts = cache_opts or {}
-        require("typst.metadata").reset()
-        require("typst.completion").reset()
-        require("typst.package").reset()
-        require("typst.metadata.symbol").reset()
-        require("typst.index").reset()
-        require("typst.core.treesitter").forget(cache_opts.bufnr)
-        require("typst.conceal").refresh(cache_opts.bufnr)
+        local cleared = cache_registry.clear({ bufnr = cache_opts.bufnr })
 
         log.add("info", "caches cleared", {
             bufnr = cache_opts.bufnr,
-            metadata = true,
-            completion = true,
-            package = true,
-            symbol = true,
-            index = true,
-            treesitter = true,
-            conceal = true,
+            metadata = cleared.metadata == true,
+            completion = cleared.completion == true,
+            package = cleared.package == true,
+            symbol = cleared.symbol == true,
+            index = cleared.index == true,
+            treesitter = cleared.treesitter == true,
+            conceal = cleared.conceal == true,
         })
 
         if cache_opts.notify ~= false then
@@ -124,15 +119,7 @@ function M.create(opts)
             )
         end
 
-        return {
-            metadata = true,
-            completion = true,
-            package = true,
-            symbol = true,
-            index = true,
-            treesitter = true,
-            conceal = true,
-        }
+        return cleared
     end
 
     return api

@@ -114,6 +114,87 @@ local ok, err = xpcall(function()
             kill_calls[2].pid == -41002 and kill_calls[2].signal == 9,
             "shutdown should SIGKILL the group after timeout"
         )
+
+        kill_calls = {}
+        local wait_calls = 0
+        local wait_only = {
+            pid = 41003,
+            wait = function(_, timeout_ms)
+                wait_calls = wait_calls + 1
+                assert(
+                    timeout_ms == 50,
+                    "shutdown should pass timeout to handle wait"
+                )
+                return { code = 0 }
+            end,
+        }
+
+        stopped, result = process.shutdown(
+            wait_only,
+            { timeout_ms = 50, kill_timeout_ms = 1 }
+        )
+        assert(
+            stopped,
+            "shutdown should use wait() when is_closing() is unavailable"
+        )
+        assert(
+            result and result.forced == false,
+            "wait()-confirmed shutdown should be graceful"
+        )
+        assert(wait_calls == 1, "shutdown should wait once for exit")
+        assert(
+            #kill_calls == 1
+                and kill_calls[1].pid == -41003
+                and kill_calls[1].signal == 15,
+            "wait-only shutdown should still signal the process group first"
+        )
+
+        kill_calls = {}
+        local timeout_wait_calls = 0
+        local wait_timeout = {
+            pid = 41004,
+            wait = function(_, timeout_ms)
+                timeout_wait_calls = timeout_wait_calls + 1
+                if timeout_wait_calls == 1 then
+                    assert(
+                        timeout_ms == 50,
+                        "graceful shutdown should pass timeout to wait"
+                    )
+                    return { code = 124, signal = 9 }
+                end
+                assert(
+                    timeout_ms == 25,
+                    "forced shutdown should pass kill timeout to wait"
+                )
+                return { code = 0, signal = 9 }
+            end,
+        }
+
+        stopped, result = process.shutdown(wait_timeout, {
+            timeout_ms = 50,
+            kill_timeout_ms = 25,
+        })
+        assert(stopped, "shutdown should confirm stop after forced tree kill")
+        assert(
+            result and result.forced == true,
+            "wait timeout should not be reported as graceful shutdown"
+        )
+        assert(
+            timeout_wait_calls == 2,
+            "shutdown should wait again after forced tree kill"
+        )
+        assert(
+            #kill_calls == 2,
+            "wait timeout should send SIGTERM then SIGKILL"
+        )
+        assert(
+            kill_calls[1].pid == -41004 and kill_calls[1].signal == 15,
+            "wait-timeout shutdown should SIGTERM the group first"
+        )
+        assert(
+            kill_calls[2].pid == -41004 and kill_calls[2].signal == 9,
+            "wait-timeout shutdown should SIGKILL the group after timeout"
+        )
     end
 
     process._force_windows = true
@@ -211,6 +292,214 @@ if not ok then
 end
 
 local original_spawn_system = vim.system
+local original_spawn_kill = uv.kill
+local wait_callbacks = 0
+local wait_cleanups = 0
+
+ok, err = xpcall(function()
+    vim.system = function()
+        return {
+            pid = 43001,
+            wait = function()
+                return { code = 0, stdout = "done" }
+            end,
+            kill = function()
+                return true
+            end,
+        }
+    end
+
+    local handle = process.spawn({ "fake" }, {}, {
+        cleanup = function(result)
+            wait_cleanups = wait_cleanups + 1
+            assert(result.code == 0, "wait cleanup should receive result")
+        end,
+        on_exit = function(result)
+            wait_callbacks = wait_callbacks + 1
+            assert(result.code == 0, "wait callback should receive result")
+        end,
+    })
+
+    assert(
+        not handle:is_closing(),
+        "fresh process wrapper should not be closed before exit"
+    )
+    local result = handle:wait(0)
+    assert(result and result.code == 0, "wrapper wait should return result")
+    assert(handle:is_closing(), "wrapper wait should mark handle exited")
+    assert(
+        handle.result and handle.result.stdout == "done",
+        "wrapper should retain terminal result"
+    )
+    assert(wait_callbacks == 1, "wrapper wait should finish callbacks once")
+    assert(wait_cleanups == 1, "wrapper wait should finish cleanup once")
+    handle:wait(0)
+    assert(
+        wait_callbacks == 1 and wait_cleanups == 1,
+        "repeated wrapper wait should not duplicate lifecycle callbacks"
+    )
+
+    if not native_windows then
+        local shutdown_waits = 0
+        local shutdown_callbacks = 0
+        local shutdown_cleanups = 0
+        local shutdown_closing_checks = 0
+        local shutdown_exited = false
+        kill_calls = {}
+        uv.kill = function(pid, signal)
+            kill_calls[#kill_calls + 1] = { pid = pid, signal = signal }
+            return 0
+        end
+        vim.system = function(_, _, on_exit)
+            return {
+                pid = 43002,
+                is_closing = function()
+                    shutdown_closing_checks = shutdown_closing_checks + 1
+                    if shutdown_closing_checks >= 2 and not shutdown_exited then
+                        shutdown_exited = true
+                        on_exit({ code = 0, stdout = "shutdown done" })
+                    end
+                    return shutdown_exited
+                end,
+                wait = function(_, timeout_ms)
+                    shutdown_waits = shutdown_waits + 1
+                    assert(
+                        timeout_ms == 1,
+                        "wrapped shutdown should only wait after forced kill"
+                    )
+                    return { code = 0, stdout = "forced shutdown done" }
+                end,
+                kill = function()
+                    return true
+                end,
+            }
+        end
+
+        local shutdown_handle = process.spawn({ "fake-shutdown" }, {}, {
+            cleanup = function(result)
+                shutdown_cleanups = shutdown_cleanups + 1
+                assert(
+                    result.stdout == "shutdown done",
+                    "shutdown wrapper cleanup should receive wait result"
+                )
+            end,
+            on_exit = function(result)
+                shutdown_callbacks = shutdown_callbacks + 1
+                assert(
+                    result.code == 0,
+                    "shutdown wrapper callback should receive wait result"
+                )
+            end,
+        })
+        local stopped, shutdown_result = process.shutdown(shutdown_handle, {
+            timeout_ms = 25,
+            kill_timeout_ms = 1,
+        })
+        assert(
+            stopped,
+            "shutdown should use wrapper exit state to confirm graceful exit"
+        )
+        assert(
+            shutdown_result and shutdown_result.forced == false,
+            "wrapper callback-confirmed shutdown should be graceful"
+        )
+        assert(
+            shutdown_waits == 0,
+            "graceful wrapped shutdown should not call SystemObj:wait(timeout)"
+        )
+        assert(
+            shutdown_callbacks == 1 and shutdown_cleanups == 1,
+            "shutdown wrapper callback should finish lifecycle callbacks once"
+        )
+        assert(
+            shutdown_handle.exited
+                and shutdown_handle.result
+                and shutdown_handle.result.stdout == "shutdown done",
+            "shutdown should retain wrapper callback result"
+        )
+        assert(
+            #kill_calls == 1
+                and kill_calls[1].pid == -43002
+                and kill_calls[1].signal == 15,
+            "shutdown should signal the wrapped process group before waiting"
+        )
+
+        local wrapped_timeout_waits = 0
+        local wrapped_timeout_callbacks = 0
+        kill_calls = {}
+        vim.system = function()
+            return {
+                pid = 43003,
+                wait = function(_, timeout_ms)
+                    wrapped_timeout_waits = wrapped_timeout_waits + 1
+                    assert(
+                        timeout_ms == 1,
+                        "wrapped timeout should wait only after forced tree kill"
+                    )
+                    return { code = 124, signal = 9 }
+                end,
+                kill = function()
+                    return true
+                end,
+            }
+        end
+
+        local wrapped_timeout_handle = process.spawn(
+            { "fake-shutdown-timeout" },
+            {},
+            {
+                on_exit = function(result)
+                    wrapped_timeout_callbacks = wrapped_timeout_callbacks + 1
+                    assert(
+                        result.code == 124,
+                        "wrapped timeout callback should receive wait result"
+                    )
+                end,
+            }
+        )
+        stopped, shutdown_result = process.shutdown(wrapped_timeout_handle, {
+            timeout_ms = 25,
+            kill_timeout_ms = 1,
+        })
+        assert(
+            stopped,
+            "wrapped wait timeout should be confirmed after forced tree kill"
+        )
+        assert(
+            shutdown_result and shutdown_result.forced == true,
+            "wrapped wait timeout should report forced shutdown"
+        )
+        assert(
+            wrapped_timeout_waits == 1,
+            "wrapped timeout should wait once after forced tree kill"
+        )
+        assert(
+            wrapped_timeout_callbacks == 1,
+            "wrapped timeout should finish lifecycle callbacks once"
+        )
+        assert(
+            #kill_calls == 2,
+            "wrapped wait timeout should still send SIGTERM then SIGKILL"
+        )
+        assert(
+            kill_calls[1].pid == -43003 and kill_calls[1].signal == 15,
+            "wrapped timeout shutdown should SIGTERM the group first"
+        )
+        assert(
+            kill_calls[2].pid == -43003 and kill_calls[2].signal == 9,
+            "wrapped timeout shutdown should SIGKILL the group after timeout"
+        )
+    end
+end, debug.traceback)
+
+vim.system = original_spawn_system
+uv.kill = original_spawn_kill
+
+if not ok then
+    error(err)
+end
+
+original_spawn_system = vim.system
 local callbacks = 0
 local cleanups = 0
 local spawn_errors = 0

@@ -32,6 +32,9 @@ function M.normalize(result)
     elseif type(result.stderr) ~= "string" then
         result.stderr = tostring(result.stderr)
     end
+    if result.idle == true and result.stopped == nil then
+        result.stopped = true
+    end
 
     if result.code == nil then
         if result.ok == true then
@@ -162,6 +165,42 @@ end
 function M.terminal(result)
     return type(result) ~= "table"
         or (result.pending ~= true and not M.is_watch_cycle(result, "watcher"))
+end
+
+function M.stop_allows_restart(result)
+    if result == nil or result == true then
+        return true
+    end
+
+    if result == false then
+        return false
+    end
+
+    if type(result) ~= "table" then
+        return false
+    end
+
+    local reason = result.reason
+    if
+        result.idle == true
+        or reason == "idle"
+        or reason == "not_active"
+        or reason == "no_active"
+        or reason == "already_stopped"
+        or reason == "provider_not_started"
+    then
+        return result.ok ~= false and result.stopped ~= false
+    end
+
+    if result.ok == false or result.stopped == false then
+        return false
+    end
+
+    if result.stopped == true then
+        return true
+    end
+
+    return result.ok == true or result.code == 0
 end
 
 return M

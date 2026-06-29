@@ -16,6 +16,39 @@ local group_modules = {
 
 local default_notify = require("typst.core.notify").default
 
+local function lazy_commands_api(notify)
+    local resolved = nil
+    local namespaces = {}
+
+    local function api()
+        if not resolved then
+            resolved = require("typst.internal.commands_api").create({
+                notify = notify,
+            })
+        end
+        return resolved
+    end
+
+    return setmetatable({}, {
+        __index = function(_, namespace)
+            local cached = namespaces[namespace]
+            if cached then
+                return cached
+            end
+
+            cached = setmetatable({}, {
+                __index = function(_, method)
+                    return function(...)
+                        return api()[namespace][method](...)
+                    end
+                end,
+            })
+            namespaces[namespace] = cached
+            return cached
+        end,
+    })
+end
+
 --- Register all user-facing `:Typst*` commands.
 ---@param typst_api table Public API facade passed by `require("typst")`.
 ---@param opts? table Command registration options, including `notify` and test API overrides.
@@ -23,9 +56,7 @@ function M.register(typst_api, opts)
     opts = opts or {}
     local notify = opts.notify or default_notify
     local ctx = {
-        api = opts.api or require("typst.internal.commands_api").create({
-            notify = notify,
-        }),
+        api = opts.api or lazy_commands_api(notify),
         notify = notify,
     }
 

@@ -54,7 +54,56 @@ local function clear_dirty_ticks_for_buffer(bufnr)
     end
 end
 
-local function emit_reassign_events(previous, state)
+local function buffer_event_payload(state, bufnr, reason, resolution)
+    local buffers = vim.tbl_keys(state and state.bufs or {})
+    return {
+        event_kind = "buffer_detach",
+        bufnr = bufnr,
+        buffer = resolution and resolution.buffer or nil,
+        reason = reason,
+        remaining_buffers = #buffers,
+        project_pruned = project.pruned(state),
+    }
+end
+
+local function emit_project_pruned(state, reason)
+    if project.pruned(state) then
+        project.emit_pruned(state, reason)
+    end
+end
+
+local function emit_buffer_detach(previous, bufnr, reason, resolution)
+    if not previous then
+        return
+    end
+    events.emit(
+        "TypstBufferDetach",
+        previous,
+        buffer_event_payload(previous, bufnr, reason, resolution)
+    )
+end
+
+local function emit_project_attach(state, bufnr, reason)
+    if not state then
+        return
+    end
+    local resolution = state.resolutions and state.resolutions[bufnr] or nil
+    events.emit("TypstProjectAttach", state, {
+        event_kind = "project_attach",
+        bufnr = bufnr,
+        buffer = resolution and resolution.buffer or nil,
+        reason = reason,
+        remaining_buffers = #vim.tbl_keys(state.bufs or {}),
+    })
+end
+
+local function emit_reassign_events(
+    previous,
+    state,
+    bufnr,
+    reason,
+    previous_resolution
+)
     local previous_key = previous and previous.key or nil
     local state_key = state and state.key or nil
     if previous_key == state_key then
@@ -62,10 +111,18 @@ local function emit_reassign_events(previous, state)
     end
 
     if previous then
-        events.emit("TypstProjectDetach", previous)
+        local resolution = previous_resolution
+            or (previous.resolutions and previous.resolutions[bufnr])
+        emit_buffer_detach(
+            previous,
+            bufnr,
+            reason or "buffer reassigned",
+            resolution
+        )
+        emit_project_pruned(previous, reason or "buffer reassigned")
     end
     if state then
-        events.emit("TypstProjectAttach", state)
+        emit_project_attach(state, bufnr, reason or "buffer attached")
     end
 end
 
@@ -231,6 +288,10 @@ end
 local function attach_impl(api, bufnr)
     bufnr = normalize_bufnr(bufnr)
     local previous = project.get(bufnr)
+    local previous_resolution = previous
+            and previous.resolutions
+            and vim.deepcopy(previous.resolutions[bufnr])
+        or nil
     local ok, candidate = pcall(project.resolve_candidate, bufnr)
     if ok then
         local commit_ok, state = pcall(project.commit_attach, candidate)
@@ -256,7 +317,13 @@ local function attach_impl(api, bufnr)
 
         -- If resolution moved this buffer to another project, the old project
         -- may now have no buffers but still own a watcher/preview.
-        emit_reassign_events(previous, state)
+        emit_reassign_events(
+            previous,
+            state,
+            bufnr,
+            "buffer attached",
+            previous_resolution
+        )
         stop_previous_if_reassigned(
             previous,
             "stopping compiler after buffer moved to another project",
@@ -285,13 +352,19 @@ end
 ---@return table|nil state Project state the buffer belonged to before detach.
 function M.detach(bufnr)
     bufnr = normalize_bufnr(bufnr)
+    local previous = project.get(bufnr)
+    local resolution = previous
+            and previous.resolutions
+            and vim.deepcopy(previous.resolutions[bufnr])
+        or nil
     local state = project.detach(bufnr)
     core_lifecycle.clear_buffer(bufnr)
     if vim.api.nvim_buf_is_valid(bufnr) then
         util.del_buf_var(bufnr, "did_typst_nvim_ftplugin")
     end
     if state then
-        events.emit("TypstProjectDetach", state)
+        emit_buffer_detach(state, bufnr, "buffer detached", resolution)
+        emit_project_pruned(state, "buffer detached")
         stop_previous_if_reassigned(
             state,
             "stopping compiler after last buffer detached",
@@ -307,6 +380,10 @@ end
 function M.get_project(bufnr)
     bufnr = normalize_bufnr(bufnr)
     local previous = project.get(bufnr)
+    local previous_resolution = previous
+            and previous.resolutions
+            and vim.deepcopy(previous.resolutions[bufnr])
+        or nil
     if
         previous
         and not core_lifecycle.explicit_main_changed(bufnr, previous)
@@ -322,7 +399,13 @@ function M.get_project(bufnr)
         bufnr,
         previous and { ignore_project_key = previous.key } or nil
     )
-    emit_reassign_events(previous, state)
+    emit_reassign_events(
+        previous,
+        state,
+        bufnr,
+        "buffer re-resolved",
+        previous_resolution
+    )
     stop_previous_if_reassigned(
         previous,
         "stopping compiler after buffer main changed",
@@ -341,8 +424,16 @@ function M.set_main(path, bufnr, set_opts, notify)
     set_opts = set_opts or {}
     bufnr = normalize_bufnr(bufnr)
     local previous = project.get(bufnr)
+    local previous_resolution = previous
+            and previous.resolutions
+            and vim.deepcopy(previous.resolutions[bufnr])
+        or nil
     local state = project.set_main(bufnr, path, set_opts)
-    emit_reassign_events(previous, state)
+    if previous and previous.key ~= state.key then
+        emit_buffer_detach(previous, bufnr, "main changed", previous_resolution)
+        emit_project_pruned(previous, "main changed")
+        emit_project_attach(state, bufnr, "main changed")
+    end
     stop_previous_if_reassigned(
         previous,
         "stopping compiler after main changed",
@@ -368,6 +459,10 @@ function M.toggle_main(toggle_opts, notify)
 
     path = util.normalize(path)
     local previous = project.get(bufnr)
+    local previous_resolution = previous
+            and previous.resolutions
+            and vim.deepcopy(previous.resolutions[bufnr])
+        or nil
     local current = util.get_buf_var(bufnr, "typst_main")
     local local_main = type(current) == "string"
         and current ~= ""
@@ -376,7 +471,16 @@ function M.toggle_main(toggle_opts, notify)
 
     if local_main then
         state = project.clear_main(bufnr, { clear_persisted = false })
-        emit_reassign_events(previous, state)
+        if previous and previous.key ~= state.key then
+            emit_buffer_detach(
+                previous,
+                bufnr,
+                "local main cleared",
+                previous_resolution
+            )
+            emit_project_pruned(previous, "local main cleared")
+            emit_project_attach(state, bufnr, "local main cleared")
+        end
         stop_previous_if_reassigned(
             previous,
             "stopping compiler after local main cleared",
@@ -392,7 +496,16 @@ function M.toggle_main(toggle_opts, notify)
     end
 
     state = project.set_main(bufnr, path)
-    emit_reassign_events(previous, state)
+    if previous and previous.key ~= state.key then
+        emit_buffer_detach(
+            previous,
+            bufnr,
+            "local main enabled",
+            previous_resolution
+        )
+        emit_project_pruned(previous, "local main enabled")
+        emit_project_attach(state, bufnr, "local main enabled")
+    end
     stop_previous_if_reassigned(
         previous,
         "stopping compiler after local main enabled",
@@ -415,16 +528,18 @@ end
 function M.reload_state(api, reload_opts, notify)
     reload_opts = reload_opts or {}
     local bufnr = normalize_bufnr(reload_opts.bufnr)
+    local previous_attached = project.get(bufnr)
+    local previous_resolution = previous_attached
+            and previous_attached.resolutions
+            and vim.deepcopy(previous_attached.resolutions[bufnr])
+        or nil
     local previous = project.detach(bufnr)
     if previous then
-        events.emit("TypstProjectDetach", previous)
+        emit_buffer_detach(previous, bufnr, "state reload", previous_resolution)
+        emit_project_pruned(previous, "state reload")
     end
 
-    require("typst.metadata").reset()
-    require("typst.completion").reset()
-    require("typst.package").reset()
-    require("typst.metadata.symbol").reset()
-    require("typst.conceal").refresh(bufnr)
+    require("typst.core.cache_registry").reload({ bufnr = bufnr })
 
     local state = api.attach(bufnr)
     if not state then

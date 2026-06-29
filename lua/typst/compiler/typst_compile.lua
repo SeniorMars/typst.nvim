@@ -96,8 +96,6 @@ function M.start(project, callback, run_config)
         output = output,
     })
 
-    events.emit("TypstCompileStarted", project)
-
     local handle
     local compile_operation
     local process_opts = { cwd = project.root, text = true }
@@ -208,6 +206,7 @@ function M.start(project, callback, run_config)
         process = handle,
         process_operation = compile_operation,
     })
+    events.emit("TypstCompileStarted", project)
     return handle
 end
 

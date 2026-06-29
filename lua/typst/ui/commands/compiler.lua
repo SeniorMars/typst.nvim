@@ -6,6 +6,13 @@ local M = {}
 local create = command.create
 local opts = command.opts
 
+local function compile_command(api, args)
+    api.compiler.compile({
+        open = args.bang and true or nil,
+        profile = args.args ~= "" and args.args or nil,
+    })
+end
+
 ---Register compile/viewer command bindings.
 ---@param ctx table runtime context with `api` field.
 function M.register(ctx)
@@ -14,10 +21,7 @@ function M.register(ctx)
     create(
         "TypstCompile",
         function(args)
-            api.compiler.compile({
-                open = args.bang and true or nil,
-                profile = args.args ~= "" and args.args or nil,
-            })
+            compile_command(api, args)
         end,
         vim.tbl_extend(
             "force",
@@ -31,10 +35,7 @@ function M.register(ctx)
     create(
         "TypstCompileSS",
         function(args)
-            api.compiler.compile({
-                open = args.bang and true or nil,
-                profile = args.args ~= "" and args.args or nil,
-            })
+            compile_command(api, args)
         end,
         vim.tbl_extend(
             "force",

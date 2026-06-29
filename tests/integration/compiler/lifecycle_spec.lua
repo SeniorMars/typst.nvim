@@ -68,12 +68,17 @@ run_case("compile success and parent failure", function(group)
     })
 
     local started_event = nil
+    local started_event_process = nil
+    local started_event_operation = nil
     local success_event = nil
     vim.api.nvim_create_autocmd("User", {
         group = group,
         pattern = "TypstCompileStarted",
         callback = function(args)
             started_event = args.data
+            started_event_process = typst_test_compiler(project).process
+            started_event_operation =
+                typst_test_compiler(project).process_operation
         end,
     })
     vim.api.nvim_create_autocmd("User", {
@@ -96,6 +101,14 @@ run_case("compile success and parent failure", function(group)
     assert(
         typst_test_compiler(project).process == handle,
         "project should track the active one-shot compile process"
+    )
+    assert(
+        started_event_process == handle,
+        "TypstCompileStarted should see the active compile process"
+    )
+    assert(
+        started_event_operation and started_event_operation.handle == handle,
+        "TypstCompileStarted should see the active compile operation"
     )
 
     assert(
@@ -335,6 +348,88 @@ run_case("stop active and idle compile", function(group)
     assert(
         not notifications[1]:find("^Stopped "),
         "idle TypstStop should not claim that an active compiler was stopped"
+    )
+end)
+
+run_case("compile started event handler can stop compile", function(group)
+    local executable = helpers.fake_typst_sleep(root)
+    local project = setup_project({
+        executable = executable,
+        output_dir = typst_test_cache_path("compile-start-stop-output"),
+        compile = {
+            deps = false,
+        },
+    })
+
+    local started_process = nil
+    local started_operation = nil
+    local stop_handle = nil
+    local stop_result = nil
+    local stopped_event = nil
+    vim.api.nvim_create_autocmd("User", {
+        group = group,
+        pattern = "TypstCompileStarted",
+        callback = function()
+            started_process = typst_test_compiler(project).process
+            started_operation = typst_test_compiler(project).process_operation
+            stop_handle = typst.compiler.stop({}, function(result)
+                stop_result = result
+            end)
+        end,
+    })
+    vim.api.nvim_create_autocmd("User", {
+        group = group,
+        pattern = "TypstCompileStopped",
+        callback = function(args)
+            stopped_event = args.data
+        end,
+    })
+
+    local compile_callback_called = false
+    local handle = typst.compiler.compile({}, function()
+        compile_callback_called = true
+    end)
+
+    assert(
+        started_process == handle,
+        "TypstCompileStarted handler should see the active compile process"
+    )
+    assert(
+        started_operation and started_operation.handle == handle,
+        "TypstCompileStarted handler should see the active compile operation"
+    )
+    assert(
+        stop_handle and stop_handle.deferred == true,
+        "TypstStop from TypstCompileStarted should return a deferred stop proxy"
+    )
+    assert(
+        typst_test_compiler(project).process == handle,
+        "TypstStop from TypstCompileStarted should leave active state visible until dispatch settles"
+    )
+
+    assert(
+        vim.wait(10000, function()
+            return handle:is_closing()
+                and typst_test_compiler(project).process == nil
+                and typst_test_compiler(project).status == "idle"
+        end, 20),
+        "compile stopped from TypstCompileStarted did not settle"
+    )
+    assert(
+        stop_result and stop_result.stopped,
+        "TypstStop callback should report stopped compile"
+    )
+    assert(
+        stopped_event and stopped_event.key == project.key,
+        "TypstCompileStopped should fire after start-handler stop"
+    )
+
+    vim.wait(200, function()
+        return compile_callback_called
+    end, 20)
+    assert(
+        not compile_callback_called,
+        "compile callback should not receive the stale stopped result"
     )
 end)
 

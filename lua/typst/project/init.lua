@@ -55,9 +55,30 @@ local function prune_if_empty(state, reason)
 
     registry[state.key] = nil
     index_cache.reset(state)
+    state._typst_project_pruned = true
+    state._typst_project_pruned_reason = reason
     log.add("info", "removed empty project", {
         main = state.main,
         reason = reason,
+    })
+    return true
+end
+
+local function emit_project_pruned(state, reason)
+    if
+        not state
+        or state._typst_project_pruned ~= true
+        or state._typst_project_pruned_event_emitted == true
+    then
+        return false
+    end
+
+    state._typst_project_pruned_event_emitted = true
+    require("typst.core.events").emit("TypstProjectPruned", state, {
+        event_kind = "project_pruned",
+        reason = reason or state._typst_project_pruned_reason,
+        remaining_buffers = 0,
+        project_pruned = true,
     })
     return true
 end
@@ -439,7 +460,26 @@ function M.prune(state, reason)
         state = registry[state]
     end
 
-    return prune_if_empty(state, reason or "manual prune")
+    local pruned = prune_if_empty(state, reason or "manual prune")
+    if pruned then
+        emit_project_pruned(state, reason or "manual prune")
+    end
+    return pruned
+end
+
+--- Check whether a project was removed from the registry.
+---@param state table? Project state to inspect.
+---@return boolean pruned True when the project registry has pruned this state.
+function M.pruned(state)
+    return type(state) == "table" and state._typst_project_pruned == true
+end
+
+--- Emit the delayed project-pruned lifecycle event after buffer-detach events.
+---@param state table? Project state that may have been pruned.
+---@param reason? string Reason override for the event payload.
+---@return boolean emitted True when the event was emitted.
+function M.emit_pruned(state, reason)
+    return emit_project_pruned(state, reason)
 end
 
 --- Clear all project registry state.

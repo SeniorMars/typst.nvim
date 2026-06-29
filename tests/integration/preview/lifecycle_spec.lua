@@ -531,4 +531,272 @@ assert(
     "preview stop completion after cancellation should not reopen preview"
 )
 
+typst.reset({ force = true })
+opened = 0
+stopped = 0
+local finish_failed_stop = nil
+
+typst.setup({
+    root = root,
+    output_dir = typst_test_cache_path("preview-controls-output"),
+    preview = {
+        open = function(_, opts)
+            opened = opened + 1
+            open_mode = opts.mode
+            return true
+        end,
+        stop = function()
+            stopped = stopped + 1
+            return {
+                pending = true,
+                on_finish = function(callback)
+                    finish_failed_stop = callback
+                end,
+            }
+        end,
+    },
+})
+
+vim.cmd.edit(main)
+project = typst.project.set_main(main)
+assert(
+    typst.viewer.preview({ mode = "document" }) == true,
+    "preview should open before pending stop failure"
+)
+local failed_stop_restart = typst.viewer.preview({
+    mode = "slide",
+    restart = true,
+})
+assert(
+    failed_stop_restart and failed_stop_restart.pending == true,
+    "pending stop failure fixture should return restart handle"
+)
+finish_failed_stop({
+    ok = false,
+    stopped = false,
+    reason = "backend_refused_stop",
+    message = "backend refused to stop",
+})
+assert(
+    failed_stop_restart.pending == false,
+    "failed pending stop should finish restart handle"
+)
+assert(
+    failed_stop_restart.result
+        and failed_stop_restart.result.reason == "backend_refused_stop",
+    "failed pending stop should preserve backend failure reason"
+)
+assert(opened == 1, "failed pending stop should not open replacement preview")
+assert(
+    typst_test_preview(project).active == true,
+    "failed pending stop should keep the original preview active"
+)
+assert(
+    typst_test_preview(project).stopping ~= true,
+    "failed pending stop should clear stopping state"
+)
+assert(
+    typst_test_preview(project).status == "stopping_failed",
+    "failed pending stop should record stopping_failed status"
+)
+
+typst.reset({ force = true })
+opened = 0
+stopped = 0
+
+typst.setup({
+    root = root,
+    output_dir = typst_test_cache_path("preview-controls-output"),
+    preview = {
+        open = function()
+            opened = opened + 1
+            return true
+        end,
+        stop = function()
+            stopped = stopped + 1
+            return {
+                pending = true,
+            }
+        end,
+    },
+})
+
+vim.cmd.edit(main)
+project = typst.project.set_main(main)
+assert(
+    typst.viewer.preview() == true,
+    "preview should open before unobservable stop test"
+)
+local unobservable_stop = typst.viewer.preview({ restart = true })
+assert(
+    unobservable_stop and unobservable_stop.pending == false,
+    "pending stop without on_finish should fail restart immediately"
+)
+assert(
+    unobservable_stop.result
+        and unobservable_stop.result.reason == "finish_subscription_failed",
+    "unobservable pending stop should report subscription failure"
+)
+assert(
+    opened == 1,
+    "unobservable pending stop should not open replacement preview"
+)
+assert(
+    typst_test_preview(project).active == true,
+    "unobservable pending stop should keep original preview active"
+)
+assert(
+    typst_test_preview(project).status == "stopping_failed",
+    "unobservable pending stop should record stop failure status"
+)
+
+typst.reset({ force = true })
+opened = 0
+stopped = 0
+local finish_stop_before_failed_open = nil
+local finish_failed_open = nil
+
+typst.setup({
+    root = root,
+    output_dir = typst_test_cache_path("preview-controls-output"),
+    preview = {
+        open = function(_, opts)
+            opened = opened + 1
+            open_mode = opts.mode
+            if opened == 1 then
+                return true
+            end
+            return {
+                pending = true,
+                on_finish = function(callback)
+                    finish_failed_open = callback
+                end,
+            }
+        end,
+        stop = function()
+            stopped = stopped + 1
+            return {
+                pending = true,
+                on_finish = function(callback)
+                    finish_stop_before_failed_open = callback
+                end,
+            }
+        end,
+    },
+})
+
+vim.cmd.edit(main)
+project = typst.project.set_main(main)
+assert(
+    typst.viewer.preview({ mode = "document" }) == true,
+    "preview should open before pending open failure"
+)
+local failed_open_restart = typst.viewer.preview({
+    mode = "slide",
+    restart = true,
+})
+assert(
+    failed_open_restart and failed_open_restart.pending == true,
+    "pending stop before replacement open should keep restart pending"
+)
+assert(
+    type(finish_stop_before_failed_open) == "function",
+    "pending stop before replacement open should be observable"
+)
+finish_stop_before_failed_open({ ok = true, stopped = true })
+assert(
+    failed_open_restart.pending == true,
+    "pending replacement open should keep restart pending"
+)
+assert(
+    type(finish_failed_open) == "function",
+    "pending replacement open should be observable"
+)
+finish_failed_open({
+    ok = false,
+    reason = "backend_refused_open",
+    message = "backend refused to open",
+})
+assert(
+    failed_open_restart.pending == false,
+    "failed replacement open should finish restart handle"
+)
+assert(
+    failed_open_restart.result
+        and failed_open_restart.result.reason == "backend_refused_open",
+    "failed replacement open should preserve backend failure reason"
+)
+assert(
+    typst_test_preview(project).active == false,
+    "failed replacement open should clear active preview state"
+)
+assert(
+    typst_test_preview(project).status == "open_failed",
+    "failed replacement open should record open_failed status"
+)
+
+typst.reset({ force = true })
+opened = 0
+stopped = 0
+local finish_stop_before_unobservable_open = nil
+
+typst.setup({
+    root = root,
+    output_dir = typst_test_cache_path("preview-controls-output"),
+    preview = {
+        open = function()
+            opened = opened + 1
+            if opened == 1 then
+                return true
+            end
+            return {
+                pending = true,
+            }
+        end,
+        stop = function()
+            stopped = stopped + 1
+            return {
+                pending = true,
+                on_finish = function(callback)
+                    finish_stop_before_unobservable_open = callback
+                end,
+            }
+        end,
+    },
+})
+
+vim.cmd.edit(main)
+project = typst.project.set_main(main)
+assert(
+    typst.viewer.preview() == true,
+    "preview should open before unobservable open test"
+)
+local unobservable_open = typst.viewer.preview({ restart = true })
+assert(
+    unobservable_open and unobservable_open.pending == true,
+    "pending stop before unobservable open should keep restart pending"
+)
+assert(
+    type(finish_stop_before_unobservable_open) == "function",
+    "pending stop before unobservable open should be observable"
+)
+finish_stop_before_unobservable_open({ ok = true, stopped = true })
+assert(
+    unobservable_open.pending == false,
+    "pending replacement open without on_finish should fail after stop finishes"
+)
+assert(
+    unobservable_open.result
+        and unobservable_open.result.reason == "finish_subscription_failed",
+    "unobservable replacement open should report subscription failure"
+)
+assert(
+    typst_test_preview(project).active == false,
+    "unobservable replacement open should clear active preview state"
+)
+assert(
+    typst_test_preview(project).status == "open_failed",
+    "unobservable replacement open should record open_failed status"
+)
+
 vim.cmd("qa!")

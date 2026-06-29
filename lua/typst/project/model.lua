@@ -8,6 +8,12 @@ local services = require("typst.project.services")
 local util = require("typst.core.util")
 
 local M = {}
+local uv = vim.uv or vim.loop
+local scratch_counter = 0
+local scratch_session = ("%s-%s"):format(
+    tostring(vim.fn.getpid()),
+    string.format("%d", uv.hrtime())
+)
 
 --- Build the registry key for a Typst project.
 ---@param root string Project root path.
@@ -74,9 +80,29 @@ end
 ---@param bufnr integer Buffer number.
 ---@return string path Cache path used to index unsaved source.
 function M.scratch_buffer_path(bufnr)
-    return util.normalize(
-        util.cache_dir("unsaved", ("buffer-%d.typ"):format(bufnr))
+    local path_ok, scratch_path =
+        pcall(vim.api.nvim_buf_get_var, bufnr, "typst_scratch_path")
+    if path_ok and type(scratch_path) == "string" and scratch_path ~= "" then
+        return util.normalize(scratch_path)
+    end
+
+    local ok, scratch_id =
+        pcall(vim.api.nvim_buf_get_var, bufnr, "typst_scratch_id")
+    if not ok or type(scratch_id) ~= "number" then
+        scratch_counter = scratch_counter + 1
+        scratch_id = scratch_counter
+        pcall(vim.api.nvim_buf_set_var, bufnr, "typst_scratch_id", scratch_id)
+    end
+
+    scratch_path = util.normalize(
+        util.cache_dir(
+            "unsaved",
+            scratch_session,
+            ("buffer-%d-%d.typ"):format(bufnr, scratch_id)
+        )
     )
+    pcall(vim.api.nvim_buf_set_var, bufnr, "typst_scratch_path", scratch_path)
+    return scratch_path
 end
 
 --- Classify how a file became associated with a project.

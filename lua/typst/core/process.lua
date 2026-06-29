@@ -31,6 +31,8 @@ end
 local function spawn_error_handle(result)
     return {
         _typst_spawn_error = result,
+        exited = true,
+        result = result,
         is_closing = function()
             return true
         end,
@@ -41,6 +43,88 @@ local function spawn_error_handle(result)
             return result
         end,
     }
+end
+
+local ProcessHandle = {}
+ProcessHandle.__index = ProcessHandle
+
+local function raw_field(raw, key)
+    local ok, value = pcall(function()
+        return raw and raw[key] or nil
+    end)
+    if ok then
+        return value
+    end
+    return nil
+end
+
+local function wrap_handle(raw, on_wait_result)
+    local handle = {
+        _typst_process_handle = true,
+        raw = raw,
+        pid = raw_field(raw, "pid"),
+        exited = false,
+        result = nil,
+        _on_wait_result = on_wait_result,
+    }
+
+    return setmetatable(handle, ProcessHandle)
+end
+
+function ProcessHandle:is_closing()
+    if self.exited then
+        return true
+    end
+
+    local raw = self.raw
+    local raw_is_closing = raw_field(raw, "is_closing")
+    if type(raw_is_closing) == "function" then
+        local ok, closing = pcall(function()
+            return raw_is_closing(raw)
+        end)
+        return ok and closing == true
+    end
+
+    return false
+end
+
+function ProcessHandle:kill(signal)
+    local raw = self.raw
+    local raw_kill = raw_field(raw, "kill")
+    if type(raw_kill) ~= "function" then
+        return false, "process handle is unavailable"
+    end
+    return raw_kill(raw, signal)
+end
+
+function ProcessHandle.wait(self, timeout_ms)
+    if self.exited then
+        return self.result
+    end
+
+    local raw = self.raw
+    local raw_wait = raw_field(raw, "wait")
+    if type(raw_wait) ~= "function" then
+        return nil
+    end
+
+    local ok, result = pcall(function()
+        return raw_wait(raw, timeout_ms)
+    end)
+    if not ok then
+        return nil, result
+    end
+
+    if type(result) == "table" then
+        if type(self._on_wait_result) == "function" then
+            self._on_wait_result(result)
+        else
+            self.exited = true
+            self.result = result
+        end
+    end
+
+    return result
 end
 
 local function pack_returns(...)
@@ -62,11 +146,20 @@ function M.spawn(command, opts, handlers)
     })
 
     local finished = false
+    local handle
+    local early_result
     local function finish(result)
         if finished then
             return
         end
         finished = true
+
+        if handle then
+            handle.exited = true
+            handle.result = result
+        else
+            early_result = result
+        end
 
         if type(handlers.cleanup) == "function" then
             pcall(handlers.cleanup, result)
@@ -83,12 +176,17 @@ function M.spawn(command, opts, handlers)
         end
     end
 
-    local ok, handle = pcall(vim.system, command, opts, finish)
+    local ok, raw = pcall(vim.system, command, opts, finish)
     if ok then
+        handle = wrap_handle(raw, finish)
+        if early_result then
+            handle.exited = true
+            handle.result = early_result
+        end
         return handle
     end
 
-    local result = spawn_error_result(command, opts, handle)
+    local result = spawn_error_result(command, opts, raw)
     if type(handlers.on_spawn_error) == "function" then
         pcall(handlers.on_spawn_error, result)
     end
@@ -177,6 +275,10 @@ function M.kill(handle, signal)
 end
 
 local function is_closing(handle)
+    if type(handle) == "table" and handle.exited == true then
+        return true
+    end
+
     if not handle or type(handle.is_closing) ~= "function" then
         return false
     end
@@ -187,20 +289,65 @@ local function is_closing(handle)
     return ok and closing == true
 end
 
-local function wait_for_exit(handle, timeout_ms)
-    if is_closing(handle) then
+local function wait_once(handle, timeout_ms)
+    if not handle or type(handle.wait) ~= "function" then
+        return false, nil
+    end
+
+    local ok, result = pcall(function()
+        return handle.wait(handle, timeout_ms)
+    end)
+    if ok and type(result) == "table" then
+        return true, result
+    end
+    return false, nil
+end
+
+local function wait_result_forced(result)
+    return type(result) == "table"
+        and (result.signal == 9 or result.code == 124)
+end
+
+local function should_wait_once(handle, opts)
+    if opts.accept_forced_wait == true then
         return true
+    end
+    -- Do not call SystemObj:wait() for typst.nvim-owned handles during
+    -- graceful shutdown. A finite wait timeout force-kills the raw process; the
+    -- graceful phase should let the libuv exit callback update wrapper state
+    -- while vim.wait() pumps the event loop. After forced tree kill, wait() is
+    -- allowed to collect the terminal result.
+    return not (
+        type(handle) == "table" and handle._typst_process_handle == true
+    )
+end
+
+local function wait_for_exit(handle, timeout_ms, opts)
+    opts = opts or {}
+    if is_closing(handle) then
+        return true, false, nil
     end
 
     timeout_ms = math.max(0, timeout_ms or 0)
+    if should_wait_once(handle, opts) then
+        local waited, result = wait_once(handle, timeout_ms)
+        if waited then
+            local forced = wait_result_forced(result)
+            if forced and opts.accept_forced_wait ~= true then
+                return false, true, result
+            end
+            return true, forced, result
+        end
+    end
+
     if timeout_ms == 0 then
-        return is_closing(handle)
+        return is_closing(handle), false, nil
     end
 
     local ok = vim.wait(timeout_ms, function()
         return is_closing(handle)
     end, 10, false)
-    return ok == true or is_closing(handle)
+    return ok == true or is_closing(handle), false, nil
 end
 
 local function windows_taskkill(handle, force)
@@ -284,11 +431,12 @@ function M.shutdown(handle, opts)
             }
     end
 
-    if wait_for_exit(handle, opts.timeout_ms) then
+    local exited, wait_forced = wait_for_exit(handle, opts.timeout_ms)
+    if exited then
         return true,
             {
                 stopped = true,
-                forced = false,
+                forced = wait_forced == true,
                 signal_target = mode,
                 fallback_error = fallback,
             }
@@ -307,7 +455,9 @@ function M.shutdown(handle, opts)
             }
     end
 
-    local exited = wait_for_exit(handle, opts.kill_timeout_ms)
+    exited = wait_for_exit(handle, opts.kill_timeout_ms, {
+        accept_forced_wait = true,
+    })
     return exited,
         {
             stopped = exited,
