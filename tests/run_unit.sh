@@ -29,6 +29,11 @@ fi
 
 parser_specs=(
   tests/unit/conceal_spec.lua
+  tests/unit/conceal_math_rules_spec.lua
+  tests/unit/conceal_math_shadowing_spec.lua
+  tests/unit/conceal_query_compat_spec.lua
+  tests/unit/conceal_real_edit_invalidation_spec.lua
+  tests/unit/conceal_scripts_spec.lua
   tests/unit/motions_spec.lua
   tests/unit/textobjects_spec.lua
   tests/unit/transform_spec.lua

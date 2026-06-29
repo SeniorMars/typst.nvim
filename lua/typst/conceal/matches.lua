@@ -1,6 +1,7 @@
 local config = require("typst.config")
+local lookup = require("typst.conceal.lookup")
 local match_query = require("typst.conceal.match_query")
-local conceal_util = require("typst.conceal.util")
+local reveal = require("typst.conceal.reveal")
 local shadows = require("typst.conceal.shadows")
 local telemetry = require("typst.core.telemetry")
 
@@ -9,12 +10,11 @@ local M = {}
 local cache = {}
 local generation = 0
 local MATCH_CHUNK_LINES = 128
+local parser_callbacks = {}
 
--- Conceal queries are expensive on large documents. Cache by changedtick,
--- explicit generation, and conceal config, then split by line chunks so redraw
--- only recomputes the visible neighborhood.
-local range_contains = conceal_util.range_contains
-
+-- Conceal queries are expensive on large documents. Parser-backed buffers use
+-- changed-tree callbacks to invalidate affected line chunks; buffers without a
+-- parser callback fall back to changedtick-based full cache refresh.
 local function line_count(bufnr)
     return vim.api.nvim_buf_line_count(bufnr)
 end
@@ -23,57 +23,152 @@ local function conceal_config()
     return config.unsafe_get().conceal
 end
 
--- Build a deterministic signature for config values (order-insensitive by key sort).
-local function append_signature(parts, value)
-    local value_type = type(value)
-    if value_type ~= "table" then
-        parts[#parts + 1] = value_type
-        parts[#parts + 1] = tostring(value)
+local function range_start_row(range)
+    if type(range) ~= "table" then
+        return nil
+    end
+    return range.start_row or range[1]
+end
+
+local function range_end_row(range)
+    if type(range) ~= "table" then
+        return nil
+    end
+    if range.end_row then
+        return range.end_row
+    end
+    -- LanguageTree:on_changedtree passes node ranges:
+    -- {start_row, start_col, start_byte, end_row, end_col, end_byte}.
+    if #range >= 6 then
+        return range[4]
+    end
+    return range[3] or range_start_row(range)
+end
+
+local function chunk_key(chunk_start, chunk_end)
+    return ("%d:%d"):format(chunk_start, chunk_end)
+end
+
+local function chunk_start_for(row)
+    return math.floor(math.max(row, 0) / MATCH_CHUNK_LINES) * MATCH_CHUNK_LINES
+end
+
+local function invalidate_chunk_range(bufnr, start_row, end_row)
+    local entry = cache[bufnr]
+    if not entry then
         return
     end
 
-    local keys = {}
-    for key in pairs(value) do
-        keys[#keys + 1] = key
+    start_row = math.max(0, tonumber(start_row) or 0)
+    end_row = tonumber(end_row) or start_row
+    if end_row < start_row then
+        end_row = start_row
     end
-    table.sort(keys, function(left, right)
-        return tostring(left) < tostring(right)
-    end)
 
-    parts[#parts + 1] = "{"
-    for _, key in ipairs(keys) do
-        parts[#parts + 1] = tostring(key)
-        parts[#parts + 1] = "="
-        append_signature(parts, value[key])
-        parts[#parts + 1] = ";"
+    local first_chunk = chunk_start_for(math.max(0, start_row - 1))
+    local last_chunk = chunk_start_for(math.max(first_chunk, end_row + 1))
+    local total = line_count(bufnr)
+    local chunk_start = first_chunk
+    while chunk_start <= last_chunk do
+        local chunk_end = math.min(total, chunk_start + MATCH_CHUNK_LINES)
+        entry.chunks[chunk_key(chunk_start, chunk_end)] = nil
+        chunk_start = chunk_start + MATCH_CHUNK_LINES
     end
-    parts[#parts + 1] = "}"
 end
 
-local function conceal_signature(opts)
-    local parts = {}
-    append_signature(parts, opts)
-    return table.concat(parts)
+local function invalidate_from(bufnr, start_row)
+    local entry = cache[bufnr]
+    if not entry then
+        return
+    end
+
+    local total = line_count(bufnr)
+    local chunk_start = chunk_start_for(start_row or 0)
+    while chunk_start <= total do
+        local chunk_end = math.min(total, chunk_start + MATCH_CHUNK_LINES)
+        entry.chunks[chunk_key(chunk_start, chunk_end)] = nil
+        chunk_start = chunk_start + MATCH_CHUNK_LINES
+    end
+end
+
+function M.invalidate_ranges(bufnr, ranges)
+    if not cache[bufnr] then
+        return false
+    end
+
+    local invalidated = false
+    for _, range in ipairs(ranges or {}) do
+        local start_row = range_start_row(range)
+        local end_row = range_end_row(range)
+        if start_row then
+            invalidate_chunk_range(bufnr, start_row, end_row or start_row)
+            invalidated = true
+        end
+    end
+    return invalidated
+end
+
+local function ensure_parser_callbacks(bufnr)
+    if parser_callbacks[bufnr] ~= nil then
+        return parser_callbacks[bufnr]
+    end
+
+    local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "typst")
+    if not ok or not parser or type(parser.register_cbs) ~= "function" then
+        parser_callbacks[bufnr] = false
+        return false
+    end
+
+    parser:register_cbs({
+        on_changedtree = function(ranges)
+            M.invalidate_ranges(bufnr, ranges)
+        end,
+        on_bytes = function(
+            _,
+            _,
+            start_row,
+            _,
+            _,
+            old_end_row,
+            _,
+            _,
+            new_end_row
+        )
+            if old_end_row ~= new_end_row then
+                invalidate_from(bufnr, start_row)
+            end
+        end,
+        on_detach = function(detached_bufnr)
+            local target = detached_bufnr or bufnr
+            cache[target] = nil
+            parser_callbacks[target] = nil
+            shadows.forget(target)
+        end,
+    })
+    parser_callbacks[bufnr] = true
+    return true
 end
 
 local function cache_entry(bufnr)
-    local opts = conceal_config()
     local changedtick = vim.api.nvim_buf_get_changedtick(bufnr)
-    local config_signature = conceal_signature(opts)
+    local config_generation = config.generation()
+    local parser_tracked = ensure_parser_callbacks(bufnr)
     local entry = cache[bufnr]
     if
         entry
-        and entry.changedtick == changedtick
+        and (parser_tracked or entry.changedtick == changedtick)
         and entry.generation == generation
-        and entry.config_signature == config_signature
+        and entry.config_generation == config_generation
     then
+        entry.changedtick = changedtick
         return entry
     end
 
     entry = {
         changedtick = changedtick,
+        parser_tracked = parser_tracked,
         generation = generation,
-        config_signature = config_signature,
+        config_generation = config_generation,
         chunks = {},
     }
     cache[bufnr] = entry
@@ -81,14 +176,10 @@ local function cache_entry(bufnr)
     return entry
 end
 
-local function chunk_start_for(row)
-    return math.floor(math.max(row, 0) / MATCH_CHUNK_LINES) * MATCH_CHUNK_LINES
-end
-
 local function chunk_matches(bufnr, entry, chunk_start, custom_conceal)
     local total = line_count(bufnr)
     local chunk_end = math.min(total, chunk_start + MATCH_CHUNK_LINES)
-    local key = ("%d:%d"):format(chunk_start, chunk_end)
+    local key = chunk_key(chunk_start, chunk_end)
     if entry.chunks[key] then
         telemetry.record("conceal.chunk_cache.hit", 0, {
             bufnr = bufnr,
@@ -161,30 +252,21 @@ function M.window(bufnr, winid, opts, custom_conceal)
     local cursor = vim.api.nvim_win_get_cursor(winid)
     local cursor_row = cursor[1] - 1
     local cursor_col = cursor[2]
-    local window_matches = {}
-
-    for _, match in
-        ipairs(
-            M.matches(
-                bufnr,
-                { start_row = opts.start_row, end_row = opts.end_row },
-                custom_conceal
-            )
-        )
-    do
-        if
-            conceal_opts.reveal ~= "node"
-            or not range_contains(match.reveal, cursor_row, cursor_col)
-        then
-            window_matches[#window_matches + 1] = match
-        end
-    end
-
-    return window_matches
+    return reveal.filter(
+        M.matches(
+            bufnr,
+            { start_row = opts.start_row, end_row = opts.end_row },
+            custom_conceal
+        ),
+        conceal_opts,
+        cursor_row,
+        cursor_col
+    )
 end
 
 function M.refresh(bufnr)
     generation = generation + 1
+    lookup.reset()
     match_query.reset()
     if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
         cache[bufnr] = nil
@@ -204,6 +286,7 @@ end
 function M.reset()
     generation = 0
     cache = {}
+    lookup.reset()
     match_query.reset()
     shadows.reset()
 end

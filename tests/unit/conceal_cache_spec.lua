@@ -187,12 +187,50 @@ for _, call in ipairs(query_calls) do
     )
 end
 
+local match_cache = require("typst.conceal.matches")
+local before_invalidation = #query_calls
+assert(
+    match_cache.invalidate_ranges(bufnr, { { 130, 0, 141, 0 } }),
+    "changed-tree ranges should invalidate cached conceal chunks"
+)
+local requeried_middle =
+    conceal.matches(bufnr, { start_row = 130, end_row = 141 })
+assert(
+    #requeried_middle == 1 and #query_calls == before_invalidation + 1,
+    "changed-tree invalidation should requery the intersecting chunk"
+)
+local cached_top = conceal.matches(bufnr, { start_row = 10, end_row = 11 })
+assert(
+    #cached_top == 1 and #query_calls == before_invalidation + 1,
+    "changed-tree invalidation should preserve unaffected cached chunks"
+)
+
+local before_node_range_invalidation = #query_calls
+assert(
+    match_cache.invalidate_ranges(bufnr, { { 140, 0, 999, 140, 1, 1000 } }),
+    "node-range changed-tree tuples should invalidate cached conceal chunks"
+)
+local requeried_node_range =
+    conceal.matches(bufnr, { start_row = 130, end_row = 141 })
+assert(
+    #requeried_node_range == 1
+        and #query_calls == before_node_range_invalidation + 1,
+    "six-field node ranges should use the fourth field as end row"
+)
+local cached_tail_after_node_range =
+    conceal.matches(bufnr, { start_row = 260, end_row = 261 })
+assert(
+    #cached_tail_after_node_range == 1
+        and #query_calls == before_node_range_invalidation + 1,
+    "node-range byte offsets should not be treated as end rows"
+)
+
 vim.api.nvim_win_set_buf(0, bufnr)
 conceal.register("math", "phase0-custom", "∗")
-local match_cache = require("typst.conceal.matches")
-local old_window = match_cache.window
+local render = require("typst.conceal.render")
+local old_window = render.window_matches
 local seen_custom_conceal = nil
-match_cache.window = function(_, _, _, custom_conceal)
+render.window_matches = function(_, _, _, custom_conceal)
     seen_custom_conceal = custom_conceal
     return {}
 end
@@ -203,7 +241,7 @@ assert(
         and seen_custom_conceal.math["phase0-custom"] == "∗",
     "window match helper should pass registered custom conceal values"
 )
-match_cache.window = old_window
+render.window_matches = old_window
 conceal.unregister("math", "phase0-custom")
 
 vim.treesitter.query.get = old_query_get

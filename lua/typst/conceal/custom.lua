@@ -6,6 +6,7 @@ local M = {}
 local values = {
     math = {},
 }
+local generation = 0
 
 local function normalize_kind(kind)
     if type(kind) ~= "string" or kind == "" then
@@ -67,6 +68,7 @@ function M.register(kind, name, replacement)
     validate_replacement(replacement)
 
     values[kind][name] = replacement
+    generation = generation + 1
     return replacement
 end
 
@@ -76,6 +78,7 @@ function M.unregister(kind, name)
 
     local replacement = values[kind][name]
     values[kind][name] = nil
+    generation = generation + 1
     return replacement
 end
 
@@ -88,6 +91,11 @@ function M.reset()
     values = {
         math = {},
     }
+    generation = generation + 1
+end
+
+function M.generation()
+    return generation
 end
 
 return M

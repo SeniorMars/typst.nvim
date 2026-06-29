@@ -3,6 +3,7 @@ local emoji = require("typst.conceal.emoji")
 local conceal_util = require("typst.conceal.util")
 local math_rules = require("typst.conceal.math")
 local metadata = require("typst.metadata")
+local rules = require("typst.conceal.rules")
 local shadows = require("typst.conceal.shadows")
 local syntax = require("typst.conceal.syntax")
 local symbols = require("typst.conceal.symbols")
@@ -150,6 +151,238 @@ local function add_error_recovery_math(
     end
 end
 
+local function register_builtin_rules()
+    for _, rule in ipairs(rules.registered("conceal.symbol")) do
+        if rule.name == "math_symbols" then
+            return
+        end
+    end
+
+    rules.register({
+        name = "math_symbols",
+        capture = "conceal.symbol",
+        category = "math_symbols",
+        priority = 100,
+        resolve = function(ctx, node)
+            return symbols.resolve(
+                ctx.bufnr,
+                node,
+                ctx.opts,
+                ctx.shadow_state,
+                ctx.custom_math
+            )
+        end,
+    })
+
+    rules.register({
+        name = "emoji",
+        capture = "conceal.emoji",
+        category = "emoji",
+        priority = 100,
+        resolve = function(ctx, node)
+            return emoji.resolve(ctx.bufnr, node, ctx.opts)
+        end,
+    })
+
+    rules.register({
+        name = "math_delimiters",
+        capture = "conceal.math_delimiter",
+        category = "math_delimiters",
+        priority = 100,
+        resolve = function(ctx, node)
+            return syntax.node(
+                ctx.bufnr,
+                node,
+                ctx.opts,
+                "math_delimiters",
+                "",
+                "math delimiter",
+                "math delimiter"
+            )
+        end,
+    })
+
+    rules.register({
+        name = "markup_delimiters",
+        capture = "conceal.markup_delimiter",
+        category = "markup_delimiters",
+        priority = 100,
+        resolve = function(ctx, node)
+            local parent = node:parent()
+            local parent_type = parent and parent:type() or "markup"
+            return syntax.node(
+                ctx.bufnr,
+                node,
+                ctx.opts,
+                "markup_delimiters",
+                "",
+                "markup delimiter",
+                ("%s delimiter"):format(parent_type),
+                parent
+            )
+        end,
+    })
+
+    rules.register({
+        name = "heading_markers",
+        capture = "conceal.heading_marker",
+        category = "headings",
+        priority = 100,
+        resolve = function(ctx, node)
+            return syntax.node(
+                ctx.bufnr,
+                node,
+                ctx.opts,
+                "headings",
+                "",
+                "heading marker",
+                "heading marker",
+                node:parent()
+            )
+        end,
+    })
+
+    rules.register({
+        name = "math_scripts",
+        capture = "conceal.script",
+        category = "math_scripts",
+        priority = 100,
+        resolve = function(ctx, node)
+            return math_rules.resolve_scripts(ctx.bufnr, node, ctx.opts)
+        end,
+    })
+
+    rules.register({
+        name = "math_fonts",
+        capture = "conceal.math_call",
+        category = "math_fonts",
+        priority = 120,
+        resolve = function(ctx, node)
+            return math_rules.resolve_font_call(ctx, node)
+        end,
+    })
+
+    rules.register({
+        name = "math_wrappers",
+        capture = "conceal.math_call",
+        category = "math_wrappers",
+        priority = 100,
+        resolve = function(ctx, node)
+            return math_rules.resolve_wrapper_call(ctx, node)
+        end,
+    })
+
+    rules.register({
+        name = "math_operators",
+        capture = "conceal.math_operator",
+        category = "math_operators",
+        priority = 100,
+        resolve = function(ctx, node)
+            return math_rules.resolve_operator(ctx.bufnr, node, ctx.opts)
+        end,
+    })
+
+    rules.register({
+        name = "list_markers",
+        capture = "conceal.list_marker",
+        category = "lists",
+        priority = 100,
+        resolve = function(ctx, node)
+            return syntax.list_marker(ctx.bufnr, node, ctx.opts)
+        end,
+    })
+
+    local function raw_delimiter(ctx, node)
+        return syntax.node(
+            ctx.bufnr,
+            node,
+            ctx.opts,
+            "raw_blocks",
+            "",
+            "raw delimiter",
+            "raw delimiter"
+        )
+    end
+
+    rules.register({
+        name = "raw_delimiters",
+        capture = "conceal.raw_delimiter",
+        category = "raw_blocks",
+        priority = 100,
+        resolve = raw_delimiter,
+    })
+
+    rules.register({
+        name = "raw_block_fences",
+        capture = "conceal.raw_block_fence",
+        category = "raw_blocks",
+        priority = 100,
+        resolve = raw_delimiter,
+    })
+
+    rules.register({
+        name = "raw_block_languages",
+        capture = "conceal.raw_block_language",
+        category = "raw_block_languages",
+        priority = 100,
+        resolve = function(ctx, node)
+            return syntax.node(
+                ctx.bufnr,
+                node,
+                ctx.opts,
+                "raw_block_languages",
+                "",
+                "raw language tag",
+                "raw language tag"
+            )
+        end,
+    })
+
+    rules.register({
+        name = "label_delimiters",
+        capture = "conceal.label_delimiter",
+        category = "labels",
+        priority = 100,
+        resolve = function(ctx, node)
+            return syntax.label_delimiters(ctx.bufnr, node, ctx.opts)
+        end,
+    })
+
+    rules.register({
+        name = "reference_markers",
+        capture = "conceal.reference_marker",
+        category = "reference_markers",
+        priority = 100,
+        resolve = function(ctx, node)
+            local category = syntax.reference_category(ctx.opts)
+            if not category then
+                return nil
+            end
+            return syntax.node(
+                ctx.bufnr,
+                node,
+                ctx.opts,
+                category,
+                "",
+                "reference marker",
+                "reference marker"
+            )
+        end,
+    })
+
+    rules.register({
+        name = "function_wrappers",
+        capture = "conceal.function_wrapper",
+        category = "function_wrappers",
+        priority = 100,
+        resolve = function(ctx, node)
+            return syntax.function_wrapper(ctx.bufnr, node, ctx.opts)
+        end,
+    })
+end
+
+register_builtin_rules()
+
 function M.query(bufnr, start_row, end_row, custom_conceal)
     local root = ts.root(bufnr)
     local query = conceal_query()
@@ -165,6 +398,12 @@ function M.query(bufnr, start_row, end_row, custom_conceal)
     local query_range = line_range(start_row, end_row)
     local error_ranges = collect_error_ranges(root, {}, query_range)
     local matches = {}
+    local ctx = {
+        bufnr = bufnr,
+        opts = opts,
+        custom_math = custom_math,
+        shadow_state = shadow_state,
+    }
 
     telemetry.time("conceal.query", function()
         -- Skip captures inside syntax error ranges. Concealing malformed Typst can
@@ -175,125 +414,7 @@ function M.query(bufnr, start_row, end_row, custom_conceal)
             if
                 not intersects_error_range(range_from_node(node), error_ranges)
             then
-                if capture == "conceal.symbol" then
-                    add_match(
-                        matches,
-                        symbols.resolve(
-                            bufnr,
-                            node,
-                            opts,
-                            shadow_state,
-                            custom_math
-                        )
-                    )
-                elseif capture == "conceal.emoji" then
-                    add_match(matches, emoji.resolve(bufnr, node, opts))
-                elseif capture == "conceal.math_delimiter" then
-                    add_match(
-                        matches,
-                        syntax.node(
-                            bufnr,
-                            node,
-                            opts,
-                            "math_delimiters",
-                            "",
-                            "math delimiter",
-                            "math delimiter"
-                        )
-                    )
-                elseif capture == "conceal.markup_delimiter" then
-                    local parent = node:parent()
-                    local parent_type = parent and parent:type() or "markup"
-                    add_match(
-                        matches,
-                        syntax.node(
-                            bufnr,
-                            node,
-                            opts,
-                            "markup_delimiters",
-                            "",
-                            "markup delimiter",
-                            ("%s delimiter"):format(parent_type),
-                            parent
-                        )
-                    )
-                elseif capture == "conceal.heading_marker" then
-                    add_match(
-                        matches,
-                        syntax.node(
-                            bufnr,
-                            node,
-                            opts,
-                            "headings",
-                            "",
-                            "heading marker",
-                            "heading marker",
-                            node:parent()
-                        )
-                    )
-                elseif capture == "conceal.script" then
-                    add_match(
-                        matches,
-                        math_rules.resolve_scripts(bufnr, node, opts)
-                    )
-                elseif capture == "conceal.list_marker" then
-                    add_match(matches, syntax.list_marker(bufnr, node, opts))
-                elseif
-                    capture == "conceal.raw_delimiter"
-                    or capture == "conceal.raw_block_fence"
-                then
-                    add_match(
-                        matches,
-                        syntax.node(
-                            bufnr,
-                            node,
-                            opts,
-                            "raw_blocks",
-                            "",
-                            "raw delimiter",
-                            "raw delimiter"
-                        )
-                    )
-                elseif capture == "conceal.raw_block_language" then
-                    add_match(
-                        matches,
-                        syntax.node(
-                            bufnr,
-                            node,
-                            opts,
-                            "raw_block_languages",
-                            "",
-                            "raw language tag",
-                            "raw language tag"
-                        )
-                    )
-                elseif capture == "conceal.label_delimiter" then
-                    add_match(
-                        matches,
-                        syntax.label_delimiters(bufnr, node, opts)
-                    )
-                elseif capture == "conceal.reference_marker" then
-                    local category = syntax.reference_category(opts)
-                    if category then
-                        add_match(
-                            matches,
-                            syntax.node(
-                                bufnr,
-                                node,
-                                opts,
-                                category,
-                                "",
-                                "reference marker",
-                                "reference marker"
-                            )
-                        )
-                    end
-                elseif capture == "conceal.function_wrapper" then
-                    add_match(
-                        matches,
-                        syntax.function_wrapper(bufnr, node, opts)
-                    )
-                end
+                add_match(matches, rules.resolve(capture, ctx, node))
             end
         end
     end)

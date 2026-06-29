@@ -6,6 +6,7 @@ local log = require("typst.core.log")
 local matches = require("typst.conceal.matches")
 local metadata = require("typst.metadata")
 local project = require("typst.project")
+local render = require("typst.conceal.render")
 local telemetry = require("typst.core.telemetry")
 local util = require("typst.core.util")
 
@@ -79,7 +80,7 @@ function M._window_matches(bufnr, winid, opts)
         return {}
     end
 
-    return matches.window(bufnr, winid, opts, custom.all())
+    return render.window_matches(bufnr, winid, opts, custom.all())
 end
 
 local function restore_conceallevel(winid)
@@ -160,27 +161,11 @@ local function render_window(winid, bufnr, topline, botline)
     local start_row = math.max(0, topline - margin)
     local end_row = math.min(line_count(bufnr), botline + margin)
 
-    for _, match in
-        ipairs(matches.window(bufnr, winid, {
-            start_row = start_row,
-            end_row = end_row,
-            conceal_opts = opts,
-        }, custom.all()))
-    do
-        vim.api.nvim_buf_set_extmark(
-            bufnr,
-            M.namespace,
-            match.source.start_row,
-            match.source.start_col,
-            {
-                end_row = match.source.end_row,
-                end_col = match.source.end_col,
-                conceal = match.replacement,
-                ephemeral = true,
-                priority = 120,
-            }
-        )
-    end
+    render.apply(bufnr, winid, M.namespace, {
+        start_row = start_row,
+        end_row = end_row,
+        conceal_opts = opts,
+    }, custom.all())
 
     return true
 end
@@ -216,6 +201,7 @@ end
 
 local function refresh(bufnr)
     matches.refresh(bufnr)
+    render.forget(bufnr)
     if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
         vim.api.nvim_buf_clear_namespace(bufnr, M.namespace, 0, -1)
     end
@@ -243,6 +229,7 @@ function M.detach(bufnr)
     bufnr = normalize_bufnr(bufnr)
     restore_buffer_conceallevel(bufnr)
     matches.forget(bufnr)
+    render.forget(bufnr)
     if vim.api.nvim_buf_is_valid(bufnr) then
         util.del_buf_var(bufnr, "typst_conceal_enabled")
         vim.api.nvim_buf_clear_namespace(bufnr, M.namespace, 0, -1)
@@ -263,7 +250,6 @@ end
 
 function M.refresh(bufnr)
     bufnr = normalize_bufnr(bufnr)
-    metadata.reset()
     refresh(bufnr)
     return true
 end
@@ -309,6 +295,7 @@ function M._forget_window(winid)
     local had_saved = saved_conceallevel[winid] ~= nil
     saved_conceallevel[winid] = nil
     installed_conceallevel[winid] = nil
+    render.forget_window(winid)
     return had_saved
 end
 
@@ -316,6 +303,7 @@ end
 function M.reset()
     pcall(vim.api.nvim_set_decoration_provider, M.namespace, {})
     matches.reset()
+    render.reset()
     for winid in pairs(saved_conceallevel) do
         if vim.api.nvim_win_is_valid(winid) then
             local installed = installed_conceallevel[winid]

@@ -14,6 +14,10 @@
 
 (math_attachment) @conceal.script
 
+(math_shorthand) @conceal.math_operator
+
+(math_call) @conceal.math_call
+
 (strong "*" @conceal.markup_delimiter)
 (emphasis "_" @conceal.markup_delimiter)
 

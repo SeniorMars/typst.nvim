@@ -943,6 +943,18 @@ end)
 assert(not ok, "buffer edits should invalidate cached conceal matches")
 metadata.symbol = original_symbol
 
+local original_metadata_reset = metadata.reset
+local metadata_reset_calls = 0
+metadata.reset = function()
+    metadata_reset_calls = metadata_reset_calls + 1
+end
+typst.conceal.refresh(cache_buf)
+metadata.reset = original_metadata_reset
+assert(
+    metadata_reset_calls == 0,
+    "TypstConcealRefresh should not reset global metadata"
+)
+
 cached_matches = conceal.matches(cache_buf, cache_range)
 metadata.symbol = function()
     error(

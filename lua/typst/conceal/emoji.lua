@@ -1,4 +1,5 @@
 local conceal_util = require("typst.conceal.util")
+local lookup = require("typst.conceal.lookup")
 local metadata = require("typst.metadata")
 
 local M = {}
@@ -25,7 +26,8 @@ function M.resolve(bufnr, node, opts)
         return nil
     end
 
-    local record = metadata.emoji(name)
+    local maps = lookup.current(nil, opts)
+    local record = maps.emojis[name] or metadata.emoji(name)
     if not record or not display_safe(record, opts) then
         return nil
     end

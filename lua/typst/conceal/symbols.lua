@@ -1,4 +1,5 @@
 local conceal_util = require("typst.conceal.util")
+local lookup = require("typst.conceal.lookup")
 local metadata = require("typst.metadata")
 local shadows = require("typst.conceal.shadows")
 
@@ -42,15 +43,22 @@ function M.resolve(bufnr, node, opts, shadow_state, custom_math)
         return nil
     end
 
-    local record = metadata.symbol(name)
+    local maps = lookup.current(custom_math, opts)
+    local record = maps.symbols[name] or metadata.symbol(name)
     local canonical_name = record and (record.name or record.canonical) or name
-    local custom_replacement, custom_provider =
-        custom_math_replacement(custom_math, name, opts)
+    local custom_record = maps.custom_symbols[name]
+    local custom_replacement = custom_record and custom_record.glyph or nil
+    local custom_provider = custom_record and custom_record.provider or nil
     local custom_name = name
     if custom_replacement == nil and canonical_name ~= name then
-        custom_replacement, custom_provider =
-            custom_math_replacement(custom_math, canonical_name, opts)
+        custom_record = maps.custom_symbols[canonical_name]
+        custom_replacement = custom_record and custom_record.glyph or nil
+        custom_provider = custom_record and custom_record.provider or nil
         custom_name = canonical_name
+    end
+    if custom_replacement == nil then
+        custom_replacement, custom_provider =
+            custom_math_replacement(custom_math, name, opts)
     end
     if custom_replacement ~= nil then
         if not replacement_safe(custom_replacement, opts) then
