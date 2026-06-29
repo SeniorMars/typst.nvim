@@ -9,6 +9,7 @@ local M = {}
 local cache = {
     catalog = nil,
 }
+local generation = 0
 
 local SHORTHAND_SCHEMA = metadata_artifacts.schemas.shorthands
 local decode_mpack_runtime = metadata_artifacts.decode_mpack_runtime
@@ -299,9 +300,14 @@ function M.reset()
     cache = {
         catalog = nil,
     }
+    generation = generation + 1
     symbol_metadata.reset()
     font_discovery.reset()
     metadata_artifacts.reset()
+end
+
+function M.generation()
+    return generation
 end
 
 return M

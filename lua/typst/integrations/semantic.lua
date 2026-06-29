@@ -1,5 +1,6 @@
 local providers = require("typst.integrations.providers")
 local provider_adapter = require("typst.integrations.provider_adapter")
+local semantic_provider = require("typst.integrations.semantic_provider")
 local position = require("typst.integrations.tinymist.position")
 local reports = require("typst.ui.reports")
 local tinymist = require("typst.integrations.tinymist")
@@ -27,7 +28,7 @@ local notify_user = require("typst.core.notify").user
 local function provider_run(name, project, opts)
     -- Custom semantic providers override Tinymist on a per-feature basis. They
     -- receive a snapshot context so provider code cannot mutate project state.
-    local provider = providers.resolve("semantic", opts.provider)
+    local provider = semantic_provider.resolve(opts.provider)
     if provider == nil or provider == "tinymist" then
         return nil
     end
@@ -44,7 +45,7 @@ local function provider_run(name, project, opts)
     if type(provider[name]) == "function" then
         return provider_adapter.invoke(provider, name, provider_project, opts, {
             kind = "semantic",
-            provider_name = provider.name or "semantic",
+            provider_name = semantic_provider.provider_name(provider),
             args = { provider_project, opts },
             async = false,
             invalid_result_message = "Semantic provider returned no result",
@@ -58,7 +59,7 @@ local function provider_run(name, project, opts)
             opts,
             {
                 kind = "semantic",
-                provider_name = provider.name or "semantic",
+                provider_name = semantic_provider.provider_name(provider),
                 args = { name, provider_project, opts },
                 async = false,
                 invalid_result_message = "Semantic provider returned no result",

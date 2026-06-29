@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local diagnostics = require("typst.diagnostics")
+local quickfix_api = require("typst.diagnostics.quickfix")
 local typst = require("typst")
 
 local case_id = 0
@@ -104,6 +105,65 @@ run_case("TypstDiagnostics command populates owned quickfix", function()
     )
 end)
 
+run_case("TypstDiagnostics command can populate owned location list", function()
+    typst.setup({
+        root = root,
+        output_dir = typst_test_cache_path("diagnostics-loclist-output"),
+        diagnostics = {
+            enabled = true,
+            use_quickfix = false,
+            list = "loclist",
+        },
+    })
+
+    local broken = root .. "/tests/fixtures/basic/broken.typ"
+    vim.cmd.edit(broken)
+    local winid = vim.api.nvim_get_current_win()
+    local broken_bufnr = vim.api.nvim_get_current_buf()
+    local project = typst.project.set_main(broken)
+
+    local compile = { done = false }
+    typst.compiler.compile({}, function(result)
+        assert(
+            result.code ~= 0,
+            "expected compile failure before loclist diagnostics test"
+        )
+        compile.done = true
+    end)
+    wait_for_compile(compile)
+
+    assert(
+        #vim.fn.getqflist() == 0,
+        "quickfix should not be populated for loclist backend"
+    )
+
+    vim.cmd("TypstDiagnostics")
+    local loclist = vim.fn.getloclist(winid, { title = 1, items = 1 })
+    assert(
+        loclist.title and loclist.title:match("typst%.nvim"),
+        "location list should be owned by typst.nvim"
+    )
+    assert(
+        #loclist.items > 0,
+        "TypstDiagnostics should populate location list diagnostics"
+    )
+    assert(
+        loclist.items[1].bufnr == broken_bufnr,
+        "location list item should point to the Typst buffer"
+    )
+    assert(
+        #vim.fn.getqflist() == 0,
+        "loclist diagnostics should leave quickfix untouched"
+    )
+
+    diagnostics.clear(project)
+    loclist = vim.fn.getloclist(winid, { title = 1, items = 1 })
+    assert(
+        #loclist.items == 0,
+        "clearing diagnostics should clear the owned location list"
+    )
+end)
+
 run_case("clearing another project preserves owned quickfix", function()
     typst.setup({
         root = root,
@@ -156,6 +216,172 @@ run_case("clearing another project preserves owned quickfix", function()
     assert(
         after.items[1].text == "project A diagnostic",
         "project A quickfix item should survive project B clear"
+    )
+
+    local cleared = quickfix_api.clear(project_b)
+    assert(
+        cleared == false,
+        "quickfix.clear(project) should refuse to clear another project"
+    )
+    after = vim.fn.getqflist({ title = 1, items = 1 })
+    assert(
+        #after.items == 1,
+        "direct quickfix.clear(project B) should preserve project A items"
+    )
+
+    cleared = quickfix_api.clear(project_b, { force = true })
+    assert(cleared == true, "force quickfix clear should clear any owner")
+    after = vim.fn.getqflist({ title = 1, items = 1 })
+    assert(#after.items == 0, "force quickfix clear should remove items")
+end)
+
+run_case("global reset clears only typst-owned quickfix", function()
+    typst.setup({
+        root = root,
+        output_dir = typst_test_cache_path("diagnostics-qf-reset-output"),
+        diagnostics = {
+            enabled = true,
+            use_quickfix = true,
+        },
+    })
+
+    local main = root .. "/tests/fixtures/basic/main.typ"
+    vim.cmd.edit(main)
+    local main_bufnr = vim.api.nvim_get_current_buf()
+    local project = typst.project.set_main(main)
+
+    diagnostics.set_quickfix(project, {
+        [main_bufnr] = {
+            {
+                lnum = 0,
+                col = 0,
+                message = "project diagnostic",
+                severity = vim.diagnostic.severity.ERROR,
+            },
+        },
+    })
+    assert(#vim.fn.getqflist() == 1, "project quickfix should be populated")
+
+    typst.reset({ force = true })
+    assert(
+        #vim.fn.getqflist() == 0,
+        "global reset should clear typst-owned quickfix"
+    )
+
+    vim.fn.setqflist({}, "r", {
+        title = "user quickfix",
+        items = {
+            {
+                bufnr = main_bufnr,
+                lnum = 1,
+                col = 1,
+                text = "user item",
+            },
+        },
+    })
+
+    typst.reset({ force = true })
+    local after = vim.fn.getqflist({ title = 1, items = 1 })
+    assert(
+        after.title == "user quickfix",
+        "global reset should preserve user quickfix title"
+    )
+    assert(
+        #after.items == 1 and after.items[1].text == "user item",
+        "global reset should preserve user quickfix items"
+    )
+end)
+
+run_case("global reset preserves replaced user location list", function()
+    typst.setup({
+        root = root,
+        output_dir = typst_test_cache_path("diagnostics-loclist-reset-output"),
+        diagnostics = {
+            enabled = true,
+            use_quickfix = true,
+            list = "loclist",
+        },
+    })
+
+    local main = root .. "/tests/fixtures/basic/main.typ"
+    vim.cmd.edit(main)
+    local winid = vim.api.nvim_get_current_win()
+    local main_bufnr = vim.api.nvim_get_current_buf()
+    local project = typst.project.set_main(main)
+
+    quickfix_api.set(project, {
+        [main_bufnr] = {
+            {
+                lnum = 0,
+                col = 0,
+                message = "project diagnostic",
+                severity = vim.diagnostic.severity.ERROR,
+            },
+        },
+    }, { list = "loclist", winid = winid })
+    local loclist = vim.fn.getloclist(winid, { title = 1, items = 1 })
+    assert(
+        loclist.title and loclist.title:match("typst%.nvim"),
+        "project location list should be owned by typst.nvim"
+    )
+    assert(#loclist.items == 1, "project location list should be populated")
+
+    typst.reset({ force = true })
+    loclist = vim.fn.getloclist(winid, { title = 1, items = 1 })
+    assert(
+        #loclist.items == 0,
+        "global reset should clear still-owned typst location list"
+    )
+
+    typst.setup({
+        root = root,
+        output_dir = typst_test_cache_path("diagnostics-loclist-reset-output"),
+        diagnostics = {
+            enabled = true,
+            use_quickfix = true,
+            list = "loclist",
+        },
+    })
+    vim.cmd.edit(main)
+    winid = vim.api.nvim_get_current_win()
+    main_bufnr = vim.api.nvim_get_current_buf()
+    project = typst.project.set_main(main)
+
+    quickfix_api.set(project, {
+        [main_bufnr] = {
+            {
+                lnum = 0,
+                col = 0,
+                message = "project diagnostic",
+                severity = vim.diagnostic.severity.ERROR,
+            },
+        },
+    }, { list = "loclist", winid = winid })
+    vim.fn.setloclist(winid, {}, "r", {
+        title = "user loclist",
+        items = {
+            {
+                bufnr = main_bufnr,
+                lnum = 1,
+                col = 1,
+                text = "user item",
+            },
+        },
+    })
+
+    typst.reset({ force = true })
+    loclist = vim.fn.getloclist(winid, { title = 1, items = 1 })
+    assert(
+        loclist.title == "user loclist",
+        "global reset should preserve user location list title"
+    )
+    assert(
+        #loclist.items == 1 and loclist.items[1].text == "user item",
+        "global reset should preserve user location list items"
+    )
+    assert(
+        quickfix_api._loclist_owner_count_for_tests() == 0,
+        "global reset should drop stale typst.nvim location-list ownership"
     )
 end)
 

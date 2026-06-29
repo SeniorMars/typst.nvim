@@ -9,6 +9,7 @@ local index_service = require("typst.project.services.index")
 local preview_service = require("typst.project.services.preview")
 local viewer_service = require("typst.project.services.viewer")
 local telemetry = require("typst.core.telemetry")
+local semantic_provider = require("typst.integrations.semantic_provider")
 local tinymist = require("typst.integrations.tinymist")
 local util = require("typst.core.util")
 
@@ -92,7 +93,7 @@ function M.snapshot(bufnr, opts)
     local watcher = compiler_state.watcher
     local output = compiler_state.output
 
-    local tinymist_lsp_attached = tinymist.available_for_project(state)
+    local semantic_status = semantic_provider.status(state)
 
     return add_telemetry({
         attached = true,
@@ -146,10 +147,16 @@ function M.snapshot(bufnr, opts)
         characters = counts.characters,
         characters_with_spaces = counts.characters_with_spaces,
         compiler_diagnostics = diagnostics.policy_state(state),
+        semantic_provider = semantic_status.name,
+        semantic_provider_mode = semantic_status.mode,
+        semantic_provider_backend = semantic_status.backend,
+        semantic_provider_enabled = semantic_status.enabled,
+        semantic_provider_attached = semantic_status.attached,
+        semantic_provider_coc_active = semantic_status.coc_active,
         tinymist_lsp_mode = tinymist.lsp_mode(),
         tinymist_lsp_backend = tinymist.lsp_backend(),
         tinymist_lsp_enabled = tinymist.lsp_enabled(),
-        tinymist_lsp_attached = tinymist_lsp_attached,
+        tinymist_lsp_attached = tinymist.available_for_project(state),
         buffers = vim.tbl_count(state.bufs or {}),
         dependencies = vim.tbl_count(graph.dependencies or {}),
         index_generation = index_state.generation or 0,

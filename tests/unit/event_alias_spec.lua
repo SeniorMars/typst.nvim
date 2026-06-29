@@ -4,22 +4,66 @@ vim.opt.runtimepath:prepend(root)
 local typst = require("typst")
 typst.reset()
 
+local api_contract = typst.contract()
+assert(
+    api_contract.event_aliases.TypstBufferDetach
+        and vim.tbl_contains(
+            api_contract.event_aliases.TypstBufferDetach,
+            "TypstEventBufferDetach"
+        ),
+    "event contract should expose buffer-detach alias"
+)
+assert(
+    api_contract.event_aliases.TypstProjectPruned
+        and vim.tbl_contains(
+            api_contract.event_aliases.TypstProjectPruned,
+            "TypstEventProjectPruned"
+        ),
+    "event contract should expose project-pruned event"
+)
+for _, event in ipairs(api_contract.compatibility_events or {}) do
+    assert(
+        api_contract.event_payloads[event],
+        ("compatibility event should document payload fields: %s"):format(event)
+    )
+end
+
 local seen = {}
+local event_order = {}
 local function record(pattern)
     vim.api.nvim_create_autocmd("User", {
         pattern = pattern,
         callback = function(args)
             seen[pattern] = seen[pattern] or {}
             seen[pattern][#seen[pattern] + 1] = args.data
+            event_order[#event_order + 1] = {
+                pattern = pattern,
+                data = args.data,
+            }
         end,
     })
+end
+
+local function assert_payload_documented(event, payload)
+    local fields = api_contract.event_payloads[event] or {}
+    for key in pairs(payload or {}) do
+        assert(
+            vim.tbl_contains(fields, key),
+            ("%s payload field should be documented in contract: %s"):format(
+                event,
+                key
+            )
+        )
+    end
 end
 
 for _, pattern in ipairs({
     "TypstEventInitPre",
     "TypstEventInitPost",
     "TypstEventProjectAttach",
+    "TypstEventBufferDetach",
     "TypstEventProjectDetach",
+    "TypstEventProjectPruned",
     "TypstEventCompileStarted",
     "TypstEventCompiling",
     "TypstEventCompileSuccess",
@@ -34,6 +78,9 @@ for _, pattern in ipairs({
     "TypstEventTocActivated",
     "TypstEventQuit",
 }) do
+    record(pattern)
+end
+for _, pattern in ipairs(api_contract.compatibility_events or {}) do
     record(pattern)
 end
 
@@ -126,6 +173,10 @@ assert(
 assert(
     seen.TypstEventProjectAttach[1].provider == "event-alias-provider",
     "attach alias should include provider"
+)
+assert_payload_documented(
+    "TypstEventProjectAttach",
+    seen.TypstEventProjectAttach[1]
 )
 
 local compile_done = false
@@ -222,8 +273,22 @@ assert(
 
 local events = require("typst.core.events")
 events.emit("TypstArtifactCreated", project, {
+    id = "artifact-main-svg",
     path = typst_test_cache_path("event-alias-output/main.svg"),
+    canonical_path = typst_test_cache_path("event-alias-output/main.svg"),
     format = "svg",
+    profile = "default",
+    command = { "typst", "compile", "main.typ", "main.svg" },
+    status = "success",
+    signature = {
+        size = 123,
+    },
+    freshness = "fresh",
+    reason = "created",
+    producer = "test",
+    preview_export = {
+        target = "document",
+    },
 })
 assert(
     seen.TypstEventArtifactCreated and seen.TypstEventArtifactCreated[1],
@@ -238,6 +303,9 @@ events.emit("TypstArtifactsCleaned", project, {
     deleted = {
         typst_test_cache_path("event-alias-output/main.svg"),
     },
+    failed = {},
+    skipped = {},
+    producer = "test",
 })
 assert(
     seen.TypstEventArtifactsCleaned and seen.TypstEventArtifactsCleaned[1],
@@ -251,6 +319,9 @@ assert(
 events.emit("TypstRenderCreated", project, {
     path = typst_test_cache_path("event-alias-output/render.svg"),
     kind = "equation",
+    source = typst_test_cache_path("event-alias-output/render.typ"),
+    format = "svg",
+    page = 1,
 })
 assert(
     seen.TypstEventRenderCreated and seen.TypstEventRenderCreated[1],
@@ -259,6 +330,119 @@ assert(
 assert(
     seen.TypstEventRenderCreated[1].kind == "equation",
     "render created alias should include render kind"
+)
+
+events.emit("TypstDiagnosticsPublished", project, {
+    diagnostics_count = 2,
+    diagnostic_buffers = 1,
+    bufnr = bufnr,
+})
+assert(
+    seen.TypstDiagnosticsPublished and seen.TypstDiagnosticsPublished[1],
+    "diagnostics published compatibility event should be emitted"
+)
+assert(
+    seen.TypstDiagnosticsPublished[1].diagnostics_count == 2,
+    "diagnostics published compatibility event should include count"
+)
+
+events.emit("TypstDiagnosticsCleared", project, {
+    diagnostics_count = 0,
+    diagnostic_buffers = 0,
+    bufnr = bufnr,
+})
+assert(
+    seen.TypstDiagnosticsCleared and seen.TypstDiagnosticsCleared[1],
+    "diagnostics cleared compatibility event should be emitted"
+)
+
+events.emit("TypstOutputCleaned", project, {
+    output = typst_test_cache_path("event-alias-output/main.pdf"),
+    output_deleted = true,
+    temporary = {
+        typst_test_cache_path("event-alias-output/main.aux"),
+    },
+    temporary_skipped = {},
+    preview_artifacts = {},
+    preview_artifacts_skipped = {},
+    preview_artifacts_failed = {},
+})
+assert(
+    seen.TypstOutputCleaned and seen.TypstOutputCleaned[1],
+    "output cleaned compatibility event should be emitted"
+)
+assert(
+    seen.TypstOutputCleaned[1].output_deleted == true,
+    "output cleaned compatibility event should include output status"
+)
+
+events.emit("TypstViewOpened", project, {
+    viewer_provider = "test-viewer",
+    viewer_backend = "test-viewer-open",
+    viewer_command = { "open", "main.pdf" },
+    viewer_cwd = project.root,
+})
+assert(
+    seen.TypstViewOpened and seen.TypstViewOpened[1],
+    "view opened compatibility event should be emitted"
+)
+assert(
+    seen.TypstViewOpened[1].viewer_provider == "test-viewer",
+    "view opened compatibility event should include provider"
+)
+
+events.emit("TypstViewForwarded", project, {
+    viewer_provider = "test-viewer",
+    output = typst_test_cache_path("event-alias-output/main.pdf"),
+    line = 3,
+    column = 5,
+    viewer_backend = "test-viewer-forward",
+})
+assert(
+    seen.TypstViewForwarded and seen.TypstViewForwarded[1],
+    "view forwarded compatibility event should be emitted"
+)
+
+events.emit("TypstViewInverse", project, {
+    viewer_provider = "test-viewer",
+    output = typst_test_cache_path("event-alias-output/main.pdf"),
+    path = main,
+    line = 4,
+    column = 6,
+    viewer_backend = "test-viewer-inverse",
+})
+assert(
+    seen.TypstViewInverse and seen.TypstViewInverse[1],
+    "view inverse compatibility event should be emitted"
+)
+
+events.emit("TypstPreviewForwarded", project, {
+    backend = "test-preview",
+    command = { "preview-forward" },
+    output = typst_test_cache_path("event-alias-output/main.pdf"),
+    line = 5,
+    column = 7,
+    source_sync = "forward",
+})
+assert(
+    seen.TypstPreviewForwarded and seen.TypstPreviewForwarded[1],
+    "preview forwarded compatibility event should be emitted"
+)
+
+events.emit("TypstPreviewInverse", project, {
+    backend = "test-preview",
+    path = main,
+    output = typst_test_cache_path("event-alias-output/main.pdf"),
+    line = 6,
+    column = 8,
+    source_sync = "inverse",
+    page = 1,
+    x = 12,
+    y = 34,
+})
+assert(
+    seen.TypstPreviewInverse and seen.TypstPreviewInverse[1],
+    "preview inverse compatibility event should be emitted"
 )
 
 local created_before = #(seen.TypstEventTocCreated or {})
@@ -294,13 +478,106 @@ assert(
 
 typst.project.detach(bufnr)
 assert(
+    seen.TypstEventBufferDetach and seen.TypstEventBufferDetach[1],
+    "buffer detach alias should be emitted"
+)
+assert(
+    seen.TypstEventBufferDetach[1].event_kind == "buffer_detach",
+    "buffer detach alias should identify buffer-detach semantics"
+)
+assert(
+    seen.TypstEventBufferDetach[1].bufnr == bufnr,
+    "buffer detach alias should include the detached buffer"
+)
+assert(
+    seen.TypstEventBufferDetach[1].remaining_buffers == 0,
+    "buffer detach alias should include remaining buffer count"
+)
+assert_payload_documented(
+    "TypstEventBufferDetach",
+    seen.TypstEventBufferDetach[1]
+)
+assert(
     seen.TypstEventProjectDetach and seen.TypstEventProjectDetach[1],
-    "detach alias should be emitted"
+    "compat project detach alias should be emitted"
 )
 assert(
     seen.TypstEventProjectDetach[1].key == project.key,
-    "detach alias should include project key"
+    "compat project detach alias should include project key"
 )
+assert(
+    seen.TypstEventProjectDetach[1].event_kind == "buffer_detach",
+    "compat project detach alias should report buffer-detach semantics"
+)
+assert_payload_documented(
+    "TypstEventProjectDetach",
+    seen.TypstEventProjectDetach[1]
+)
+assert(
+    seen.TypstEventProjectPruned and seen.TypstEventProjectPruned[1],
+    "project pruned event should be emitted when the project leaves the registry"
+)
+assert(
+    seen.TypstEventProjectPruned[1].event_kind == "project_pruned",
+    "project pruned event should identify project-pruned semantics"
+)
+assert(
+    seen.TypstEventProjectPruned[1].remaining_buffers == 0,
+    "project pruned event should report no remaining buffers"
+)
+assert_payload_documented(
+    "TypstEventProjectPruned",
+    seen.TypstEventProjectPruned[1]
+)
+
+local detach_index
+local prune_index
+for index, event in ipairs(event_order) do
+    if
+        event.data
+        and event.data.key == project.key
+        and event.pattern == "TypstEventBufferDetach"
+    then
+        detach_index = detach_index or index
+    elseif
+        event.data
+        and event.data.key == project.key
+        and event.pattern == "TypstEventProjectPruned"
+    then
+        prune_index = prune_index or index
+    end
+end
+assert(
+    detach_index and prune_index and detach_index < prune_index,
+    "buffer detach event should be emitted before project pruned event"
+)
+
+local project_registry = require("typst.project")
+local manual_prune_before = #(seen.TypstEventProjectPruned or {})
+local manual_project = {
+    key = "event-manual-prune",
+    root = root,
+    main = root .. "/tests/fixtures/basic/main.typ",
+    bufs = {},
+    resolutions = {},
+    services = require("typst.project.services").new_state(),
+}
+assert(
+    project_registry.prune(manual_project, "manual prune test") == true,
+    "manual project prune should report a pruned empty project"
+)
+project_registry.prune(manual_project, "manual prune duplicate")
+project_registry.emit_pruned(manual_project, "manual prune duplicate")
+assert(
+    #(seen.TypstEventProjectPruned or {}) == manual_prune_before + 1,
+    "manual project prune should emit TypstEventProjectPruned only once"
+)
+
+for pattern, payloads in pairs(seen) do
+    for _, payload in ipairs(payloads) do
+        assert_payload_documented(pattern, payload)
+    end
+end
 
 local operations = require("typst.project.services.operations")
 local project_services = require("typst.project.services")

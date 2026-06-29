@@ -40,6 +40,12 @@ assert(
     "status() should expose project Tinymist Neovim LSP attachment"
 )
 assert(
+    snapshot.semantic_provider == "tinymist"
+        and snapshot.semantic_provider_backend == "nvim_lsp"
+        and snapshot.semantic_provider_attached == true,
+    "status() should expose provider-neutral semantic attachment"
+)
+assert(
     snapshot.compiler_diagnostics == "fallback_suppressed_by_tinymist",
     "status() should expose compiler diagnostics suppression by Tinymist"
 )
@@ -175,6 +181,11 @@ assert(
     disabled_snapshot.tinymist_lsp_enabled == false
         and disabled_snapshot.tinymist_lsp_attached == false,
     "status() should expose disabled Tinymist Neovim LSP integration"
+)
+assert(
+    disabled_snapshot.semantic_provider_enabled == false
+        and disabled_snapshot.semantic_provider_attached == false,
+    "status() should expose disabled semantic provider integration"
 )
 
 vim.cmd("qa!")

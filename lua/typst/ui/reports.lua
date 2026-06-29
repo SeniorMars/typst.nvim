@@ -14,7 +14,9 @@ local native_preview_session = require("typst.preview.native.session")
 local preview_service = require("typst.project.services.preview")
 local viewer_service = require("typst.project.services.viewer")
 local status = require("typst.ui.status")
+local semantic_provider = require("typst.integrations.semantic_provider")
 local tinymist = require("typst.integrations.tinymist")
+local cache_registry = require("typst.core.cache_registry")
 local util = require("typst.core.util")
 
 function M.echo_lines(lines)
@@ -68,6 +70,18 @@ local function tinymist_lsp_status(state)
     end
 
     return ("%s not attached"):format(mode)
+end
+
+local function semantic_status_label(state)
+    local semantic_status = semantic_provider.status(state)
+    local attached = semantic_status.attached and "attached" or "not attached"
+    local enabled = semantic_status.enabled and "enabled" or "off"
+    return ("%s %s backend=%s %s"):format(
+        semantic_status.name,
+        semantic_status.mode,
+        semantic_status.backend,
+        semantic_status.enabled and attached or enabled
+    )
 end
 
 local function preview_export_label(export)
@@ -369,6 +383,8 @@ function M.project_lines(state, bufnr, opts)
         ("  conceal: %s"):format(
             bufnr and conceal.is_enabled(bufnr) and "enabled" or "disabled"
         ),
+        ("  conceal renderer: %s"):format(config.get().conceal.renderer.mode),
+        ("  semantic provider: %s"):format(semantic_status_label(state)),
         ("  tinymist nvim-lsp: %s"):format(tinymist_lsp_status(state)),
         ("  compiler diagnostics: %s"):format(diagnostics.policy_label(state)),
         ("  cwd:    %s"):format(compiler_state.last_cwd or state.root),
@@ -403,6 +419,16 @@ function M.project_lines(state, bufnr, opts)
     end
     if opts.detailed == true then
         vim.list_extend(lines, preview_cache_detail_lines(state))
+        local cache_status = cache_registry.status()
+        lines[#lines + 1] = ("  cache registry: loaded=%d unloaded=%d"):format(
+            #cache_status.loaded,
+            #cache_status.unloaded
+        )
+        if #cache_status.loaded > 0 then
+            lines[#lines + 1] = ("    loaded: %s"):format(
+                table.concat(cache_status.loaded, ", ")
+            )
+        end
     end
 
     if resolution then

@@ -111,8 +111,11 @@ run_case("native preview and project report", function()
     local saw_native_preview = false
     local saw_project_decision = false
     local saw_project_diagnostics = false
+    local saw_project_semantic = false
     local saw_project_index_cache = false
     local saw_metadata_symbols = false
+    local saw_semantic_status = false
+    local saw_conceal_math_status = false
 
     for _, item in ipairs(messages) do
         assert(
@@ -149,6 +152,18 @@ run_case("native preview and project report", function()
 
         if
             item.level == "ok"
+            and item.message:find("semantic_provider=tinymist", 1, true)
+            and item.message:find(
+                "semantic_provider_attached=not_attached",
+                1,
+                true
+            )
+        then
+            saw_project_semantic = true
+        end
+
+        if
+            item.level == "ok"
             and item.message:find("index_collect_cache=", 1, true)
             and item.message:find("index_file_cache=", 1, true)
             and item.message:find("index_bibliography_cache=", 1, true)
@@ -165,6 +180,20 @@ run_case("native preview and project report", function()
         then
             saw_metadata_symbols = true
         end
+
+        if
+            item.level == "ok"
+            and item.message:find("Semantic provider: tinymist", 1, true)
+        then
+            saw_semantic_status = true
+        end
+
+        if
+            item.message:find("Tree-sitter conceal math captures", 1, true)
+            or item.message:find("too old for rich math conceal", 1, true)
+        then
+            saw_conceal_math_status = true
+        end
     end
 
     assert(
@@ -180,12 +209,24 @@ run_case("native preview and project report", function()
         "health output should expose effective project diagnostics policy"
     )
     assert(
+        saw_project_semantic,
+        "health output should expose effective project semantic provider state"
+    )
+    assert(
         saw_project_index_cache,
         "health output should expose project index cache statistics"
     )
     assert(
         saw_metadata_symbols,
         "health output should expose bundled symbol and emoji metadata"
+    )
+    assert(
+        saw_semantic_status,
+        "health output should expose global semantic provider status"
+    )
+    assert(
+        saw_conceal_math_status,
+        "health output should report rich math conceal parser compatibility"
     )
 end)
 
@@ -455,7 +496,17 @@ run_case("tinymist ownership report", function()
             "health output should summarize detected Tinymist capabilities"
         )
         assert(
+            has_message(messages, "ok", "Semantic provider: tinymist"),
+            "health output should report provider-neutral semantic status"
+        )
+        assert(
             has_message(messages, "ok", "tinymist_nvim_lsp=attached")
+                and has_message(messages, "ok", "semantic_provider=tinymist")
+                and has_message(
+                    messages,
+                    "ok",
+                    "semantic_provider_attached=attached"
+                )
                 and has_message(
                     messages,
                     "ok",

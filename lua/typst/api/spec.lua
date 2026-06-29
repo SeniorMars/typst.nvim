@@ -8,6 +8,7 @@ M.stable_root_functions = {
     "setup",
     "api_version",
     "version",
+    "contract",
     "public_symbols",
     "stable_symbols",
     "experimental_symbols",

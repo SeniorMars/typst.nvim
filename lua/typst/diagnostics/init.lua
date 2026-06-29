@@ -3,7 +3,7 @@ local diagnostic_parser = require("typst.diagnostics.parser")
 local events = require("typst.core.events")
 local diagnostics_service = require("typst.project.services.diagnostics")
 local quickfix = require("typst.diagnostics.quickfix")
-local tinymist = require("typst.integrations.tinymist")
+local semantic_provider = require("typst.integrations.semantic_provider")
 
 local M = {}
 
@@ -95,12 +95,11 @@ function M.should_publish(project)
         return true
     end
 
-    -- In fallback mode, Tinymist owns diagnostics when it is attached through
-    -- Neovim's native LSP client, or when coc.nvim appears to own the Typst LSP
-    -- session. The compiler parser only publishes when no LSP diagnostics
-    -- source is active, avoiding duplicate errors for the same Typst output.
-    return not tinymist.coc_active()
-        and not tinymist.available_for_project(project)
+    -- In fallback mode, compiler diagnostics publish unless the active
+    -- semantic provider explicitly owns diagnostics. Tinymist keeps its
+    -- existing native-LSP/coc-tinymist ownership behavior; custom providers
+    -- must opt in so symbol-only providers do not hide compiler output.
+    return not semantic_provider.owns_diagnostics(project)
 end
 
 --- Return the active compiler-diagnostic policy state for a project.
@@ -120,6 +119,10 @@ function M.policy_state(project)
         return "fallback_active"
     end
 
+    if semantic_provider.name() ~= "tinymist" then
+        return "fallback_suppressed_by_semantic_provider"
+    end
+
     return "fallback_suppressed_by_tinymist"
 end
 
@@ -132,6 +135,7 @@ function M.policy_label(project)
         always = "always",
         fallback_active = "fallback active",
         fallback_suppressed_by_tinymist = "fallback suppressed by Tinymist/Coc",
+        fallback_suppressed_by_semantic_provider = "fallback suppressed by semantic provider",
     })[M.policy_state(project)]
 end
 
@@ -223,7 +227,7 @@ function M.clear_buffer(project, bufnr, opts)
 
     local keys = source_keys(project, opts.source)
     local had_diagnostics = false
-    local owned_quickfix = quickfix.owns(project)
+    local owned_list = quickfix.owns(project)
 
     for _, key in ipairs(keys) do
         local buffers = source_buffers(project, key)
@@ -241,11 +245,11 @@ function M.clear_buffer(project, bufnr, opts)
 
     local diagnostic_state = diagnostics_service.get(project) or {}
     local remaining = next(diagnostic_state.buffers or {}) ~= nil
-    if owned_quickfix and not remaining then
+    if owned_list and not remaining then
         quickfix.clear(project)
     end
 
-    if opts.emit ~= false and (had_diagnostics or owned_quickfix) then
+    if opts.emit ~= false and (had_diagnostics or owned_list) then
         events.emit("TypstDiagnosticsCleared", project, {
             diagnostics_count = 0,
             diagnostic_buffers = vim.tbl_count(diagnostic_state.buffers or {}),
@@ -253,7 +257,7 @@ function M.clear_buffer(project, bufnr, opts)
         })
     end
 
-    return had_diagnostics or owned_quickfix
+    return had_diagnostics or owned_list
 end
 
 --- Clear diagnostics for one source or all project-owned sources.
@@ -263,7 +267,7 @@ function M.clear(project, opts)
     opts = opts or {}
     local keys = source_keys(project, opts.source)
     local had_diagnostics = false
-    local owned_quickfix = quickfix.owns(project)
+    local owned_list = quickfix.owns(project)
 
     for _, key in ipairs(keys) do
         local buffers = source_buffers(project, key)
@@ -281,11 +285,11 @@ function M.clear(project, opts)
 
     rebuild_diagnostic_buffers(project)
 
-    if owned_quickfix then
+    if owned_list then
         quickfix.clear(project)
     end
 
-    if opts.emit ~= false and (had_diagnostics or owned_quickfix) then
+    if opts.emit ~= false and (had_diagnostics or owned_list) then
         events.emit("TypstDiagnosticsCleared", project, {
             diagnostics_count = 0,
             diagnostic_buffers = 0,
@@ -367,6 +371,11 @@ end
 ---@return table<integer, table[]> by_buffer Diagnostics grouped by buffer.
 function M.parse(project, text, opts)
     return diagnostic_parser.parse(project, text, opts)
+end
+
+--- Reset global diagnostic UI state.
+function M.reset()
+    quickfix.reset()
 end
 
 return M

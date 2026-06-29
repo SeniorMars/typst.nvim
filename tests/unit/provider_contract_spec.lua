@@ -95,6 +95,7 @@ end
 
 local lookup_only = {
     ["lua/typst/health.lua"] = true,
+    ["lua/typst/integrations/semantic_provider.lua"] = true,
     ["lua/typst/navigation/picker_backends.lua"] = true,
     ["lua/typst/viewer/generic_helpers.lua"] = true,
 }
@@ -106,6 +107,7 @@ for _, path in ipairs(files) do
     local text = table.concat(vim.fn.readfile(path), "\n")
     if
         text:find("providers.resolve(", 1, true)
+        and not lookup_only[rel]
         and not text:find("provider_adapter.invoke", 1, true)
     then
         violations[#violations + 1] = rel

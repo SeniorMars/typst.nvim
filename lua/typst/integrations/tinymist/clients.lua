@@ -256,8 +256,16 @@ function M.first_project_client(project, opts)
         return nil
     end
 
-    local function usable(client)
-        return opts.request == "async" and type(client.request) == "function"
+    local function usable(client, bufnr)
+        if opts.request == "async" then
+            return type(client.request) == "function"
+        end
+
+        if opts.method then
+            return M.supports_method(client, opts.method, bufnr)
+        end
+
+        return true
     end
 
     local seen = {}
@@ -275,7 +283,7 @@ function M.first_project_client(project, opts)
         end
 
         for _, client in ipairs(M.clients(bufnr)) do
-            if usable(client) then
+            if usable(client, bufnr) then
                 return client, bufnr
             end
         end

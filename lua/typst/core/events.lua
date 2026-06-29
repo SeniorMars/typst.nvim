@@ -18,24 +18,7 @@ local draining_deferred = false
 -- `TypstEvent*` names are the documented autocmd surface. The shorter
 -- `TypstCompileStarted`-style names remain as compatibility aliases, so event
 -- payload changes should be additive unless the public API version changes.
-local aliases = {
-    TypstProjectAttach = { "TypstEventProjectAttach" },
-    TypstProjectDetach = { "TypstEventProjectDetach" },
-    TypstCompileStarted = { "TypstEventCompileStarted", "TypstEventCompiling" },
-    TypstCompileSuccess = { "TypstEventCompileSuccess" },
-    TypstCompileFailed = { "TypstEventCompileFailed" },
-    TypstCompileStopped = { "TypstEventCompileStopped" },
-    TypstPreviewOpened = { "TypstEventPreviewStarted" },
-    TypstPreviewForwarded = { "TypstEventPreviewForwarded" },
-    TypstPreviewInverse = { "TypstEventPreviewInverse" },
-    TypstPreviewStopped = { "TypstEventPreviewStopped" },
-    TypstViewInverse = { "TypstEventViewInverse" },
-    TypstArtifactCreated = { "TypstEventArtifactCreated" },
-    TypstArtifactsCleaned = { "TypstEventArtifactsCleaned" },
-    TypstRenderCreated = { "TypstEventRenderCreated" },
-    TypstTocCreated = { "TypstEventTocCreated" },
-    TypstTocActivated = { "TypstEventTocActivated" },
-}
+local aliases = require("typst.api.contract").event_aliases()
 
 --- Build the payload used for Typst `User` lifecycle events.
 ---@param project table Project state whose service metadata should be exposed.

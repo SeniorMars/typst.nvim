@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local tinymist = require("typst.integrations.tinymist")
+local tinymist_clients = require("typst.integrations.tinymist.clients")
 local typst = require("typst")
 
 local old_start = vim.lsp.start
@@ -265,6 +266,50 @@ assert(
     "detect mode should reuse an attached native Tinymist client"
 )
 assert(#starts == 0, "detect mode should not start Tinymist")
+
+local project = {
+    bufs = {
+        [bufnr] = true,
+    },
+    main = vim.api.nvim_buf_get_name(bufnr),
+}
+local first_client, first_bufnr = tinymist_clients.first_project_client(project)
+assert(
+    first_client == attached_client and first_bufnr == bufnr,
+    "first_project_client should return attached clients by default"
+)
+first_client = tinymist_clients.first_project_client(project, {
+    request = "async",
+})
+assert(
+    first_client == nil,
+    "async client selection should require client.request"
+)
+attached_client.request = function() end
+first_client = tinymist_clients.first_project_client(project, {
+    request = "async",
+})
+assert(
+    first_client == attached_client,
+    "async client selection should accept clients with request()"
+)
+attached_client.supports_method = function(_, method)
+    return method == "workspace/symbol"
+end
+first_client = tinymist_clients.first_project_client(project, {
+    method = "workspace/symbol",
+})
+assert(
+    first_client == attached_client,
+    "method client selection should accept supported methods"
+)
+first_client = tinymist_clients.first_project_client(project, {
+    method = "textDocument/hover",
+})
+assert(
+    first_client == nil,
+    "method client selection should reject unsupported methods"
+)
 attached_client = nil
 vim.lsp.get_clients = function()
     return {}

@@ -14,7 +14,6 @@ end
 
 local api_doc = read_doc("API.md")
 local help_doc = read_doc("doc/typst.txt")
-local events_source = read_doc("lua/typst/core/events.lua")
 
 local function sorted_keys(set)
     local out = {}
@@ -165,12 +164,8 @@ for _, doc in ipairs(command_docs) do
     end
 end
 
-local public_events = {
-    TypstEventInitPre = true,
-    TypstEventInitPost = true,
-    TypstEventQuit = true,
-}
-for event in events_source:gmatch('"([Tt]ypstEvent[%w]+)"') do
+local public_events = {}
+for _, event in ipairs(typst.contract().events or {}) do
     public_events[event] = true
 end
 

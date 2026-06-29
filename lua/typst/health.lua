@@ -5,6 +5,7 @@ local config = require("typst.config")
 local diagnostics = require("typst.diagnostics")
 local metadata = require("typst.metadata")
 local native_preview_session = require("typst.preview.native.session")
+local semantic_provider = require("typst.integrations.semantic_provider")
 local tinymist = require("typst.integrations.tinymist")
 local preview = require("typst.integrations.typst_preview")
 local project = require("typst.project")
@@ -110,6 +111,66 @@ local function check_string_compiler_provider(provider)
             return
         end
     end
+end
+
+local function conceal_math_capture_status()
+    local previous = vim.api.nvim_get_current_buf()
+    local bufnr = vim.api.nvim_create_buf(false, true)
+    local results = {
+        xpcall(function()
+            vim.api.nvim_set_current_buf(bufnr)
+            vim.bo[bufnr].filetype = "typst"
+            vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+                "$ cal(A) + bb(R) + frak(g) + bold(x) + a <= b + a -> b + a != b + abs(x) + norm(x) + sqrt(x) $",
+            })
+
+            local ok_query, query =
+                pcall(vim.treesitter.query.get, "typst", "conceal")
+            if not ok_query or not query then
+                return false, "conceal query did not load"
+            end
+
+            local ok_parser, parser =
+                pcall(vim.treesitter.get_parser, bufnr, "typst")
+            if not ok_parser or not parser then
+                return false, "Typst parser did not attach"
+            end
+
+            local ok_parse, trees = pcall(parser.parse, parser)
+            if not ok_parse or not trees or not trees[1] then
+                return false, "Typst parser did not produce a tree"
+            end
+
+            local captures = {}
+            for id in query:iter_captures(trees[1]:root(), bufnr, 0, -1) do
+                captures[query.captures[id]] = true
+            end
+
+            if not captures["conceal.math_call"] then
+                return false, "missing conceal.math_call capture"
+            end
+            if not captures["conceal.math_operator"] then
+                return false, "missing conceal.math_operator capture"
+            end
+
+            return true
+        end, debug.traceback),
+    }
+
+    if vim.api.nvim_buf_is_valid(bufnr) then
+        pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+    end
+    if vim.api.nvim_buf_is_valid(previous) then
+        pcall(vim.api.nvim_set_current_buf, previous)
+    end
+
+    if not results[1] then
+        return false, tostring(results[2])
+    end
+    if results[2] == true then
+        return true
+    end
+    return false, tostring(results[3] or results[2])
 end
 
 local function active_pid(handle)
@@ -330,6 +391,11 @@ local function project_status_line(state)
                 or "off"
         ),
         ("tinymist_lsp_mode=%s"):format(tinymist.lsp_mode()),
+        ("semantic_provider=%s"):format(semantic_provider.name()),
+        ("semantic_provider_attached=%s"):format(
+            semantic_provider.available_for_project(state) and "attached"
+                or "not_attached"
+        ),
         ("compiler_diagnostics=%s"):format(diagnostics.policy_state(state)),
         ("root_source=%s"):format(
             resolution.root_source or state.root_source or "unknown"
@@ -522,6 +588,17 @@ function M.check()
         end
     end
 
+    local conceal_math_ok, conceal_math_reason = conceal_math_capture_status()
+    if conceal_math_ok then
+        ok("Tree-sitter conceal math captures: math_call and math_operator")
+    else
+        warn(
+            ("Tree-sitter Typst parser may be too old for rich math conceal: %s"):format(
+                conceal_math_reason or "unknown parser/query mismatch"
+            )
+        )
+    end
+
     local tinymist_mode = tinymist.lsp_mode()
     local coc_active = tinymist.coc_active()
     local raw_tinymist_clients = tinymist_raw_clients()
@@ -587,6 +664,24 @@ function M.check()
         )
     end
 
+    local semantic_status = semantic_provider.status()
+    ok(
+        ("Semantic provider: %s mode=%s backend=%s enabled=%s"):format(
+            semantic_status.name,
+            semantic_status.mode,
+            semantic_status.backend,
+            tostring(semantic_status.enabled)
+        )
+    )
+    local registered_semantic = semantic_status.registered or {}
+    if #registered_semantic > 0 then
+        ok(
+            ("Registered semantic providers: %s"):format(
+                table.concat(registered_semantic, ", ")
+            )
+        )
+    end
+
     start("typst.nvim configuration")
     ok(("Root markers: %s"):format(table.concat(opts.root_markers or {}, ", ")))
     ok(("Output directory: %s"):format(opts.output_dir or "<next to main>"))
@@ -611,8 +706,9 @@ function M.check()
     )
     ok(("Compiler diagnostics source: %s"):format(opts.diagnostics.source))
     ok(
-        ("Quickfix diagnostics: %s"):format(
-            opts.diagnostics.use_quickfix and "enabled" or "disabled"
+        ("Diagnostics list: %s (%s)"):format(
+            opts.diagnostics.use_quickfix and "enabled" or "manual",
+            opts.diagnostics.list or "quickfix"
         )
     )
     ok(
@@ -628,6 +724,7 @@ function M.check()
         )
     )
     ok(("Conceal: %s"):format(opts.conceal.enabled and "enabled" or "disabled"))
+    ok(("Conceal renderer: %s"):format(opts.conceal.renderer.mode))
     local catalog = metadata.catalog()
     local artifacts = catalog.artifacts or {}
     local symbol_count = artifacts.symbols and artifacts.symbols.count or 0

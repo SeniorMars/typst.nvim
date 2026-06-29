@@ -5,6 +5,7 @@ local public_functions = {
     "setup",
     "api_version",
     "version",
+    "contract",
     "public_symbols",
     "stable_symbols",
     "experimental_symbols",
@@ -27,6 +28,36 @@ local version = typst.version()
 assert(
     type(version) == "table" and version.api == 1,
     "version() should report the public API level"
+)
+local api_contract = typst.contract()
+assert(
+    type(api_contract) == "table" and api_contract.version == 1,
+    "contract() should report the public API/event contract"
+)
+assert(
+    vim.tbl_contains(api_contract.events, "TypstEventBufferDetach"),
+    "contract() should include buffer-detach event"
+)
+assert(
+    vim.tbl_contains(
+        api_contract.compatibility_events,
+        "TypstDiagnosticsPublished"
+    ),
+    "contract() should expose legacy compatibility events separately"
+)
+assert(
+    vim.tbl_contains(
+        api_contract.event_payloads.TypstEventBufferDetach,
+        "event_kind"
+    ),
+    "contract() should document buffer-detach payload fields"
+)
+assert(
+    vim.tbl_contains(
+        api_contract.event_payloads.TypstEventProjectPruned,
+        "project_pruned"
+    ),
+    "contract() should document project-pruned payload fields"
 )
 for _, name in ipairs({
     "compile",
