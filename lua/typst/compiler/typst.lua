@@ -241,9 +241,15 @@ function M.stop(project, callback)
 
     local compiler_state = compiler_service.get(project) or {}
     local watcher = compiler_state.watcher
+    if watcher.stopping then
+        compiler_process.add_watcher_stop_callback(watcher, callback)
+        log.add("info", "watcher stop already pending", { main = project.main })
+        return watcher.handle
+    end
+
     compiler_service.set(project, { status = "stopping" })
     watcher.stopping = true
-    watcher.stop_callback = callback
+    compiler_process.add_watcher_stop_callback(watcher, callback)
     log.add("info", "stopping watcher", { main = project.main })
 
     local ok, err, kill_timer = compiler_process.terminate_handle(
@@ -255,7 +261,7 @@ function M.stop(project, callback)
     if not ok then
         log.add("error", "failed to stop watcher", { error = err })
         watcher.stopping = false
-        watcher.stop_callback = nil
+        watcher.stop_callbacks = nil
         compiler_service.set(project, { status = "error" })
         if callback then
             callback({ code = 1, error = err, stale = false, stopped = false })

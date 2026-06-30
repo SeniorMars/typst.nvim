@@ -1,5 +1,5 @@
 local compiler_dependencies = require("typst.compiler.dependencies")
-local events = require("typst.core.events")
+local compiler_events = require("typst.compiler.events")
 local log = require("typst.core.log")
 local process = require("typst.core.process")
 local compiler_service = require("typst.project.services.compiler")
@@ -16,7 +16,7 @@ end
 -- This module owns termination handshakes and stale-handle cleanup. Generation
 -- and handle checks prevent late libuv callbacks from clearing newer jobs.
 --- Check whether the project has an open built-in watcher handle.
----@param project table Project state whose compiler service is inspected.
+---@param project TypstProject Project state whose compiler service is inspected.
 ---@return boolean|userdata active Watcher handle when active, otherwise false/nil.
 function M.active_watcher(project)
     local watcher = (compiler_service.get(project) or {}).watcher
@@ -24,7 +24,7 @@ function M.active_watcher(project)
 end
 
 --- Check whether the project has an open one-shot compile handle.
----@param project table Project state whose compiler service is inspected.
+---@param project TypstProject Project state whose compiler service is inspected.
 ---@return boolean|userdata active Compile handle when active, otherwise false/nil.
 function M.active_process(project)
     local handle = (compiler_service.get(project) or {}).process
@@ -32,7 +32,7 @@ function M.active_process(project)
 end
 
 --- Check whether a one-shot compile is already in its stop transition.
----@param project table Project state whose compiler service is inspected.
+---@param project TypstProject Project state whose compiler service is inspected.
 ---@return boolean|userdata active Stopping handle when active, otherwise false/nil.
 function M.stopping_process(project)
     local stopping = (compiler_service.get(project) or {}).stopping_compile
@@ -44,7 +44,7 @@ local function active_handle(handle)
 end
 
 --- Queue a watcher restart to run after the current compile process exits.
----@param watcher table Watcher state that owns the pending restart slot.
+---@param watcher TypstCompilerWatcher Watcher state that owns the pending restart slot.
 ---@param callback function Compile callback to reuse when the restart starts.
 ---@param run_config? table Run configuration to pass to the restarted compile.
 ---@param restart_handle? table Restart proxy returned to the caller.
@@ -144,7 +144,7 @@ function M.terminate_handle(handle, label, fields)
 end
 
 --- Add a callback to an in-flight compile stop transition.
----@param stopping table Stopping compile record stored in project compiler state.
+---@param stopping TypstStoppingCompile Stopping compile record stored in project compiler state.
 ---@param callback? fun(result:TypstCompilerResult) Callback invoked when the stop settles.
 function M.add_stop_callback(stopping, callback)
     if callback then
@@ -152,8 +152,38 @@ function M.add_stop_callback(stopping, callback)
     end
 end
 
+--- Add a callback to an in-flight watch stop transition.
+---@param watcher TypstCompilerWatcher Watcher state stored in project compiler state.
+---@param callback? fun(result:TypstCompilerResult) Callback invoked when the stop settles.
+function M.add_watcher_stop_callback(watcher, callback)
+    if type(callback) ~= "function" then
+        return
+    end
+    watcher.stop_callbacks = watcher.stop_callbacks or {}
+    watcher.stop_callbacks[#watcher.stop_callbacks + 1] = callback
+end
+
+--- Drain callbacks for a completed watcher stop exactly once.
+---@param watcher TypstCompilerWatcher? Watcher state stored in project compiler state.
+---@param payload TypstCompilerResult Stop result passed to each callback.
+function M.drain_watcher_stop_callbacks(watcher, payload)
+    local callbacks = watcher and watcher.stop_callbacks or {}
+    if watcher then
+        watcher.stop_callbacks = nil
+    end
+
+    for _, stop_callback in ipairs(callbacks) do
+        local ok, err = pcall(stop_callback, payload)
+        if not ok then
+            log.add("warn", "watcher stop callback failed", {
+                error = err,
+            })
+        end
+    end
+end
+
 --- Finish a pending one-shot compile stop if the exiting handle matches it.
----@param project table Project state whose stopping compile may be completed.
+---@param project TypstProject Project state whose stopping compile may be completed.
 ---@param handle userdata libuv process handle reported by the exit callback.
 ---@param result TypstCompilerResult Process result from the compile operation.
 ---@return boolean handled True when this exit completed the recorded stop transition.
@@ -216,7 +246,7 @@ function M.finish_stopped_compile(project, handle, result)
         "compile stopped",
         { main = project.main, code = result and result.code }
     )
-    events.emit("TypstCompileStopped", project)
+    compiler_events.stopped(project, payload)
 
     for _, stop_callback in ipairs(stopping.callbacks) do
         stop_callback(payload)
@@ -234,7 +264,7 @@ local function shutdown_result_code(ok, result)
 end
 
 --- Synchronously stop a one-shot compile during exit cleanup.
----@param project table Project state whose compile handle should be stopped.
+---@param project TypstProject Project state whose compile handle should be stopped.
 ---@param opts table Shutdown options forwarded to the process helper.
 ---@return boolean attempted True when there was a compile handle to stop.
 ---@return boolean stopped True when no compile remains running.
@@ -321,7 +351,7 @@ function M.stop_compile_for_exit(project, opts)
             forced = result and result.forced,
             signal_target = result and result.signal_target,
         })
-        events.emit("TypstCompileStopped", project)
+        compiler_events.stopped(project, last_result)
     else
         log.add("warn", "failed to stop compile during exit", {
             main = project.main,
@@ -333,7 +363,7 @@ function M.stop_compile_for_exit(project, opts)
 end
 
 --- Synchronously stop a watcher during exit cleanup.
----@param project table Project state whose watcher handle should be stopped.
+---@param project TypstProject Project state whose watcher handle should be stopped.
 ---@param opts table Shutdown options forwarded to the process helper.
 ---@return boolean attempted True when there was a watcher handle to stop.
 ---@return boolean stopped True when no watcher remains running.
@@ -390,7 +420,12 @@ function M.stop_watcher_for_exit(project, opts)
             forced = result and result.forced,
             signal_target = result and result.signal_target,
         })
-        events.emit("TypstCompileStopped", project)
+        compiler_events.stopped(project, {
+            code = shutdown_result_code(ok, result),
+            stale = false,
+            stopped = stopped,
+            forced = result and result.forced,
+        })
     else
         log.add("warn", "failed to stop watcher during exit", {
             main = project.main,

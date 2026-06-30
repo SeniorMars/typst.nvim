@@ -18,17 +18,76 @@ local severity = {
     info = vim.diagnostic.severity.INFO,
 }
 
-local function clamp_col_for_path(path, lnum, col)
-    local line = nil
-    local loaded = util.loaded_buffer_for_path(path)
-    if loaded and vim.api.nvim_buf_is_valid(loaded) then
-        line = vim.api.nvim_buf_get_lines(loaded, lnum, lnum + 1, false)[1]
-    elseif vim.fn.filereadable(path) == 1 then
-        local ok, lines = pcall(vim.fn.readfile, path, "", lnum + 1)
-        if ok and type(lines) == "table" then
-            line = lines[lnum + 1] or ""
+local function cache_key(path)
+    return util.path_key and util.path_key(path) or path
+end
+
+local function update_line_limit(line_cache, path, lnum)
+    if not path or not lnum then
+        return
+    end
+    line_cache.max_lines = line_cache.max_lines or {}
+    local key = cache_key(path)
+    local limit = math.max(tonumber(lnum) or 1, 1)
+    line_cache.max_lines[key] = math.max(line_cache.max_lines[key] or 0, limit)
+end
+
+local function precompute_line_limits(project, text, line_cache)
+    for _, line in ipairs(util.split_lines(text or "")) do
+        local file, lnum = line:match("^(.-):(%d+):%d+:%s*%a+:%s*.*$")
+        if not file then
+            file, lnum = line:match("^(.-):(%d+):%d+:%s*.*$")
+        end
+        if not file then
+            file, lnum = line:match("^%s*%S+%s+(.+):(%d+):%d+%s*$")
+        end
+        if not file then
+            file, lnum = line:match("^%s*while%s+.-%s+at%s+(.+):(%d+):%d+%s*$")
+        end
+        if file then
+            update_line_limit(
+                line_cache,
+                util.resolve_path(file, project.root),
+                lnum
+            )
         end
     end
+end
+
+local function lines_for_path(path, lnum, line_cache)
+    line_cache = line_cache or {}
+    local key = cache_key(path)
+    local cached = line_cache[key]
+    local requested = math.max((tonumber(lnum) or 0) + 1, 1)
+    local limit = math.max(
+        requested,
+        line_cache.max_lines and line_cache.max_lines[key] or 0
+    )
+    if cached and (cached.max_read or 0) >= limit then
+        return cached.lines
+    end
+
+    local entry = cached or { lines = nil }
+    local loaded = util.loaded_buffer_for_path(path)
+    if loaded and vim.api.nvim_buf_is_valid(loaded) then
+        entry.bufnr = loaded
+        entry.changedtick = vim.api.nvim_buf_get_changedtick(loaded)
+        entry.lines = vim.api.nvim_buf_get_lines(loaded, 0, limit, false)
+        entry.max_read = limit
+    elseif vim.fn.filereadable(path) == 1 then
+        local ok, lines = pcall(vim.fn.readfile, path, "", limit)
+        if ok and type(lines) == "table" then
+            entry.lines = lines
+            entry.max_read = limit
+        end
+    end
+    line_cache[key] = entry
+    return entry.lines
+end
+
+local function clamp_col_for_path(path, lnum, col, line_cache)
+    local lines = lines_for_path(path, lnum, line_cache)
+    local line = lines and lines[lnum + 1] or nil
 
     if line == nil then
         return math.max(col or 0, 0)
@@ -39,10 +98,10 @@ local function clamp_col_for_path(path, lnum, col)
     return math.min(math.max(col or 0, 0), #line)
 end
 
-local function diagnostic_position(path, lnum, col)
+local function diagnostic_position(path, lnum, col, line_cache)
     local row = math.max((tonumber(lnum) or 1) - 1, 0)
     local byte_col = math.max((tonumber(col) or 1) - 1, 0)
-    return row, clamp_col_for_path(path, row, byte_col)
+    return row, clamp_col_for_path(path, row, byte_col, line_cache)
 end
 
 local function parse_line(line, project, opts)
@@ -59,7 +118,7 @@ local function parse_line(line, project, opts)
     end
 
     local path = util.resolve_path(file, project.root)
-    lnum, col = diagnostic_position(path, lnum, col)
+    lnum, col = diagnostic_position(path, lnum, col, opts.line_cache)
     return path,
         {
             lnum = lnum,
@@ -72,7 +131,7 @@ end
 
 local function diagnostic_for(project, file, lnum, col, level, message, opts)
     local path = util.resolve_path(file, project.root)
-    lnum, col = diagnostic_position(path, lnum, col)
+    lnum, col = diagnostic_position(path, lnum, col, opts.line_cache)
     return path,
         {
             lnum = lnum,
@@ -123,6 +182,10 @@ end
 ---@return table<number, table[]> by_buffer Diagnostics keyed by Neovim buffer number.
 function M.parse(project, text, opts)
     opts = opts or {}
+    local parse_opts = vim.tbl_extend("force", opts, {
+        line_cache = {},
+    })
+    precompute_line_limits(project, text, parse_opts.line_cache)
     local by_buffer = {}
     local pending_pretty = nil
 
@@ -136,7 +199,7 @@ function M.parse(project, text, opts)
     -- pretty two-line diagnostics. The parser intentionally stays tolerant so
     -- older Typst releases and external lint providers can share this path.
     for _, line in ipairs(util.split_lines(text)) do
-        local path, diagnostic = parse_line(line, project, opts)
+        local path, diagnostic = parse_line(line, project, parse_opts)
         if path and diagnostic then
             add(path, diagnostic)
         else
@@ -147,13 +210,18 @@ function M.parse(project, text, opts)
                     message = message,
                 }
             else
-                path, diagnostic =
-                    parse_pretty_location(line, project, pending_pretty, opts)
+                path, diagnostic = parse_pretty_location(
+                    line,
+                    project,
+                    pending_pretty,
+                    parse_opts
+                )
                 if path and diagnostic then
                     add(path, diagnostic)
                     pending_pretty = nil
                 else
-                    path, diagnostic = parse_pretty_context(line, project, opts)
+                    path, diagnostic =
+                        parse_pretty_context(line, project, parse_opts)
                     if path and diagnostic then
                         add(path, diagnostic)
                     end

@@ -7,8 +7,48 @@ local M = {}
 --
 -- `output_name` stays basename-only; callers that need directories must use
 -- `output_dir` so this module can validate the destination explicitly.
-local function contains_separator(value)
-    return type(value) == "string" and value:find("[/\\]") ~= nil
+local function invalid_output_name_reason(value)
+    if type(value) ~= "string" or value == "" then
+        return nil
+    end
+    if value == "." or value == ".." then
+        return "must be a file basename, not " .. value
+    end
+    if value:find("[/\\]") ~= nil then
+        return "must be a basename; use output_dir for directories"
+    end
+    if value:find("%z") or value:find("[%c]") then
+        return "must not contain NUL or control characters"
+    end
+    if path_util.is_windows() then
+        if value:find("[%.%s]$") then
+            return "must not end with a space or dot on Windows"
+        end
+        if value:find('[<>:"|?*]') then
+            return "must not contain Windows-reserved characters"
+        end
+
+        local stem = (value:match("^[^%.]+") or value):upper()
+        if
+            stem == "CON"
+            or stem == "PRN"
+            or stem == "AUX"
+            or stem == "NUL"
+            or stem:match("^COM[1-9]$")
+            or stem:match("^LPT[1-9]$")
+        then
+            return "must not be a Windows reserved device name"
+        end
+    end
+    return nil
+end
+
+local function validate_output_name(value)
+    local reason = invalid_output_name_reason(value)
+    if reason then
+        error(("typst.nvim: output_name %s"):format(reason))
+    end
+    return value
 end
 
 local function plugin_cache_root()
@@ -35,11 +75,11 @@ function M.output_path(project, config)
     local output_name = config.output_name
     if not output_name or output_name == "" then
         output_name = path_util.stem(project.main) .. "." .. format
-    elseif contains_separator(output_name) then
-        error(
-            "typst.nvim: output_name must be a basename; use output_dir for directories"
-        )
-    elseif vim.fn.fnamemodify(output_name, ":e") == "" then
+    else
+        output_name = validate_output_name(output_name)
+    end
+
+    if vim.fn.fnamemodify(output_name, ":e") == "" then
         output_name = output_name .. "." .. format
     end
 
@@ -51,7 +91,17 @@ function M.output_path(project, config)
                 "typst.nvim: output_dir outside the project or typst.nvim cache requires allow_external_output = true"
             )
         end
-        return path_util.join(output_dir, output_name)
+        local resolved =
+            path_util.normalize(path_util.join(output_dir, output_name))
+        if
+            config.allow_external_output ~= true
+            and not path_util.path_within(resolved, output_dir)
+        then
+            error(
+                "typst.nvim: output_name resolved outside output_dir; use a basename"
+            )
+        end
+        return resolved
     end
 
     return path_util.join(path_util.dirname(project.main), output_name)

@@ -213,11 +213,22 @@ end
 ---@return table[] items Quickfix items that were set.
 function M.open(project, namespace, opts)
     opts = opts or {}
+    local list_kind = normalize_list_kind(opts.list)
+    local winid = list_kind == "loclist" and target_winid(opts) or nil
+    if list_kind == "loclist" and not valid_winid(winid) then
+        return {}
+    end
+    if winid then
+        opts = vim.tbl_extend("force", opts, { winid = winid })
+    end
+
     local items = M.set(project, M.current(project, namespace), opts)
 
     if opts.open ~= false and #items > 0 then
-        if normalize_list_kind(opts.list) == "loclist" then
-            vim.cmd("lopen")
+        if list_kind == "loclist" then
+            vim.api.nvim_win_call(winid, function()
+                vim.cmd("lopen")
+            end)
         else
             vim.cmd("copen")
         end

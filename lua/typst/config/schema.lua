@@ -15,6 +15,34 @@ function M.as_list(value, name)
         error(("typst.nvim: %s must be a list"):format(name))
     end
 
+    local count = 0
+    local max_index = 0
+    for key in pairs(value) do
+        if type(key) ~= "number" or key < 1 or key ~= math.floor(key) then
+            error(
+                ("typst.nvim: %s must be an array list; invalid key %s"):format(
+                    name,
+                    vim.inspect(key)
+                )
+            )
+        end
+        count = count + 1
+        max_index = math.max(max_index, key)
+    end
+
+    if count ~= max_index then
+        for index = 1, max_index do
+            if value[index] == nil then
+                error(
+                    ("typst.nvim: %s must not contain holes; missing index %d"):format(
+                        name,
+                        index
+                    )
+                )
+            end
+        end
+    end
+
     return value
 end
 
@@ -64,11 +92,12 @@ function M.command_prefix(value, name)
         )
     end
 
-    if #value == 0 then
+    local list = M.as_list(value, name)
+    if #list == 0 then
         error(("typst.nvim: %s must not be an empty list"):format(name))
     end
 
-    for index, item in ipairs(value) do
+    for index, item in ipairs(list) do
         if type(item) ~= "string" or item == "" then
             error(
                 ("typst.nvim: %s[%d] must be a non-empty string"):format(

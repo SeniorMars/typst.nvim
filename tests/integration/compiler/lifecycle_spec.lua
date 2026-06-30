@@ -159,6 +159,15 @@ run_case("compile success and parent failure", function(group)
         success_event.status == "success",
         "TypstCompileSuccess event had wrong status"
     )
+    assert(success_event.code == 0, "TypstCompileSuccess should include code")
+    assert(
+        success_event.deps_path == deps_path,
+        "TypstCompileSuccess should include deps path"
+    )
+    assert(
+        success_event.stale == false,
+        "TypstCompileSuccess should include stale=false"
+    )
     assert(
         success_event.output == typst_test_compiler(project).output,
         "TypstCompileSuccess event had wrong output"

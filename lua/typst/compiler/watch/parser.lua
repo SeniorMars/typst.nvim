@@ -3,11 +3,13 @@ local M = {}
 local ansi_pattern = "\27%[[%d;?]*[ -/]*[@-~]"
 
 -- Typst watch output has changed across releases and can also be wrapped by
--- providers. Accept known human formats plus structured JSON, but surface
--- status-looking unknown lines so parser drift is visible in logs/tests.
+-- providers. Typst CLI 0.15 has no stable structured watch-status flag, but
+-- wrappers and future Typst versions can emit JSON-line events. Accept known
+-- human formats plus structured JSON, and surface status-looking unknown lines
+-- so parser drift is visible in logs/tests.
 local profiles = {
     {
-        version = "0.11-0.13",
+        version = "0.11-0.15-human",
         start = {
             "^%s*%[%d%d:%d%d:%d%d%]%s+compiling%s+%.%.%.%s*$",
             "^%s*compiling%s+%.%.%.%s*$",

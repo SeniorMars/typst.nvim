@@ -1,9 +1,9 @@
 local compiler_dependencies = require("typst.compiler.dependencies")
+local compiler_events = require("typst.compiler.events")
 local compiler_output = require("typst.compiler.output")
 local watch_parser = require("typst.compiler.watch.parser")
 local diagnostics = require("typst.diagnostics")
 local async = require("typst.core.async")
-local events = require("typst.core.events")
 local log = require("typst.core.log")
 local compiler_service = require("typst.project.services.compiler")
 
@@ -11,7 +11,10 @@ local M = {}
 
 local uv = vim.uv or vim.loop
 local WATCH_ERROR_DEBOUNCE_MS = 50
-local WATCH_SUCCESS_OUTPUT_RETRY_MS = 75
+local WATCH_OUTPUT_WAIT_INITIAL_MS = 50
+local WATCH_OUTPUT_WAIT_MAX_STEP_MS = 800
+local WATCH_OUTPUT_WAIT_DEFAULT_MS = 1500
+local WATCH_STREAM_LOG_INTERVAL_MS = 1000
 
 -- State machine for `typst watch` output.
 --
@@ -47,6 +50,8 @@ local function cycle_payload(project, watcher, code)
         generation = watcher.generation,
         watch_generation = watcher.generation,
         cycle_generation = cycle.generation,
+        output_wait_ms = cycle.output_wait_elapsed_ms,
+        output_wait_attempts = cycle.output_wait_attempts,
     }
 end
 
@@ -69,6 +74,53 @@ local function output_readable(output)
         and vim.fn.filereadable(output) == 1
 end
 
+local function output_wait_timeout_ms(watcher)
+    local timeout = tonumber(watcher and watcher.watch_output_wait_ms)
+    if timeout == nil then
+        return WATCH_OUTPUT_WAIT_DEFAULT_MS
+    end
+    return math.max(timeout, 0)
+end
+
+local function output_wait_elapsed_ms(cycle)
+    if not cycle.output_wait_started_at then
+        return 0
+    end
+    return math.floor((uv.hrtime() - cycle.output_wait_started_at) / 1000000)
+end
+
+local function log_stream_chunk(watcher, stream, data)
+    watcher.stream_log_stats = watcher.stream_log_stats or {}
+    local stats = watcher.stream_log_stats[stream]
+        or {
+            chunks = 0,
+            bytes = 0,
+            last_logged_at = 0,
+        }
+    watcher.stream_log_stats[stream] = stats
+
+    stats.chunks = stats.chunks + 1
+    stats.bytes = stats.bytes + #data
+
+    local now = uv.hrtime()
+    local elapsed_ms = stats.last_logged_at == 0 and math.huge
+        or math.floor((now - stats.last_logged_at) / 1000000)
+    if elapsed_ms < WATCH_STREAM_LOG_INTERVAL_MS then
+        return
+    end
+
+    log.add("debug", "watch stream received", {
+        stream = stream,
+        chunks = stats.chunks,
+        bytes = stats.bytes,
+        retained_stdout = #(watcher.stdout or ""),
+        retained_stderr = #(watcher.stderr or ""),
+    })
+    stats.chunks = 0
+    stats.bytes = 0
+    stats.last_logged_at = now
+end
+
 local function schedule_missing_output_retry(
     project,
     watcher,
@@ -76,7 +128,29 @@ local function schedule_missing_output_retry(
     code,
     reason
 )
-    cycle.output_retry_scheduled = true
+    local timeout_ms = output_wait_timeout_ms(watcher)
+    if timeout_ms <= 0 then
+        cycle.output_wait_elapsed_ms = 0
+        return false
+    end
+
+    if cycle.finish_timer then
+        return true
+    end
+
+    cycle.output_wait_started_at = cycle.output_wait_started_at or uv.hrtime()
+    local elapsed = output_wait_elapsed_ms(cycle)
+    if elapsed >= timeout_ms then
+        cycle.output_wait_elapsed_ms = elapsed
+        return false
+    end
+
+    cycle.output_wait_attempts = (cycle.output_wait_attempts or 0) + 1
+    local next_delay = cycle.output_wait_next_ms or WATCH_OUTPUT_WAIT_INITIAL_MS
+    local remaining = math.max(timeout_ms - elapsed, 1)
+    local delay = math.min(next_delay, remaining)
+    cycle.output_wait_next_ms =
+        math.min(next_delay * 2, WATCH_OUTPUT_WAIT_MAX_STEP_MS)
 
     local timer = uv.new_timer()
     if not timer then
@@ -85,7 +159,7 @@ local function schedule_missing_output_retry(
 
     cycle.finish_timer = timer
     timer:start(
-        WATCH_SUCCESS_OUTPUT_RETRY_MS,
+        delay,
         0,
         vim.schedule_wrap(function()
             if cycle.finish_timer == timer then
@@ -122,14 +196,15 @@ function M.finish_cycle(project, watcher, code, reason)
     if
         code == 0
         and not output_readable(output)
-        and not cycle.output_retry_scheduled
         and schedule_missing_output_retry(project, watcher, cycle, code, reason)
     then
         log.add("debug", "watch success output missing; retrying briefly", {
             main = project.main,
             output = output,
             cycle = cycle.id,
-            retry_ms = WATCH_SUCCESS_OUTPUT_RETRY_MS,
+            attempts = cycle.output_wait_attempts,
+            elapsed_ms = output_wait_elapsed_ms(cycle),
+            timeout_ms = output_wait_timeout_ms(watcher),
         })
         return
     end
@@ -139,6 +214,7 @@ function M.finish_cycle(project, watcher, code, reason)
     watcher.currently_compiling = false
     watcher.last_cycle_id = cycle.id
     watcher.last_cycle_generation = cycle.generation
+    cycle.output_wait_elapsed_ms = output_wait_elapsed_ms(cycle)
     local result = cycle_payload(project, watcher, code)
     compiler_service.set(project, {
         last_result = result,
@@ -161,6 +237,8 @@ function M.finish_cycle(project, watcher, code, reason)
         )
         result.code = 1
         result.stderr = cycle.stderr
+        result.output_wait_ms = cycle.output_wait_elapsed_ms
+        result.output_wait_attempts = cycle.output_wait_attempts
         code = 1
         reason = "missing output"
     end
@@ -183,14 +261,8 @@ function M.finish_cycle(project, watcher, code, reason)
             cycle = cycle.id,
             reason = reason,
         })
-        events.emit("TypstCompileSuccess", project, {
-            status = "success",
-            watch = true,
-            cycle = cycle.id,
-            cycle_generation = cycle.generation,
-            watch_status = "watching",
-            last_cycle_status = watcher.last_cycle_status,
-        })
+        result.last_cycle_status = watcher.last_cycle_status
+        compiler_events.cycle_succeeded(project, result)
     else
         watcher.last_cycle_status = "error"
         compiler_service.set(project, {
@@ -204,14 +276,9 @@ function M.finish_cycle(project, watcher, code, reason)
             stderr = result.stderr,
             stdout = result.stdout,
         })
-        events.emit("TypstCompileFailed", project, {
-            status = "error",
-            watch = true,
-            cycle = cycle.id,
-            cycle_generation = cycle.generation,
-            watch_status = "watching",
-            last_cycle_status = watcher.last_cycle_status,
-        })
+        result.last_cycle_status = watcher.last_cycle_status
+        result.reason = reason
+        compiler_events.cycle_failed(project, result)
     end
 
     if watcher.callback then
@@ -288,10 +355,11 @@ local function start_cycle(project, watcher)
         main = project.main,
         cycle = watcher.cycle,
     })
-    events.emit("TypstCompileStarted", project, {
-        status = "compiling",
+    compiler_events.cycle_started(project, {
         watch = true,
         cycle = watcher.cycle,
+        generation = watcher.generation,
+        watch_generation = watcher.generation,
         cycle_generation = watcher.cycle_generation,
         watch_status = "watching",
         last_cycle_status = watcher.last_cycle_status,
@@ -383,7 +451,7 @@ function M.append_stream(project, watcher, stream, data)
     end
 
     watcher[stream] = compiler_output.append_bounded(watcher[stream], data)
-    log.add("debug", "watch " .. stream, { data = data })
+    log_stream_chunk(watcher, stream, data)
 
     for _, line in ipairs(compiler_output.complete_lines(watcher, stream, data)) do
         M.handle_line(project, watcher, stream, line)

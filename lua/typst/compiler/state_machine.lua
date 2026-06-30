@@ -1,4 +1,4 @@
-local events = require("typst.core.events")
+local compiler_events = require("typst.compiler.events")
 local compiler_service = require("typst.project.services.compiler")
 local provider_binding = require("typst.compiler.provider_binding")
 
@@ -8,6 +8,8 @@ local M = {}
 -- providers should leave the same project status, last_result, lease state,
 -- and User event sequence after a compile/watch/stop result.
 
+---@param result any Raw provider or process result.
+---@return TypstCompilerResult result Normalized compiler result.
 function M.normalize(result)
     if type(result) ~= "table" then
         return {
@@ -58,6 +60,7 @@ function M.normalize(result)
     return result
 end
 
+---@param project TypstProject Project whose compile output should be recorded.
 function M.record_compile_output(project)
     local output = (compiler_service.get(project) or {}).output
     if type(output) ~= "string" or output == "" then
@@ -70,6 +73,9 @@ function M.record_compile_output(project)
     })
 end
 
+---@param result any Result candidate.
+---@param active_field string? Active compiler service field.
+---@return boolean is_cycle True when `result` is an intermediate watch cycle.
 function M.is_watch_cycle(result, active_field)
     return active_field == "watcher"
         and type(result) == "table"
@@ -79,6 +85,9 @@ function M.is_watch_cycle(result, active_field)
         and result.pending ~= true
 end
 
+---@param project TypstProject Project whose compiler service is mutated.
+---@param result TypstCompilerResult|any Compiler result to apply.
+---@param active_field string? Active compiler service field to clear.
 function M.apply_status(project, result, active_field)
     result = M.normalize(result)
     if result.stale then
@@ -145,6 +154,9 @@ function M.apply_status(project, result, active_field)
     provider_binding.clear_if_idle(project)
 end
 
+---@param project TypstProject Project for event emission.
+---@param result TypstCompilerResult|any Compiler result to emit.
+---@param active_field string? Active compiler service field to clear.
 function M.emit(project, result, active_field)
     result = M.normalize(result)
     if result.stale then
@@ -153,20 +165,18 @@ function M.emit(project, result, active_field)
 
     M.apply_status(project, result, active_field)
 
-    if result.stopped then
-        events.emit("TypstCompileStopped", project)
-    elseif result.code == 0 then
-        events.emit("TypstCompileSuccess", project)
-    else
-        events.emit("TypstCompileFailed", project)
-    end
+    compiler_events.from_result(project, result)
 end
 
+---@param result any Result candidate.
+---@return boolean terminal True when this result ends an operation.
 function M.terminal(result)
     return type(result) ~= "table"
         or (result.pending ~= true and not M.is_watch_cycle(result, "watcher"))
 end
 
+---@param result any Stop result candidate.
+---@return boolean restart True when a replacement compile/watch may start.
 function M.stop_allows_restart(result)
     if result == nil or result == true then
         return true

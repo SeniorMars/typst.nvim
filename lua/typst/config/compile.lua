@@ -5,6 +5,7 @@ local M = {}
 local validate_string_list = schema.string_list
 local validate_string = schema.string
 local validate_command_prefix = schema.command_prefix
+local WATCH_OUTPUT_WAIT_MAX_MS = 60000
 
 local watch_output_values = {
     auto = true,
@@ -52,6 +53,22 @@ local function validate_optional_boolean(value, name)
     end
 end
 
+local function validate_optional_nonnegative_number(value, name)
+    if value ~= nil and (type(value) ~= "number" or value < 0) then
+        error(
+            ("typst.nvim: %s must be a non-negative number or nil"):format(name)
+        )
+    end
+    if value ~= nil and value > WATCH_OUTPUT_WAIT_MAX_MS then
+        error(
+            ("typst.nvim: %s must be at most %d ms or nil"):format(
+                name,
+                WATCH_OUTPUT_WAIT_MAX_MS
+            )
+        )
+    end
+end
+
 local profile_overrides = {
     {
         key = "output_format",
@@ -78,6 +95,11 @@ local profile_overrides = {
         key = "watch_output",
         target = { "compile", "watch_output" },
         validate = validate_optional_watch_output,
+    },
+    {
+        key = "watch_output_wait_ms",
+        target = { "compile", "watch_output_wait_ms" },
+        validate = validate_optional_nonnegative_number,
     },
     {
         key = "watch_structured_args",
@@ -384,6 +406,12 @@ function M.validate(compile)
 
     validate_provider(compile.provider)
 
+    if compile.stdin ~= nil then
+        error(
+            "typst.nvim: compile.stdin is internal; use compile.fragments for stdin-backed fragment runs"
+        )
+    end
+
     if type(compile.deps) ~= "boolean" then
         error("typst.nvim: compile.deps must be a boolean")
     end
@@ -418,6 +446,21 @@ function M.validate(compile)
     validate_compile_fragments(compile.fragments)
     validate_string_list(compile.extra_args, "compile.extra_args")
     validate_watch_output(compile.watch_output, "compile.watch_output")
+    if
+        type(compile.watch_output_wait_ms) ~= "number"
+        or compile.watch_output_wait_ms < 0
+    then
+        error(
+            "typst.nvim: compile.watch_output_wait_ms must be a non-negative number"
+        )
+    end
+    if compile.watch_output_wait_ms > WATCH_OUTPUT_WAIT_MAX_MS then
+        error(
+            ("typst.nvim: compile.watch_output_wait_ms must be at most %d ms"):format(
+                WATCH_OUTPUT_WAIT_MAX_MS
+            )
+        )
+    end
     validate_string_list(
         compile.watch_structured_args,
         "compile.watch_structured_args"

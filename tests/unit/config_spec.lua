@@ -96,6 +96,10 @@ assert(
     "watch output mode should default to auto"
 )
 assert(
+    default_config.compile.watch_output_wait_ms == 1500,
+    "watch output wait timeout should default to 1500ms"
+)
+assert(
     default_config.syntax.package_semantic_proof == "auto",
     "package syntax semantic proof should default to auto"
 )
@@ -226,6 +230,10 @@ local invalid_configs = {
         message = "compile.watch_output",
     },
     {
+        opts = { compile = { watch_output_wait_ms = 60001 } },
+        message = "compile.watch_output_wait_ms",
+    },
+    {
         opts = { compile = { watch_structured_args = { "--format", 1 } } },
         message = "compile.watch_structured_args%[2%]",
     },
@@ -234,6 +242,14 @@ local invalid_configs = {
             compile = { profiles = { draft = { watch_output = "yaml" } } },
         },
         message = "compile.profiles.draft.watch_output",
+    },
+    {
+        opts = {
+            compile = {
+                profiles = { draft = { watch_output_wait_ms = 60001 } },
+            },
+        },
+        message = "compile.profiles.draft.watch_output_wait_ms",
     },
     {
         opts = { compile = { generic = false } },
@@ -1065,6 +1081,20 @@ for _, case in ipairs(invalid_configs) do
     )
 end
 
+local zero_wait_ok, zero_wait_err = pcall(function()
+    typst.setup({
+        root = root,
+        compile = {
+            watch_output_wait_ms = 0,
+        },
+    })
+end)
+assert(zero_wait_ok, zero_wait_err)
+assert(
+    config.get().compile.watch_output_wait_ms == 0,
+    "watch output wait timeout should accept 0 to disable waiting"
+)
+
 local profile_overlay_ok, profile_overlay_err = pcall(function()
     typst.setup({
         root = root,
@@ -1074,6 +1104,7 @@ local profile_overlay_ok, profile_overlay_err = pcall(function()
         compile = {
             extra_args = { "--input", "base=true" },
             watch_output = "auto",
+            watch_output_wait_ms = 1500,
             watch_structured_args = { "--base-watch" },
             deps = true,
             open = false,
@@ -1085,6 +1116,7 @@ local profile_overlay_ok, profile_overlay_err = pcall(function()
                     output_dir = typst_test_cache_path("profile-output"),
                     extra_args = { "--input", "profile=true" },
                     watch_output = "structured",
+                    watch_output_wait_ms = 2500,
                     watch_structured_args = { "--format", "json" },
                     deps = false,
                     open = true,
@@ -1112,6 +1144,9 @@ local profile_expectations = {
     end,
     watch_output = function(run)
         return run.compile.watch_output == "structured"
+    end,
+    watch_output_wait_ms = function(run)
+        return run.compile.watch_output_wait_ms == 2500
     end,
     watch_structured_args = function(run)
         return run.compile.watch_structured_args[2] == "json"

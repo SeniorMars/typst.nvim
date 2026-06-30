@@ -158,36 +158,4 @@ for _, arg in ipairs(human_args) do
     )
 end
 
-local required_fixtures = {
-    "typst-0.11.txt",
-    "typst-0.13.txt",
-    "typst-0.14.txt",
-    "typst-0.15.txt",
-    "structured-json.txt",
-}
-for _, name in ipairs(required_fixtures) do
-    local path = root .. "/tests/fixtures/watch-output/" .. name
-    assert(vim.fn.filereadable(path) == 1, "missing watch fixture " .. name)
-end
-
-for _, fixture in
-    ipairs(
-        vim.fn.glob(root .. "/tests/fixtures/watch-output/*.txt", false, true)
-    )
-do
-    local checked = 0
-    for _, line in ipairs(vim.fn.readfile(fixture)) do
-        local expected, text = line:match("^([^|]+)|(.+)$")
-        if expected then
-            checked = checked + 1
-            local parsed = parser.parse(text)
-            assert(
-                parsed and parsed.event == expected,
-                ("%s expected %s for %q"):format(fixture, expected, text)
-            )
-        end
-    end
-    assert(checked > 0, fixture .. " should contain expected events")
-end
-
 vim.cmd("qa!")

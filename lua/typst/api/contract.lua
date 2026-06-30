@@ -104,6 +104,28 @@ local source_sync_payload = {
     "output",
 }
 
+local compile_payload = vim.list_extend(vim.deepcopy(common_project_payload), {
+    "event_kind",
+    "compiler_event",
+    "watch",
+    "cycle",
+    "generation",
+    "watch_generation",
+    "cycle_generation",
+    "watch_status",
+    "last_cycle_status",
+    "output_wait_ms",
+    "output_wait_attempts",
+    "code",
+    "reason",
+    "message",
+    "deps_path",
+    "stale",
+    "stopped",
+    "idle",
+    "forced",
+})
+
 local event_payloads = {
     TypstEventInitPre = { "provider", "did_setup" },
     TypstEventInitPost = { "provider", "did_setup" },
@@ -129,11 +151,11 @@ local event_payloads = {
             "project_pruned",
         }
     ),
-    TypstEventCompileStarted = vim.deepcopy(common_project_payload),
-    TypstEventCompiling = vim.deepcopy(common_project_payload),
-    TypstEventCompileSuccess = vim.deepcopy(common_project_payload),
-    TypstEventCompileFailed = vim.deepcopy(common_project_payload),
-    TypstEventCompileStopped = vim.deepcopy(common_project_payload),
+    TypstEventCompileStarted = vim.deepcopy(compile_payload),
+    TypstEventCompiling = vim.deepcopy(compile_payload),
+    TypstEventCompileSuccess = vim.deepcopy(compile_payload),
+    TypstEventCompileFailed = vim.deepcopy(compile_payload),
+    TypstEventCompileStopped = vim.deepcopy(compile_payload),
     TypstEventPreviewStarted = vim.list_extend(
         vim.deepcopy(common_project_payload),
         preview_started_payload

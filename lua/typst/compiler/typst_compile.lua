@@ -4,7 +4,7 @@ local compiler_dependencies = require("typst.compiler.dependencies")
 local output_path_util = require("typst.compiler.output_path")
 local compiler_process = require("typst.compiler.typst_process")
 local diagnostics = require("typst.diagnostics")
-local events = require("typst.core.events")
+local compiler_events = require("typst.compiler.events")
 local log = require("typst.core.log")
 local operation = require("typst.core.operation")
 local path_leases = require("typst.core.path_leases")
@@ -14,7 +14,7 @@ local util = require("typst.core.util")
 local M = {}
 
 --- Launch one built-in `typst compile` process for a project.
----@param project table Project state with root, main file, and compiler service state.
+---@param project TypstProject Project state with root, main file, and compiler service state.
 ---@param callback? fun(result:TypstCompilerResult) Terminal compile result callback.
 ---@param run_config? table Effective run configuration used to build the command.
 ---@return userdata? handle libuv process handle, or nil when startup fails before spawn.
@@ -46,6 +46,7 @@ function M.start(project, callback, run_config)
             output = output,
             last_result = result,
         })
+        compiler_events.failed(project, result)
         if callback then
             callback(result)
         end
@@ -74,13 +75,38 @@ function M.start(project, callback, run_config)
             status = "error",
             last_result = result,
         })
+        compiler_events.failed(project, result)
         if callback then
             callback(result)
         end
         return nil
     end
 
-    local command, deps_path = compiler_command.build("compile", project, opts)
+    local build_ok, command, deps_path = xpcall(function()
+        return compiler_command.build("compile", project, opts)
+    end, debug.traceback)
+    if not build_ok then
+        path_leases.release(lease)
+        local result = {
+            code = 1,
+            stdout = "",
+            stderr = tostring(command),
+            ok = false,
+            reason = "command_build_failed",
+            message = tostring(command),
+            path = output,
+            stale = false,
+        }
+        compiler_service.set(project, {
+            status = "error",
+            last_result = result,
+        })
+        compiler_events.failed(project, result)
+        if callback then
+            callback(result)
+        end
+        return nil
+    end
     compiler_service.set(project, {
         last_command = command,
         last_cwd = project.root,
@@ -103,8 +129,8 @@ function M.start(project, callback, run_config)
         process_opts.stdin = opts.compile.stdin
     end
 
-    compile_operation =
-        operation.run("compiler-typst-compile", command, process_opts, {
+    local run_ok, run_result = xpcall(function()
+        return operation.run("compiler-typst-compile", command, process_opts, {
             cleanup = function()
                 path_leases.release(lease)
             end,
@@ -137,6 +163,11 @@ function M.start(project, callback, run_config)
                     return
                 end
 
+                local final_result = vim.tbl_extend("force", result, {
+                    deps_path = deps_path,
+                    stale = false,
+                })
+
                 if result.code == 0 then
                     require("typst.workflows.artifacts").record_owned(project, {
                         path = output,
@@ -149,7 +180,7 @@ function M.start(project, callback, run_config)
                             "process_operation",
                             "active_compile_deps_path",
                         },
-                        last_result = result,
+                        last_result = final_result,
                         status = "success",
                     })
                     diagnostics.clear(project)
@@ -158,8 +189,12 @@ function M.start(project, callback, run_config)
                         compiler_dependencies.take(deps_path, project.root)
                     )
                     log.add("info", "compile succeeded", { output = output })
-                    events.emit("TypstCompileSuccess", project)
+                    compiler_events.succeeded(project, final_result)
                 else
+                    final_result.reason = final_result.reason
+                        or "compile_failed"
+                    final_result.message = final_result.message
+                        or "Typst compile failed"
                     compiler_dependencies.cleanup_file(deps_path)
                     compiler_service.set(project, {
                         clear = {
@@ -167,7 +202,7 @@ function M.start(project, callback, run_config)
                             "process_operation",
                             "active_compile_deps_path",
                         },
-                        last_result = result,
+                        last_result = final_result,
                         status = "error",
                     })
                     if diagnostics.should_publish(project) then
@@ -186,27 +221,51 @@ function M.start(project, callback, run_config)
                         stderr = result.stderr,
                         stdout = result.stdout,
                     })
-                    events.emit("TypstCompileFailed", project)
+                    compiler_events.failed(project, final_result)
                 end
 
                 if callback then
-                    callback(
-                        vim.tbl_extend(
-                            "force",
-                            result,
-                            { deps_path = deps_path, stale = false }
-                        )
-                    )
+                    callback(final_result)
                 end
             end,
         })
+    end, debug.traceback)
+    if not run_ok then
+        path_leases.release(lease)
+        compiler_dependencies.cleanup_file(deps_path)
+        local result = {
+            code = 1,
+            stdout = "",
+            stderr = tostring(run_result),
+            ok = false,
+            reason = "process_start_failed",
+            message = tostring(run_result),
+            path = output,
+            stale = false,
+        }
+        compiler_service.set(project, {
+            clear = {
+                "process",
+                "process_operation",
+                "active_compile_deps_path",
+            },
+            status = "error",
+            last_result = result,
+        })
+        compiler_events.failed(project, result)
+        if callback then
+            callback(result)
+        end
+        return nil
+    end
+    compile_operation = run_result
     handle = compile_operation.handle
 
     compiler_service.set(project, {
         process = handle,
         process_operation = compile_operation,
     })
-    events.emit("TypstCompileStarted", project)
+    compiler_events.started(project)
     return handle
 end
 

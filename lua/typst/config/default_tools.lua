@@ -8,6 +8,7 @@ function M.compile(fragments_output_dir)
         provider_timeout_ms = 10000,
         extra_args = {},
         watch_output = "auto",
+        watch_output_wait_ms = 1500,
         watch_structured_args = {},
         deps = true,
         open = false,

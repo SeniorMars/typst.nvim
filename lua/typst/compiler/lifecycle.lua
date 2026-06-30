@@ -1,4 +1,4 @@
-local events = require("typst.core.events")
+local compiler_events = require("typst.compiler.events")
 local restart_handle = require("typst.core.restart_handle")
 local compiler_result = require("typst.compiler.state_machine")
 
@@ -44,7 +44,7 @@ function M.with_started_event(project, callback, invoke, started_status, opts)
     if opts.after_started then
         opts.after_started(handle, pending)
     end
-    events.emit("TypstCompileStarted", project, { status = started_status })
+    compiler_events.started(project, { status = started_status })
     for _, result in ipairs(pending) do
         result = compiler_result.normalize(result)
         if opts.on_terminal then
