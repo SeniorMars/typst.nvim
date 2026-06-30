@@ -1,0 +1,6 @@
+fixture-yaml:
+  type: book
+  title: Fixture YAML Book
+  author:
+    - Example, Ada
+  date: 2026

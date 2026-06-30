@@ -11,8 +11,18 @@ local function prepend_runtimepath(path)
     vim.opt.packpath:prepend(path)
 end
 
+local function append_runtimepath(path)
+    if type(path) ~= "string" or path == "" then
+        return
+    end
+    vim.opt.runtimepath:append(path)
+    vim.opt.packpath:append(path)
+end
+
 if vim.env.TYPST_NVIM_TEST_DEPS and vim.env.TYPST_NVIM_TEST_DEPS ~= "" then
-    prepend_runtimepath(vim.env.TYPST_NVIM_TEST_DEPS)
+    -- Test dependencies may ship their own Typst queries. Keep the plugin
+    -- under test first so query compatibility failures are about this repo.
+    append_runtimepath(vim.env.TYPST_NVIM_TEST_DEPS)
 end
 
 if vim.env.TYPST_NVIM_TEST_MINI and vim.env.TYPST_NVIM_TEST_MINI ~= "" then
@@ -44,7 +54,9 @@ local function configure_typst_parser_source()
         return
     end
 
-    local configs = parsers.get_parser_configs()
+    local configs = type(parsers.get_parser_configs) == "function"
+            and parsers.get_parser_configs()
+        or parsers
     configs.typst = vim.tbl_deep_extend("force", configs.typst or {}, {
         install_info = {
             url = repo,
@@ -57,6 +69,10 @@ local function configure_typst_parser_source()
 end
 
 configure_typst_parser_source()
+vim.api.nvim_create_autocmd("User", {
+    pattern = "TSUpdate",
+    callback = configure_typst_parser_source,
+})
 
 local parser_roots = {}
 if vim.env.TYPST_NVIM_TEST_PARSER and vim.env.TYPST_NVIM_TEST_PARSER ~= "" then

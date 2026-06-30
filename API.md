@@ -605,6 +605,9 @@ The result can contain normal index categories such as `labels`, `citations`,
 location fields. Registering or unregistering an index provider invalidates the
 aggregate index cache. Providers with mutable external state can call
 `require("typst").index.mark_dirty(project, reason)` before collecting again.
+Provider result, handle, timeout, and cancellation classification rules are
+documented in `docs/provider-contracts.md`; internal project/service/watch
+ownership rules are documented in `docs/architecture.md`.
 
 `executable` may be a string executable or a list prefix. `viewer.provider`
 selects the output viewer preset. Built-in presets currently include
@@ -646,24 +649,30 @@ cycle emits started/success/failure events, failed cycles publish diagnostics
 from the current cycle only, later successful cycles clear stale diagnostics,
 and event payloads include a monotonic `cycle_generation` that keeps increasing
 across watcher restarts. The parser supports structured JSON-line watch events
-when `compile.watch_structured_args` makes the configured Typst executable emit
-them; otherwise Typst's current human-readable watch output is parsed through
+when `compile.watch_structured_args` makes the configured executable or wrapper
+emit them. Typst CLI 0.15 does not expose a stable structured watch-status
+flag; otherwise Typst's current human-readable watch output is parsed through
 fixture-gated best-effort profiles. Set `compile.watch_output = "structured"`
-to require structured watch events and fail closed on human-readable status
-lines. If the watch process exits after parsed cycles, the last cycle remains
-the build result and no extra compile success/failure event is synthesized from
-the process exit. Retained watch stdout/stderr is bounded. Unterminated
+only for wrappers or future Typst versions that emit stable JSON-line watch
+events, causing human-readable status lines to fail closed. If the watch
+process exits after parsed cycles, the last cycle remains the build result and
+no extra compile success/failure event is synthesized from the process exit.
+Retained watch stdout/stderr is bounded. Unterminated
 partial-line buffers are bounded too. Repeated watch restarts while the old
 watcher is stopping are debounced into one replacement watcher. Completed watch
 cycles notify optional `viewer.reload(project, result, opts)` and
 `preview.refresh(project, result, opts)` callbacks with `opts.source == "watch"`
 and `opts.watch == true`.
+After a successful watch cycle, typst.nvim waits up to
+`compile.watch_output_wait_ms` for the expected output file to become readable
+before treating the cycle as a missing-output failure.
 `compiler.compile_selected(opts, callback)` renders the requested line range
 with `compile.fragments.templates`, then compiles that fragment through the
 configured compiler provider. Generated source is passed through stdin by
 default: the built-in Typst provider runs `typst compile -`, generic/task
 providers receive stdin and `{main}` expands to `-`, and custom provider
-callbacks can read `run_config.compile.stdin`. Generic/task `{source}` still
+callbacks can read the internal runtime field `run_config.compile.stdin`.
+`compile.stdin` is not a public setup option. Generic/task `{source}` still
 expands to the originating source path when it is known, and `{stdin}` expands
 to `1` for stdin-backed fragment compiles. Providers can opt into file-backed
 source wrappers with `compile.fragments.source_dir` or a template `source_dir`.

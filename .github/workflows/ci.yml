@@ -137,6 +137,93 @@ jobs:
       - name: Run mini.test pilot
         run: bash tests/run_minitest.sh
 
+  fake-typst-lifecycle:
+    name: ubuntu-latest / fake Typst lifecycle gate
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      XDG_STATE_HOME: ${{ runner.temp }}/typst-nvim-xdg/state
+      XDG_DATA_HOME: ${{ runner.temp }}/typst-nvim-xdg/data
+      XDG_CACHE_HOME: ${{ runner.temp }}/typst-nvim-xdg/cache
+      XDG_CONFIG_HOME: ${{ runner.temp }}/typst-nvim-xdg/config
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: Run fake Typst lifecycle gate
+        run: bash tests/run_fake_typst_lifecycle.sh
+
+  docs-consistency:
+    name: ubuntu-latest / generated docs consistency
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      XDG_STATE_HOME: ${{ runner.temp }}/typst-nvim-xdg/state
+      XDG_DATA_HOME: ${{ runner.temp }}/typst-nvim-xdg/data
+      XDG_CACHE_HOME: ${{ runner.temp }}/typst-nvim-xdg/cache
+      XDG_CONFIG_HOME: ${{ runner.temp }}/typst-nvim-xdg/config
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: Run generated config docs consistency gate
+        run: |
+          bash tests/run_config_docs.sh
+          git diff --exit-code -- docs/config-reference.md data/config-schema.json
+
+  minimal-plugin-manager-install:
+    name: ubuntu-latest / minimal plugin-manager install
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      TYPST_NVIM_LAZY_PATH: ${{ github.workspace }}/.deps/lazy.nvim
+      XDG_STATE_HOME: ${{ runner.temp }}/typst-nvim-xdg/state
+      XDG_DATA_HOME: ${{ runner.temp }}/typst-nvim-xdg/data
+      XDG_CACHE_HOME: ${{ runner.temp }}/typst-nvim-xdg/cache
+      XDG_CONFIG_HOME: ${{ runner.temp }}/typst-nvim-xdg/config
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: 0.15.x
+
+      - name: Install lazy.nvim
+        run: |
+          mkdir -p .deps
+          git clone --depth=1 https://github.com/folke/lazy.nvim "${TYPST_NVIM_LAZY_PATH}"
+
+      - name: Run minimal plugin-manager install gate
+        run: bash tests/run_minimal_plugin_manager_install.sh
+
   performance-gate:
     name: ubuntu-latest / large-project performance gate
     runs-on: ubuntu-latest

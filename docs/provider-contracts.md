@@ -86,13 +86,71 @@ When a timeout is configured, raw handles and pending tables are watchdog
 protected. A provider that never calls back receives a synthetic timeout result,
 and typst.nvim clears active lifecycle state through the normal terminal path.
 
-For `return_mode = "handle"` call sites, table results must be explicit. A
-table with only handle-like fields such as `path`, `output`, `diagnostics`, or
-`by_buffer` remains a handle unless the call site opts into broad table results.
+### Handle and Result Classification
+
+typst.nvim has two adapter modes:
+
+- **Result mode** is used for provider methods where a returned table normally
+  means completed work. Tables with `ok`, `code`, `reason`, `message`,
+  `stopped`, `output`, `path`, `artifacts`, `by_buffer`, or `diagnostics` are
+  treated as terminal results unless `pending = true` is present.
+- **Handle mode** is used for compiler/watch/start-style methods where the
+  returned value may be an active process or custom pending handle. In this
+  mode, tables with only handle-like fields such as `path`, `output`,
+  `diagnostics`, or `by_buffer` remain handles. Terminal table results must be
+  explicit.
+
 Terminal results in handle mode should include at least one terminal field such
 as `ok`, `code`, `reason`, `message`, `stopped`, `forced`, or `orphaned`.
 Use `{ pending = true }` for pending handles that should expose adapter-managed
-timeout/cancel behavior.
+timeout/cancel behavior. If a custom handle looks result-shaped, either include
+`pending = true` or ensure the call site supplies an explicit handle predicate.
+
+Examples:
+
+```lua
+-- Synchronous result.
+return { ok = true, path = "/tmp/main.pdf" }
+
+-- Pending handle. The callback must eventually receive a terminal result.
+return {
+  pending = true,
+  cancel = function(self, opts)
+    return true, {
+      ok = false,
+      stopped = true,
+      reason = opts and opts.reason or "cancelled",
+    }
+  end,
+}
+
+-- Raw handle in handle mode. This is not terminal merely because it has path.
+return {
+  path = "/tmp/provider-owned-output.pdf",
+  cancel = function(self, opts)
+    self.process:kill()
+    return true, { stopped = true, reason = opts and opts.reason }
+  end,
+}
+```
+
+The shared pending helper used by the adapter, preview exports, and native
+preview provides the common `pending`, `result`, `finish(result)`,
+`on_finish(callback)`, and `cancel(opts)` behavior. Provider-specific adapters
+are still responsible for deciding whether a returned value is a handle or a
+terminal result before wrapping it.
+
+Internal pending handles use method-style observation:
+
+```lua
+handle:on_finish(function(result) end)
+```
+
+typst.nvim-owned handles advertise this with `on_finish_style = "colon"`.
+Legacy dot-style handles can be observed only when the adapter explicitly asks
+for that calling convention. Do not infer dot-vs-colon style from function
+arity; Lua callbacks often accept optional arguments, and guessing can register
+the wrong object as the callback.
 
 The executable provider SDK contract lives in
 `typst.integrations.provider_contract`. It exposes stable kind aliases, method

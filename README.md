@@ -413,6 +413,9 @@ require("typst").setup({
   compile = {
     provider = nil,
     extra_args = {},
+    watch_output = "auto",
+    watch_output_wait_ms = 1500,
+    watch_structured_args = {},
     deps = true,
     open = false,
     typst_open = false,
@@ -1119,7 +1122,8 @@ Provider return, callback, timeout, and cancellation rules are documented in
 `:TypstWatch [profile]` apply named compile
 profiles from `compile.profiles`. A profile can override `output_dir`,
 `output_name`, `output_format`, `extra_args`, `watch_output`,
-`watch_structured_args`, `deps`, `open`, and `typst_open` for that run.
+`watch_output_wait_ms`, `watch_structured_args`, `deps`, `open`, and
+`typst_open` for that run.
 Unsupported profile keys fail validation instead of being silently ignored.
 `open = true` opens the successful output through typst.nvim's configured
 viewer; `typst_open = true` passes Typst's raw `--open` flag instead.
@@ -1131,7 +1135,8 @@ cycle result. Each cycle also gets a monotonic `cycle_generation` that keeps
 increasing across watcher restarts. If the watch process exits after parsed
 cycles, typst.nvim keeps the last cycle as the build result instead of
 synthesizing another compile success or failure from the process exit. Typst's
-default watch output is human-readable, so typst.nvim treats that parser as a
+default watch output is human-readable, and Typst CLI 0.15 does not expose a
+stable structured watch-status flag, so typst.nvim treats that parser as a
 fixture-gated best-effort compatibility layer. If a future or wrapper Typst
 binary can emit stable JSON-line watch events, configure
 `compile.watch_structured_args` for those flags; set
@@ -1140,7 +1145,11 @@ lines appear. Retained watcher stdout/stderr are bounded, and unterminated
 partial-line buffers are bounded too so long-running watch processes cannot
 grow memory unboundedly. Repeated watch restarts are debounced while the old
 watcher is stopping, so typst.nvim sends one termination request and starts one
-replacement watcher. Completed watch cycles notify optional
+replacement watcher. After a successful watch cycle, typst.nvim waits up to
+`compile.watch_output_wait_ms` for the expected output file to become readable
+before treating the cycle as a missing-output failure. Set it to `0` to disable
+the wait; values above 60000 ms are rejected as configuration errors. Completed
+watch cycles notify optional
 `viewer.reload(project, result, opts)` and `preview.refresh(project, result,
 opts)` callbacks with `opts.source == "watch"` and `opts.watch == true`.
 One-shot compile success notifies the same callbacks with
@@ -1151,8 +1160,9 @@ first successful cycle and then continues to notify reload/refresh callbacks.
 `{ "uv", "run", "typst" }`; typst.nvim appends the Typst subcommand and
 arguments without going through a shell.
 
-`output_name` controls the generated output filename. If it has no extension,
-typst.nvim appends `output_format`.
+`output_name` controls the generated output filename. It must be a basename; use
+`output_dir` for directories. If it has no extension, typst.nvim appends
+`output_format`.
 
 `:TypstCompileSelected [template]` compiles the selected line range as a
 generated fragment without changing the registered project state. Templates are
@@ -1162,7 +1172,8 @@ aliases. Fragment outputs are written to `compile.fragments.output_dir`, which
 defaults to `stdpath("cache")/typst.nvim/fragments`. Generated fragment source is
 passed through stdin by default: the built-in Typst provider runs
 `typst compile -`, generic/task providers receive stdin and `{main}` expands to
-`-`, and custom provider callbacks can read `run_config.compile.stdin`.
+`-`, and custom provider callbacks can read the internal runtime field
+`run_config.compile.stdin`. `compile.stdin` is not a public setup option.
 Generic/task `{source}` still expands to the originating source path when it is
 known, and `{stdin}` expands to `1` for stdin-backed fragment compiles.
 Project-relative imports still resolve with the project `--root`, without

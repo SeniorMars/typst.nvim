@@ -1,5 +1,7 @@
 # Internal Contracts
 
+Broader lifecycle and ownership notes live in `docs/architecture.md`.
+
 ## Coordinates
 
 Internal positions use a single coordinate contract:

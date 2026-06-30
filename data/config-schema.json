@@ -32,6 +32,7 @@
     { "path": "compile.task", "type": "list", "default": "{}" },
     { "path": "compile.typst_open", "type": "boolean", "default": "false" },
     { "path": "compile.watch_output", "type": "string", "default": "\"auto\"" },
+    { "path": "compile.watch_output_wait_ms", "type": "number", "default": "1500" },
     { "path": "compile.watch_structured_args", "type": "list", "default": "{}" },
     { "path": "completion.color_names", "type": "list", "default": "{}" },
     { "path": "completion.csl_scan_max", "type": "number", "default": "100" },

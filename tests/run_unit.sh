@@ -2,6 +2,9 @@
 set -euo pipefail
 
 source tests/xdg.sh
+if [[ -z "${TYPST_NVIM_TEST_DEPS:-}" && -d "${PWD}/.deps/nvim-treesitter" ]]; then
+  export TYPST_NVIM_TEST_DEPS="${PWD}/.deps/nvim-treesitter"
+fi
 typst_nvim_init_test_xdg
 
 typst_parser_available=0

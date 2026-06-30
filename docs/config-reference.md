@@ -36,6 +36,7 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `compile.task` | `list` | `{}` |
 | `compile.typst_open` | `boolean` | `false` |
 | `compile.watch_output` | `string` | `"auto"` |
+| `compile.watch_output_wait_ms` | `number` | `1500` |
 | `compile.watch_structured_args` | `list` | `{}` |
 | `completion.color_names` | `list` | `{}` |
 | `completion.csl_scan_max` | `number` | `100` |
