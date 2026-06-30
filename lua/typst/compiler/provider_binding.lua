@@ -5,19 +5,6 @@ local compiler_service = require("typst.project.services.compiler")
 
 local M = {}
 
----@class TypstCompileProvider
----@field compile fun(project: table, callback: function|nil, run_config: table|nil): unknown
----@field start fun(project: table, callback: function|nil, run_config: table|nil): unknown
----@field stop fun(project: table, callback: function|nil): unknown
----@field status fun(project: table): string|nil
----@field output fun(project: table, run_config: table|nil): string|nil
----@field name string|nil
-
----@class TypstProviderBinding
----@field provider TypstCompileProvider
----@field builtin boolean
----@field external boolean
-
 local required_methods = { "compile", "start", "stop", "status", "output" }
 
 local function typst_provider()
@@ -156,7 +143,7 @@ function M.configured()
 end
 
 --- Attach the active compiler provider binding to a project.
----@param project table Project state mutated with the provider binding.
+---@param project TypstProject Project state mutated with the provider binding.
 ---@param provider TypstCompileProvider Provider selected for the active run.
 ---@param builtin boolean True when the provider is the built-in Typst backend.
 ---@param external boolean True when the provider needs an adapter project context.
@@ -170,7 +157,7 @@ function M.bind(project, provider, builtin, external)
 end
 
 --- Return the provider that should handle the project's current compiler state.
----@param project table Project state whose active binding is inspected.
+---@param project TypstProject Project state whose active binding is inspected.
 ---@return TypstCompileProvider provider Active or newly configured provider.
 ---@return boolean builtin True when the provider is the built-in Typst backend.
 ---@return boolean external True when the provider needs an adapter project context.
@@ -192,7 +179,7 @@ function M.active(project)
 end
 
 --- Clear the sticky provider binding once no compiler operation is active.
----@param project table Project state whose binding may be removed.
+---@param project TypstProject Project state whose binding may be removed.
 function M.clear_if_idle(project)
     local compiler_state = compiler_service.get(project) or {}
     if
@@ -205,7 +192,7 @@ function M.clear_if_idle(project)
 end
 
 --- Check whether the project has an active compiler operation.
----@param project table Project state whose compiler service is inspected.
+---@param project TypstProject Project state whose compiler service is inspected.
 ---@return unknown active Active process/watcher/stopping record, or nil when idle.
 function M.has_active_operation(project)
     local compiler_state = compiler_service.get(project) or {}
@@ -215,7 +202,7 @@ function M.has_active_operation(project)
 end
 
 --- Return the project argument shape expected by the active provider.
----@param project table Internal project state.
+---@param project TypstProject Internal project state.
 ---@param external boolean True when provider adapters should receive context objects.
 ---@param opts? table Context options forwarded to provider project construction.
 ---@return table project_arg Internal project or external-provider context.
@@ -227,7 +214,7 @@ function M.project_arg(project, external, opts)
 end
 
 --- Copy provider context command/cwd reports back onto internal project state.
----@param project table Internal project state to update.
+---@param project TypstProject Internal project state to update.
 ---@param context table Provider context returned to an external adapter.
 function M.apply_context_reports(project, context)
     if context == project or type(context) ~= "table" then
@@ -251,7 +238,7 @@ end
 
 --- Ask the provider for its output path and store it on project compiler state.
 ---@param provider TypstCompileProvider Active compiler provider.
----@param project table Project state whose compiler output may be updated.
+---@param project TypstProject Project state whose compiler output may be updated.
 ---@param run_config? table Effective run configuration for the provider call.
 function M.refresh_output(provider, project, run_config)
     local binding = project.compiler_provider or {}

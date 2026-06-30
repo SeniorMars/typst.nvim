@@ -272,8 +272,12 @@ assert(
     "custom provider watch cycle should emit a success event"
 )
 assert(
-    events[4].data.status == "watching",
-    "custom provider watch cycle success should preserve watcher status"
+    events[4].data.status == "success",
+    "custom provider watch cycle success should report success status"
+)
+assert(
+    events[4].data.watch_status == "watching",
+    "custom provider watch cycle success should preserve watcher status separately"
 )
 local provider_collision = typst.artifact.export({
     format = "pdf",

@@ -231,6 +231,7 @@ local raw_handle = adapter.invoke(
         kind = "render",
         provider_name = "raw-handle",
         return_mode = "handle",
+        expect_handle = true,
         timeout_ms = 10,
         on_result = function(result)
             raw_handle_timeout = result

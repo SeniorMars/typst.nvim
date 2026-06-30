@@ -41,6 +41,7 @@ function M.new(opts)
         result = nil,
         restart = true,
         kind = opts.kind,
+        on_finish_style = "colon",
     }
 
     function handle:set_stop_handle(stop_handle)

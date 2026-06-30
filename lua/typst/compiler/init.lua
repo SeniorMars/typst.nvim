@@ -9,25 +9,16 @@ local util = require("typst.core.util")
 
 local M = {}
 
----@class TypstCompilerResult
----@field code integer? Process/operation exit code when available.
----@field stdout string?
----@field stderr string?
----@field stale boolean? Result was superseded by a newer run and should not be emitted.
----@field stopped boolean? Operation reached a stop transition.
----@field idle boolean?
----@field ok boolean?
----@field reason string?
----@field message string?
----@field active_output string?
----@field deps_path string?
-
 -- Provider-neutral compile/watch coordinator.
 --
 -- Built-in Typst jobs, user-supplied compiler providers, and command-style
 -- providers all report through this module so project compiler state, events,
 -- output leases, and restart behavior stay consistent.
 
+---@param project TypstProject Project whose active compiler work is replaced.
+---@param start_next fun(callback:fun(result:TypstCompilerResult)):unknown
+---@param callback? fun(result:TypstCompilerResult)
+---@return unknown handle Replacement handle or nil.
 local function replace_active(project, start_next, callback)
     if not provider_binding.has_active_operation(project) then
         return nil
@@ -42,11 +33,14 @@ local function provider_name(provider)
     return type(provider) == "table" and provider.name or "compiler"
 end
 
+---@param run_config? table Effective run configuration.
+---@return integer? timeout_ms Provider timeout in milliseconds.
 local function provider_timeout_ms(run_config)
     local compile = (run_config or require("typst.config").get()).compile or {}
     return compile.provider_timeout_ms
 end
 
+---@param project TypstProject Project whose compiler output lease is released.
 local function release_output_lease(project)
     local compiler_state = compiler_service.get(project) or {}
     local lease = compiler_state.output_lease
@@ -56,6 +50,11 @@ local function release_output_lease(project)
     end
 end
 
+---@param project TypstProject Project whose output path is leased.
+---@param kind string Lease owner kind.
+---@param callback? fun(result:TypstCompilerResult)
+---@return boolean ok
+---@return TypstCompilerResult? result Failure result when acquisition failed.
 local function acquire_output_lease(project, kind, callback)
     local output = (compiler_service.get(project) or {}).output
     if type(output) ~= "string" or output == "" then
@@ -120,7 +119,7 @@ local function acquire_output_lease(project, kind, callback)
 end
 
 --- Start one compile through the active compiler provider for a project.
----@param project table Project state whose compiler service owns the run.
+---@param project TypstProject Project state whose compiler service owns the run.
 ---@param callback? fun(result:TypstCompilerResult) Terminal result callback.
 ---@param run_config? table Effective run configuration for this invocation.
 ---@return unknown handle Provider-specific process/pending handle, or nil when startup fails synchronously.
@@ -179,6 +178,7 @@ function M.compile(project, callback, run_config)
                     callback_position = 2,
                     on_result = wrapped,
                     return_mode = "handle",
+                    expect_handle = true,
                     timeout_ms = provider_timeout_ms(run_config),
                     normalize = compiler_result.normalize,
                     invalid_result_message = "Compiler provider returned no result",
@@ -206,7 +206,7 @@ function M.compile(project, callback, run_config)
 end
 
 --- Start the long-running watch provider for a project.
----@param project table Project state whose compiler service owns the watcher.
+---@param project TypstProject Project state whose compiler service owns the watcher.
 ---@param callback? fun(result:TypstCompilerResult) Watch-cycle or terminal result callback.
 ---@param run_config? table Effective run configuration for this invocation.
 ---@return unknown handle Provider-specific watcher/pending handle, or nil when startup fails synchronously.
@@ -265,6 +265,7 @@ function M.start(project, callback, run_config)
                     callback_position = 2,
                     on_result = wrapped,
                     return_mode = "handle",
+                    expect_handle = true,
                     timeout_ms = provider_timeout_ms(run_config),
                     normalize = compiler_result.normalize,
                     invalid_result_message = "Compiler provider returned no result",
@@ -300,7 +301,7 @@ function M.start(project, callback, run_config)
 end
 
 --- Stop the active compiler provider process for a project.
----@param project table Project state whose active compile or watcher should stop.
+---@param project TypstProject Project state whose active compile or watcher should stop.
 ---@param callback? fun(result:TypstCompilerResult) Stop result callback.
 ---@return unknown handle Provider-specific stop handle, or nil when the project was already idle.
 function M.stop(project, callback)
@@ -329,6 +330,7 @@ function M.stop(project, callback)
         args = { provider_project },
         callback_position = 2,
         return_mode = "handle",
+        expect_handle = true,
         timeout_ms = provider_timeout_ms(),
         normalize = compiler_result.normalize,
         on_result = function(result)
@@ -350,6 +352,9 @@ function M.stop(project, callback)
     })
 end
 
+---@param project TypstProject Project whose active provider handle should be returned.
+---@return any handle Provider-facing handle.
+---@return any active Active service record or raw handle.
 local function active_provider_handle(project)
     local compiler_state = compiler_service.get(project) or {}
     local active = compiler_state.watcher or compiler_state.process
@@ -361,7 +366,7 @@ local function active_provider_handle(project)
 end
 
 --- Stop compiler work synchronously during Neovim exit cleanup.
----@param project table Project state whose compiler process should be shut down.
+---@param project TypstProject Project state whose compiler process should be shut down.
 ---@param opts? table Shutdown options forwarded to the provider or process helper.
 ---@return TypstCompilerResult result Final shutdown result.
 function M.stop_for_exit(project, opts)
@@ -432,7 +437,7 @@ function M.stop_for_exit(project, opts)
 end
 
 --- Return the active compiler status for a project.
----@param project table Project state to query.
+---@param project TypstProject Project state to query.
 ---@return string? status Provider-reported status or stored project compiler status.
 function M.status(project)
     local provider, _, external = provider_binding.active(project)
@@ -452,7 +457,7 @@ function M.status(project)
 end
 
 --- Return the current compiler output path for a project.
----@param project table Project state to query.
+---@param project TypstProject Project state to query.
 ---@return string? path Provider-reported output path or stored compiler output path.
 function M.output(project)
     local provider, _, external = provider_binding.active(project)

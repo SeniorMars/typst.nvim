@@ -3,6 +3,7 @@ local M = {}
 local config = require("typst.config")
 local events = require("typst.core.events")
 local log = require("typst.core.log")
+local pending_handle = require("typst.core.pending")
 local restart_handle = require("typst.core.restart_handle")
 local preview_service = require("typst.project.services.preview")
 local preview_capabilities =
@@ -20,55 +21,21 @@ M.own_inverse_command_definition = runtime.own_inverse_command_definition
 local callback_error = preview_capabilities.callback_error
 
 local function subscribe_on_finish(handle, callback)
-    if type(handle) ~= "table" or type(handle.on_finish) ~= "function" then
-        return false, "missing_on_finish"
+    local style = type(handle) == "table"
+            and (handle.on_finish_style or handle._typst_on_finish_style)
+        or nil
+    if style then
+        return pending_handle.subscribe(handle, callback, { style = style })
     end
 
-    local info_ok, info = pcall(debug.getinfo, handle.on_finish, "u")
-    local method_style = info_ok
-        and type(info) == "table"
-        and type(info.nparams) == "number"
-        and info.nparams >= 2
-
-    local first_error = nil
-    local function try(register)
-        local ok, result = pcall(register)
-        if ok then
-            return true, result
-        end
-        first_error = first_error or result
-        return false, result
+    -- Legacy typst-preview.nvim callback handles are dot-style. typst.nvim-owned
+    -- handles set `on_finish_style = "colon"` so they do not rely on guessing.
+    local ok, result =
+        pending_handle.subscribe(handle, callback, { style = "dot" })
+    if ok then
+        return ok, result
     end
-
-    if method_style then
-        local ok, result = try(function()
-            return handle:on_finish(callback)
-        end)
-        if ok then
-            return true, result
-        end
-        ok, result = try(function()
-            return handle.on_finish(callback)
-        end)
-        if ok then
-            return true, result
-        end
-    else
-        local ok, result = try(function()
-            return handle.on_finish(callback)
-        end)
-        if ok then
-            return true, result
-        end
-        ok, result = try(function()
-            return handle:on_finish(callback)
-        end)
-        if ok then
-            return true, result
-        end
-    end
-
-    return false, first_error
+    return pending_handle.subscribe(handle, callback)
 end
 
 local function restart_stop_failed(result)

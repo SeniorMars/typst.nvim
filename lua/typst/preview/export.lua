@@ -1,6 +1,7 @@
 local compiler_service = require("typst.project.services.compiler")
 local config = require("typst.config")
 local log = require("typst.core.log")
+local pending_handle = require("typst.core.pending")
 local operations = require("typst.project.services.operations")
 local preview_cache = require("typst.preview.cache")
 local session = require("typst.preview.native.session")
@@ -300,76 +301,15 @@ local function failed(project, export, target, result)
 end
 
 local function wrap_pending(export_handle, complete)
-    local callbacks = {}
-    local handle = {
-        pending = true,
+    local handle = pending_handle.new({
         kind = "preview-export",
         handle = export_handle,
-    }
+        complete = function(raw)
+            return complete(raw)
+        end,
+    })
 
-    function handle:on_finish(callback)
-        if type(callback) ~= "function" then
-            return self
-        end
-        if self.result ~= nil then
-            pcall(callback, self.result, self)
-        else
-            callbacks[#callbacks + 1] = callback
-        end
-        return self
-    end
-
-    local function finish(raw)
-        if handle.result ~= nil then
-            return handle.result
-        end
-        handle.pending = false
-        handle.result = complete(raw)
-        for _, callback in ipairs(callbacks) do
-            pcall(callback, handle.result, handle)
-        end
-        callbacks = {}
-        return handle.result
-    end
-
-    handle.finish = finish
-
-    function handle.cancel(self_or_opts, maybe_opts)
-        local opts = self_or_opts == handle and maybe_opts or self_or_opts
-        if handle.result ~= nil then
-            return false, handle.result
-        end
-        local cancel = type(export_handle) == "table" and export_handle.cancel
-            or nil
-        if type(cancel) ~= "function" then
-            local result = finish({
-                ok = false,
-                reason = opts and opts.reason or "cancelled",
-                stopped = true,
-            })
-            return true, result
-        end
-        local ok, stopped, result = pcall(cancel, export_handle, opts)
-        if not ok then
-            result = finish({
-                ok = false,
-                reason = "cancel_failed",
-                message = tostring(stopped),
-                stopped = false,
-            })
-            return false, result
-        end
-        if type(result) ~= "table" or result.pending ~= true then
-            result = finish(result or {
-                ok = false,
-                reason = opts and opts.reason or "cancelled",
-                stopped = stopped ~= false,
-            })
-        end
-        return stopped ~= false, result
-    end
-
-    return handle, finish
+    return handle, handle.finish
 end
 
 --- Resolve the artifact path a native preview target should display.

@@ -1,6 +1,7 @@
 local async = require("typst.core.async")
 local async_state = require("typst.core.async_state")
 local log = require("typst.core.log")
+local pending_handle = require("typst.core.pending")
 local tables = require("typst.core.tables")
 
 local M = {}
@@ -261,21 +262,20 @@ function M.invoke(provider, method, context, opts, control)
         return result
     end
 
-    local completed = false
     local timer = nil
     local normalized_result = nil
     local returned_value = nil
     local returned_proxy = nil
-    local pending = {
-        ok = false,
-        pending = true,
-        provider = name,
-        kind = kind,
-        method = selected_method,
-    }
 
-    local function finish(raw, source)
-        if completed then
+    local pending
+    pending = pending_handle.new({
+        kind = kind,
+        fields = {
+            ok = false,
+            provider = name,
+            method = selected_method,
+        },
+        duplicate = function(_, _, source)
             -- Late provider callbacks are common after timeouts or manual
             -- cancellation. The first terminal result wins to keep state
             -- transitions single-shot.
@@ -284,34 +284,70 @@ function M.invoke(provider, method, context, opts, control)
                 provider = name,
                 source = source,
             })
-            return normalized_result
-        end
-
-        completed = true
-        close_timer(timer)
-        pending.pending = false
-        normalized_result = normalize_result(control, raw, name)
-        if
-            type(returned_proxy) == "table"
-            and type(normalized_result) == "table"
-        then
-            returned_proxy.pending = false
-            for _, key in ipairs({
-                "ok",
-                "reason",
-                "message",
-                "stopped",
-                "forced",
-                "orphaned",
-                "error",
-            }) do
-                if normalized_result[key] ~= nil then
-                    returned_proxy[key] = normalized_result[key]
+        end,
+        complete = function(raw)
+            close_timer(timer)
+            normalized_result = normalize_result(control, raw, name)
+            if
+                type(returned_proxy) == "table"
+                and type(normalized_result) == "table"
+            then
+                returned_proxy.pending = false
+                for _, key in ipairs({
+                    "ok",
+                    "reason",
+                    "message",
+                    "stopped",
+                    "forced",
+                    "orphaned",
+                    "error",
+                }) do
+                    if normalized_result[key] ~= nil then
+                        returned_proxy[key] = normalized_result[key]
+                    end
                 end
             end
-        end
-        protected_callback(control, normalized_result, context)
-        return normalized_result
+            protected_callback(control, normalized_result, context)
+            return normalized_result
+        end,
+        cancel = function(_, cancel_opts, finish)
+            local ok, result = cancel_returned(returned_value, cancel_opts)
+            if pending.result ~= nil then
+                return ok, result
+            end
+            if type(result) == "table" and result.pending == true then
+                return ok, result
+            end
+            if returned_value == nil then
+                return true,
+                    finish({
+                        ok = false,
+                        reason = (cancel_opts and cancel_opts.reason)
+                            or "cancelled",
+                        stopped = true,
+                        message = ("%s provider invocation was cancelled"):format(
+                            kind
+                        ),
+                    }, "cancel")
+            end
+            local terminal = type(result) == "table"
+                    and M.result_like(result)
+                    and result
+                or {
+                    ok = false,
+                    reason = (cancel_opts and cancel_opts.reason)
+                        or "cancelled",
+                    stopped = ok ~= false,
+                    message = ("%s provider invocation was cancelled"):format(
+                        kind
+                    ),
+                }
+            return ok, finish(terminal, "cancel")
+        end,
+    })
+
+    local function finish(raw, source)
+        return pending.finish(raw, source)
     end
 
     local function provider_callback(raw)
@@ -329,7 +365,7 @@ function M.invoke(provider, method, context, opts, control)
         timer = uv.new_timer()
         timer:start(timeout_ms, 0, function()
             schedule(function()
-                if completed then
+                if pending.result ~= nil then
                     return
                 end
                 -- Prefer asking the provider-owned handle to cancel before
@@ -340,7 +376,7 @@ function M.invoke(provider, method, context, opts, control)
                     timeout_ms = 0,
                     kill_timeout_ms = 0,
                 })
-                if completed then
+                if pending.result ~= nil then
                     return
                 end
                 finish(timeout_result(kind, name, timeout_ms), "timeout")
@@ -367,37 +403,6 @@ function M.invoke(provider, method, context, opts, control)
 
     returned_value = returned
     pending.handle = returned
-    pending.cancel = function(cancel_opts)
-        local ok, result = cancel_returned(returned_value, cancel_opts)
-        if completed then
-            return ok, result
-        end
-        if type(result) == "table" and result.pending == true then
-            return ok, result
-        end
-        if returned_value == nil then
-            return true,
-                finish({
-                    ok = false,
-                    reason = (cancel_opts and cancel_opts.reason)
-                        or "cancelled",
-                    stopped = true,
-                    message = ("%s provider invocation was cancelled"):format(
-                        kind
-                    ),
-                }, "cancel")
-        end
-        local terminal = type(result) == "table"
-                and M.result_like(result)
-                and result
-            or {
-                ok = false,
-                reason = (cancel_opts and cancel_opts.reason) or "cancelled",
-                stopped = ok ~= false,
-                message = ("%s provider invocation was cancelled"):format(kind),
-            }
-        return ok, finish(terminal, "cancel")
-    end
 
     local function pending_proxy_for(value)
         if type(value) ~= "table" then
@@ -431,7 +436,7 @@ function M.invoke(provider, method, context, opts, control)
                 ok, result = cancel_returned(value, cancel_opts)
             end
 
-            if completed then
+            if pending.result ~= nil then
                 return ok ~= false, result
             end
             if type(result) == "table" and result.pending == true then
@@ -479,7 +484,7 @@ function M.invoke(provider, method, context, opts, control)
         returned ~= nil
         and control.return_mode == "handle"
         and returned_result
-        and not completed
+        and pending.result == nil
         and not control.prefer_handle
     then
         finish(returned, "return")
@@ -487,10 +492,10 @@ function M.invoke(provider, method, context, opts, control)
     end
 
     if returned ~= nil and control.return_mode == "handle" then
-        if not completed and async_expected then
+        if pending.result == nil and async_expected then
             start_timeout()
         end
-        if control.expect_handle and not completed then
+        if control.expect_handle and pending.result == nil then
             local handle_type = type(returned)
             if handle_type ~= "table" and handle_type ~= "userdata" then
                 finish(
@@ -509,7 +514,7 @@ function M.invoke(provider, method, context, opts, control)
         return returned
     end
 
-    if completed then
+    if pending.result ~= nil then
         return normalized_result
     end
 

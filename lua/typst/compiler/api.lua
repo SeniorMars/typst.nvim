@@ -12,9 +12,9 @@ local M = {}
 local notify_user = require("typst.core.notify").user
 
 --- Run one Typst compile for a project.
----@param state table Project state whose main file should be compiled.
+---@param state TypstProject Project state whose main file should be compiled.
 ---@param opts? table Compile options, including profile and output-opening controls.
----@param callback? fun(result:TypstCompilerResult, state:table) Callback invoked for non-stale terminal results.
+---@param callback? fun(result:TypstCompilerResult, state:TypstProject) Callback invoked for non-stale terminal results.
 ---@param notify? fun(message:string, level?:integer) Notification sink used by commands/API calls.
 ---@return any handle Provider/process handle returned by the active compiler backend.
 function M.compile(state, opts, callback, notify)
@@ -71,7 +71,7 @@ function M.compile(state, opts, callback, notify)
 end
 
 --- Compile a selected Typst fragment through the fragment workflow.
----@param state table Parent project state that supplies config and root context.
+---@param state TypstProject Parent project state that supplies config and root context.
 ---@param opts? table Fragment compile options, including range and template data.
 ---@param callback? fun(result:table, state:table) Callback invoked with the fragment result.
 ---@param notify? fun(message:string, level?:integer) Notification sink used by commands/API calls.
@@ -82,7 +82,7 @@ function M.compile_selected(state, opts, callback, notify)
 end
 
 --- Return or open the latest compiler output report for a project.
----@param state table Project state whose compiler service owns the output.
+---@param state TypstProject Project state whose compiler service owns the output.
 ---@param opts? table Report controls; `open=false` returns lines without opening a buffer.
 ---@return integer|nil bufnr Scratch report buffer when opened.
 ---@return string[] lines Compiler output lines.
@@ -103,9 +103,9 @@ function M.compile_output(state, opts)
 end
 
 --- Start or restart the Typst watch backend for a project.
----@param state table Project state whose watcher should be owned by compiler services.
+---@param state TypstProject Project state whose watcher should be owned by compiler services.
 ---@param opts? table Watch options, including profile and output-opening controls.
----@param callback? fun(result:TypstCompilerResult, state:table) Callback invoked for non-stale watch results.
+---@param callback? fun(result:TypstCompilerResult, state:TypstProject) Callback invoked for non-stale watch results.
 ---@param notify? fun(message:string, level?:integer) Notification sink used by commands/API calls.
 ---@return any handle Provider/process handle returned by the active compiler backend.
 function M.watch(state, opts, callback, notify)
@@ -167,8 +167,8 @@ function M.watch(state, opts, callback, notify)
 end
 
 --- Stop the active compiler or watcher for one project.
----@param state table Project state whose compiler resources should be stopped.
----@param callback? fun(result:TypstCompilerResult, state:table) Callback invoked with stop status.
+---@param state TypstProject Project state whose compiler resources should be stopped.
+---@param callback? fun(result:TypstCompilerResult, state:TypstProject) Callback invoked with stop status.
 ---@param notify? fun(message:string, level?:integer) Notification sink used by commands/API calls.
 ---@return any result Stop result or pending cancellation handle.
 function M.stop(state, callback, notify)
@@ -195,7 +195,7 @@ end
 
 --- Stop compiler resources for every tracked project.
 ---@param opts? table Stop options forwarded to project operation cancellation.
----@param callback? fun(result:TypstCompilerResult, state:table, summary:table) Callback invoked once per project stop result.
+---@param callback? fun(result:TypstCompilerResult, state:TypstProject, summary:table) Callback invoked once per project stop result.
 ---@param notify? fun(message:string, level?:integer) Notification sink used by commands/API calls.
 ---@return table summary Aggregate stop counts by project state.
 function M.stop_all(opts, callback, notify)
