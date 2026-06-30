@@ -292,6 +292,7 @@ typst.setup({
         stop = function()
             local handle = {
                 pending = true,
+                on_finish_style = "colon",
             }
             function handle:on_finish(callback)
                 finish_native_colon_stop = callback
@@ -356,6 +357,144 @@ assert(
 assert(
     typst_test_preview(pending_stop_project).active == false,
     "native browser preview state should clear after pending stop finishes"
+)
+
+typst.reset({ force = true })
+
+local nil_refresh_url = nil
+local nil_refresh_pending_export = nil
+local nil_refresh_export_calls = 0
+local nil_refresh_provider = function(_project, opts, callback)
+    nil_refresh_export_calls = nil_refresh_export_calls + 1
+    vim.fn.writefile({
+        ('<svg xmlns="http://www.w3.org/2000/svg"><text>%d</text></svg>'):format(
+            nil_refresh_export_calls
+        ),
+    }, opts.output_path)
+    local result = {
+        ok = true,
+        path = opts.output_path,
+        artifacts = {
+            {
+                path = opts.output_path,
+                format = "svg",
+            },
+        },
+    }
+    if nil_refresh_export_calls == 1 then
+        if callback then
+            callback(result)
+        end
+        return result
+    end
+
+    local handle = {
+        pending = true,
+        on_finish_style = "colon",
+    }
+    function handle:on_finish(on_finish)
+        self._on_finish = on_finish
+        return self
+    end
+    function handle:finish()
+        self.pending = false
+        if callback then
+            callback(result)
+        end
+        if self._on_finish then
+            self._on_finish(result)
+        end
+        return result
+    end
+    nil_refresh_pending_export = handle
+    return handle
+end
+
+typst.setup({
+    root = root,
+    executable = helpers.python_command(
+        root .. "/tests/fixtures/fake-typst-watch-cycles.py"
+    ),
+    output_dir = test_cache_dir("preview-native-browser-nil-refresh-output"),
+    compile = {
+        deps = false,
+    },
+    preview = {
+        native = "browser",
+        browser = {
+            server = false,
+            output_dir = test_cache_dir(
+                "preview-native-browser-nil-refresh-shell"
+            ),
+            export = {
+                mode = "provider",
+                provider = nil_refresh_provider,
+                output_format = "svg",
+            },
+            open = function(url)
+                nil_refresh_url = url
+                return true
+            end,
+        },
+    },
+})
+
+vim.cmd.edit(main)
+local nil_refresh_project = typst.project.set_main(main)
+local nil_refresh_open = typst.viewer.preview({ mode = "document" })
+assert(
+    nil_refresh_open and nil_refresh_open.ok == true,
+    "nil refresh native browser should open"
+)
+assert(
+    native.browser_url(nil_refresh_project) == nil_refresh_url,
+    "nil refresh route should be active before refresh"
+)
+
+local nil_refresh = native.refresh(nil_refresh_project, {
+    code = 0,
+    cycle = 1,
+}, {})
+assert(
+    nil_refresh and nil_refresh.pending == true,
+    "nil refresh should expose a pending continuation"
+)
+assert(
+    nil_refresh_pending_export,
+    "nil refresh should hold a pending export handle"
+)
+local nil_refresh_callbacks = 0
+nil_refresh:on_finish(function(result, handle)
+    nil_refresh_callbacks = nil_refresh_callbacks + 1
+    assert(result == nil, "stopped native browser refresh should finish nil")
+    assert(handle == nil_refresh, "nil refresh callback should receive handle")
+end)
+
+typst.viewer.preview_stop({ notify = false })
+assert(
+    native.browser_url(nil_refresh_project) == nil,
+    "nil refresh route should be removed before pending export resolves"
+)
+nil_refresh_pending_export:finish()
+assert(nil_refresh.pending == false, "nil refresh should clear pending")
+assert(nil_refresh.finished == true, "nil refresh should mark finished")
+assert(
+    nil_refresh_callbacks == 1,
+    "nil refresh should notify callbacks exactly once"
+)
+local late_nil_refresh_called = false
+nil_refresh:on_finish(function(result)
+    late_nil_refresh_called = true
+    assert(result == nil, "late nil refresh callback should receive nil")
+end)
+assert(
+    late_nil_refresh_called == true,
+    "late nil refresh callback should run immediately"
+)
+nil_refresh.finish({ again = true }, "duplicate")
+assert(
+    nil_refresh_callbacks == 1,
+    "duplicate nil refresh finish should not rerun callbacks"
 )
 
 typst.reset({ force = true })

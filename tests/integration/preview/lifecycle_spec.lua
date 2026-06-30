@@ -404,6 +404,7 @@ typst.setup({
 
             local handle = {
                 pending = true,
+                on_finish_style = "colon",
             }
             function handle:on_finish(callback)
                 finish_colon_open = callback
@@ -415,6 +416,7 @@ typst.setup({
             stopped = stopped + 1
             local handle = {
                 pending = true,
+                on_finish_style = "colon",
             }
             function handle:on_finish(callback)
                 finish_colon_stop = callback
