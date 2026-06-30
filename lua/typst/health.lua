@@ -500,6 +500,11 @@ local function project_status_line(state)
         fields[#fields + 1] = ("watcher_last_cycle=%s"):format(
             watcher.last_cycle_status or "<none>"
         )
+        if (watcher.unrecognized_status_lines or 0) > 0 then
+            fields[#fields + 1] = ("watcher_unknown_output=%d"):format(
+                watcher.unrecognized_status_lines
+            )
+        end
     end
 
     if compiler_state.watcher and compiler_state.watcher.cwd then

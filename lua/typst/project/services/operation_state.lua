@@ -2,6 +2,7 @@ local base = require("typst.project.services.base")
 
 local M = {}
 
+---@return TypstProjectOperationsService service Default operations service table.
 function M.defaults()
     return {
         active_by_id = {},
@@ -14,6 +15,8 @@ function M.defaults()
     }
 end
 
+---@param project TypstProject? Project whose operations service is ensured.
+---@return TypstProjectOperationsService? service Operations service table.
 function M.ensure(project)
     local service = base.service(project, "operations")
     if not service then
@@ -78,6 +81,8 @@ local function retained_records(operations)
     return retained
 end
 
+---@param project TypstProject Project to snapshot.
+---@return table? snapshot Summary-safe operations service snapshot.
 function M.snapshot(project)
     local operations = M.ensure(project)
     if not operations then

@@ -2,6 +2,7 @@ local base = require("typst.project.services.base")
 
 local M = {}
 
+---@return TypstProjectCompilerService service Default compiler service table.
 function M.defaults()
     return {
         status = "idle",
@@ -11,6 +12,8 @@ function M.defaults()
     }
 end
 
+---@param project TypstProject? Project whose compiler service is ensured.
+---@return TypstProjectCompilerService? service Compiler service table.
 function M.ensure(project)
     local service = base.service(project, "compiler")
     if not service then
@@ -25,6 +28,9 @@ end
 
 M.get = M.ensure
 
+---@param project TypstProject Project whose compiler service is mutated.
+---@param fields TypstProjectCompilerServicePatch Fields to set; `clear`/`_clear` removes keys first.
+---@return TypstProjectCompilerService? compiler Compiler service table.
 function M.set(project, fields)
     local compiler = base.update(project, "compiler", fields)
     if compiler then
@@ -33,6 +39,8 @@ function M.set(project, fields)
     return compiler
 end
 
+---@param service TypstProjectCompilerService? Compiler service table.
+---@return boolean active True when a compile/watch/stop handle is active.
 function M.has_active(service)
     service = service or {}
     return service.process ~= nil
@@ -40,6 +48,8 @@ function M.has_active(service)
         or service.stopping_compile ~= nil
 end
 
+---@param project TypstProject Project to snapshot.
+---@return table? snapshot Summary-safe compiler service snapshot.
 function M.snapshot(project)
     local compiler = M.ensure(project)
     if not compiler then

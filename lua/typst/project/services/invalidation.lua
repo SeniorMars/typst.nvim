@@ -2,6 +2,7 @@ local base = require("typst.project.services.base")
 
 local M = {}
 
+---@return TypstProjectInvalidationService service Default invalidation service table.
 function M.defaults()
     return {
         generation = 0,
@@ -11,6 +12,8 @@ function M.defaults()
     }
 end
 
+---@param project TypstProject? Project whose invalidation service is ensured.
+---@return TypstProjectInvalidationService? service Invalidation service table.
 function M.ensure(project)
     local service = base.service(project, "invalidation")
     if not service then
@@ -25,6 +28,8 @@ end
 
 M.get = M.ensure
 
+---@param project TypstProject Project to snapshot.
+---@return table? snapshot Summary-safe invalidation service snapshot.
 function M.snapshot(project)
     local invalidation = M.ensure(project)
     if not invalidation then

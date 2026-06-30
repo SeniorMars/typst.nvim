@@ -17,68 +17,6 @@ local operations = require("typst.project.services.operation_state")
 local preview = require("typst.project.services.preview")
 local viewer = require("typst.project.services.viewer")
 
----@class TypstProjectServices
----@field operations TypstProjectOperationsService
----@field compiler TypstProjectCompilerService
----@field diagnostics TypstProjectDiagnosticsService
----@field preview TypstProjectPreviewService
----@field artifacts TypstProjectArtifactsService
----@field graph TypstProjectGraphService
----@field index TypstProjectIndexService
----@field viewer table
----@field invalidation TypstProjectInvalidationService
-
----@class TypstProjectOperationsService
----@field active_by_id table<integer, table>
----@field active_by_kind table<string, table>
----@field retained_by_id table<integer, table>
----@field retained_by_kind table<string, table>
----@field generations table<string, integer>
----@field last table<string, table>
----@field next_id integer
-
----@class TypstProjectCompilerService
----@field status string
----@field generation integer
----@field watch_generation integer
----@field watch_cycle_generation integer
----@field output string?
----@field output_lease table?
----@field process any?
----@field watcher any?
----@field process_operation table?
----@field watcher_operation table?
----@field last_result TypstCompilerResult?
----@field last_profile string?
-
----@class TypstProjectDiagnosticsService
----@field buffers table
-
----@class TypstProjectPreviewService
----@field active boolean
-
----@class TypstProjectArtifactsService
----@field items table
----@field output string?
-
----@class TypstProjectGraphService
----@field files table<string, table|boolean>
----@field file_sources table<string, table>
----@field dependencies table<string, table|boolean>
----@field dependency_sources table<string, table>
-
----@class TypstProjectIndexService
----@field files table<string, table>
----@field bibliographies table<string, table>
----@field graph table
----@field generation integer?
-
----@class TypstProjectInvalidationService
----@field generation integer
----@field counters table<string, integer>
----@field subscribers table
----@field history table
-
 local service_modules = {
     operations = operations,
     compiler = compiler,
@@ -108,8 +46,8 @@ function M.new_state()
 end
 
 --- Ensure a project has all service tables initialized.
----@param project table? Project state to initialize.
----@return table? services Project service state, or nil for invalid input.
+---@param project TypstProject? Project state to initialize.
+---@return TypstProjectServices? services Project service state, or nil for invalid input.
 function M.ensure(project)
     if type(project) ~= "table" then
         return nil
@@ -127,118 +65,118 @@ function M.ensure(project)
 end
 
 --- Merge fields into the project compiler service.
----@param project table Project state whose compiler service is mutated.
----@param fields table Fields to set; `clear`/`_clear` removes keys first.
----@return table? compiler Compiler service table.
+---@param project TypstProject Project state whose compiler service is mutated.
+---@param fields TypstProjectCompilerServicePatch Fields to set; `clear`/`_clear` removes keys first.
+---@return TypstProjectCompilerService? compiler Compiler service table.
 function M.set_compiler(project, fields)
     return compiler.set(project, fields)
 end
 
 --- Merge fields into the project preview service.
----@param project table Project state whose preview service is mutated.
----@param fields table Fields to set; `clear`/`_clear` removes keys first.
----@return table? preview Preview service table.
+---@param project TypstProject Project state whose preview service is mutated.
+---@param fields TypstProjectPreviewServicePatch Fields to set; `clear`/`_clear` removes keys first.
+---@return TypstProjectPreviewService? preview Preview service table.
 function M.set_preview(project, fields)
     return preview.set(project, fields)
 end
 
 --- Merge fields into the project artifact service.
----@param project table Project state whose artifact service is mutated.
----@param fields table Fields to set; `clear`/`_clear` removes keys first.
----@return table? artifacts Artifact service table.
+---@param project TypstProject Project state whose artifact service is mutated.
+---@param fields TypstProjectArtifactsServicePatch Fields to set; `clear`/`_clear` removes keys first.
+---@return TypstProjectArtifactsService? artifacts Artifact service table.
 function M.set_artifacts(project, fields)
     return artifacts.set(project, fields)
 end
 
 --- Merge fields into the project diagnostics service.
----@param project table Project state whose diagnostics service is mutated.
----@param fields table Fields to set; `clear`/`_clear` removes keys first.
----@return table? diagnostics Diagnostics service table.
+---@param project TypstProject Project state whose diagnostics service is mutated.
+---@param fields TypstProjectDiagnosticsServicePatch Fields to set; `clear`/`_clear` removes keys first.
+---@return TypstProjectDiagnosticsService? diagnostics Diagnostics service table.
 function M.set_diagnostics(project, fields)
     return diagnostics.set(project, fields)
 end
 
 --- Merge fields into the project dependency graph service.
----@param project table Project state whose graph service is mutated.
----@param fields table Fields to set; `clear`/`_clear` removes keys first.
----@return table? graph Graph service table.
+---@param project TypstProject Project state whose graph service is mutated.
+---@param fields TypstProjectGraphServicePatch Fields to set; `clear`/`_clear` removes keys first.
+---@return TypstProjectGraphService? graph Graph service table.
 function M.set_graph(project, fields)
     return graph.set(project, fields)
 end
 
 --- Merge fields into the project viewer service.
----@param project table Project state whose viewer service is mutated.
----@param fields table Fields to set; `clear`/`_clear` removes keys first.
----@return table? viewer Viewer service table.
+---@param project TypstProject Project state whose viewer service is mutated.
+---@param fields TypstProjectViewerServicePatch Fields to set; `clear`/`_clear` removes keys first.
+---@return TypstProjectViewerService? viewer Viewer service table.
 function M.set_viewer(project, fields)
     return viewer.set(project, fields)
 end
 
 --- Return the diagnostics service for a project.
----@param project table Project state to inspect.
----@return table? diagnostics Diagnostics service table.
+---@param project TypstProject Project state to inspect.
+---@return TypstProjectDiagnosticsService? diagnostics Diagnostics service table.
 function M.diagnostics(project)
     return diagnostics.get(project)
 end
 
 --- Return the compiler service for a project.
----@param project table Project state to inspect.
----@return table? compiler Compiler service table.
+---@param project TypstProject Project state to inspect.
+---@return TypstProjectCompilerService? compiler Compiler service table.
 function M.compiler(project)
     return compiler.get(project)
 end
 
 --- Return the operation tracking service for a project.
----@param project table Project state to inspect.
----@return table? operations Operation service table.
+---@param project TypstProject Project state to inspect.
+---@return TypstProjectOperationsService? operations Operation service table.
 function M.operations(project)
     return operations.get(project)
 end
 
 --- Return the preview service for a project.
----@param project table Project state to inspect.
----@return table? preview Preview service table.
+---@param project TypstProject Project state to inspect.
+---@return TypstProjectPreviewService? preview Preview service table.
 function M.preview(project)
     return preview.get(project)
 end
 
 --- Return the artifact service for a project.
----@param project table Project state to inspect.
----@return table? artifacts Artifact service table.
+---@param project TypstProject Project state to inspect.
+---@return TypstProjectArtifactsService? artifacts Artifact service table.
 function M.artifacts(project)
     return artifacts.get(project)
 end
 
 --- Return the dependency graph service for a project.
----@param project table Project state to inspect.
----@return table? graph Graph service table.
+---@param project TypstProject Project state to inspect.
+---@return TypstProjectGraphService? graph Graph service table.
 function M.graph(project)
     return graph.get(project)
 end
 
 --- Return the index cache service for a project.
----@param project table Project state to inspect.
----@return table? index Index service table.
+---@param project TypstProject Project state to inspect.
+---@return TypstProjectIndexService? index Index service table.
 function M.index(project)
     return index.get(project)
 end
 
 --- Return the viewer service for a project.
----@param project table Project state to inspect.
----@return table? viewer Viewer service table.
+---@param project TypstProject Project state to inspect.
+---@return TypstProjectViewerService? viewer Viewer service table.
 function M.viewer(project)
     return viewer.get(project)
 end
 
 --- Return the invalidation bus service for a project.
----@param project table Project state to inspect.
----@return table? invalidation Invalidation service table.
+---@param project TypstProject Project state to inspect.
+---@return TypstProjectInvalidationService? invalidation Invalidation service table.
 function M.invalidation(project)
     return invalidation.get(project)
 end
 
 --- Check whether a project still owns processes, preview, or active operations.
----@param project table Project state to inspect.
+---@param project TypstProject Project state to inspect.
 ---@return boolean active True when pruning should keep the project alive.
 function M.has_active_resources(project)
     local services = M.ensure(project)
@@ -253,7 +191,7 @@ function M.has_active_resources(project)
 end
 
 --- Return a summary-safe snapshot of project service state.
----@param project table Project state to snapshot.
+---@param project TypstProject Project state to snapshot.
 ---@return table? snapshot Snapshot suitable for reports/tests.
 function M.snapshot(project)
     if not M.ensure(project) then

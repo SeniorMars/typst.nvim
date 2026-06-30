@@ -52,4 +52,8 @@ local function attach()
 end
 
 attach()
+-- Run one scheduled attach after the ftplugin pass so late option/filetype
+-- changes and delayed setup still converge on the same lifecycle path. The
+-- project attach layer must remain idempotent: this second call must not emit
+-- duplicate attach events, autocmds, or feature setup when nothing changed.
 vim.schedule(attach)

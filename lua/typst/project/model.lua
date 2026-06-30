@@ -47,7 +47,7 @@ function M.same_key_set(left, right)
 end
 
 --- Mark a project's index cache dirty and emit invalidation.
----@param project table Project state whose index generation is bumped.
+---@param project TypstProject Project state whose index generation is bumped.
 ---@param reason string Human-readable invalidation reason.
 function M.mark_index_dirty(project, reason)
     local index = services.index(project)
@@ -128,7 +128,7 @@ function M.association_source_for(path, main, resolution)
 end
 
 --- Rebuild the project graph's file set from buffers and dependencies.
----@param project table Project state whose graph service is mutated.
+---@param project TypstProject Project state whose graph service is mutated.
 function M.rebuild_files(project)
     local graph = services.graph(project)
     if not graph then
@@ -169,7 +169,7 @@ end
 ---@param root string Project root path.
 ---@param main string Project main file path.
 ---@param key string Registry key for the project.
----@return table project New project state.
+---@return TypstProject project New project state.
 function M.new_project(root, main, key)
     local project = {
         key = key,
@@ -186,7 +186,7 @@ function M.new_project(root, main, key)
 end
 
 --- Resolve the current configured output path for a project.
----@param project table Project state with root/main paths.
+---@param project TypstProject Project state with root/main paths.
 ---@return string path Output path from current config.
 function M.output_path(project)
     return output_path_util.output_path(project, config.unsafe_get())

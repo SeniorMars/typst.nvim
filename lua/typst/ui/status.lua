@@ -128,6 +128,12 @@ function M.snapshot(bufnr, opts)
             or compiler_state.last_cycle_generation,
         watcher_last_cycle = watcher and watcher.last_cycle_status
             or compiler_state.watch_cycle_status,
+        watcher_unrecognized_status_lines = watcher
+                and watcher.unrecognized_status_lines
+            or nil,
+        watcher_last_unrecognized_status_line = watcher
+                and watcher.last_unrecognized_status_line
+            or nil,
         viewer_provider = viewer_state.provider,
         viewer_backend = viewer_state.backend,
         viewer_command = copy_list(viewer_state.command),
@@ -220,6 +226,12 @@ function M.project_snapshot(state)
     snapshot.watcher_pid = watcher_pid(watcher)
     snapshot.watcher_compiling = watcher and watcher.currently_compiling == true
         or false
+    snapshot.watcher_unrecognized_status_lines = watcher
+            and watcher.unrecognized_status_lines
+        or nil
+    snapshot.watcher_last_unrecognized_status_line = watcher
+            and watcher.last_unrecognized_status_line
+        or nil
     snapshot.diagnostics = diagnostic_count(state)
     snapshot.buffers = vim.tbl_count(state.bufs or {})
     snapshot.dependencies = vim.tbl_count(graph.dependencies or {})

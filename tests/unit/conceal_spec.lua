@@ -924,24 +924,37 @@ vim.api.nvim_buf_set_lines(cache_buf, 0, -1, false, {
 })
 vim.bo[cache_buf].filetype = "typst"
 local cache_range = { start_row = 0, end_row = 1 }
+local match_query = require("typst.conceal.match_query")
+local original_query = match_query.query
+local query_calls = 0
+match_query.query = function(...)
+    query_calls = query_calls + 1
+    return original_query(...)
+end
 local cached_matches = conceal.matches(cache_buf, cache_range)
 
-local original_symbol = metadata.symbol
-metadata.symbol = function()
-    error("metadata lookup should not run for a stable conceal cache entry")
-end
+local primed_query_calls = query_calls
 local stable_matches = conceal.matches(cache_buf, cache_range)
 assert(
     #stable_matches == #cached_matches,
     "stable ranges should filter from cached matches"
 )
+assert(
+    query_calls == primed_query_calls,
+    "stable ranges should not requery cached conceal chunks"
+)
 
 vim.api.nvim_buf_set_text(cache_buf, 0, 2, 0, 2, { "beta + " })
-local ok = pcall(function()
-    conceal.matches(cache_buf, cache_range)
-end)
-assert(not ok, "buffer edits should invalidate cached conceal matches")
-metadata.symbol = original_symbol
+local edited_matches = conceal.matches(cache_buf, cache_range)
+local edited_by_source = {}
+for _, match in ipairs(edited_matches) do
+    edited_by_source[match.source_text] = match
+end
+assert(
+    query_calls > primed_query_calls,
+    "buffer edits should invalidate cached conceal matches"
+)
+assert(edited_by_source.beta, "edited buffer should conceal new symbol text")
 
 local original_metadata_reset = metadata.reset
 local metadata_reset_calls = 0
@@ -956,17 +969,14 @@ assert(
 )
 
 cached_matches = conceal.matches(cache_buf, cache_range)
-metadata.symbol = function()
-    error(
-        "metadata lookup should run after TypstConcealRefresh invalidates cache"
-    )
-end
+primed_query_calls = query_calls
 typst.conceal.refresh(cache_buf)
-ok = pcall(function()
-    conceal.matches(cache_buf, cache_range)
-end)
-assert(not ok, "TypstConcealRefresh should invalidate cached conceal matches")
-metadata.symbol = original_symbol
+conceal.matches(cache_buf, cache_range)
+assert(
+    query_calls > primed_query_calls,
+    "TypstConcealRefresh should invalidate cached conceal matches"
+)
+match_query.query = original_query
 
 cached_matches = conceal.matches(cache_buf, cache_range)
 typst.setup({

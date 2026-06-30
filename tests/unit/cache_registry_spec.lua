@@ -6,6 +6,17 @@ local registry = require("typst.core.cache_registry")
 
 local status = registry.status()
 assert(#status.entries > 0, "cache registry should expose registered entries")
+local stats = registry.stats()
+assert(stats.total == #status.entries, "cache stats should count entries")
+assert(stats.loaded == #status.loaded, "cache stats should count loaded")
+assert(stats.unloaded == #status.unloaded, "cache stats should count unloaded")
+assert(stats.reset > 0, "cache stats should count reset-capable entries")
+assert(stats.clear > 0, "cache stats should count clear-capable entries")
+assert(stats.reload > 0, "cache stats should count reload-capable entries")
+assert(
+    stats.optional + stats.required == stats.total,
+    "cache stats should partition optional and required entries"
+)
 
 local by_name = {}
 for _, entry in ipairs(status.entries) do

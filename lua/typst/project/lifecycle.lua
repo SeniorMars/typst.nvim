@@ -1,288 +1,19 @@
 local M = {}
 
 local core_lifecycle = require("typst.core.lifecycle")
-local events = require("typst.core.events")
-local ftplugin_state = require("typst.core.ftplugin_state")
+local lifecycle_buffers = require("typst.project.lifecycle.buffers")
+local lifecycle_events = require("typst.project.lifecycle.events")
 local log = require("typst.core.log")
 local project = require("typst.project")
 local telemetry = require("typst.core.telemetry")
 local util = require("typst.core.util")
 
 local normalize_bufnr = require("typst.core.buffer").normalize_bufnr
-local last_text_dirty_ticks = {}
-
-local function toc_module()
-    return require("typst.navigation.toc")
-end
-
-local function follow_open_toc(attached, bufnr)
-    local toc = toc_module()
-    if toc.is_open(attached) then
-        toc.follow(attached, bufnr)
-    end
-end
-
-local function schedule_follow_open_toc(attached, bufnr)
-    toc_module().schedule_follow(attached, bufnr)
-end
-
-local function should_mark_dirty_for_buffer(attached, args)
-    if args.event ~= "TextChanged" and args.event ~= "TextChangedI" then
-        return true
-    end
-
-    local ok, changedtick = pcall(vim.api.nvim_buf_get_changedtick, args.buf)
-    if not ok then
-        return true
-    end
-
-    local key = ("%s:%d"):format(attached.key or "", args.buf)
-    if last_text_dirty_ticks[key] == changedtick then
-        return false
-    end
-
-    last_text_dirty_ticks[key] = changedtick
-    return true
-end
-
-local function clear_dirty_ticks_for_buffer(bufnr)
-    local suffix = ":" .. tostring(bufnr)
-    for key in pairs(last_text_dirty_ticks) do
-        if key:sub(-#suffix) == suffix then
-            last_text_dirty_ticks[key] = nil
-        end
-    end
-end
-
-local function buffer_event_payload(state, bufnr, reason, resolution)
-    local buffers = vim.tbl_keys(state and state.bufs or {})
-    return {
-        event_kind = "buffer_detach",
-        bufnr = bufnr,
-        buffer = resolution and resolution.buffer or nil,
-        reason = reason,
-        remaining_buffers = #buffers,
-        project_pruned = project.pruned(state),
-    }
-end
-
-local function emit_project_pruned(state, reason)
-    if project.pruned(state) then
-        project.emit_pruned(state, reason)
-    end
-end
-
-local function emit_buffer_detach(previous, bufnr, reason, resolution)
-    if not previous then
-        return
-    end
-    events.emit(
-        "TypstBufferDetach",
-        previous,
-        buffer_event_payload(previous, bufnr, reason, resolution)
-    )
-end
-
-local function emit_project_attach(state, bufnr, reason)
-    if not state then
-        return
-    end
-    local resolution = state.resolutions and state.resolutions[bufnr] or nil
-    events.emit("TypstProjectAttach", state, {
-        event_kind = "project_attach",
-        bufnr = bufnr,
-        buffer = resolution and resolution.buffer or nil,
-        reason = reason,
-        remaining_buffers = #vim.tbl_keys(state.bufs or {}),
-    })
-end
-
-local function emit_reassign_events(
-    previous,
-    state,
-    bufnr,
-    reason,
-    previous_resolution
-)
-    local previous_key = previous and previous.key or nil
-    local state_key = state and state.key or nil
-    if previous_key == state_key then
-        return
-    end
-
-    if previous then
-        local resolution = previous_resolution
-            or (previous.resolutions and previous.resolutions[bufnr])
-        emit_buffer_detach(
-            previous,
-            bufnr,
-            reason or "buffer reassigned",
-            resolution
-        )
-        emit_project_pruned(previous, reason or "buffer reassigned")
-    end
-    if state then
-        emit_project_attach(state, bufnr, reason or "buffer attached")
-    end
-end
-
-local function stop_previous_if_reassigned(previous, reason, message)
-    core_lifecycle.stop_before_prune(previous, reason, message)
-end
-
-local function install_buffer_attach(api, bufnr)
-    clear_dirty_ticks_for_buffer(bufnr)
-    require("typst.edit.mappings").apply(bufnr)
-    core_lifecycle.apply_buffer_features(bufnr)
-    if vim.bo[bufnr].omnifunc == "" then
-        ftplugin_state.set_buffer_option(
-            bufnr,
-            "omnifunc",
-            "v:lua.typst_nvim_omnifunc"
-        )
-    end
-
-    local group = vim.api.nvim_create_augroup(
-        core_lifecycle.buffer_augroup_name(bufnr),
-        { clear = true }
-    )
-    -- Use one augroup per buffer so reloads replace lifecycle handlers instead
-    -- of stacking duplicate TOC refreshes, index invalidations, and detaches.
-    vim.api.nvim_create_autocmd({ "BufWinEnter", "WinEnter" }, {
-        group = group,
-        buffer = bufnr,
-        callback = function(args)
-            core_lifecycle.apply_buffer_features(args.buf)
-            local attached = project.get(args.buf)
-            if attached then
-                follow_open_toc(attached, args.buf)
-            end
-        end,
-    })
-    vim.api.nvim_create_autocmd("BufEnter", {
-        group = group,
-        buffer = bufnr,
-        callback = function(args)
-            local attached = project.get(args.buf)
-            if attached then
-                follow_open_toc(attached, args.buf)
-            end
-        end,
-    })
-    vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
-        group = group,
-        buffer = bufnr,
-        callback = function(args)
-            local attached = project.get(args.buf)
-            if attached then
-                schedule_follow_open_toc(attached, args.buf)
-            end
-        end,
-    })
-    vim.api.nvim_create_autocmd(
-        { "TextChanged", "TextChangedI", "BufWritePost" },
-        {
-            group = group,
-            buffer = bufnr,
-            callback = function(args)
-                local attached = project.get(args.buf)
-                if attached then
-                    if should_mark_dirty_for_buffer(attached, args) then
-                        require("typst.index").mark_dirty(
-                            attached,
-                            "buffer changed"
-                        )
-                    end
-                    toc_module().schedule_refresh(attached)
-                end
-            end,
-        }
-    )
-    vim.api.nvim_create_autocmd("BufFilePost", {
-        group = group,
-        buffer = bufnr,
-        callback = function(args)
-            -- Neovim fires this after :saveas or file rename. Move persisted
-            -- main-file choices before resolving again so the new path keeps the
-            -- user's explicit main.
-            core_lifecycle.migrate_persisted_main_for_rename(
-                args.buf,
-                project.get(args.buf)
-            )
-            api.attach(args.buf)
-        end,
-    })
-    vim.api.nvim_create_autocmd("BufHidden", {
-        group = group,
-        buffer = bufnr,
-        callback = function(args)
-            local policy = vim.bo[args.buf].bufhidden
-            if policy == "unload" or policy == "delete" or policy == "wipe" then
-                api.detach(args.buf)
-            end
-        end,
-    })
-    vim.api.nvim_create_autocmd({ "BufUnload", "BufDelete", "BufWipeout" }, {
-        group = group,
-        buffer = bufnr,
-        callback = function(args)
-            api.detach(args.buf)
-        end,
-    })
-end
-
-local function set_omnifunc_if_empty(bufnr)
-    if vim.bo[bufnr].omnifunc == "" then
-        ftplugin_state.set_buffer_option(
-            bufnr,
-            "omnifunc",
-            "v:lua.typst_nvim_omnifunc"
-        )
-    end
-end
-
-local function attached_buffers()
-    local seen = {}
-    local buffers = {}
-    for _, state in pairs(project.all()) do
-        for bufnr in pairs(state.bufs or {}) do
-            if not seen[bufnr] then
-                seen[bufnr] = true
-                buffers[#buffers + 1] = bufnr
-            end
-        end
-    end
-    table.sort(buffers)
-    return buffers
-end
 
 --- Reapply setup-sensitive editor state for already attached Typst buffers.
 ---@return table summary Counts of reapplied and skipped buffers.
 function M.reapply_attached_buffers()
-    local summary = {
-        applied = 0,
-        skipped = 0,
-    }
-    for _, bufnr in ipairs(attached_buffers()) do
-        if vim.api.nvim_buf_is_valid(bufnr) then
-            ftplugin_state.restore_buffer_mappings(bufnr)
-            require("typst.edit.mappings").apply(bufnr)
-            core_lifecycle.apply_buffer_features(bufnr, { force = true })
-            set_omnifunc_if_empty(bufnr)
-            summary.applied = summary.applied + 1
-        else
-            summary.skipped = summary.skipped + 1
-        end
-    end
-
-    if summary.applied > 0 or summary.skipped > 0 then
-        log.add(
-            "info",
-            "reapplied setup state to attached Typst buffers",
-            summary
-        )
-    end
-    return summary
+    return lifecycle_buffers.reapply_attached_buffers()
 end
 
 local function attach_impl(api, bufnr)
@@ -304,7 +35,8 @@ local function attach_impl(api, bufnr)
             return nil
         end
 
-        local install_ok, install_err = pcall(install_buffer_attach, api, bufnr)
+        local install_ok, install_err =
+            pcall(lifecycle_buffers.install, api, bufnr)
         if not install_ok then
             project.detach(bufnr)
             core_lifecycle.clear_buffer(bufnr)
@@ -317,14 +49,14 @@ local function attach_impl(api, bufnr)
 
         -- If resolution moved this buffer to another project, the old project
         -- may now have no buffers but still own a watcher/preview.
-        emit_reassign_events(
+        lifecycle_events.emit_reassign(
             previous,
             state,
             bufnr,
             "buffer attached",
             previous_resolution
         )
-        stop_previous_if_reassigned(
+        lifecycle_events.stop_previous(
             previous,
             "stopping compiler after buffer moved to another project",
             "compiler stopped after buffer moved"
@@ -363,9 +95,14 @@ function M.detach(bufnr)
         util.del_buf_var(bufnr, "did_typst_nvim_ftplugin")
     end
     if state then
-        emit_buffer_detach(state, bufnr, "buffer detached", resolution)
-        emit_project_pruned(state, "buffer detached")
-        stop_previous_if_reassigned(
+        lifecycle_events.emit_buffer_detach(
+            state,
+            bufnr,
+            "buffer detached",
+            resolution
+        )
+        lifecycle_events.emit_project_pruned(state, "buffer detached")
+        lifecycle_events.stop_previous(
             state,
             "stopping compiler after last buffer detached",
             "compiler stopped after detach"
@@ -399,14 +136,14 @@ function M.get_project(bufnr)
         bufnr,
         previous and { ignore_project_key = previous.key } or nil
     )
-    emit_reassign_events(
+    lifecycle_events.emit_reassign(
         previous,
         state,
         bufnr,
         "buffer re-resolved",
         previous_resolution
     )
-    stop_previous_if_reassigned(
+    lifecycle_events.stop_previous(
         previous,
         "stopping compiler after buffer main changed",
         "compiler stopped after buffer main changed"
@@ -430,11 +167,16 @@ function M.set_main(path, bufnr, set_opts, notify)
         or nil
     local state = project.set_main(bufnr, path, set_opts)
     if previous and previous.key ~= state.key then
-        emit_buffer_detach(previous, bufnr, "main changed", previous_resolution)
-        emit_project_pruned(previous, "main changed")
-        emit_project_attach(state, bufnr, "main changed")
+        lifecycle_events.emit_buffer_detach(
+            previous,
+            bufnr,
+            "main changed",
+            previous_resolution
+        )
+        lifecycle_events.emit_project_pruned(previous, "main changed")
+        lifecycle_events.emit_project_attach(state, bufnr, "main changed")
     end
-    stop_previous_if_reassigned(
+    lifecycle_events.stop_previous(
         previous,
         "stopping compiler after main changed",
         "compiler stopped after main changed"
@@ -472,16 +214,20 @@ function M.toggle_main(toggle_opts, notify)
     if local_main then
         state = project.clear_main(bufnr, { clear_persisted = false })
         if previous and previous.key ~= state.key then
-            emit_buffer_detach(
+            lifecycle_events.emit_buffer_detach(
                 previous,
                 bufnr,
                 "local main cleared",
                 previous_resolution
             )
-            emit_project_pruned(previous, "local main cleared")
-            emit_project_attach(state, bufnr, "local main cleared")
+            lifecycle_events.emit_project_pruned(previous, "local main cleared")
+            lifecycle_events.emit_project_attach(
+                state,
+                bufnr,
+                "local main cleared"
+            )
         end
-        stop_previous_if_reassigned(
+        lifecycle_events.stop_previous(
             previous,
             "stopping compiler after local main cleared",
             "compiler stopped after local main cleared"
@@ -497,16 +243,16 @@ function M.toggle_main(toggle_opts, notify)
 
     state = project.set_main(bufnr, path)
     if previous and previous.key ~= state.key then
-        emit_buffer_detach(
+        lifecycle_events.emit_buffer_detach(
             previous,
             bufnr,
             "local main enabled",
             previous_resolution
         )
-        emit_project_pruned(previous, "local main enabled")
-        emit_project_attach(state, bufnr, "local main enabled")
+        lifecycle_events.emit_project_pruned(previous, "local main enabled")
+        lifecycle_events.emit_project_attach(state, bufnr, "local main enabled")
     end
-    stop_previous_if_reassigned(
+    lifecycle_events.stop_previous(
         previous,
         "stopping compiler after local main enabled",
         "compiler stopped after local main enabled"
@@ -535,8 +281,13 @@ function M.reload_state(api, reload_opts, notify)
         or nil
     local previous = project.detach(bufnr)
     if previous then
-        emit_buffer_detach(previous, bufnr, "state reload", previous_resolution)
-        emit_project_pruned(previous, "state reload")
+        lifecycle_events.emit_buffer_detach(
+            previous,
+            bufnr,
+            "state reload",
+            previous_resolution
+        )
+        lifecycle_events.emit_project_pruned(previous, "state reload")
     end
 
     require("typst.core.cache_registry").reload({ bufnr = bufnr })
@@ -546,7 +297,7 @@ function M.reload_state(api, reload_opts, notify)
         error("typst.nvim: failed to reload Typst state for current buffer")
     end
     if previous and previous.key ~= state.key then
-        stop_previous_if_reassigned(
+        lifecycle_events.stop_previous(
             previous,
             "stopping compiler after state reload",
             "compiler stopped after state reload"

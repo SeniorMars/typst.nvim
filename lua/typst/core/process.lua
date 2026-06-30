@@ -312,11 +312,11 @@ local function should_wait_once(handle, opts)
     if opts.accept_forced_wait == true then
         return true
     end
-    -- Do not call SystemObj:wait() for typst.nvim-owned handles during
-    -- graceful shutdown. A finite wait timeout force-kills the raw process; the
-    -- graceful phase should let the libuv exit callback update wrapper state
-    -- while vim.wait() pumps the event loop. After forced tree kill, wait() is
-    -- allowed to collect the terminal result.
+    -- Do not call the raw SystemObj wait method for typst.nvim-owned handles
+    -- during graceful shutdown. A finite wait timeout force-kills the raw
+    -- process; the graceful phase should let the libuv exit callback update
+    -- wrapper state while vim.wait() pumps the event loop. After forced tree
+    -- kill, the raw wait method may collect the terminal result.
     return not (
         type(handle) == "table" and handle._typst_process_handle == true
     )

@@ -53,11 +53,16 @@ local function chunk_start_for(row)
     return math.floor(math.max(row, 0) / MATCH_CHUNK_LINES) * MATCH_CHUNK_LINES
 end
 
+local function mark_invalidated(bufnr, entry)
+    entry.invalidated_changedtick = vim.api.nvim_buf_get_changedtick(bufnr)
+end
+
 local function invalidate_chunk_range(bufnr, start_row, end_row)
     local entry = cache[bufnr]
     if not entry then
         return
     end
+    mark_invalidated(bufnr, entry)
 
     start_row = math.max(0, tonumber(start_row) or 0)
     end_row = tonumber(end_row) or start_row
@@ -81,6 +86,7 @@ local function invalidate_from(bufnr, start_row)
     if not entry then
         return
     end
+    mark_invalidated(bufnr, entry)
 
     local total = line_count(bufnr)
     local chunk_start = chunk_start_for(start_row or 0)
@@ -136,6 +142,8 @@ local function ensure_parser_callbacks(bufnr)
         )
             if old_end_row ~= new_end_row then
                 invalidate_from(bufnr, start_row)
+            else
+                invalidate_chunk_range(bufnr, start_row, start_row)
             end
         end,
         on_detach = function(detached_bufnr)
@@ -156,12 +164,27 @@ local function cache_entry(bufnr)
     local entry = cache[bufnr]
     if
         entry
-        and (parser_tracked or entry.changedtick == changedtick)
         and entry.generation == generation
         and entry.config_generation == config_generation
     then
-        entry.changedtick = changedtick
-        return entry
+        if parser_tracked then
+            if
+                entry.changedtick ~= changedtick
+                and entry.invalidated_changedtick ~= changedtick
+            then
+                entry.chunks = {}
+            end
+            entry.changedtick = changedtick
+            entry.parser_tracked = true
+            return entry
+        end
+        if entry.changedtick ~= changedtick then
+            cache[bufnr] = nil
+            shadows.forget(bufnr)
+            entry = nil
+        else
+            return entry
+        end
     end
 
     entry = {

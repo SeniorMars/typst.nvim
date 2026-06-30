@@ -2,6 +2,7 @@ local base = require("typst.project.services.base")
 
 local M = {}
 
+---@return TypstProjectGraphService service Default graph service table.
 function M.defaults()
     return {
         files = {},
@@ -11,6 +12,8 @@ function M.defaults()
     }
 end
 
+---@param project TypstProject? Project whose graph service is ensured.
+---@return TypstProjectGraphService? service Graph service table.
 function M.ensure(project)
     local service = base.service(project, "graph")
     if not service then
@@ -25,6 +28,9 @@ end
 
 M.get = M.ensure
 
+---@param project TypstProject Project whose graph service is mutated.
+---@param fields TypstProjectGraphServicePatch Fields to set; `clear`/`_clear` removes keys first.
+---@return TypstProjectGraphService? graph Graph service table.
 function M.set(project, fields)
     local graph = base.update(project, "graph", fields)
     if graph then
@@ -33,6 +39,8 @@ function M.set(project, fields)
     return graph
 end
 
+---@param project TypstProject Project to snapshot.
+---@return table? snapshot Summary-safe graph service snapshot.
 function M.snapshot(project)
     local graph = M.ensure(project)
     if not graph then

@@ -420,9 +420,13 @@ function M.project_lines(state, bufnr, opts)
     if opts.detailed == true then
         vim.list_extend(lines, preview_cache_detail_lines(state))
         local cache_status = cache_registry.status()
-        lines[#lines + 1] = ("  cache registry: loaded=%d unloaded=%d"):format(
-            #cache_status.loaded,
-            #cache_status.unloaded
+        local cache_stats = cache_registry.stats()
+        lines[#lines + 1] = ("  cache registry: loaded=%d unloaded=%d reset=%d clear=%d reload=%d"):format(
+            cache_stats.loaded,
+            cache_stats.unloaded,
+            cache_stats.reset,
+            cache_stats.clear,
+            cache_stats.reload
         )
         if #cache_status.loaded > 0 then
             lines[#lines + 1] = ("    loaded: %s"):format(
@@ -486,6 +490,14 @@ function M.project_lines(state, bufnr, opts)
         lines[#lines + 1] = ("  watcher last cycle: %s"):format(
             watcher.last_cycle_status or "<none>"
         )
+        if (watcher.unrecognized_status_lines or 0) > 0 then
+            lines[#lines + 1] = ("  watcher unknown output: %d"):format(
+                watcher.unrecognized_status_lines
+            )
+            lines[#lines + 1] = ("  watcher last unknown line: %s"):format(
+                watcher.last_unrecognized_status_line or "<none>"
+            )
+        end
     end
 
     if viewer_state.command then
@@ -597,6 +609,14 @@ function M.status_report_lines(snapshot)
         ("  diagnostics: %d"):format(snapshot.diagnostics or 0),
         ("  watching: %s"):format(snapshot.watching and "yes" or "no"),
     }
+    if (snapshot.watcher_unrecognized_status_lines or 0) > 0 then
+        lines[#lines + 1] = ("  watcher unknown output: %d"):format(
+            snapshot.watcher_unrecognized_status_lines
+        )
+        lines[#lines + 1] = ("  watcher last unknown line: %s"):format(
+            snapshot.watcher_last_unrecognized_status_line or "<none>"
+        )
+    end
     local stats = snapshot.index_stats
     if type(stats) == "table" then
         lines[#lines + 1] = ("  index cache: collect %d/%d, files %d/%d, bibliography %d/%d"):format(

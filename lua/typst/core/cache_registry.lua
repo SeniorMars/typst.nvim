@@ -265,4 +265,40 @@ function M.status()
     return status
 end
 
+--- Return aggregate cache registry metrics for reports and health checks.
+---@return TypstCacheRegistryStats stats Cache registry counts and capability totals.
+function M.stats()
+    local status = M.status()
+    local stats = {
+        total = #status.entries,
+        loaded = #status.loaded,
+        unloaded = #status.unloaded,
+        reset = 0,
+        clear = 0,
+        reload = 0,
+        optional = 0,
+        required = 0,
+        entries = status.entries,
+    }
+
+    for _, entry in ipairs(entries) do
+        if entry.reset then
+            stats.reset = stats.reset + 1
+        end
+        if entry.clear then
+            stats.clear = stats.clear + 1
+        end
+        if entry.reload then
+            stats.reload = stats.reload + 1
+        end
+        if entry.optional then
+            stats.optional = stats.optional + 1
+        else
+            stats.required = stats.required + 1
+        end
+    end
+
+    return stats
+end
+
 return M

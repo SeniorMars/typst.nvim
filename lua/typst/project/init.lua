@@ -31,6 +31,10 @@ local current_buffer_path = project_model.current_buffer_path
 local scratch_buffer_path = project_model.scratch_buffer_path
 local rebuild_files = project_model.rebuild_files
 
+---@param project TypstProject Project whose buffer resolution is recorded.
+---@param bufnr integer Buffer number.
+---@param path string Buffer path.
+---@param resolution? table Resolution metadata.
 local function record_resolution(project, bufnr, path, resolution)
     resolution = vim.tbl_extend("force", {
         buffer = path,
@@ -44,6 +48,9 @@ local function record_resolution(project, bufnr, path, resolution)
     project.main_source = resolution.main_source
 end
 
+---@param state TypstProject? Project that may be pruned.
+---@param reason string Prune reason.
+---@return boolean pruned True when the project was removed.
 local function prune_if_empty(state, reason)
     if
         not state
@@ -64,6 +71,9 @@ local function prune_if_empty(state, reason)
     return true
 end
 
+---@param state TypstProject? Project that may have been pruned.
+---@param reason? string Event reason override.
+---@return boolean emitted True when a prune event was emitted.
 local function emit_project_pruned(state, reason)
     if
         not state
@@ -104,6 +114,12 @@ local function transfer_buffer(bufnr, next_key)
     end
 end
 
+---@param root string Project root.
+---@param main string Project main file.
+---@param bufnr integer Attached buffer.
+---@param path string Attached buffer path.
+---@param resolution? table Resolution metadata.
+---@return TypstProject project Attached project state.
 local function create_or_update(root, main, bufnr, path, resolution)
     local key = project_key(root, main)
     local project = registry[key]
@@ -274,7 +290,7 @@ end
 
 --- Commit a resolved attachment candidate into the project registry.
 ---@param candidate table Candidate returned by `resolve_candidate`.
----@return table state Attached project state.
+---@return TypstProject state Attached project state.
 function M.commit_attach(candidate)
     if type(candidate) ~= "table" then
         error("typst.nvim: project attach candidate is required")
@@ -292,7 +308,7 @@ end
 --- Resolve and attach a buffer to its Typst project.
 ---@param bufnr integer Buffer to resolve and attach.
 ---@param resolve_opts? table Resolution controls forwarded to `resolve_candidate`.
----@return table state Attached project state.
+---@return TypstProject state Attached project state.
 function M.resolve(bufnr, resolve_opts)
     return M.commit_attach(M.resolve_candidate(bufnr, resolve_opts))
 end
@@ -300,14 +316,14 @@ end
 --- Resolve a project from common option tables without duplicating fallback rules.
 ---@param opts? table|integer Options with `project`/`bufnr`, or a bufnr.
 ---@param resolve_opts? {create?: boolean}
----@return table|nil state Resolved project state, if available.
+---@return TypstProject|nil state Resolved project state, if available.
 function M.resolve_opts(opts, resolve_opts)
     return context.resolve(opts, resolve_opts)
 end
 
 --- Return the project currently attached to a buffer.
 ---@param bufnr integer Buffer whose attached project should be returned.
----@return table|nil state Attached project state, if any.
+---@return TypstProject|nil state Attached project state, if any.
 function M.get(bufnr)
     bufnr = normalize_bufnr(bufnr)
     local key = buffer_projects[bufnr]
@@ -315,7 +331,7 @@ function M.get(bufnr)
 end
 
 --- Check whether a buffer's attached main file is no longer readable.
----@param state table? Project state attached to the buffer.
+---@param state TypstProject? Project state attached to the buffer.
 ---@param bufnr? integer Buffer whose resolution should be checked.
 ---@return boolean stale True when the attached main path appears stale.
 function M.main_stale(state, bufnr)
@@ -339,7 +355,7 @@ end
 
 --- Remove a buffer from its attached project and prune empty state.
 ---@param bufnr integer Buffer to detach.
----@return table|nil state Project state the buffer belonged to before detach.
+---@return TypstProject|nil state Project state the buffer belonged to before detach.
 function M.detach(bufnr)
     bufnr = normalize_bufnr(bufnr)
     local key = buffer_projects[bufnr]
@@ -366,7 +382,7 @@ end
 ---@param bufnr integer Buffer receiving the explicit main.
 ---@param main string Main path or empty string to use the current buffer.
 ---@param opts? table Persistence and resolution options.
----@return table state Project state after re-resolution.
+---@return TypstProject state Project state after re-resolution.
 function M.set_main(bufnr, main, opts)
     opts = opts or {}
     bufnr = normalize_bufnr(bufnr)
@@ -389,7 +405,7 @@ end
 --- Clear a buffer-local explicit main file and re-resolve its project.
 ---@param bufnr integer Buffer whose explicit main should be cleared.
 ---@param opts? table Clear controls such as `clear_persisted`.
----@return table state Project state after re-resolution.
+---@return TypstProject state Project state after re-resolution.
 function M.clear_main(bufnr, opts)
     opts = opts or {}
     bufnr = normalize_bufnr(bufnr)
@@ -418,7 +434,7 @@ function M.clear_main(bufnr, opts)
 end
 
 --- Update a project's dependency graph from compiler or scanner paths.
----@param project table Project state whose dependencies should be updated.
+---@param project TypstProject Project state whose dependencies should be updated.
 ---@param paths string[]|table Dependency paths or keyed dependency map.
 ---@param opts? table Dependency update options.
 ---@return any result Dependency update result.
@@ -427,13 +443,13 @@ function M.update_dependencies(project, paths, opts)
 end
 
 --- Return the live project registry.
----@return table registry Project registry keyed by project key.
+---@return table<string, TypstProject> registry Project registry keyed by project key.
 function M.all()
     return registry
 end
 
 --- Return a public snapshot for one project or buffer.
----@param state_or_bufnr table|integer Project state or buffer number.
+---@param state_or_bufnr TypstProject|integer Project state or buffer number.
 ---@param opts? table Snapshot options.
 ---@return table? snapshot Project snapshot, or nil when no project exists.
 function M.snapshot(state_or_bufnr, opts)
@@ -452,7 +468,7 @@ function M.all_snapshots(opts)
 end
 
 --- Prune a project if it no longer owns buffers or active resources.
----@param state table|string Project state or project key.
+---@param state TypstProject|string Project state or project key.
 ---@param reason? string Human-readable prune reason.
 ---@return boolean? pruned True when the project was removed.
 function M.prune(state, reason)
@@ -468,14 +484,14 @@ function M.prune(state, reason)
 end
 
 --- Check whether a project was removed from the registry.
----@param state table? Project state to inspect.
+---@param state TypstProject? Project state to inspect.
 ---@return boolean pruned True when the project registry has pruned this state.
 function M.pruned(state)
     return type(state) == "table" and state._typst_project_pruned == true
 end
 
 --- Emit the delayed project-pruned lifecycle event after buffer-detach events.
----@param state table? Project state that may have been pruned.
+---@param state TypstProject? Project state that may have been pruned.
 ---@param reason? string Reason override for the event payload.
 ---@return boolean emitted True when the event was emitted.
 function M.emit_pruned(state, reason)
