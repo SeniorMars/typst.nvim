@@ -2,11 +2,11 @@ local config = require("typst.config")
 local compiler_command = require("typst.compiler.command")
 local compiler_dependencies = require("typst.compiler.dependencies")
 local compiler_events = require("typst.compiler.events")
+local compiler_fanout = require("typst.compiler.fanout")
 local compiler_output = require("typst.compiler.output")
 local output_path_util = require("typst.compiler.output_path")
 local compiler_watch = require("typst.compiler.watch.state")
 local compiler_process = require("typst.compiler.typst_process")
-local diagnostics = require("typst.diagnostics")
 local log = require("typst.core.log")
 local operation = require("typst.core.operation")
 local output_ownership = require("typst.resources.outputs")
@@ -113,44 +113,19 @@ end
 ---@param result TypstCompilerResult Process exit result.
 local function finish_watcher_without_cycles(project, deps_path, result)
     if result.code == 0 then
-        local output = (compiler_service.get(project) or {}).output
-        require("typst.workflows.artifacts").record_owned(project, {
-            path = output,
-            producer = "compile",
-        })
         compiler_service.set(project, {
             last_result = result,
             status = "success",
         })
-        diagnostics.clear(project)
-        compiler_dependencies.update_project(
-            project,
-            compiler_dependencies.take(deps_path, project.root)
-        )
-        log.add("info", "watch exited", { code = result.code })
-        compiler_events.succeeded(project, result)
+        compiler_fanout.watch_exited_success(project, result, deps_path)
         return
     end
 
-    compiler_dependencies.cleanup_file(deps_path)
     compiler_service.set(project, {
         last_result = result,
         status = "error",
     })
-    if diagnostics.should_publish(project) then
-        diagnostics.publish(
-            project,
-            ("%s\n%s"):format(result.stderr or "", result.stdout or "")
-        )
-    else
-        diagnostics.clear(project)
-    end
-    log.add("error", "watch failed", {
-        code = result.code,
-        stderr = result.stderr,
-        stdout = result.stdout,
-    })
-    compiler_events.failed(project, result)
+    compiler_fanout.watch_failed(project, result, deps_path)
 end
 
 ---@param project TypstProject Project whose watcher output is flushed.
@@ -279,7 +254,9 @@ function M.start(project, callback, run_config)
             output = output,
             last_result = result,
         })
-        compiler_events.failed(project, result)
+        compiler_fanout.watch_failed(project, result, nil, {
+            publish_diagnostics = false,
+        })
         if callback then
             callback(result)
         end
@@ -308,7 +285,9 @@ function M.start(project, callback, run_config)
             status = "error",
             last_result = result,
         })
-        compiler_events.failed(project, result)
+        compiler_fanout.watch_failed(project, result, nil, {
+            publish_diagnostics = false,
+        })
         if callback then
             callback(result)
         end
@@ -334,7 +313,9 @@ function M.start(project, callback, run_config)
             status = "error",
             last_result = result,
         })
-        compiler_events.failed(project, result)
+        compiler_fanout.watch_failed(project, result, nil, {
+            publish_diagnostics = false,
+        })
         if callback then
             callback(result)
         end
@@ -423,7 +404,10 @@ function M.start(project, callback, run_config)
             status = "error",
             last_result = result,
         })
-        compiler_events.failed(project, result)
+        compiler_fanout.watch_failed(project, result, deps_path, {
+            publish_diagnostics = false,
+            cleanup_deps = false,
+        })
         if callback then
             callback(result)
         end

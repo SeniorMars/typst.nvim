@@ -25,6 +25,7 @@ local M = {}
 ---@field cancelled integer Number of records cancelled and cleared.
 ---@field failed integer Number of records that could not be cancelled cleanly.
 ---@field stale integer Number of stale records cleared without a live handle.
+---@field uncancellable integer Number of live unsupported handles retained.
 ---@field retained integer Number of records moved to retained-orphan tracking.
 
 local scalar_types = {
@@ -298,6 +299,20 @@ local function cancellable_handle(record)
     return nil
 end
 
+local function has_live_uncancellable_handle(record)
+    local handle = record and record.handle
+    if handle == nil or handle == false then
+        return false
+    end
+    if type(handle) == "table" and handle.finished == true then
+        return false
+    end
+    if type(handle) == "table" and handle.pending == false then
+        return false
+    end
+    return true
+end
+
 local function cancel_handle(handle, opts)
     local called, stopped, result = pcall(handle.cancel, opts)
     if not called then
@@ -323,7 +338,14 @@ function M.cancel_project(project, opts)
     opts = opts or {}
     local service = operation_service(project)
     if not service then
-        return { total = 0, cancelled = 0, failed = 0, stale = 0, retained = 0 }
+        return {
+            total = 0,
+            cancelled = 0,
+            failed = 0,
+            stale = 0,
+            uncancellable = 0,
+            retained = 0,
+        }
     end
 
     local skip = opts.skip
@@ -337,6 +359,7 @@ function M.cancel_project(project, opts)
         cancelled = 0,
         failed = 0,
         stale = 0,
+        uncancellable = 0,
         retained = 0,
     }
 
@@ -404,8 +427,19 @@ function M.cancel_project(project, opts)
                     summary.failed = summary.failed + 1
                 end
             else
-                summary.stale = summary.stale + 1
-                M.clear(project, active_record)
+                if has_live_uncancellable_handle(active_record) then
+                    summary.uncancellable = summary.uncancellable + 1
+                    summary.retained = summary.retained + 1
+                    M.retain(project, active_record, {
+                        ok = false,
+                        reason = "uncancellable_handle",
+                        message = "operation handle does not implement cancel",
+                        kind = kind,
+                    })
+                else
+                    summary.stale = summary.stale + 1
+                    M.clear(project, active_record)
+                end
             end
         end
     end

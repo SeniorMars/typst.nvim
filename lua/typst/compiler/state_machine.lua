@@ -1,4 +1,5 @@
 local compiler_events = require("typst.compiler.events")
+local compiler_fanout = require("typst.compiler.fanout")
 local compiler_service = require("typst.project.services.compiler")
 local core_result = require("typst.core.result")
 local provider_binding = require("typst.compiler.provider_binding")
@@ -20,15 +21,7 @@ end
 
 ---@param project TypstProject Project whose compile output should be recorded.
 function M.record_compile_output(project)
-    local output = (compiler_service.get(project) or {}).output
-    if type(output) ~= "string" or output == "" then
-        return
-    end
-
-    require("typst.workflows.artifacts").record_owned(project, {
-        path = output,
-        producer = "compile",
-    })
+    return compiler_fanout.record_compile_output(project)
 end
 
 ---@param result any Result candidate.

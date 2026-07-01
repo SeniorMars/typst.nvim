@@ -24,6 +24,7 @@ if "--version" in args:
 mode = args[0] if args else ""
 main = args[-2] if len(args) >= 2 else "main.typ"
 output = args[-1] if len(args) >= 1 else "main.pdf"
+fixture_mode = os.environ.get("TYPST_NVIM_FAKE_TYPST_MODE", "")
 
 
 def option_value(name):
@@ -69,6 +70,13 @@ def write_deps():
 
 if mode == "watch":
     emit(f"watching {main}\nwriting to {output}\n\n[12:00:00] compiling ...\n")
+    if fixture_mode == "flood-output":
+        for _ in range(1024):
+            emit("x" * 1024)
+        while running:
+            time.sleep(0.05)
+        sys.exit(0)
+
     emit("[12:00:00] compiled successfully in 1.00 ms\n")
     delay_ms = int(os.environ.get("TYPST_NVIM_FAKE_TYPST_DELAY_OUTPUT_MS", "0"))
     if delay_ms > 0:

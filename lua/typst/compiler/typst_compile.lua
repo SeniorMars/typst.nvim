@@ -1,9 +1,9 @@
 local config = require("typst.config")
 local compiler_command = require("typst.compiler.command")
 local compiler_dependencies = require("typst.compiler.dependencies")
+local compiler_fanout = require("typst.compiler.fanout")
 local output_path_util = require("typst.compiler.output_path")
 local compiler_process = require("typst.compiler.typst_process")
-local diagnostics = require("typst.diagnostics")
 local compiler_events = require("typst.compiler.events")
 local log = require("typst.core.log")
 local operation = require("typst.core.operation")
@@ -45,7 +45,9 @@ function M.start(project, callback, run_config)
             output = output,
             last_result = result,
         })
-        compiler_events.failed(project, result)
+        compiler_fanout.compile_failed(project, result, {
+            publish_diagnostics = false,
+        })
         if callback then
             callback(result)
         end
@@ -74,7 +76,9 @@ function M.start(project, callback, run_config)
             status = "error",
             last_result = result,
         })
-        compiler_events.failed(project, result)
+        compiler_fanout.compile_failed(project, result, {
+            publish_diagnostics = false,
+        })
         if callback then
             callback(result)
         end
@@ -100,7 +104,9 @@ function M.start(project, callback, run_config)
             status = "error",
             last_result = result,
         })
-        compiler_events.failed(project, result)
+        compiler_fanout.compile_failed(project, result, {
+            publish_diagnostics = false,
+        })
         if callback then
             callback(result)
         end
@@ -168,11 +174,6 @@ function M.start(project, callback, run_config)
                 })
 
                 if result.code == 0 then
-                    require("typst.workflows.artifacts").record_owned(project, {
-                        path = output,
-                        producer = "compile",
-                        generation = generation,
-                    })
                     compiler_service.set(project, {
                         clear = {
                             "process",
@@ -182,19 +183,16 @@ function M.start(project, callback, run_config)
                         last_result = final_result,
                         status = "success",
                     })
-                    diagnostics.clear(project)
-                    compiler_dependencies.update_project(
-                        project,
-                        compiler_dependencies.take(deps_path, project.root)
-                    )
-                    log.add("info", "compile succeeded", { output = output })
-                    compiler_events.succeeded(project, final_result)
+                    compiler_fanout.compile_succeeded(project, final_result, {
+                        output = output,
+                        generation = generation,
+                        deps_path = deps_path,
+                    })
                 else
                     final_result.reason = final_result.reason
                         or "compile_failed"
                     final_result.message = final_result.message
                         or "Typst compile failed"
-                    compiler_dependencies.cleanup_file(deps_path)
                     compiler_service.set(project, {
                         clear = {
                             "process",
@@ -204,23 +202,9 @@ function M.start(project, callback, run_config)
                         last_result = final_result,
                         status = "error",
                     })
-                    if diagnostics.should_publish(project) then
-                        diagnostics.publish(
-                            project,
-                            ("%s\n%s"):format(
-                                result.stderr or "",
-                                result.stdout or ""
-                            )
-                        )
-                    else
-                        diagnostics.clear(project)
-                    end
-                    log.add("error", "compile failed", {
-                        code = result.code,
-                        stderr = result.stderr,
-                        stdout = result.stdout,
+                    compiler_fanout.compile_failed(project, final_result, {
+                        deps_path = deps_path,
                     })
-                    compiler_events.failed(project, final_result)
                 end
 
                 if callback then
@@ -251,7 +235,10 @@ function M.start(project, callback, run_config)
             status = "error",
             last_result = result,
         })
-        compiler_events.failed(project, result)
+        compiler_fanout.compile_failed(project, result, {
+            publish_diagnostics = false,
+            cleanup_deps = false,
+        })
         if callback then
             callback(result)
         end

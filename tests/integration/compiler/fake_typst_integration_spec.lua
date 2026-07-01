@@ -145,6 +145,7 @@ local ok, err = xpcall(function()
 end, debug.traceback)
 
 vim.env.TYPST_NVIM_FAKE_TYPST_DELAY_OUTPUT_MS = nil
+vim.env.TYPST_NVIM_FAKE_TYPST_MODE = nil
 cleanup()
 
 if not ok then

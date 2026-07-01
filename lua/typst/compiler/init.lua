@@ -8,7 +8,7 @@ local log = require("typst.core.log")
 local provider_binding = require("typst.compiler.provider_binding")
 local provider_adapter = require("typst.integrations.provider_adapter")
 local compiler_result = require("typst.compiler.state_machine")
-local project_registry = require("typst.project.registry")
+local project_store = require("typst.project.store")
 
 local M = {}
 
@@ -476,7 +476,7 @@ function M.force_clear(project, opts)
     local active = compiler_service.has_active(compiler_state)
     local output = compiler_state.output
     local key = project and project.key or nil
-    local key_display = key and project_registry.encode_key(key) or nil
+    local key_display = key and project_store.encode_key(key) or nil
 
     if type(binding) ~= "table" or binding.external ~= true then
         return {

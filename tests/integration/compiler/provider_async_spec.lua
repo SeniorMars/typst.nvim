@@ -7,6 +7,8 @@ local project_facade = require("typst.project")
 local project_registry = require("typst.project.registry")
 local project_services = require("typst.project.services")
 
+local uv = vim.uv or vim.loop
+
 local callbacks = {}
 
 local provider = {
@@ -509,6 +511,91 @@ assert(
             == compile_timeout_clear.key_display,
     "force clear should emit a destructive recovery event with project keys"
 )
+
+local raw_userdata_handle = nil
+local raw_userdata_provider = {
+    name = "raw-userdata-timeout-provider",
+    compile = function()
+        raw_userdata_handle = assert(uv.new_timer())
+        return raw_userdata_handle
+    end,
+    start = function()
+        return { code = 0, stopped = true }
+    end,
+    stop = function(_project, callback)
+        if callback then
+            callback({ code = 0, stopped = true, stale = false })
+        end
+        return { code = 0, stopped = true }
+    end,
+    status = function(project_state)
+        return "raw-userdata-" .. typst_test_compiler(project_state).status
+    end,
+    output = function()
+        return typst_test_cache_path("async-provider/raw-userdata.pdf")
+    end,
+}
+
+typst.reset()
+typst.setup({
+    root = root,
+    compile = {
+        provider = raw_userdata_provider,
+        provider_timeout_ms = 20,
+    },
+})
+vim.cmd.edit(main)
+project = typst.project.set_main(main)
+local raw_userdata_result = nil
+local raw_userdata_returned = typst.compiler.compile({}, function(result)
+    raw_userdata_result = result
+end)
+assert(
+    raw_userdata_returned == raw_userdata_handle,
+    "raw userdata provider handle should be returned to callers"
+)
+assert(
+    vim.wait(1000, function()
+        return raw_userdata_result ~= nil
+    end, 10),
+    "raw userdata provider handle should time out"
+)
+assert(
+    raw_userdata_result.reason == "timeout",
+    "raw userdata provider timeout should be reported"
+)
+assert(
+    typst_test_compiler(project).process == raw_userdata_handle,
+    "raw userdata provider timeout should retain the active handle"
+)
+assert(
+    typst_test_compiler(project).status == "stopping_failed",
+    "raw userdata provider timeout should mark stopping_failed"
+)
+assert(
+    output_ownership.active(raw_userdata_provider.output()),
+    "raw userdata provider timeout should retain output lease"
+)
+local raw_userdata_clear =
+    typst.compiler.force_clear({ key = project.key, notify = false })
+assert(
+    raw_userdata_clear.ok and raw_userdata_clear.reason == "force_cleared",
+    "force clear should recover raw userdata provider timeout state"
+)
+if raw_userdata_handle and not raw_userdata_handle:is_closing() then
+    raw_userdata_handle:close()
+end
+
+typst.reset()
+typst.setup({
+    root = root,
+    compile = {
+        provider = timeout_provider,
+        provider_timeout_ms = 20,
+    },
+})
+vim.cmd.edit(main)
+project = typst.project.set_main(main)
 
 local timeout_watch = nil
 local timeout_watch_handle = typst.compiler.watch({}, function(result)

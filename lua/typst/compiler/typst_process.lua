@@ -163,6 +163,15 @@ function M.add_watcher_stop_callback(watcher, callback)
     watcher.stop_callbacks[#watcher.stop_callbacks + 1] = callback
 end
 
+local function protected_stop_callback(kind, callback, payload)
+    local ok, err = pcall(callback, payload)
+    if not ok then
+        log.add("warn", kind .. " stop callback failed", {
+            error = err,
+        })
+    end
+end
+
 --- Drain callbacks for a completed watcher stop exactly once.
 ---@param watcher TypstCompilerWatcher? Watcher state stored in project compiler state.
 ---@param payload TypstCompilerResult Stop result passed to each callback.
@@ -173,12 +182,7 @@ function M.drain_watcher_stop_callbacks(watcher, payload)
     end
 
     for _, stop_callback in ipairs(callbacks) do
-        local ok, err = pcall(stop_callback, payload)
-        if not ok then
-            log.add("warn", "watcher stop callback failed", {
-                error = err,
-            })
-        end
+        protected_stop_callback("watcher", stop_callback, payload)
     end
 end
 
@@ -249,7 +253,7 @@ function M.finish_stopped_compile(project, handle, result)
     compiler_events.stopped(project, payload)
 
     for _, stop_callback in ipairs(stopping.callbacks) do
-        stop_callback(payload)
+        protected_stop_callback("compile", stop_callback, payload)
     end
 
     return true

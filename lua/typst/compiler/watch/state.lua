@@ -1,8 +1,6 @@
-local compiler_dependencies = require("typst.compiler.dependencies")
-local compiler_events = require("typst.compiler.events")
+local compiler_fanout = require("typst.compiler.fanout")
 local compiler_output = require("typst.compiler.output")
 local watch_parser = require("typst.compiler.watch.parser")
-local diagnostics = require("typst.diagnostics")
 local async = require("typst.core.async")
 local log = require("typst.core.log")
 local compiler_service = require("typst.project.services.compiler")
@@ -15,6 +13,8 @@ local WATCH_OUTPUT_WAIT_INITIAL_MS = 50
 local WATCH_OUTPUT_WAIT_MAX_STEP_MS = 800
 local WATCH_OUTPUT_WAIT_DEFAULT_MS = 1500
 local WATCH_STREAM_LOG_INTERVAL_MS = 1000
+local WATCH_STREAM_QUEUE_MAX_BYTES = 256 * 1024
+local WATCH_STREAM_QUEUE_MAX_CHUNKS = 1024
 
 -- State machine for `typst watch` output.
 --
@@ -53,19 +53,6 @@ local function cycle_payload(project, watcher, code)
         output_wait_ms = cycle.output_wait_elapsed_ms,
         output_wait_attempts = cycle.output_wait_attempts,
     }
-end
-
-local function publish_cycle_diagnostics(project, watcher)
-    if not diagnostics.should_publish(project) then
-        diagnostics.clear(project)
-        return
-    end
-
-    local cycle = watcher.current_cycle
-    diagnostics.publish(
-        project,
-        cycle and ((cycle.stderr or "") .. "\n" .. (cycle.stdout or "")) or ""
-    )
 end
 
 local function output_readable(output)
@@ -119,6 +106,25 @@ local function log_stream_chunk(watcher, stream, data)
     stats.chunks = 0
     stats.bytes = 0
     stats.last_logged_at = now
+end
+
+local function log_stream_truncation(watcher)
+    local now = uv.hrtime()
+    local elapsed_ms = watcher.last_stream_truncation_warning_at == nil
+            and math.huge
+        or math.floor(
+            (now - watcher.last_stream_truncation_warning_at) / 1000000
+        )
+    if elapsed_ms < WATCH_STREAM_LOG_INTERVAL_MS then
+        return
+    end
+    watcher.last_stream_truncation_warning_at = now
+    log.add("warn", "watch stream queue truncated", {
+        dropped_chunks = watcher.stream_queue_dropped_chunks or 0,
+        dropped_bytes = watcher.stream_queue_dropped_bytes or 0,
+        max_chunks = WATCH_STREAM_QUEUE_MAX_CHUNKS,
+        max_bytes = WATCH_STREAM_QUEUE_MAX_BYTES,
+    })
 end
 
 local function schedule_missing_output_retry(
@@ -244,41 +250,23 @@ function M.finish_cycle(project, watcher, code, reason)
     end
 
     if code == 0 then
-        require("typst.workflows.artifacts").record_owned(project, {
-            path = output,
-            producer = "compile",
-            generation = watcher.generation,
-        })
         watcher.last_cycle_status = "success"
         compiler_service.set(project, {
             watch_cycle_status = watcher.last_cycle_status,
         })
-        diagnostics.clear(project)
-        compiler_dependencies.refresh_watcher(project, watcher)
-        log.add("info", "watch compile cycle succeeded", {
-            main = project.main,
+        result.last_cycle_status = watcher.last_cycle_status
+        compiler_fanout.watch_cycle_succeeded(project, watcher, result, {
             output = output,
-            cycle = cycle.id,
             reason = reason,
         })
-        result.last_cycle_status = watcher.last_cycle_status
-        compiler_events.cycle_succeeded(project, result)
     else
         watcher.last_cycle_status = "error"
         compiler_service.set(project, {
             watch_cycle_status = watcher.last_cycle_status,
         })
-        publish_cycle_diagnostics(project, watcher)
-        log.add("error", "watch compile cycle failed", {
-            main = project.main,
-            cycle = cycle.id,
-            reason = reason,
-            stderr = result.stderr,
-            stdout = result.stdout,
-        })
         result.last_cycle_status = watcher.last_cycle_status
         result.reason = reason
-        compiler_events.cycle_failed(project, result)
+        compiler_fanout.watch_cycle_failed(project, result, { reason = reason })
     end
 
     if watcher.callback then
@@ -350,12 +338,7 @@ local function start_cycle(project, watcher)
         finished = false,
     }
 
-    diagnostics.clear(project)
-    log.add("info", "watch compile cycle started", {
-        main = project.main,
-        cycle = watcher.cycle,
-    })
-    compiler_events.cycle_started(project, {
+    compiler_fanout.watch_cycle_started(project, {
         watch = true,
         cycle = watcher.cycle,
         generation = watcher.generation,
@@ -422,10 +405,13 @@ function M.handle_line(project, watcher, stream, line)
             })
         end
     elseif watcher.last_cycle_status == "error" then
-        compiler_service.set(project, {
-            last_result = cycle_payload(project, watcher, 1),
+        local result = cycle_payload(project, watcher, 1)
+        compiler_service.set(project, { last_result = result })
+        compiler_fanout.watch_cycle_failed(project, result, {
+            reason = cycle.pending_error_reason,
+            emit = false,
+            log = false,
         })
-        publish_cycle_diagnostics(project, watcher)
     end
 end
 
@@ -469,9 +455,26 @@ function M.drain_stream_queue(project, watcher)
     watcher.stream_queue_scheduled = false
     local queue = watcher.stream_queue or {}
     watcher.stream_queue = {}
+    watcher.stream_queue_bytes = 0
+    watcher.stream_queue_chunks = 0
 
     for _, item in ipairs(queue) do
         M.append_stream(project, watcher, item.stream, item.data)
+    end
+
+    if watcher.stream_queue_truncated then
+        local message = (
+            "Typst watch output was truncated before processing "
+            .. "(dropped %d chunks, %d bytes)\n"
+        ):format(
+            watcher.stream_queue_dropped_chunks or 0,
+            watcher.stream_queue_dropped_bytes or 0
+        )
+        watcher.stderr = compiler_output.append_bounded(watcher.stderr, message)
+        log_stream_truncation(watcher)
+        watcher.stream_queue_truncated = false
+        watcher.stream_queue_dropped_chunks = 0
+        watcher.stream_queue_dropped_bytes = 0
     end
 end
 
@@ -486,10 +489,50 @@ function M.enqueue_stream(project, watcher, stream, data)
     end
 
     watcher.stream_queue = watcher.stream_queue or {}
+    watcher.stream_queue_bytes = watcher.stream_queue_bytes or 0
+    watcher.stream_queue_chunks = watcher.stream_queue_chunks or 0
+
+    local incoming = data
+    local room = WATCH_STREAM_QUEUE_MAX_BYTES - watcher.stream_queue_bytes
+    local dropped_bytes = 0
+    if room <= 0 then
+        dropped_bytes = #incoming
+        incoming = ""
+    elseif #incoming > room then
+        dropped_bytes = #incoming - room
+        incoming = incoming:sub(1, room)
+    end
+
+    if
+        incoming == ""
+        or watcher.stream_queue_chunks >= WATCH_STREAM_QUEUE_MAX_CHUNKS
+    then
+        watcher.stream_queue_truncated = true
+        watcher.stream_queue_dropped_chunks = (
+            watcher.stream_queue_dropped_chunks or 0
+        ) + 1
+        watcher.stream_queue_dropped_bytes = (
+            watcher.stream_queue_dropped_bytes or 0
+        ) + #data
+        return
+    end
+
+    if dropped_bytes > 0 then
+        watcher.stream_queue_truncated = true
+        watcher.stream_queue_dropped_chunks = (
+            watcher.stream_queue_dropped_chunks or 0
+        ) + 1
+        watcher.stream_queue_dropped_bytes = (
+            watcher.stream_queue_dropped_bytes or 0
+        ) + dropped_bytes
+    end
+
     watcher.stream_queue[#watcher.stream_queue + 1] = {
         stream = stream,
-        data = data,
+        data = incoming,
     }
+    watcher.stream_queue_bytes = watcher.stream_queue_bytes + #incoming
+    watcher.stream_queue_chunks = watcher.stream_queue_chunks + 1
 
     if watcher.stream_queue_scheduled then
         return
