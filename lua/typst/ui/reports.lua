@@ -30,6 +30,83 @@ function M.echo_lines(lines)
     )
 end
 
+local function duration_label(seconds)
+    seconds = tonumber(seconds) or 0
+    if seconds >= 86400 then
+        return ("%dd"):format(math.floor(seconds / 86400))
+    end
+    if seconds >= 3600 then
+        return ("%dh"):format(math.floor(seconds / 3600))
+    end
+    if seconds >= 60 then
+        return ("%dm"):format(math.floor(seconds / 60))
+    end
+    return ("%ds"):format(math.floor(seconds))
+end
+
+function M.output_lock_lines(opts)
+    opts = opts or {}
+    local locks = output_ownership.locks({ path = opts.path })
+    local lines = {
+        ("Typst output locks: %d item%s"):format(
+            #locks,
+            #locks == 1 and "" or "s"
+        ),
+    }
+    if #locks == 0 then
+        return lines
+    end
+
+    for _, lock in ipairs(locks) do
+        local owner = lock.owner or {}
+        local detail = {
+            ("status=%s"):format(
+                lock.lock_status or lock.owner_status or "unknown"
+            ),
+            ("pid=%s"):format(lock.pid or "?"),
+            ("age=%s"):format(duration_label(lock.age_seconds)),
+        }
+        if owner.project_key then
+            detail[#detail + 1] = "project=" .. owner.project_key
+        end
+        if owner.kind then
+            detail[#detail + 1] = "owner=" .. owner.kind
+        end
+        if lock.recoverable then
+            detail[#detail + 1] = "cleanable"
+        elseif lock.active_current then
+            detail[#detail + 1] = "current-process"
+        end
+        lines[#lines + 1] = ("  %s"):format(
+            lock.path or lock.lock_path or "<unknown output>"
+        )
+        lines[#lines + 1] = ("    %s"):format(table.concat(detail, " "))
+        lines[#lines + 1] = ("    lock: %s"):format(lock.lock_path)
+    end
+    return lines
+end
+
+function M.clean_output_locks_lines(opts)
+    local result = output_ownership.clean_locks(opts or {})
+    local lines = {
+        ("Typst output locks cleaned: removed=%d skipped=%d failed=%d"):format(
+            result.removed or 0,
+            result.skipped or 0,
+            result.failed or 0
+        ),
+    }
+    for _, lock in ipairs(result.locks or {}) do
+        local state = lock.cleaned and "removed" or "kept"
+        local reason = lock.reason and (" " .. lock.reason) or ""
+        lines[#lines + 1] = ("  %s%s  %s"):format(
+            state,
+            reason,
+            lock.path or lock.lock_path or "<unknown output>"
+        )
+    end
+    return lines
+end
+
 function M.open_scratch_buffer(name, filetype, lines)
     local buf = vim.api.nvim_create_buf(false, true)
     vim.bo[buf].bufhidden = "wipe"
@@ -412,6 +489,24 @@ function M.project_lines(state, bufnr, opts)
             lines[#lines + 1] = ("    %s"):format(
                 util.relpath(path, state.root)
             )
+        end
+    end
+    local lock_failure = output_ownership.last_release_failure(state)
+    if lock_failure then
+        lines[#lines + 1] = "  last output lock release failure:"
+        if lock_failure.path then
+            lines[#lines + 1] = ("    path: %s"):format(
+                util.relpath(lock_failure.path, state.root)
+            )
+        end
+        if lock_failure.lock_path then
+            lines[#lines + 1] = ("    lock: %s"):format(lock_failure.lock_path)
+        end
+        if lock_failure.context then
+            lines[#lines + 1] = ("    context: %s"):format(lock_failure.context)
+        end
+        if lock_failure.error then
+            lines[#lines + 1] = ("    error: %s"):format(lock_failure.error)
         end
     end
 

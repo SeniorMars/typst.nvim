@@ -5,6 +5,8 @@ local public_commands = {
     "TypstInfo",
     "TypstReloadState",
     "TypstClearCache",
+    "TypstLocks",
+    "TypstCleanLocks",
     "TypstSetMain",
     "TypstToggleMain",
     "TypstEditMain",
@@ -237,6 +239,8 @@ local ok, err = xpcall(function()
     vim.cmd("TypstInfo")
     vim.cmd("TypstStatus")
     vim.cmd("TypstFiles")
+    vim.cmd("TypstLocks")
+    vim.cmd("TypstCleanLocks")
     vim.cmd("TypstCheckInvariants")
     vim.cmd("TypstTelemetry")
 end, debug.traceback)

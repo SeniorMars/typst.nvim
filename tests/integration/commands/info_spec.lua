@@ -138,4 +138,47 @@ assert(
 output_ownership.release(lease)
 operations.clear(project, record)
 
+local release_failure_lease = assert(
+    output_ownership.acquire(
+        typst_test_cache_path("info-output/release-failure.pdf"),
+        output_ownership.owner("info-release-failure", project)
+    )
+)
+vim.fn.writefile({
+    vim.json.encode({
+        pid = 999999999,
+        path = release_failure_lease.path,
+        owner = { kind = "foreign-owner" },
+    }),
+}, output_ownership._owner_path(release_failure_lease.path))
+assert(
+    output_ownership.release(release_failure_lease),
+    "info fixture should release in-process lease despite lock cleanup failure"
+)
+
+captured = {}
+vim.api.nvim_echo = function(chunks)
+    for _, chunk in ipairs(chunks) do
+        captured[#captured + 1] = chunk[1]
+    end
+end
+
+ok, err = pcall(function()
+    typst.ui.info()
+end)
+
+vim.api.nvim_echo = original_echo
+assert(ok, err)
+
+text = table.concat(captured, "\n")
+assert(
+    text:find("last output lock release failure:", 1, true),
+    "TypstInfo should show the last output lock release failure"
+)
+assert(
+    text:find("error:%s+foreign_lock_owner"),
+    "TypstInfo should show the output lock release failure reason"
+)
+vim.fn.delete(release_failure_lease.lock_path, "rf")
+
 vim.cmd("qa!")

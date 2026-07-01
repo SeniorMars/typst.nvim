@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local typst = require("typst")
+local output_ownership = require("typst.resources.outputs")
 local preview = require("typst.integrations.typst_preview")
 
 local case_id = 0
@@ -116,6 +117,7 @@ run_case("native preview and project report", function()
     local saw_metadata_symbols = false
     local saw_semantic_status = false
     local saw_conceal_math_status = false
+    local saw_import_scan_entry_cap = false
 
     for _, item in ipairs(messages) do
         assert(
@@ -194,6 +196,14 @@ run_case("native preview and project report", function()
         then
             saw_conceal_math_status = true
         end
+
+        if
+            item.level == "ok"
+            and item.message:find("Import scan:", 1, true)
+            and item.message:find("entries", 1, true)
+        then
+            saw_import_scan_entry_cap = true
+        end
     end
 
     assert(
@@ -227,6 +237,10 @@ run_case("native preview and project report", function()
     assert(
         saw_conceal_math_status,
         "health output should report rich math conceal parser compatibility"
+    )
+    assert(
+        saw_import_scan_entry_cap,
+        "health should report the import-scan entry cap"
     )
 end)
 
@@ -364,8 +378,25 @@ run_case("compiler provider state", function()
 
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
-    typst.project.set_main(main)
+    local project = typst.project.set_main(main)
     typst.compiler.watch({ profile = "custom" })
+    local failed_release_lease = assert(
+        output_ownership.acquire(
+            typst_test_cache_path("health-provider/release-failure.pdf"),
+            output_ownership.owner("health-release-failure", project)
+        )
+    )
+    vim.fn.writefile({
+        vim.json.encode({
+            pid = 999999999,
+            path = failed_release_lease.path,
+            owner = { kind = "foreign-owner" },
+        }),
+    }, output_ownership._owner_path(failed_release_lease.path))
+    assert(
+        output_ownership.release(failed_release_lease),
+        "health fixture should release in-process lease despite lock cleanup failure"
+    )
 
     local messages = capture_health()
 
@@ -379,6 +410,11 @@ run_case("compiler provider state", function()
             and item.message:find("command=health-provider watch", 1, true)
             and item.message:find("watcher_pid=4242", 1, true)
             and item.message:find("active_leases=1", 1, true)
+            and item.message:find(
+                "last_output_lock_failure=foreign_lock_owner",
+                1,
+                true
+            )
             and item.message:find("root_source=config.root", 1, true)
             and item.message:find(
                 "main_source=buffer variable vim.b.typst_main",
@@ -396,6 +432,7 @@ run_case("compiler provider state", function()
     )
 
     typst.compiler.stop()
+    vim.fn.delete(failed_release_lease.lock_path, "rf")
 
     typst.setup({
         root = root,

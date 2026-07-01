@@ -422,6 +422,17 @@ local function project_status_line(state)
     if lease_count > 0 then
         fields[#fields + 1] = ("active_leases=%d"):format(lease_count)
     end
+    local lock_failure = output_ownership.last_release_failure(state)
+    if lock_failure then
+        fields[#fields + 1] = ("last_output_lock_failure=%s"):format(
+            lock_failure.error or "unknown"
+        )
+        if lock_failure.lock_path then
+            fields[#fields + 1] = ("last_output_lock_path=%s"):format(
+                lock_failure.lock_path
+            )
+        end
+    end
 
     local operations_state = state.services and state.services.operations or {}
     local retained_count = vim.tbl_count(operations_state.retained_by_id or {})
@@ -703,11 +714,19 @@ function M.check()
     ok(("Root markers: %s"):format(table.concat(opts.root_markers or {}, ", ")))
     ok(("Output directory: %s"):format(opts.output_dir or "<next to main>"))
     ok(("Output format: %s"):format(opts.output_format))
+    local locks = output_ownership.locks()
+    ok(("Output lock directory: %s"):format(output_ownership.lock_dir()))
     ok(
-        ("Import scan: %s (%d files, %d ancestors)"):format(
+        ("Output locks: %d (use :TypstLocks / :TypstCleanLocks for recovery)"):format(
+            #locks
+        )
+    )
+    ok(
+        ("Import scan: %s (%d files, %d ancestors, %d entries)"):format(
             opts.project.import_scan and "enabled" or "disabled",
             opts.project.import_scan_max_files,
-            opts.project.import_scan_max_depth
+            opts.project.import_scan_max_depth,
+            opts.project.import_scan_max_entries
         )
     )
     ok(

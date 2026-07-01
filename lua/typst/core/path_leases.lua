@@ -21,7 +21,7 @@ local function lease_error(path, existing)
         reason = "active_output",
         message = "Output path is already being written",
         path = path,
-        active_output = path,
+        active_output = existing and existing.path or path,
         owner = existing and existing.owner or nil,
     }
 end

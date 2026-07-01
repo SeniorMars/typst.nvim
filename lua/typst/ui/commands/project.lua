@@ -31,6 +31,31 @@ function M.register(ctx)
         "Clear typst.nvim metadata, package, symbol, and conceal caches"
     ))
 
+    create("TypstLocks", function(args)
+        local reports = require("typst.ui.reports")
+        reports.echo_lines(reports.output_lock_lines({
+            path = args.args ~= "" and args.args or nil,
+        }))
+    end, opts("List typst.nvim output locks", "?", "file"))
+
+    create(
+        "TypstCleanLocks",
+        function(args)
+            local reports = require("typst.ui.reports")
+            reports.echo_lines(reports.clean_output_locks_lines({
+                force = args.bang,
+                path = args.args ~= "" and args.args or nil,
+            }))
+        end,
+        vim.tbl_extend(
+            "force",
+            opts("Clean stale typst.nvim output locks", "?", "file"),
+            {
+                bang = true,
+            }
+        )
+    )
+
     create("TypstSetMain", function(args)
         api.project.set_main(args.args, nil, { persist = true })
     end, opts("Set the current buffer's Typst main file", "?", "file"))
