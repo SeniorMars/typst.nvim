@@ -109,12 +109,16 @@ local ok, err = xpcall(function()
         "unchanged apply should skip buffer-local features"
     )
     assert(
-        counts.folds > second_window_counts.folds,
-        "folds should still refresh window options"
+        second.window == false,
+        "unchanged apply should skip window-local features"
     )
     assert(
-        counts.conceal > second_window_counts.conceal,
-        "conceal should still refresh window-local state"
+        counts.folds == second_window_counts.folds,
+        "folds should not reapply when window state is unchanged"
+    )
+    assert(
+        counts.conceal == second_window_counts.conceal,
+        "conceal should not reapply when window state is unchanged"
     )
     assert(
         counts.indent == second_window_counts.indent,
@@ -131,6 +135,98 @@ local ok, err = xpcall(function()
     assert(
         counts.syntax == second_window_counts.syntax,
         "syntax should not reapply when unchanged"
+    )
+
+    local original_win = vim.api.nvim_get_current_win()
+    local sibling_counts = {
+        folds = counts.folds,
+        conceal = counts.conceal,
+    }
+    local sibling_win = vim.api.nvim_open_win(bufnr, true, {
+        relative = "editor",
+        row = 0,
+        col = 0,
+        width = 30,
+        height = 3,
+        style = "minimal",
+    })
+    vim.api.nvim_set_current_win(sibling_win)
+    local sibling_first = lifecycle.apply_buffer_features(bufnr)
+    assert(
+        sibling_first.window == true
+            or (
+                counts.folds > sibling_counts.folds
+                and counts.conceal > sibling_counts.conceal
+            ),
+        "a second window displaying the same buffer should get its own window signature through open or explicit apply"
+    )
+
+    vim.api.nvim_set_current_win(original_win)
+    local original_drift_counts = {
+        folds = counts.folds,
+        conceal = counts.conceal,
+    }
+    vim.wo[original_win].conceallevel = vim.wo[original_win].conceallevel == 3
+            and 1
+        or 3
+    local original_drift = lifecycle.apply_buffer_features(bufnr)
+    assert(
+        original_drift.window == true,
+        "window option drift should invalidate only the current window signature"
+    )
+    assert(
+        counts.folds > original_drift_counts.folds
+            and counts.conceal > original_drift_counts.conceal,
+        "window-local features should reapply for the drifted window"
+    )
+
+    vim.api.nvim_set_current_win(sibling_win)
+    local sibling_stable_counts = {
+        folds = counts.folds,
+        conceal = counts.conceal,
+    }
+    local sibling_stable = lifecycle.apply_buffer_features(bufnr)
+    assert(
+        sibling_stable.window == false,
+        "window option drift in another window should not invalidate this window"
+    )
+    assert(
+        counts.folds == sibling_stable_counts.folds
+            and counts.conceal == sibling_stable_counts.conceal,
+        "stable sibling window should not reapply window-local features"
+    )
+    vim.api.nvim_set_current_win(original_win)
+    vim.api.nvim_win_close(sibling_win, true)
+
+    local option_drift_counts = {
+        folds = counts.folds,
+        conceal = counts.conceal,
+        indent = counts.indent,
+        syntax = counts.syntax,
+    }
+    vim.wo.conceallevel = vim.wo.conceallevel == 3 and 1 or 3
+    vim.wo.foldmethod = "manual"
+    local option_drift = lifecycle.apply_buffer_features(bufnr)
+    assert(
+        option_drift.window == true,
+        "window option changes should invalidate window feature signatures"
+    )
+    assert(
+        option_drift.buffer == false,
+        "window option changes should not invalidate buffer-local features"
+    )
+    assert(
+        counts.folds > option_drift_counts.folds,
+        "folds should reapply after owned window options change"
+    )
+    assert(
+        counts.conceal > option_drift_counts.conceal,
+        "conceal should reapply after owned window options change"
+    )
+    assert(
+        counts.indent == option_drift_counts.indent
+            and counts.syntax == option_drift_counts.syntax,
+        "window option changes should not rerun buffer-local setup"
     )
 
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "= Changed" })

@@ -2,7 +2,7 @@ local config = require("typst.config")
 local graph_match = require("typst.project.graph_match")
 local main_file = require("typst.project.main_file")
 local project_model = require("typst.project.model")
-local registry = require("typst.project.registry")
+local project_store = require("typst.project.store")
 local root_discovery = require("typst.project.root")
 local util = require("typst.core.util")
 
@@ -78,7 +78,7 @@ function M.resolve_candidate(bufnr, resolve_opts)
     if not scratch and not main then
         local existing, ambiguous, graph_source =
             graph_match.existing_project_for(
-                registry.all(),
+                project_store.all(),
                 path,
                 resolve_opts.ignore_project_key
             )
@@ -88,7 +88,7 @@ function M.resolve_candidate(bufnr, resolve_opts)
                 path = path,
                 root = existing.root,
                 main = existing.main,
-                previous_key = registry.key_for_buffer(bufnr),
+                previous_key = project_store.key_for_buffer(bufnr),
                 resolution = {
                     root_source = "existing project",
                     main_source = "existing project graph",
@@ -124,7 +124,7 @@ function M.resolve_candidate(bufnr, resolve_opts)
         path = path,
         root = root,
         main = main,
-        previous_key = registry.key_for_buffer(bufnr),
+        previous_key = project_store.key_for_buffer(bufnr),
         resolution = {
             root_source = root_source,
             main_source = main_source,

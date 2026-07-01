@@ -1,6 +1,6 @@
-local core_lifecycle = require("typst.core.lifecycle")
 local events = require("typst.core.events")
 local project = require("typst.project")
+local resources = require("typst.resources.supervisor")
 
 local M = {}
 
@@ -70,8 +70,8 @@ function M.emit_reassign(previous, state, bufnr, reason, previous_resolution)
     end
 end
 
-function M.stop_previous(previous, reason, message)
-    core_lifecycle.stop_before_prune(previous, reason, message)
+function M.stop_previous(previous, log_message, prune_reason)
+    resources.stop_before_prune(previous, log_message, prune_reason)
 end
 
 return M

@@ -39,7 +39,7 @@ function M.setup(api, notify, opts)
         require("typst.commands").register(api, { notify = notify })
         require("typst.core.lifecycle").register_autocmds()
         require("typst.preview.follow_buffer").setup()
-        require("typst.project.lifecycle").reapply_attached_buffers()
+        require("typst.project.attachments").reapply_attached_buffers()
         if require("typst.config").get().completion.package_cache_prewarm then
             local ok, package_completion =
                 pcall(require, "typst.completion.packages")
@@ -65,8 +65,7 @@ end
 local function reset_impl(opts)
     opts = opts or {}
     local log = require("typst.core.log")
-    local reset_result =
-        require("typst.core.lifecycle").reset_project_resources(opts)
+    local reset_result = require("typst.resources.supervisor").reset(opts)
     local retain_projects = reset_result
         and reset_result.ok == false
         and opts.force ~= true

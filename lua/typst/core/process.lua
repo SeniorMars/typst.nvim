@@ -45,6 +45,27 @@ local function spawn_error_handle(result)
     }
 end
 
+local function invalid_command_error(command)
+    if type(command) ~= "table" then
+        return "invalid_command",
+            "typst.core.process.spawn expects an argv table; pass { 'typst', ... }, not a shell string"
+    end
+
+    if type(command[1]) ~= "string" or command[1] == "" then
+        return "invalid_command",
+            "typst.core.process.spawn expects command[1] to be a non-empty executable string"
+    end
+
+    for index, value in ipairs(command) do
+        if type(value) ~= "string" then
+            return "invalid_command",
+                ("typst.core.process.spawn expects argv[%d] to be a string"):format(
+                    index
+                )
+        end
+    end
+end
+
 local ProcessHandle = {}
 ProcessHandle.__index = ProcessHandle
 
@@ -135,7 +156,7 @@ local function pack_returns(...)
 end
 
 --- Spawn an external process with guarded exit and spawn-error callbacks.
----@param command string|string[] Command passed to `vim.system`.
+---@param command string[] Argv passed to `vim.system`; shell strings are not accepted.
 ---@param opts? table Process options; detached by default.
 ---@param handlers? {on_exit?:fun(result:table),on_spawn_error?:fun(result:table),cleanup?:fun(result:table)} Lifecycle callbacks protected from duplicate finish calls.
 ---@return table handle Process handle, or spawn-error shim with `kill`, `wait`, and `is_closing`.
@@ -176,6 +197,19 @@ function M.spawn(command, opts, handlers)
         end
     end
 
+    local reason, command_error = invalid_command_error(command)
+    if reason then
+        local result = spawn_error_result(command, opts, command_error)
+        result.reason = reason
+        if type(handlers.on_spawn_error) == "function" then
+            pcall(handlers.on_spawn_error, result)
+        end
+        vim.schedule(function()
+            finish(result)
+        end)
+        return spawn_error_handle(result)
+    end
+
     local ok, raw = pcall(vim.system, command, opts, finish)
     if ok then
         handle = wrap_handle(raw, finish)
@@ -197,7 +231,7 @@ function M.spawn(command, opts, handlers)
 end
 
 --- Spawn a process and route its terminal result to one callback.
----@param command string|string[] Command passed to `vim.system`.
+---@param command string[] Argv passed to `vim.system`; shell strings are not accepted.
 ---@param opts? table Process options forwarded to `spawn`.
 ---@param on_exit? fun(result:table) Callback invoked with the terminal result.
 ---@return table handle Process handle or spawn-error shim.

@@ -3,15 +3,13 @@ local context = require("typst.project.context")
 local log = require("typst.core.log")
 local dependencies = require("typst.project.dependencies")
 local diagnostics = require("typst.diagnostics")
-local index_cache = require("typst.project.index_cache")
 local graph_sources = require("typst.project.graph.sources")
 local project_model = require("typst.project.model")
-local project_registry = require("typst.project.registry")
 local project_resolver = require("typst.project.resolver")
-local project_services = require("typst.project.services")
 local compiler_service = require("typst.project.services.compiler")
 local root_discovery = require("typst.project.root")
 local state_store = require("typst.core.state")
+local project_store = require("typst.project.store")
 local util = require("typst.core.util")
 
 local M = {}
@@ -23,7 +21,7 @@ local M = {}
 -- them at once. Buffer membership is tracked separately so moving a buffer to a
 -- new main can detach diagnostics and compiler state from the old project.
 
-local project_key = project_model.project_key
+local project_key = project_store.project_key
 local normalize_bufnr = project_model.normalize_bufnr
 local current_buffer_path = project_model.current_buffer_path
 local rebuild_files = project_model.rebuild_files
@@ -45,58 +43,13 @@ local function record_resolution(project, bufnr, path, resolution)
     project.main_source = resolution.main_source
 end
 
----@param state TypstProject? Project that may be pruned.
----@param reason string Prune reason.
----@return boolean pruned True when the project was removed.
-local function prune_if_empty(state, reason)
-    if
-        not state
-        or next(state.bufs or {}) ~= nil
-        or project_services.has_active_resources(state)
-    then
-        return false
-    end
-
-    project_registry.remove(state.key)
-    index_cache.reset(state)
-    state._typst_project_pruned = true
-    state._typst_project_pruned_reason = reason
-    log.add("info", "removed empty project", {
-        main = state.main,
-        reason = reason,
-    })
-    return true
-end
-
----@param state TypstProject? Project that may have been pruned.
----@param reason? string Event reason override.
----@return boolean emitted True when a prune event was emitted.
-local function emit_project_pruned(state, reason)
-    if
-        not state
-        or state._typst_project_pruned ~= true
-        or state._typst_project_pruned_event_emitted == true
-    then
-        return false
-    end
-
-    state._typst_project_pruned_event_emitted = true
-    require("typst.core.events").emit("TypstProjectPruned", state, {
-        event_kind = "project_pruned",
-        reason = reason or state._typst_project_pruned_reason,
-        remaining_buffers = 0,
-        project_pruned = true,
-    })
-    return true
-end
-
 local function transfer_buffer(bufnr, next_key)
-    local previous_key = project_registry.key_for_buffer(bufnr)
+    local previous_key = project_store.key_for_buffer(bufnr)
     if previous_key == nil or previous_key == next_key then
         return
     end
 
-    local previous = project_registry.get(previous_key)
+    local previous = project_store.get(previous_key)
     if previous then
         previous.bufs[bufnr] = nil
         diagnostics.clear_buffer(previous, bufnr, { emit = false })
@@ -107,7 +60,7 @@ local function transfer_buffer(bufnr, next_key)
             to = next_key,
         })
         rebuild_files(previous)
-        prune_if_empty(previous, "buffer moved")
+        project_store.prune_if_empty(previous, "buffer moved")
     end
 end
 
@@ -119,13 +72,7 @@ end
 ---@return TypstProject project Attached project state.
 local function create_or_update(root, main, bufnr, path, resolution)
     local key = project_key(root, main)
-    local project = project_registry.get(key)
-
-    if not project then
-        project = project_model.new_project(root, main, key)
-        project_registry.set(key, project)
-        log.add("info", "created project", { root = root, main = main })
-    end
+    local project = project_store.create(root, main)
 
     transfer_buffer(bufnr, key)
     project.bufs[bufnr] = true
@@ -152,7 +99,7 @@ local function create_or_update(root, main, bufnr, path, resolution)
             output = project_model.output_path(project),
         })
     end
-    project_registry.set_buffer(bufnr, key)
+    project_store.set_buffer(bufnr, key)
     record_resolution(project, bufnr, path, resolution)
     return project
 end
@@ -203,7 +150,7 @@ end
 ---@return TypstProject|nil state Attached project state, if any.
 function M.get(bufnr)
     bufnr = normalize_bufnr(bufnr)
-    return project_registry.project_for_buffer(bufnr)
+    return project_store.project_for_buffer(bufnr)
 end
 
 --- Check whether a buffer's attached main file is no longer readable.
@@ -234,13 +181,13 @@ end
 ---@return TypstProject|nil state Project state the buffer belonged to before detach.
 function M.detach(bufnr)
     bufnr = normalize_bufnr(bufnr)
-    local key = project_registry.key_for_buffer(bufnr)
+    local key = project_store.key_for_buffer(bufnr)
     if not key then
         return nil
     end
 
-    local state = project_registry.get(key)
-    project_registry.clear_buffer(bufnr)
+    local state = project_store.get(key)
+    project_store.clear_buffer(bufnr)
 
     if state then
         state.bufs[bufnr] = nil
@@ -248,7 +195,7 @@ function M.detach(bufnr)
         state.resolutions[bufnr] = nil
         log.add("info", "detached buffer", { bufnr = bufnr, main = state.main })
         rebuild_files(state)
-        prune_if_empty(state, "buffer detached")
+        project_store.prune_if_empty(state, "buffer detached")
     end
 
     return state
@@ -290,15 +237,15 @@ function M.clear_main(bufnr, opts)
         error("typst.nvim: current buffer has no file name")
     end
 
-    local previous_key = project_registry.key_for_buffer(bufnr)
-    local previous = previous_key and project_registry.get(previous_key) or nil
+    local previous_key = project_store.key_for_buffer(bufnr)
+    local previous = previous_key and project_store.get(previous_key) or nil
     if previous then
         previous.bufs[bufnr] = nil
         diagnostics.clear_buffer(previous, bufnr, { emit = false })
         previous.resolutions[bufnr] = nil
-        project_registry.clear_buffer(bufnr)
+        project_store.clear_buffer(bufnr)
         rebuild_files(previous)
-        prune_if_empty(previous, "buffer main cleared")
+        project_store.prune_if_empty(previous, "buffer main cleared")
     end
 
     util.del_buf_var(bufnr, "typst_main")
@@ -321,7 +268,7 @@ end
 --- Return the live project registry.
 ---@return table<string, TypstProject> registry Project registry keyed by project key.
 function M.all()
-    return project_registry.all()
+    return project_store.all()
 end
 
 --- Return a public snapshot for one project or buffer.
@@ -340,7 +287,7 @@ end
 ---@param opts? table Snapshot options.
 ---@return table[] snapshots Project snapshots.
 function M.all_snapshots(opts)
-    return context.list(project_registry.all(), opts)
+    return context.list(project_store.all(), opts)
 end
 
 --- Prune a project if it no longer owns buffers or active resources.
@@ -348,15 +295,7 @@ end
 ---@param reason? string Human-readable prune reason.
 ---@return boolean? pruned True when the project was removed.
 function M.prune(state, reason)
-    if type(state) == "string" then
-        state = project_registry.get(state)
-    end
-
-    local pruned = prune_if_empty(state, reason or "manual prune")
-    if pruned then
-        emit_project_pruned(state, reason or "manual prune")
-    end
-    return pruned
+    return project_store.prune(state, reason)
 end
 
 --- Check whether a project was removed from the registry.
@@ -371,12 +310,12 @@ end
 ---@param reason? string Reason override for the event payload.
 ---@return boolean emitted True when the event was emitted.
 function M.emit_pruned(state, reason)
-    return emit_project_pruned(state, reason)
+    return project_store.emit_project_pruned(state, reason)
 end
 
 --- Clear all project registry state.
 function M.reset()
-    project_registry.reset()
+    project_store.reset()
 end
 
 return M

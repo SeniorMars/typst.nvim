@@ -5,11 +5,15 @@ local typst = require("typst")
 local compiler_service = require("typst.project.services.compiler")
 local core_result = require("typst.core.result")
 local output_ownership = require("typst.resources.outputs")
+local project_attachments = require("typst.project.attachments")
 local project_facade = require("typst.project")
 local project_registry = require("typst.project.registry")
 local project_resolver = require("typst.project.resolver")
+local project_store = require("typst.project.store")
 local resource_session = require("typst.resources.session")
+local resource_supervisor = require("typst.resources.supervisor")
 local preview_service = require("typst.project.services.preview")
+local compiler_fanout = require("typst.compiler.fanout")
 
 typst.reset({ force = true })
 typst.setup({
@@ -25,6 +29,10 @@ for _, phrase in ipairs({
     "What Not To Do",
     "Hard Ownership Boundaries",
     "resources.cleanup",
+    "project.store",
+    "project.attachments",
+    "resources.supervisor",
+    "compiler.fanout",
     "compiler.controller",
     "preview.controller",
     "viewer.controller",
@@ -93,12 +101,53 @@ assert(
     "built-in idle stop_for_exit should leave compiler state idle"
 )
 assert(
-    project_registry.project_for_buffer(bufnr) == project,
-    "project.registry should own buffer-to-project lookup"
+    project_store.project_for_buffer(bufnr) == project,
+    "project.store should own buffer-to-project lookup"
 )
 assert(
     project_facade.all()[project.key] == project,
     "typst.project facade should expose registry projects"
+)
+assert(
+    type(project_attachments.install) == "function"
+        and type(project_attachments.reapply_attached_buffers) == "function",
+    "project.attachments should expose BufferAttachment lifecycle hooks"
+)
+assert(
+    type(resource_supervisor.reset) == "function"
+        and type(resource_supervisor.stop_before_prune) == "function"
+        and type(resource_supervisor.stop_for_exit_all) == "function",
+    "resources.supervisor should expose ResourceSupervisor cleanup hooks"
+)
+local saved_core_lifecycle = package.loaded["typst.core.lifecycle"]
+local stop_before_prune_args = nil
+package.loaded["typst.core.lifecycle"] = {
+    stop_before_prune = function(...)
+        stop_before_prune_args = { ... }
+        return true
+    end,
+}
+local prune_state = { key = "resource-supervisor-test" }
+assert(
+    resource_supervisor.stop_before_prune(
+        prune_state,
+        "log message",
+        "prune reason"
+    ) == true,
+    "resources.supervisor should delegate stop-before-prune work"
+)
+package.loaded["typst.core.lifecycle"] = saved_core_lifecycle
+assert(
+    stop_before_prune_args
+        and stop_before_prune_args[1] == prune_state
+        and stop_before_prune_args[2] == "log message"
+        and stop_before_prune_args[3] == "prune reason",
+    "resources.supervisor should preserve log-message/prune-reason argument order"
+)
+assert(
+    type(compiler_fanout.compile_succeeded) == "function"
+        and type(compiler_fanout.watch_cycle_failed) == "function",
+    "compiler.fanout should expose compiler result consumer hooks"
 )
 for _, raw_key in ipairs({
     "/tmp/a%2Fb main.typ",

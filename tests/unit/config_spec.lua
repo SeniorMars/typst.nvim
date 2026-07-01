@@ -33,6 +33,16 @@ assert(
     tostring(err_set_root):match("read%-only"),
     "config.get top-level mutation error should mention read-only state"
 )
+assert(
+    tostring(err_set_root):match("config%.get%(%)"),
+    "config.get mutation error should identify the read-only API"
+)
+assert(
+    not tostring(err_set_root):match(
+        "unsafe_get%(%) for internal mutable access"
+    ),
+    "config.get mutation error should not recommend unsafe mutation"
+)
 local ok_set_nested, err_set_nested = pcall(function()
     before.compile.extra_args[1] = "--mutated"
 end)
@@ -108,6 +118,22 @@ assert(
     "bibliography completion should default to auto"
 )
 assert(
+    default_config.project.import_scan_max_entries == 2000,
+    "project import scan entry cap should default to 2000"
+)
+assert(
+    default_config.project.index.max_file_bytes == 1024 * 1024,
+    "project index static file cap should default to 1MiB"
+)
+assert(
+    default_config.project.index.large_file_policy == "skip",
+    "project index large-file policy should default to skip"
+)
+assert(
+    default_config.preview.browser.max_artifact_bytes == 32 * 1024 * 1024,
+    "native browser artifact cap should default to 32MiB"
+)
+assert(
     vim.tbl_contains(default_config.bibliography.attachment_fields, "pdf"),
     "bibliography attachment discovery should default to PDF fields"
 )
@@ -170,12 +196,24 @@ local invalid_configs = {
         message = "project.import_scan_max_depth",
     },
     {
+        opts = { project = { import_scan_max_entries = 0 } },
+        message = "project.import_scan_max_entries",
+    },
+    {
         opts = { project = { index = false } },
         message = "project.index",
     },
     {
         opts = { project = { index = { fs_watchers = "many" } } },
         message = "project.index.fs_watchers",
+    },
+    {
+        opts = { project = { index = { max_file_bytes = -1 } } },
+        message = "project.index.max_file_bytes",
+    },
+    {
+        opts = { project = { index = { large_file_policy = "summary" } } },
+        message = "project.index.large_file_policy",
     },
     {
         opts = { integrations = false },
@@ -641,6 +679,10 @@ local invalid_configs = {
     {
         opts = { preview = { browser = { output_dir = "" } } },
         message = "preview.browser.output_dir",
+    },
+    {
+        opts = { preview = { browser = { max_artifact_bytes = -1 } } },
+        message = "preview.browser.max_artifact_bytes",
     },
     {
         opts = { preview = { browser = { refresh_ms = -1 } } },
@@ -1196,9 +1238,12 @@ local ok, err = pcall(function()
             import_scan = false,
             import_scan_max_files = 25,
             import_scan_max_depth = 1,
+            import_scan_max_entries = 100,
             persist_main = false,
             index = {
                 fs_watchers = 64,
+                max_file_bytes = 512,
+                large_file_policy = "headings-only",
             },
         },
         compile = {
@@ -1358,6 +1403,7 @@ local ok, err = pcall(function()
                 port = 12345,
                 server = false,
                 output_dir = typst_test_cache_path("browser-preview"),
+                max_artifact_bytes = 4096,
                 refresh_ms = 250,
                 reload_throttle_ms = 500,
                 performance = "fast",
@@ -1563,6 +1609,18 @@ assert(
     "project import scan depth should be configurable"
 )
 assert(
+    config.get().project.import_scan_max_entries == 100,
+    "project import scan entry cap should be configurable"
+)
+assert(
+    config.get().project.index.max_file_bytes == 512,
+    "project index static file cap should be configurable"
+)
+assert(
+    config.get().project.index.large_file_policy == "headings-only",
+    "project index large-file policy should be configurable"
+)
+assert(
     config.get().project.persist_main == false,
     "project explicit-main persistence should be configurable"
 )
@@ -1659,6 +1717,10 @@ assert(
     config.get().preview.browser.output_dir
         == typst_test_cache_path("browser-preview"),
     "preview browser output directory should be configurable"
+)
+assert(
+    config.get().preview.browser.max_artifact_bytes == 4096,
+    "preview browser artifact cap should be configurable"
 )
 assert(
     config.get().preview.browser.refresh_ms == 250,

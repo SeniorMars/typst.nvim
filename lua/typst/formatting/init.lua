@@ -32,6 +32,10 @@ function M.reset()
     return M.forget()
 end
 
+function M._generation(bufnr)
+    return format_generations[normalize_bufnr(bufnr)] or 0
+end
+
 local function resolve_project(bufnr, opts)
     if opts.project then
         return opts.project
@@ -406,12 +410,12 @@ function M.format(opts, callback)
     local format_config = config.unsafe_get().format
     local provider_config = opts.provider or format_config.provider
     provider_config = providers.resolve("format", provider_config)
-    local apply_context = start_apply_context(bufnr, opts)
 
     if
         type(provider_config) == "function"
         or type(provider_config) == "table"
     then
+        local apply_context = start_apply_context(bufnr, opts)
         local result = run_custom_provider(
             provider_config,
             bufnr,
@@ -427,6 +431,7 @@ function M.format(opts, callback)
         -- "auto" prefers Tinymist because it formats through the active LSP
         -- project context; command-based formatters are fallback paths when LSP
         -- formatting is unavailable or declines.
+        local apply_context = start_apply_context(bufnr, opts)
         local result = tinymist.format(
             bufnr,
             vim.tbl_extend("force", opts, {
@@ -463,6 +468,7 @@ function M.format(opts, callback)
     end
 
     if provider_config == "prose" then
+        local apply_context = start_apply_context(bufnr, opts)
         local result = normalize_provider_result(
             bufnr,
             prose.run(bufnr, opts),

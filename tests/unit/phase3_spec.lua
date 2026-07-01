@@ -27,7 +27,6 @@ typst.providers.register("export", "phase3-export", {
             "failed to create provider artifact"
         )
         return {
-            ok = true,
             artifacts = {
                 {
                     format = opts.format or "pdf",
@@ -50,7 +49,6 @@ typst.providers.register("export", "phase3-async-export", {
                 "failed to create async provider artifact"
             )
             callback({
-                ok = true,
                 artifacts = {
                     {
                         format = opts.format or "pdf",
@@ -79,7 +77,6 @@ typst.providers.register("export", "phase3-undeclared-export", {
             "failed to create undeclared provider artifact"
         )
         return {
-            ok = true,
             artifacts = {
                 {
                     format = opts.format or "pdf",
@@ -95,7 +92,6 @@ typst.providers.register("eval", "phase3-eval", {
     eval = function(_, opts)
         calls.eval = calls.eval + 1
         return {
-            ok = true,
             expression = opts.expression,
             value = "evaluated:" .. opts.expression,
         }
@@ -106,8 +102,8 @@ typst.providers.register("init", "phase3-init", {
     init = function(opts)
         calls.init = calls.init + 1
         return {
-            ok = true,
             template = opts.template,
+            path = opts.destination or opts.directory,
             destination = opts.destination or opts.directory,
         }
     end,
@@ -118,9 +114,10 @@ for _, kind in ipairs({ "profile", "test", "bench", "coverage" }) do
         run = function(_, opts)
             calls[kind] = calls[kind] + 1
             return {
-                ok = true,
                 kind = kind,
                 args = opts.args,
+                report = "phase3-" .. kind .. "-report",
+                output = typst_test_cache_path("phase3-" .. kind .. ".txt"),
             }
         end,
     })
@@ -205,7 +202,10 @@ local project = typst.project.set_main(main)
 
 local exported =
     typst.artifact.export({ provider = "phase3-export", format = "svg" })
-assert(exported.ok, "provider-backed export should succeed")
+assert(
+    exported.artifacts and exported.artifacts[1],
+    "provider-backed export should accept structural-only artifacts result"
+)
 assert(calls.export == 1, "export provider should be called once")
 
 local undeclared = typst.artifact.export({
@@ -239,8 +239,8 @@ assert(
 local profile_provider_export =
     typst.artifact.export({ profile = "provider_txt" })
 assert(
-    profile_provider_export.ok,
-    "profile-level provider export should succeed"
+    profile_provider_export.artifacts and profile_provider_export.artifacts[1],
+    "profile-level provider export should accept structural-only artifacts"
 )
 assert(calls.export == 2, "profile-level provider should be called")
 local provider_txt = typst.artifact.list({ format = "txt" })
@@ -311,7 +311,10 @@ assert(
     end, 10),
     "async export provider callback did not run"
 )
-assert(async_exported.ok, "async export provider should succeed")
+assert(
+    async_exported.artifacts and async_exported.artifacts[1],
+    "async export provider should accept structural-only artifacts callback"
+)
 
 local async_artifacts = typst.artifact.list({ format = "svg" })
 assert(
@@ -335,8 +338,8 @@ assert(
 local evaluated =
     typst.evaluation.eval({ provider = "phase3-eval", expression = "1 + 1" })
 assert(
-    evaluated.ok and evaluated.value == "evaluated:1 + 1",
-    "eval provider should return result"
+    evaluated.value == "evaluated:1 + 1",
+    "eval provider should accept structural-only value result"
 )
 assert(calls.eval == 1, "eval provider should be called once")
 
@@ -345,7 +348,11 @@ local initialized = typst.template.init({
     template = "@preview/example:1.0.0",
     destination = typst_test_cache_path("phase3-template"),
 })
-assert(initialized.ok, "init provider should return success")
+assert(
+    initialized.template == "@preview/example:1.0.0"
+        and initialized.path:match("phase3%-template$"),
+    "init provider should accept structural-only template/path result"
+)
 assert(calls.init == 1, "init provider should be called once")
 
 local gallery = typst.template.list({
@@ -398,20 +405,24 @@ assert(
 )
 
 assert(
-    typst.development.profile({ provider = "phase3-profile" }).ok,
-    "profile provider should return success"
+    typst.development.profile({ provider = "phase3-profile" }).report
+        == "phase3-profile-report",
+    "profile provider should accept structural-only report result"
 )
 assert(
-    typst.development.test({ provider = "phase3-test", args = "--all" }).ok,
-    "test provider should return success"
+    typst.development.test({ provider = "phase3-test", args = "--all" }).report
+        == "phase3-test-report",
+    "test provider should accept structural-only report result"
 )
 assert(
-    typst.development.bench({ provider = "phase3-bench" }).ok,
-    "bench provider should return success"
+    typst.development.bench({ provider = "phase3-bench" }).report
+        == "phase3-bench-report",
+    "bench provider should accept structural-only report result"
 )
 assert(
-    typst.development.coverage({ provider = "phase3-coverage" }).ok,
-    "coverage provider should return success"
+    typst.development.coverage({ provider = "phase3-coverage" }).report
+        == "phase3-coverage-report",
+    "coverage provider should accept structural-only report result"
 )
 assert(calls.profile == 1, "profile provider should be called once")
 assert(calls.test == 1, "test provider should be called once")

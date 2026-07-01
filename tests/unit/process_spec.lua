@@ -563,4 +563,55 @@ if not ok then
     error(err)
 end
 
+local invalid_callbacks = 0
+local invalid_cleanups = 0
+local invalid_spawns = 0
+
+ok, err = xpcall(function()
+    local handle = process.spawn("typst --version", { cwd = root }, {
+        on_spawn_error = function(result)
+            invalid_spawns = invalid_spawns + 1
+            assert(
+                result.reason == "invalid_command",
+                "string commands should be rejected as invalid_command"
+            )
+            assert(
+                result.error:find("argv table", 1, true) ~= nil,
+                "invalid command error should tell providers to pass argv"
+            )
+        end,
+        cleanup = function(result)
+            invalid_cleanups = invalid_cleanups + 1
+            assert(
+                result.reason == "invalid_command",
+                "invalid cleanup should receive invalid_command"
+            )
+        end,
+        on_exit = function(result)
+            invalid_callbacks = invalid_callbacks + 1
+            assert(
+                result.reason == "invalid_command",
+                "invalid exit should receive invalid_command"
+            )
+        end,
+    })
+
+    assert(handle:is_closing(), "invalid command should return closed handle")
+    assert(
+        handle:wait().reason == "invalid_command",
+        "invalid command wait should return the invalid result"
+    )
+    assert(invalid_spawns == 1, "invalid spawn callback should run once")
+    assert(
+        vim.wait(1000, function()
+            return invalid_callbacks == 1 and invalid_cleanups == 1
+        end, 10),
+        "invalid command terminal callbacks did not run"
+    )
+end, debug.traceback)
+
+if not ok then
+    error(err)
+end
+
 vim.cmd("qa!")

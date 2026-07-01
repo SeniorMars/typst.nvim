@@ -95,7 +95,7 @@ function M.create(opts)
         return project_lifecycle.reload_state(api, reload_opts, notify)
     end
 
-    --- Clear derived metadata, completion, package, index, and conceal caches.
+    --- Clear derived metadata, completion, package, import-scan, index, and conceal caches.
     ---@param cache_opts? table Cache controls, including `bufnr` and `notify`.
     ---@return table summary Cache groups that were cleared.
     function api.clear_cache(cache_opts)
@@ -108,6 +108,7 @@ function M.create(opts)
             completion = cleared.completion == true,
             package = cleared.package == true,
             symbol = cleared.symbol == true,
+            import_scan = cleared.import_scan == true,
             index = cleared.index == true,
             treesitter = cleared.treesitter == true,
             conceal = cleared.conceal == true,
@@ -115,7 +116,7 @@ function M.create(opts)
 
         if cache_opts.notify ~= false then
             notify(
-                "Cleared Typst metadata, completion, package, symbol, Tree-sitter, project index, and conceal caches"
+                "Cleared Typst metadata, completion, package, symbol, import-scan, Tree-sitter, project index, and conceal caches"
             )
         end
 

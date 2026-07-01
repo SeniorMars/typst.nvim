@@ -57,11 +57,16 @@ local ok, err = xpcall(function()
 
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "Original" })
     local changed_result = nil
+    local generation_before = formatting._generation(bufnr)
     local pending = formatting.format({ notify = false }, function(result)
         changed_result = result
     end)
 
     assert(pending.pending, "format command should run asynchronously")
+    assert(
+        formatting._generation(bufnr) == generation_before + 1,
+        "command formatting should increment apply generation once"
+    )
     assert(
         spawned[1].opts.stdin == "Original\n",
         "formatter should receive the starting buffer text"

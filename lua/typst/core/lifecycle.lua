@@ -2,7 +2,6 @@ local M = {}
 
 local config = require("typst.config")
 local core_result = require("typst.core.result")
-local events = require("typst.core.events")
 local ftplugin_state = require("typst.core.ftplugin_state")
 local log = require("typst.core.log")
 local project = require("typst.project")
@@ -13,6 +12,7 @@ local project_operations = require("typst.project.services.operations")
 local preview_service = require("typst.project.services.preview")
 local util = require("typst.core.util")
 local feature_signatures = {}
+local window_feature_signatures = {}
 
 local function compiler_module()
     return require("typst.compiler")
@@ -52,6 +52,7 @@ function M.clear_buffer(bufnr)
     end
 
     feature_signatures[bufnr] = nil
+    window_feature_signatures[bufnr] = nil
     call_loaded("typst.core.treesitter", "forget", bufnr)
     call_loaded("typst.edit.indent", "forget", bufnr)
     call_loaded("typst.bibliography.edit", "forget", bufnr)
@@ -79,6 +80,69 @@ local function buffer_feature_signature(bufnr)
         tostring(project_index and project_index.generation or 0),
         tostring(invalidation and invalidation.generation or 0),
     }, ":")
+end
+
+local function window_option(winid, name)
+    if not winid or not vim.api.nvim_win_is_valid(winid) then
+        return ""
+    end
+    local ok, value = pcall(function()
+        return vim.wo[winid][name]
+    end)
+    if not ok then
+        return ""
+    end
+    return value
+end
+
+local function window_feature_signature(bufnr, winid)
+    local state = project.get(bufnr)
+    local opts = config.unsafe_get()
+    return table.concat({
+        tostring(config.generation and config.generation() or 0),
+        tostring(bufnr),
+        tostring(winid or ""),
+        tostring(vim.bo[bufnr].filetype or ""),
+        tostring(state and state.key or ""),
+        tostring(opts.folds and opts.folds.enabled or false),
+        tostring(opts.folds and opts.folds.mode or ""),
+        tostring(opts.folds and opts.folds.foldlevel or ""),
+        tostring(opts.folds and opts.folds.foldtext or false),
+        tostring(opts.conceal and opts.conceal.enabled or false),
+        tostring(opts.conceal and opts.conceal.conceallevel or ""),
+        tostring(vim.b[bufnr].typst_conceal_enabled),
+        tostring(window_option(winid, "conceallevel")),
+        tostring(window_option(winid, "foldmethod")),
+        tostring(window_option(winid, "foldexpr")),
+        tostring(window_option(winid, "foldlevel")),
+        tostring(window_option(winid, "foldtext")),
+    }, ":")
+end
+
+local function should_apply_window_features(bufnr, winid, force)
+    if not winid or not vim.api.nvim_win_is_valid(winid) then
+        return false
+    end
+    if vim.api.nvim_win_get_buf(winid) ~= bufnr then
+        return false
+    end
+
+    local signatures = window_feature_signatures[bufnr] or {}
+    window_feature_signatures[bufnr] = signatures
+    local signature = window_feature_signature(bufnr, winid)
+    if force or signatures[winid] ~= signature then
+        return true
+    end
+    return false
+end
+
+local function mark_window_features_applied(bufnr, winid)
+    if not winid or not vim.api.nvim_win_is_valid(winid) then
+        return
+    end
+    local signatures = window_feature_signatures[bufnr] or {}
+    window_feature_signatures[bufnr] = signatures
+    signatures[winid] = window_feature_signature(bufnr, winid)
 end
 
 local function record_preview_stop_failure(state, prune_reason, result)
@@ -492,9 +556,18 @@ function M.apply_buffer_features(bufnr, opts)
     local apply_buffer = opts.force == true
         or not feature_signatures[bufnr]
         or feature_signatures[bufnr] ~= signature
+    local winid = vim.api.nvim_get_current_win()
+    local apply_window = should_apply_window_features(
+        bufnr,
+        winid,
+        opts.force == true or apply_buffer
+    )
 
-    require("typst.edit.folds").apply(bufnr)
-    conceal_module().apply(bufnr)
+    if apply_window then
+        require("typst.edit.folds").apply(bufnr, winid)
+        conceal_module().apply(bufnr, winid)
+        mark_window_features_applied(bufnr, winid)
+    end
 
     if apply_buffer then
         require("typst.edit.indent").apply(bufnr)
@@ -506,7 +579,7 @@ function M.apply_buffer_features(bufnr, opts)
 
     return {
         buffer = apply_buffer,
-        window = true,
+        window = apply_window,
     }
 end
 
@@ -516,40 +589,7 @@ function M.register_autocmds()
     vim.api.nvim_create_autocmd("VimLeavePre", {
         group = group,
         callback = function()
-            events.emit_global("TypstEventQuit", {
-                projects = vim.tbl_count(project.all()),
-            })
-            for _, state in pairs(project.all()) do
-                if (preview_service.get(state) or {}).active then
-                    local ok, result = pcall(
-                        preview_module().stop_for_exit,
-                        state,
-                        { lifecycle = true, reason = "exit" }
-                    )
-                    if not ok then
-                        preview_module().clear_state(
-                            state,
-                            { lifecycle = true, reason = "exit" }
-                        )
-                    end
-                end
-                compiler_module().stop_for_exit(state)
-                local cancelled = project_operations.cancel_project(state, {
-                    reason = "exit",
-                    timeout_ms = 100,
-                    kill_timeout_ms = 100,
-                    wait_timeout_ms = 250,
-                })
-                if
-                    (cancelled.failed or 0) > 0
-                    or (cancelled.retained or 0) > 0
-                then
-                    log.add("warn", "project operations remained during exit", {
-                        main = state.main,
-                        summary = cancelled,
-                    })
-                end
-            end
+            require("typst.resources.supervisor").stop_for_exit_all()
         end,
     })
 
@@ -558,6 +598,12 @@ function M.register_autocmds()
         callback = function(args)
             call_loaded("typst.conceal", "_forget_window", args.match)
             ftplugin_state.forget_window(args.match)
+            local winid = tonumber(args.match)
+            if winid then
+                for _, signatures in pairs(window_feature_signatures) do
+                    signatures[winid] = nil
+                end
+            end
         end,
     })
 end

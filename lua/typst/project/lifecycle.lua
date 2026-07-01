@@ -1,7 +1,7 @@
 local M = {}
 
 local core_lifecycle = require("typst.core.lifecycle")
-local lifecycle_buffers = require("typst.project.lifecycle.buffers")
+local attachments = require("typst.project.attachments")
 local lifecycle_events = require("typst.project.lifecycle.events")
 local log = require("typst.core.log")
 local project = require("typst.project")
@@ -13,7 +13,7 @@ local normalize_bufnr = require("typst.core.buffer").normalize_bufnr
 --- Reapply setup-sensitive editor state for already attached Typst buffers.
 ---@return table summary Counts of reapplied and skipped buffers.
 function M.reapply_attached_buffers()
-    return lifecycle_buffers.reapply_attached_buffers()
+    return attachments.reapply_attached_buffers()
 end
 
 local function attach_impl(api, bufnr)
@@ -71,8 +71,7 @@ local function attach_impl(api, bufnr)
         end
 
         local install_started = telemetry.start()
-        local install_ok, install_err =
-            pcall(lifecycle_buffers.install, api, bufnr)
+        local install_ok, install_err = pcall(attachments.install, api, bufnr)
         telemetry.finish("project.attach_buffers", install_started, {
             ok = install_ok,
             bufnr = bufnr,

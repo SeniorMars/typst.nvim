@@ -14,8 +14,9 @@ local readonly_backing = setmetatable({}, { __mode = "k" })
 local function readonly_error(_, key)
     error(
         (
-            "typst.nvim: config.unsafe_get() is read-only; attempted to set %s. "
-            .. "Use typst.setup() to reconfigure or config.unsafe_get() for internal mutable access."
+            "typst.nvim: config.get() returns a read-only view; attempted to set %s. "
+            .. "Use require('typst').setup({...}) to reconfigure, "
+            .. "or config.snapshot() to copy values. config.unsafe_get() is internal."
         ):format(tostring(key)),
         2
     )

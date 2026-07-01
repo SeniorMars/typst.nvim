@@ -254,4 +254,38 @@ assert(
     "operation cancellation summary should honor a confirmed finish after waiting"
 )
 
+local uncancellable_record = operations.begin(project, "export")
+uncancellable_record.handle = { pending = true, raw = true }
+local uncancellable_summary = operations.cancel_project(project, { skip = {} })
+assert(
+    uncancellable_summary.uncancellable == 1
+        and uncancellable_summary.retained == 1,
+    "operation cancellation should retain unsupported live handles"
+)
+assert(
+    project.services.operations.active_by_id[uncancellable_record.id] == nil
+        and project.services.operations.retained_by_id[uncancellable_record.id]
+            ~= nil,
+    "uncancellable handles should leave active records and remain retained"
+)
+assert(
+    project.services.operations.retained_by_id[uncancellable_record.id].result.reason
+        == "uncancellable_handle",
+    "uncancellable retained operations should expose a recovery reason"
+)
+
+local false_handle_record = operations.begin(project, "export")
+false_handle_record.handle = false
+local false_handle_summary = operations.cancel_project(project, { skip = {} })
+assert(
+    false_handle_summary.stale == 1 and false_handle_summary.uncancellable == 0,
+    "false operation handles should be cleared as stale records"
+)
+assert(
+    project.services.operations.active_by_id[false_handle_record.id] == nil
+        and project.services.operations.retained_by_id[false_handle_record.id]
+            == nil,
+    "false operation handles should not be retained as live work"
+)
+
 vim.cmd("qa!")
