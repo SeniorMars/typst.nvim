@@ -124,6 +124,7 @@ assert(
         and cleared.package
         and cleared.symbol
         and cleared.index
+        and cleared.import_scan
         and cleared.treesitter
         and cleared.conceal,
     "clear_cache should report cleared caches"

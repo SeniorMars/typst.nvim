@@ -1,0 +1,3 @@
+space dir/main file.typ:2:99: error: short path with spaces
+unicode/α β.typ:1:2: info: unicode relative path
+missing.typ:8:40: warning: missing file path still reports

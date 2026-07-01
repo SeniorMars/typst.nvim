@@ -29,6 +29,7 @@ for _, name in ipairs({
     "package",
     "symbol",
     "index",
+    "import_scan",
     "treesitter",
     "conceal",
 }) do
@@ -41,6 +42,7 @@ assert(cleared.completion == true, "registry clear should reset completion")
 assert(cleared.package == true, "registry clear should reset packages")
 assert(cleared.symbol == true, "registry clear should reset symbols")
 assert(cleared.index == true, "registry clear should reset project index")
+assert(cleared.import_scan == true, "registry clear should reset import scan")
 assert(cleared.treesitter == true, "registry clear should forget Tree-sitter")
 assert(cleared.conceal == true, "registry clear should refresh conceal")
 

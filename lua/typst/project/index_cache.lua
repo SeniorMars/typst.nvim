@@ -43,6 +43,7 @@ function M.ensure(project)
     index.bibliographies = index.bibliographies or {}
     index.graph = index.graph or {}
     index.generation = index.generation or 0
+    index.config_generation = index.config_generation or config.generation()
     index.buffer_ticks = index.buffer_ticks or {}
     index.file_signatures = index.file_signatures or {}
     index.file_signatures_initialized = index.file_signatures_initialized
@@ -104,6 +105,7 @@ function M.reset(project)
         bibliographies = {},
         graph = {},
         generation = 0,
+        config_generation = config.generation(),
         buffer_ticks = {},
         file_signatures = {},
         file_signatures_initialized = false,
@@ -521,6 +523,17 @@ function M.sync_file_generation(project_index, paths, buffer_map, opts)
         M.bump(project_index, "disk file changed")
     end
     return signatures
+end
+
+--- Bump index generation when global config generation changes.
+---@param project_index table Project index cache state.
+function M.sync_config_generation(project_index)
+    local generation = config.generation()
+    if project_index.config_generation ~= generation then
+        project_index.config_generation = generation
+        project_index.file_signatures_initialized = false
+        M.bump(project_index, "config changed")
+    end
 end
 
 --- Build a deterministic signature for project dependency graph freshness.

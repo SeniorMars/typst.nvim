@@ -294,6 +294,11 @@ function M.preview(preview)
         )
     end
 
+    non_negative_number(
+        preview.browser.max_artifact_bytes,
+        "preview.browser.max_artifact_bytes"
+    )
+
     if
         type(preview.browser.refresh_ms) ~= "number"
         or preview.browser.refresh_ms < 0

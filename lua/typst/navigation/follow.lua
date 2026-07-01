@@ -5,6 +5,7 @@ local follow_patterns = require("typst.navigation.follow_patterns")
 local log = require("typst.core.log")
 local open_helper = require("typst.core.open")
 local package_info = require("typst.package.info")
+local telemetry = require("typst.core.telemetry")
 local util = require("typst.core.util")
 
 local M = {}
@@ -258,7 +259,9 @@ end
 function M.resolve(opts)
     opts = opts or {}
     local bufnr = follow_context.normalize_bufnr(opts.bufnr)
-    return static_target(bufnr, opts)
+    return telemetry.time("navigation.follow.resolve", function()
+        return static_target(bufnr, opts)
+    end)
 end
 
 --- Resolve and optionally open the target under the cursor.

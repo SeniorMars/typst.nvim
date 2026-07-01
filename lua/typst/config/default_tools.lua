@@ -235,6 +235,7 @@ function M.preview()
             port = 0,
             server = true,
             output_dir = xdg.preview_output_dir(),
+            max_artifact_bytes = 32 * 1024 * 1024,
             refresh_ms = 250,
             reload_throttle_ms = 0,
             performance = "default",

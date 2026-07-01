@@ -762,6 +762,64 @@ assert(
     stats.file_misses == file_misses,
     "unchanged project index collection should not rescan files"
 )
+local semantic_collect_hits = stats.collect_hits
+local semantic_collect_misses = stats.collect_misses
+local semantic_file_misses = stats.file_misses
+local semantic_project = require("typst.project.semantic")
+local original_merge_workspace_symbols =
+    semantic_project.merge_workspace_symbols
+local saw_semantic_traversal = false
+semantic_project.merge_workspace_symbols = function(
+    merge_project,
+    out,
+    seen,
+    opts,
+    traversal,
+    helpers
+)
+    if opts and opts.include_tinymist == true then
+        assert(
+            type(traversal) == "table"
+                and type(traversal.visited) == "table"
+                and type(traversal.initial_paths) == "table",
+            "Tinymist semantic overlay should receive traversal context"
+        )
+        saw_semantic_traversal = true
+    end
+    return original_merge_workspace_symbols(
+        merge_project,
+        out,
+        seen,
+        opts,
+        traversal,
+        helpers
+    )
+end
+local semantic = typst.index.collect({
+    project = project,
+    include_tinymist = true,
+})
+semantic_project.merge_workspace_symbols = original_merge_workspace_symbols
+assert(
+    semantic and semantic ~= unchanged,
+    "Tinymist-inclusive project index collection should return a mutable overlay"
+)
+assert(
+    saw_semantic_traversal,
+    "Tinymist-inclusive project index collection should pass traversal to semantic overlay"
+)
+assert(
+    stats.collect_hits > semantic_collect_hits,
+    "Tinymist-inclusive collection should reuse the syntactic aggregate cache"
+)
+assert(
+    stats.collect_misses == semantic_collect_misses,
+    "Tinymist-inclusive collection should not rebuild syntactic aggregate data"
+)
+assert(
+    stats.file_misses == semantic_file_misses,
+    "Tinymist-inclusive collection should not rescan syntactic files"
+)
 local original_loaded_buffers_by_path = util.loaded_buffers_by_path
 local loaded_buffer_map_calls = 0
 util.loaded_buffers_by_path = function(...)
@@ -1104,6 +1162,118 @@ assert(
 assert(
     disk_index.stats.collect_misses > disk_collect_misses,
     "external edits to unloaded imported files should rebuild the aggregate cache"
+)
+
+local function has_heading(items, title)
+    for _, item in ipairs(items or {}) do
+        if item.title == title then
+            return true
+        end
+    end
+    return false
+end
+
+local large_dir = typst_test_cache_path("index-large-file-policy")
+vim.fn.delete(large_dir, "rf")
+vim.fn.mkdir(large_dir, "p")
+local large_main = large_dir .. "/main.typ"
+local large_file = large_dir .. "/large.typ"
+local large_nested = large_dir .. "/nested.typ"
+vim.fn.writefile({ '#include "large.typ"', "= Large Main" }, large_main)
+vim.fn.writefile({ "= Nested Large Import" }, large_nested)
+vim.fn.writefile({
+    "= Large Included",
+    "<large-label>",
+    '#include "nested.typ"',
+    string.rep("x", 1024),
+}, large_file)
+
+typst.reset()
+typst.setup({
+    root = large_dir,
+    output_dir = typst_test_cache_path("index-large-file-skip-output"),
+    project = {
+        index = {
+            max_file_bytes = 128,
+            large_file_policy = "skip",
+        },
+    },
+})
+vim.cmd.edit(large_main)
+local large_project = typst.project.set_main(large_main)
+local large_skipped = typst.index.collect({ project = large_project })
+assert(
+    not has_heading(large_skipped.headings, "Large Included"),
+    "skip large-file policy should omit headings from oversized unloaded files"
+)
+typst.setup({
+    root = large_dir,
+    output_dir = typst_test_cache_path("index-large-file-reconfigure-output"),
+    project = {
+        index = {
+            max_file_bytes = 128,
+            large_file_policy = "headings-only",
+        },
+    },
+})
+local large_reconfigured = typst.index.collect({ project = large_project })
+assert(
+    has_heading(large_reconfigured.headings, "Large Included"),
+    "changing large-file policy should invalidate cached skipped records"
+)
+assert(
+    not has_label(large_reconfigured.labels, "large-label"),
+    "reconfigured headings-only policy should not reuse a full scan or stale label record"
+)
+
+typst.reset()
+typst.setup({
+    root = large_dir,
+    output_dir = typst_test_cache_path("index-large-file-headings-output"),
+    project = {
+        index = {
+            max_file_bytes = 128,
+            large_file_policy = "headings-only",
+        },
+    },
+})
+vim.cmd.edit(large_main)
+large_project = typst.project.set_main(large_main)
+local large_headings = typst.index.collect({ project = large_project })
+assert(
+    has_heading(large_headings.headings, "Large Included"),
+    "headings-only large-file policy should keep oversized file headings"
+)
+assert(
+    has_heading(large_headings.headings, "Nested Large Import"),
+    "headings-only large-file policy should still follow local includes"
+)
+assert(
+    not has_label(large_headings.labels, "large-label"),
+    "headings-only large-file policy should skip non-heading label scans"
+)
+
+typst.reset()
+typst.setup({
+    root = large_dir,
+    output_dir = typst_test_cache_path("index-large-file-scan-output"),
+    project = {
+        index = {
+            max_file_bytes = 128,
+            large_file_policy = "scan",
+        },
+    },
+})
+vim.cmd.edit(large_main)
+large_project = typst.project.set_main(large_main)
+local large_scanned = typst.index.collect({ project = large_project })
+assert(
+    has_heading(large_scanned.headings, "Large Included"),
+    "scan large-file policy should keep oversized file headings"
+)
+assert(
+    has_label(large_scanned.labels, "large-label"),
+    "scan large-file policy should keep full label scans for oversized files"
 )
 
 typst.reset()

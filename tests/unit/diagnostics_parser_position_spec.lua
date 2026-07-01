@@ -2,12 +2,21 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local parser = require("typst.diagnostics.parser")
+local util = require("typst.core.util")
 
 local dir = typst_test_cache_path("diagnostics-parser")
 vim.fn.delete(dir, "rf")
 vim.fn.mkdir(dir, "p")
 local file = dir .. "/unicode.typ"
 vim.fn.writefile({ "alpha", "αβγ", "tab\tline" }, file)
+local spaced_dir = dir .. "/space dir"
+vim.fn.mkdir(spaced_dir, "p")
+local spaced_file = spaced_dir .. "/main file.typ"
+vim.fn.writefile({ "one", "two" }, spaced_file)
+local unicode_dir = dir .. "/unicode"
+vim.fn.mkdir(unicode_dir, "p")
+local unicode_path = unicode_dir .. "/α β.typ"
+vim.fn.writefile({ "wide" }, unicode_path)
 
 local project = {
     root = dir,
@@ -58,6 +67,86 @@ local ok, err = xpcall(function()
     assert(
         second[loaded][1].col == 6,
         "reused opts should not retain stale loaded-buffer lines"
+    )
+
+    local function fixture(name)
+        return table.concat(
+            vim.fn.readfile(root .. "/tests/fixtures/diagnostics/" .. name),
+            "\n"
+        )
+    end
+
+    local function diagnostics_for(by_buffer, path)
+        return by_buffer[vim.fn.bufadd(path)] or {}
+    end
+
+    local short = parser.parse(project, fixture("short.txt"))
+    local spaced = diagnostics_for(short, spaced_file)
+    assert(spaced[1], "short fixture should parse path with spaces")
+    assert(
+        spaced[1].col == #"two",
+        "short fixture should clamp path-with-spaces columns"
+    )
+    assert(
+        spaced[1].message == "short path with spaces",
+        "short fixture should preserve diagnostic message"
+    )
+
+    local unicode_diags = diagnostics_for(short, unicode_path)
+    assert(
+        unicode_diags[1]
+            and unicode_diags[1].severity == vim.diagnostic.severity.INFO,
+        "short fixture should parse Unicode relative paths and severity"
+    )
+    local missing_path = util.resolve_path("missing.typ", dir)
+    local missing = diagnostics_for(short, missing_path)
+    assert(
+        missing[1] and missing[1].col == 39,
+        "missing diagnostic files should keep provider columns"
+    )
+
+    local pretty = parser.parse(project, fixture("pretty.txt"))
+    local pretty_spaced = diagnostics_for(pretty, spaced_file)
+    assert(
+        pretty_spaced[1]
+            and pretty_spaced[1].message == "pretty path with spaces",
+        "pretty fixture should parse Typst location lines"
+    )
+    assert(
+        pretty_spaced[1].col == #"two",
+        "pretty fixture should clamp columns for paths with spaces"
+    )
+    local pretty_context = diagnostics_for(pretty, unicode_path)
+    assert(
+        pretty_context[1]
+            and pretty_context[1].severity == vim.diagnostic.severity.HINT,
+        "pretty context fixture should publish hint diagnostics"
+    )
+    assert(
+        pretty_context[1].message == "while importing module",
+        "pretty context fixture should preserve context message"
+    )
+
+    local windows = parser.parse(project, fixture("windows_paths.txt"))
+    local windows_main =
+        util.resolve_path([[C:\Users\Typst Project\main.typ]], dir)
+    local windows_main_diags = diagnostics_for(windows, windows_main)
+    assert(
+        windows_main_diags[1] and windows_main_diags[1].col == 49,
+        "Windows-looking short paths should keep stable absolute identity"
+    )
+    assert(
+        util.path_key(windows_main) == "c:/users/typst project/main.typ",
+        "foreign Windows paths should not be rooted under cwd"
+    )
+    local windows_chapter =
+        util.resolve_path([[C:\Users\Typst Project\chapter.typ]], dir)
+    local windows_chapter_diags = diagnostics_for(windows, windows_chapter)
+    assert(
+        windows_chapter_diags[1]
+            and windows_chapter_diags[1].message
+                == "windows-looking pretty path",
+        "Windows-looking pretty paths should parse"
     )
 end, debug.traceback)
 

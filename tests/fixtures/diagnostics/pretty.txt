@@ -1,0 +1,3 @@
+error: pretty path with spaces
+  ┌─ space dir/main file.typ:2:99
+while importing module at unicode/α β.typ:1:2

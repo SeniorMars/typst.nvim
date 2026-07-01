@@ -1,10 +1,28 @@
 local lexical = require("typst.syntax.lexical")
 local log = require("typst.core.log")
+local telemetry = require("typst.core.telemetry")
 local util = require("typst.core.util")
 
 local M = {}
 
 local uv = vim.uv or vim.loop
+local IMPORT_SCAN_CACHE_TTL_MS = 1000
+local import_scan_cache = {}
+local import_scan_stats = {
+    attempts = 0,
+    cache_hits = 0,
+    scans = 0,
+    entries = 0,
+    files = 0,
+    reads = 0,
+    last_elapsed_ms = 0,
+    last_hit_limit = false,
+    last_hit_entry_limit = false,
+    last_entries = 0,
+    last_max_entries = 0,
+    skipped_roots = 0,
+    last_skipped_root = nil,
+}
 
 local function configured_root(path, bufnr, opts)
     if type(opts.root) == "function" then
@@ -99,15 +117,23 @@ end
 
 local REMAINING_SCAN_DIR_BUDGET = 64
 
-local function scan_has_remaining_candidates(handle, current_dir, queue)
+local function scan_has_remaining_candidates(
+    handle,
+    current_dir,
+    queue,
+    count_entry
+)
     local pending = vim.deepcopy(queue or {})
     while handle do
         local name, kind = uv.fs_scandir_next(handle)
         if not name then
             break
         end
+        if type(count_entry) == "function" and not count_entry() then
+            return false, true
+        end
         if kind == "file" and name:match("%.typ$") then
-            return true
+            return true, false
         end
         if kind == "directory" and not skip_scan_dir(name) then
             pending[#pending + 1] = util.join(current_dir, name)
@@ -127,8 +153,11 @@ local function scan_has_remaining_candidates(handle, current_dir, queue)
                 if not name then
                     break
                 end
+                if type(count_entry) == "function" and not count_entry() then
+                    return false, true
+                end
                 if kind == "file" and name:match("%.typ$") then
-                    return true
+                    return true, false
                 end
                 if kind == "directory" and not skip_scan_dir(name) then
                     pending[#pending + 1] = util.join(dir, name)
@@ -137,24 +166,38 @@ local function scan_has_remaining_candidates(handle, current_dir, queue)
         end
     end
 
-    return false
+    return false, false
 end
 
-local function collect_typst_files(root, limit)
+local function collect_typst_files(root, limit, entry_limit)
     local files = {}
     local queue = { root }
     local seen_dirs = {}
     local hit_limit = false
+    local entries = 0
+    local hit_entry_limit = false
 
-    while #queue > 0 and #files < limit do
+    local function count_entry()
+        entries = entries + 1
+        if entry_limit and entries > entry_limit then
+            hit_entry_limit = true
+            return false
+        end
+        return true
+    end
+
+    while #queue > 0 and #files < limit and not hit_entry_limit do
         local dir = table.remove(queue, 1)
         dir = util.normalize(dir)
         if not seen_dirs[dir] then
             seen_dirs[dir] = true
             local handle = uv.fs_scandir(dir)
-            while handle and #files < limit do
+            while handle and #files < limit and not hit_entry_limit do
                 local name, kind = uv.fs_scandir_next(handle)
                 if not name then
+                    break
+                end
+                if not count_entry() then
                     break
                 end
 
@@ -162,8 +205,17 @@ local function collect_typst_files(root, limit)
                 if kind == "file" and name:match("%.typ$") then
                     files[#files + 1] = util.normalize(full)
                     if #files >= limit then
-                        hit_limit =
-                            scan_has_remaining_candidates(handle, dir, queue)
+                        local has_remaining, helper_hit_entry_limit =
+                            scan_has_remaining_candidates(
+                                handle,
+                                dir,
+                                queue,
+                                count_entry
+                            )
+                        hit_limit = has_remaining == true
+                        if helper_hit_entry_limit then
+                            hit_entry_limit = true
+                        end
                         break
                     end
                 elseif kind == "directory" and not skip_scan_dir(name) then
@@ -173,7 +225,12 @@ local function collect_typst_files(root, limit)
         end
     end
 
-    return files, hit_limit
+    return files,
+        hit_limit,
+        {
+            entries = entries,
+            hit_entry_limit = hit_entry_limit,
+        }
 end
 
 local function add_local_typst_reference(refs, value, base, root)
@@ -226,7 +283,10 @@ local function import_references(line, base, root)
     return refs
 end
 
-local function references_file(candidate, path, root)
+local function references_file(candidate, path, root, stats)
+    if stats then
+        stats.reads = (stats.reads or 0) + 1
+    end
     local ok, lines = pcall(vim.fn.readfile, candidate, "", 500)
     if not ok then
         return false
@@ -242,6 +302,79 @@ local function references_file(candidate, path, root)
     end
 
     return false
+end
+
+local function now_ms()
+    return math.floor(uv.hrtime() / 1000000)
+end
+
+local function import_scan_key(path, root, root_source, project_opts)
+    local config_generation = 0
+    local ok, config = pcall(require, "typst.config")
+    if ok and type(config.generation) == "function" then
+        config_generation = config.generation()
+    end
+    local root_stat = uv.fs_stat(root) or {}
+    local root_mtime = root_stat.mtime or {}
+
+    return table.concat({
+        util.path_key(path),
+        util.path_key(root),
+        tostring(root_source or ""),
+        tostring(project_opts.import_scan_max_files or 200),
+        tostring(project_opts.import_scan_max_depth or 0),
+        tostring(project_opts.import_scan_max_entries or 2000),
+        tostring(config_generation),
+        tostring(root_stat.size or 0),
+        tostring(root_mtime.sec or 0),
+        tostring(root_mtime.nsec or 0),
+    }, "\n")
+end
+
+local function cached_import_scan(key)
+    local entry = import_scan_cache[key]
+    if not entry or entry.expires_at_ms < now_ms() then
+        import_scan_cache[key] = nil
+        return nil
+    end
+
+    import_scan_stats.cache_hits = import_scan_stats.cache_hits + 1
+    return entry.result
+end
+
+local function store_import_scan(key, result)
+    import_scan_cache[key] = {
+        expires_at_ms = now_ms() + IMPORT_SCAN_CACHE_TTL_MS,
+        result = result,
+    }
+end
+
+function M._clear_import_scan_cache()
+    import_scan_cache = {}
+    import_scan_stats = {
+        attempts = 0,
+        cache_hits = 0,
+        scans = 0,
+        entries = 0,
+        files = 0,
+        reads = 0,
+        last_elapsed_ms = 0,
+        last_hit_limit = false,
+        last_hit_entry_limit = false,
+        last_entries = 0,
+        last_max_entries = 0,
+        skipped_roots = 0,
+        last_skipped_root = nil,
+    }
+end
+
+--- Clear the short-lived import-scan cache used by project resolution.
+function M.clear_import_scan_cache()
+    return M._clear_import_scan_cache()
+end
+
+function M._import_scan_stats()
+    return vim.deepcopy(import_scan_stats)
 end
 
 local function import_scan_roots(root, root_source, project_opts)
@@ -275,71 +408,131 @@ end
 ---@return string|nil root Root to use with the scanned main.
 ---@return string|nil root_source Source label for the scanned root.
 function M.import_scan_main(path, root, root_source, opts)
+    opts = opts or {}
     local project_opts = opts.project or {}
     if not project_opts.import_scan then
         return nil
+    end
+    import_scan_stats.attempts = import_scan_stats.attempts + 1
+
+    local key = import_scan_key(path, root, root_source, project_opts)
+    local cached = cached_import_scan(key)
+    if cached then
+        return unpack(cached, 1, cached.n)
     end
 
     -- Import scanning is a fallback for leaf files opened directly. Keep it
     -- bounded so opening a note in a large workspace cannot turn into an
     -- unbounded recursive search.
     local max_files = project_opts.import_scan_max_files or 200
-    for _, scan_root in
-        ipairs(import_scan_roots(root, root_source, project_opts))
-    do
-        local matches = {}
-        local candidates, hit_limit = collect_typst_files(scan_root, max_files)
-        if hit_limit then
-            log.add("info", "import scan reached Typst file limit", {
-                path = path,
-                root = scan_root,
-                limit = max_files,
-                scanned = #candidates,
-            })
-        end
-        for _, candidate in ipairs(candidates) do
-            if
-                not util.same_path(candidate, path)
-                and references_file(candidate, path, scan_root)
-            then
-                matches[#matches + 1] = candidate
+    local max_entries = project_opts.import_scan_max_entries or 2000
+    local started_at = uv.hrtime()
+    local result = telemetry.time("project.import_scan", function()
+        import_scan_stats.scans = import_scan_stats.scans + 1
+        for _, scan_root in
+            ipairs(import_scan_roots(root, root_source, project_opts))
+        do
+            local matches = {}
+            local candidates, hit_limit, scan_info =
+                collect_typst_files(scan_root, max_files, max_entries)
+            scan_info = scan_info or {}
+            import_scan_stats.entries = import_scan_stats.entries
+                + (scan_info.entries or 0)
+            import_scan_stats.last_entries = scan_info.entries or 0
+            import_scan_stats.last_max_entries = max_entries
+            import_scan_stats.last_hit_entry_limit = scan_info.hit_entry_limit
+                == true
+            if scan_info.hit_entry_limit then
+                import_scan_stats.last_hit_limit = false
+                import_scan_stats.skipped_roots = import_scan_stats.skipped_roots
+                    + 1
+                import_scan_stats.last_skipped_root = scan_root
+                log.add(
+                    "warn",
+                    "abandoned import scan; root exceeded entry cap",
+                    {
+                        path = path,
+                        root = scan_root,
+                        entries = scan_info.entries,
+                        limit = max_entries,
+                    }
+                )
+                break
             end
-        end
-
-        if #matches > 0 then
-            table.sort(matches, function(left, right)
-                local left_main = util.basename(left) == "main.typ"
-                local right_main = util.basename(right) == "main.typ"
-                if left_main ~= right_main then
-                    return left_main
-                end
-
-                local left_rel = util.relpath(left, scan_root)
-                local right_rel = util.relpath(right, scan_root)
-                local left_depth = select(2, left_rel:gsub("[/\\]", ""))
-                local right_depth = select(2, right_rel:gsub("[/\\]", ""))
-                if left_depth ~= right_depth then
-                    return left_depth < right_depth
-                end
-
-                return left_rel < right_rel
-            end)
-
-            if #matches > 1 then
-                log.add("warn", "import scan found ambiguous Typst mains", {
+            import_scan_stats.files = import_scan_stats.files + #candidates
+            import_scan_stats.last_hit_limit = hit_limit == true
+            if hit_limit then
+                log.add("info", "import scan reached Typst file limit", {
                     path = path,
                     root = scan_root,
-                    candidates = vim.deepcopy(matches),
+                    limit = max_files,
+                    scanned = #candidates,
                 })
-                return nil
+            end
+            for _, candidate in ipairs(candidates) do
+                if
+                    not util.same_path(candidate, path)
+                    and references_file(
+                        candidate,
+                        path,
+                        scan_root,
+                        import_scan_stats
+                    )
+                then
+                    matches[#matches + 1] = candidate
+                end
             end
 
-            return matches[1],
-                "import scan",
-                util.normalize(scan_root),
-                "import scan root"
+            if #matches > 0 then
+                table.sort(matches, function(left, right)
+                    local left_main = util.basename(left) == "main.typ"
+                    local right_main = util.basename(right) == "main.typ"
+                    if left_main ~= right_main then
+                        return left_main
+                    end
+
+                    local left_rel = util.relpath(left, scan_root)
+                    local right_rel = util.relpath(right, scan_root)
+                    local left_depth = select(2, left_rel:gsub("[/\\]", ""))
+                    local right_depth = select(2, right_rel:gsub("[/\\]", ""))
+                    if left_depth ~= right_depth then
+                        return left_depth < right_depth
+                    end
+
+                    return left_rel < right_rel
+                end)
+
+                if #matches > 1 then
+                    log.add("warn", "import scan found ambiguous Typst mains", {
+                        path = path,
+                        root = scan_root,
+                        candidates = vim.deepcopy(matches),
+                    })
+                    return { n = 0 }
+                end
+
+                return {
+                    n = 4,
+                    matches[1],
+                    "import scan",
+                    util.normalize(scan_root),
+                    "import scan root",
+                }
+            end
         end
-    end
+
+        return { n = 0 }
+    end, {
+        path = path,
+        root = root,
+        max_files = max_files,
+        max_entries = max_entries,
+    })
+
+    import_scan_stats.last_elapsed_ms =
+        math.floor((uv.hrtime() - started_at) / 1000000)
+    store_import_scan(key, result)
+    return unpack(result, 1, result.n)
 end
 
 local function common_ancestor(left, right)

@@ -97,6 +97,12 @@ local entries = {
         optional = true,
     },
     {
+        name = "preview_native_server",
+        module = "typst.preview.native.server",
+        reset = "reset",
+        optional = true,
+    },
+    {
         name = "outputs",
         module = "typst.resources.outputs",
         reset = "reset",
@@ -113,6 +119,12 @@ local entries = {
         name = "index",
         module = "typst.index",
         clear = "reset",
+    },
+    {
+        name = "import_scan",
+        module = "typst.project.root",
+        reset = "clear_import_scan_cache",
+        clear = "clear_import_scan_cache",
     },
     {
         name = "treesitter",
@@ -207,6 +219,7 @@ function M.clear(opts)
         "package",
         "symbol",
         "index",
+        "import_scan",
         "treesitter",
         "conceal",
     }) do

@@ -517,4 +517,46 @@ function M.scan_file_record(project, path)
     }
 end
 
+function M.scan_file_record_headings_only(project, path)
+    local out = aggregate.empty_collected(project)
+    local seen = aggregate.empty_seen()
+    local discovered = {}
+    local discovered_seen = {}
+
+    local lines = read_lines(project, path)
+    local code_lines = scrub_non_code_regions(lines)
+    heading_scanner.scan(project, path, lines, code_lines, out, seen)
+
+    for row, code_line in ipairs(code_lines) do
+        index_paths.scan_imports(
+            path,
+            row,
+            code_line,
+            code_lines,
+            out,
+            seen,
+            discovered,
+            discovered_seen,
+            path_scan_helpers
+        )
+        index_paths.scan_includes(
+            path,
+            row,
+            code_line,
+            out,
+            seen,
+            discovered,
+            discovered_seen,
+            path_scan_helpers
+        )
+    end
+
+    return {
+        path = path,
+        data = out,
+        imports = discovered,
+        large_file_policy = "headings-only",
+    }
+end
+
 return M

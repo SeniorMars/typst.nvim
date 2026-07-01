@@ -8,7 +8,7 @@ local util = require("typst.core.util")
 
 local M = {}
 local uv = vim.uv or vim.loop
-local MAX_STATIC_INDEX_FILE_BYTES = 1024 * 1024
+local DEFAULT_STATIC_INDEX_FILE_BYTES = 1024 * 1024
 
 local file_version = index_files.file_version
 local initial_files = index_files.initial_files
@@ -55,11 +55,12 @@ local file_record_categories = {
     "bibliography_paths",
 }
 
-local function file_cache_entry(version, record)
+local function file_cache_entry(version, record, cache_version)
     local entry = {
         path = record.path,
         key = util.path_key(record.path),
         version = version,
+        cache_version = cache_version or version,
         record = record,
         graph = record.imports or {},
     }
@@ -78,27 +79,81 @@ local function empty_file_record(project, path)
     }
 end
 
-local function should_skip_large_file(project, path)
+local function index_config()
+    local ok, config = pcall(require, "typst.config")
+    if not ok then
+        return {}, 0
+    end
+    local cfg = config.unsafe_get()
+    return ((cfg.project or {}).index or {}), config.generation()
+end
+
+local function traversal_config()
+    local index, generation = index_config()
+    local max_bytes = tonumber(index.max_file_bytes)
+    if max_bytes == nil then
+        max_bytes = DEFAULT_STATIC_INDEX_FILE_BYTES
+    end
+    return {
+        max_file_bytes = max_bytes,
+        large_file_policy = index.large_file_policy or "skip",
+        config_generation = generation or 0,
+    }
+end
+
+local function file_cache_policy_signature(config)
+    config = config or traversal_config()
+    return table.concat({
+        "config_generation=" .. tostring(config.config_generation or 0),
+        "max_file_bytes=" .. tostring(config.max_file_bytes),
+        "large_file_policy=" .. tostring(config.large_file_policy),
+    }, "\n")
+end
+
+local function cache_version(project, path, config)
+    return file_version(project, path)
+        .. "\n"
+        .. file_cache_policy_signature(config)
+end
+
+local function should_skip_large_file(project, path, config)
+    config = config or traversal_config()
     local bufnr = index_files.buffer_for_file(project, path)
     if bufnr and vim.api.nvim_buf_is_loaded(bufnr) then
-        return false
+        return false, nil, config.max_file_bytes, config.large_file_policy
+    end
+
+    local max_bytes = config.max_file_bytes
+    local policy = config.large_file_policy
+    if max_bytes <= 0 or policy == "scan" then
+        return false, nil, max_bytes, policy
     end
 
     local stat = uv.fs_stat(path)
-    return stat
-        and type(stat.size) == "number"
-        and stat.size > MAX_STATIC_INDEX_FILE_BYTES,
-        stat
+    return stat and type(stat.size) == "number" and stat.size > max_bytes,
+        stat,
+        max_bytes,
+        policy
 end
 
-local function cached_file_record(project, path)
+local function cached_file_record(project, path, config)
     local project_index = index_cache.ensure(project)
+    config = config or traversal_config()
     local version = file_version(project, path)
+    local expected_cache_version = cache_version(project, path, config)
     local key = util.path_key(path)
     local cached = project_index.files[key]
-    if cached and cached.version == version then
+    if
+        cached
+        and (cached.cache_version or cached.version)
+            == expected_cache_version
+    then
         if not cached.headings and cached.record then
-            cached = file_cache_entry(version, cached.record)
+            cached = file_cache_entry(
+                cached.version or version,
+                cached.record,
+                cached.cache_version or expected_cache_version
+            )
         end
         project_index.files[key] = cached
         index_cache.record_hit(project_index, "file_hits")
@@ -108,19 +163,25 @@ local function cached_file_record(project, path)
     end
 
     index_cache.record_hit(project_index, "file_misses")
-    local skip_large, stat = should_skip_large_file(project, path)
+    local skip_large, stat, max_bytes, policy =
+        should_skip_large_file(project, path, config)
     local record
     if skip_large then
         log.add("warn", "skipped large Typst index file", {
             path = path,
             size = stat and stat.size or nil,
-            limit = MAX_STATIC_INDEX_FILE_BYTES,
+            limit = max_bytes,
+            policy = policy,
         })
-        record = empty_file_record(project, path)
+        if policy == "headings-only" then
+            record = scanner.scan_file_record_headings_only(project, path)
+        else
+            record = empty_file_record(project, path)
+        end
     else
         record = scanner.scan_file_record(project, path)
     end
-    local entry = file_cache_entry(version, record)
+    local entry = file_cache_entry(version, record, expected_cache_version)
     project_index.files[key] = entry
     project_index.graph[key] = vim.deepcopy(record.imports or {})
     return record
@@ -195,12 +256,13 @@ function M.collect(project)
     local visited = {}
     local records = {}
     local bibliography_paths = {}
+    local config = traversal_config()
 
     local index = 1
     while index <= #queue do
         local path = queue[index]
         visited[util.path_key(path)] = path
-        local record = cached_file_record(project, path)
+        local record = cached_file_record(project, path, config)
         records[#records + 1] = record
 
         for bibliography_path in pairs(record.data.bibliography_paths or {}) do
@@ -258,7 +320,7 @@ function M.signature(project, traversal)
         local entry = project_index.files[key]
         parts[#parts + 1] = ("%s=%s"):format(
             path,
-            entry and entry.version or "missing"
+            entry and (entry.cache_version or entry.version) or "missing"
         )
     end
 

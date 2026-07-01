@@ -35,9 +35,12 @@ function M.values()
             import_scan = true,
             import_scan_max_files = 200,
             import_scan_max_depth = 3,
+            import_scan_max_entries = 2000,
             persist_main = true,
             index = {
                 fs_watchers = "auto",
+                max_file_bytes = 1024 * 1024,
+                large_file_policy = "skip",
             },
         },
         integrations = {

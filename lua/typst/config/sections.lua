@@ -75,6 +75,15 @@ function M.project(project)
         )
     end
 
+    if
+        type(project.import_scan_max_entries) ~= "number"
+        or project.import_scan_max_entries < 1
+    then
+        error(
+            "typst.nvim: project.import_scan_max_entries must be a positive number"
+        )
+    end
+
     if project.index ~= nil and type(project.index) ~= "table" then
         error("typst.nvim: project.index must be a table or nil")
     end
@@ -88,6 +97,26 @@ function M.project(project)
     then
         error(
             'typst.nvim: project.index.fs_watchers must be "auto", false, or a non-negative number'
+        )
+    end
+
+    if
+        index.max_file_bytes ~= nil
+        and (type(index.max_file_bytes) ~= "number" or index.max_file_bytes < 0)
+    then
+        error(
+            "typst.nvim: project.index.max_file_bytes must be a non-negative number"
+        )
+    end
+
+    if
+        index.large_file_policy ~= nil
+        and index.large_file_policy ~= "skip"
+        and index.large_file_policy ~= "headings-only"
+        and index.large_file_policy ~= "scan"
+    then
+        error(
+            'typst.nvim: project.index.large_file_policy must be "skip", "headings-only", or "scan"'
         )
     end
 end

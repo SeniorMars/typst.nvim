@@ -253,6 +253,7 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `preview.browser.export.profile` | `nil\|string` | `nil` |
 | `preview.browser.export.provider` | `nil\|string\|function\|table` | `nil` |
 | `preview.browser.host` | `string` | `"127.0.0.1"` |
+| `preview.browser.max_artifact_bytes` | `number` | `33554432` |
 | `preview.browser.open` | `nil\|function` | `nil` |
 | `preview.browser.output_dir` | `string` | `vim.fs.joinpath(vim.fn.stdpath("cache"), "typst.nvim", "preview")` |
 | `preview.browser.performance` | `string` | `"default"` |
@@ -295,8 +296,11 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `preview.stop` | `nil\|function` | `nil` |
 | `project.import_scan` | `boolean` | `true` |
 | `project.import_scan_max_depth` | `number` | `3` |
+| `project.import_scan_max_entries` | `number` | `2000` |
 | `project.import_scan_max_files` | `number` | `200` |
 | `project.index.fs_watchers` | `string` | `"auto"` |
+| `project.index.large_file_policy` | `string` | `"skip"` |
+| `project.index.max_file_bytes` | `number` | `1048576` |
 | `project.persist_main` | `boolean` | `true` |
 | `render.cache.enabled` | `boolean` | `true` |
 | `render.cache.max_bytes` | `number` | `67108864` |

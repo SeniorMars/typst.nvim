@@ -43,6 +43,40 @@ assert(
     "count fallback scanner should not treat URL slashes as a comment"
 )
 
+local count_fixture = root .. "/tests/fixtures/count/visible_text.typ"
+local fixture_count = typst.ui.count({
+    text = table.concat(vim.fn.readfile(count_fixture), "\n"),
+    echo = false,
+})
+assert(
+    fixture_count.words == 37,
+    ("count fixture should document heuristic visible words, got %d"):format(
+        fixture_count.words
+    )
+)
+assert(
+    fixture_count.visible_text:find("Function content remains visible", 1, true),
+    "count fixture should keep visible function body text"
+)
+assert(
+    fixture_count.visible_text:find("example", 1, true),
+    "count fixture should keep URL prose"
+)
+for _, hidden in ipairs({
+    "Hidden comment",
+    "ignored words",
+    "alpha",
+    "hidden fenced raw",
+    "ignored raw words",
+    "sec:intro",
+    "label:intro",
+}) do
+    assert(
+        not fixture_count.visible_text:find(hidden, 1, true),
+        "count fixture should hide " .. hidden
+    )
+end
+
 local buf = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_set_current_buf(buf)
 vim.api.nvim_buf_set_lines(buf, 0, -1, false, sample)

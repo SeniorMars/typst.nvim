@@ -15,6 +15,31 @@ local util = require("typst.core.util")
 local M = {}
 local project_buffer_path = index_files.project_buffer_path
 
+local function seen_from_collected(project, collected)
+    local seen = aggregate.empty_seen()
+    local scratch = aggregate.empty_collected(project)
+    aggregate.merge(scratch, seen, collected or {})
+    return seen
+end
+
+local function merge_semantic_overlay(project, out, opts, traversal)
+    local seen = seen_from_collected(project, out)
+    local helpers = heading_scanner.semantic_helpers()
+    semantic.merge_document_symbols(project, out, seen, opts, helpers)
+    semantic.merge_workspace_symbols(
+        project,
+        out,
+        seen,
+        opts,
+        traversal,
+        helpers
+    )
+    import_enrichment.enrich(out, seen)
+    aggregate.classify_references(out)
+    aggregate.sort(out, project)
+    return out
+end
+
 ---@class TypstCollectedIndex
 ---@field headings table[]
 ---@field labels table[]
@@ -48,6 +73,7 @@ end
 
 local function sync_collect_generations(project, project_index)
     local buffer_map = util.loaded_buffers_by_path()
+    index_cache.sync_config_generation(project_index)
     sync_provider_generation(project_index)
     index_cache.sync_dependency_generation(project, project_index)
     index_cache.sync_buffer_generation(
@@ -75,8 +101,26 @@ local function collect_impl(opts)
     local aggregate_cache_enabled = opts.include_tinymist ~= true
     sync_collect_generations(project, project_index)
 
+    if opts.include_tinymist == true then
+        local syntactic_opts = vim.tbl_extend("force", opts, {
+            include_tinymist = false,
+            mutable = true,
+        })
+        local syntactic = collect_impl(syntactic_opts)
+        if not syntactic then
+            return nil
+        end
+        -- Semantic workspace merging expects the same traversal context as the
+        -- normal collection path. The syntactic aggregate can be reused above,
+        -- but the traversal itself is cheap after file records are cached and
+        -- preserves the semantic-provider contract.
+        local traversal = index_traversal.collect(project)
+        return merge_semantic_overlay(project, syntactic, opts, traversal)
+    end
+
     -- Tinymist-backed semantic merges can be request-specific, so callers that
-    -- include Tinymist bypass the aggregate snapshot cache.
+    -- include Tinymist reuse the syntactic aggregate and layer currently valid
+    -- semantic results onto a mutable copy above.
     if
         aggregate_cache_enabled
         and project_index.aggregate

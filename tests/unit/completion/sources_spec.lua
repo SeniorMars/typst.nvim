@@ -1357,6 +1357,62 @@ completion_callbacks[5]()
 vim.wait(20, function()
     return false
 end, 1, false)
+
+completion_module.reset()
+local stale_refreshes = {}
+local stale_cmp_source = typst.completion.cmp_source({
+    context = "markup",
+    bufnr = index_buf,
+    pos = { unicode_completion_row, #"αβ " },
+    limit = 20,
+    cmp_refresh = function(_, refresh_opts)
+        stale_refreshes[#stale_refreshes + 1] = refresh_opts
+    end,
+})
+stale_cmp_source:complete({
+    context = {
+        bufnr = index_buf,
+        cursor_before_line = "αβ tinymist",
+    },
+    offset = #"αβ tinymist",
+}, function() end)
+assert(
+    completion_request_count == 6,
+    "stale completion fixture should start a delayed Tinymist request"
+)
+vim.api.nvim_buf_set_lines(
+    index_buf,
+    unicode_completion_row,
+    unicode_completion_row + 1,
+    false,
+    {
+        "αβ tinymist changed",
+    }
+)
+completion_callbacks[6]()
+vim.wait(50, function()
+    return false
+end, 1, false)
+assert(
+    #stale_refreshes == 0,
+    "stale Tinymist completion should not refresh the frontend"
+)
+local stale_after_edit = typst.completion.complete({
+    base = "tinymist",
+    context = "markup",
+    bufnr = index_buf,
+    pos = { unicode_completion_row, #"αβ " },
+    limit = 20,
+})
+assert(
+    not find_item(stale_after_edit, "tinymist-helper()"),
+    "stale Tinymist completion should not be cached after buffer edits"
+)
+assert(
+    completion_request_count == 7,
+    "fresh buffer tick should start a replacement Tinymist request"
+)
+completion_module.reset()
 vim.lsp.get_clients = original_get_clients
 
 local labels = typst.index.labels(index_project)

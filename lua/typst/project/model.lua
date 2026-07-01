@@ -127,7 +127,28 @@ function M.association_source_for(path, main, resolution)
     return "explicit"
 end
 
+local function buffer_resolution_path(project, bufnr)
+    local resolution = project.resolutions and project.resolutions[bufnr]
+    if type(resolution) ~= "table" then
+        return nil
+    end
+
+    if type(resolution.buffer) == "string" and resolution.buffer ~= "" then
+        return util.normalize(resolution.buffer), resolution
+    end
+
+    if resolution.scratch == true then
+        return M.scratch_buffer_path(bufnr), resolution
+    end
+
+    return nil, resolution
+end
+
 --- Rebuild the project graph's file set from buffers and dependencies.
+---
+--- Attached buffers may be unnamed Typst scratch buffers. Those buffers have no
+--- `nvim_buf_get_name()` result, so graph rebuilds must prefer the resolution
+--- path recorded during attach before falling back to a scratch path.
 ---@param project TypstProject Project state whose graph service is mutated.
 function M.rebuild_files(project)
     local graph = services.graph(project)
@@ -139,10 +160,14 @@ function M.rebuild_files(project)
 
     for bufnr in pairs(project.bufs or {}) do
         if vim.api.nvim_buf_is_valid(bufnr) then
+            local resolution
             local path = M.current_buffer_path(bufnr)
+            if not path then
+                path, resolution = buffer_resolution_path(project, bufnr)
+            else
+                resolution = project.resolutions and project.resolutions[bufnr]
+            end
             if path then
-                local resolution = project.resolutions
-                    and project.resolutions[bufnr]
                 graph_sources.add_to_graph(
                     graph,
                     path,

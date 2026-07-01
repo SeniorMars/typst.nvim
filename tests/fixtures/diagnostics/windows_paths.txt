@@ -1,0 +1,3 @@
+C:\Users\Typst Project\main.typ:2:50: error: windows-looking short path
+error: windows-looking pretty path
+  ┌─ C:\Users\Typst Project\chapter.typ:1:10
