@@ -34,6 +34,10 @@ function M.route_for_id(id)
     return routes[id]
 end
 
+function M.route_count()
+    return vim.tbl_count(routes)
+end
+
 function M.route_for_project(project)
     local direct = routes[M.project_id(project)]
     if direct then
@@ -125,6 +129,13 @@ function M.clear(project)
     refresh_generations[id] = nil
     forward_generations[id] = nil
     return M.clear_route(project), M.clear_file(project)
+end
+
+function M.reset()
+    routes = {}
+    files = {}
+    refresh_generations = {}
+    forward_generations = {}
 end
 
 function M.next_refresh_generation(project)

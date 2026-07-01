@@ -8,6 +8,9 @@ local uv = vim.uv or vim.loop
 local M = {}
 
 local server = nil
+local HEADER_LIMIT_BYTES = 64 * 1024
+local READ_TIMEOUT_MS = 5000
+local STREAM_CHUNK_BYTES = 64 * 1024
 
 local content_types = {
     html = "text/html; charset=utf-8",
@@ -26,29 +29,60 @@ local function mime_for(path)
     return content_types[ext] or "application/octet-stream"
 end
 
-local function read_binary(path)
-    local stat = uv.fs_stat(path)
-    if not stat or stat.type ~= "file" then
-        return nil, "artifact is not a file"
+local function browser_config()
+    local ok, config = pcall(require, "typst.config")
+    if not ok then
+        return {}
     end
-
-    local fd, open_err = uv.fs_open(path, "r", 438)
-    if not fd then
-        return nil, open_err or "failed to open artifact"
-    end
-
-    local body, read_err = uv.fs_read(fd, stat.size, 0)
-    uv.fs_close(fd)
-    if not body then
-        return nil, read_err or "failed to read artifact"
-    end
-    return body
+    return ((config.unsafe_get().preview or {}).browser or {})
 end
 
-local function send(client, status, headers, body)
-    body = body or ""
+local function max_artifact_bytes()
+    return tonumber(browser_config().max_artifact_bytes) or (32 * 1024 * 1024)
+end
+
+local function open_artifact(path)
+    local fd, open_err = uv.fs_open(path, "r", 438)
+    if not fd then
+        return nil, nil, open_err or "failed to open artifact"
+    end
+
+    local stat = uv.fs_fstat(fd)
+    if not stat or stat.type ~= "file" then
+        pcall(uv.fs_close, fd)
+        return nil, nil, "artifact is not a file"
+    end
+    local max_bytes = max_artifact_bytes()
+    if max_bytes > 0 and stat.size > max_bytes then
+        pcall(uv.fs_close, fd)
+        return nil,
+            nil,
+            ("artifact is too large for browser preview (%d bytes > %d bytes)"):format(
+                stat.size,
+                max_bytes
+            ),
+            "too_large"
+    end
+    return fd, stat
+end
+
+local function close_client(client)
+    if client:is_closing() then
+        return
+    end
+    local ok = pcall(client.shutdown, client, function()
+        if not client:is_closing() then
+            client:close()
+        end
+    end)
+    if not ok and not client:is_closing() then
+        client:close()
+    end
+end
+
+local function response_head(status, headers, length)
     headers = headers or {}
-    headers["Content-Length"] = tostring(#body)
+    headers["Content-Length"] = tostring(length or 0)
     headers["Connection"] = "close"
     headers["Cache-Control"] = headers["Cache-Control"] or "no-store"
 
@@ -57,16 +91,14 @@ local function send(client, status, headers, body)
         lines[#lines + 1] = ("%s: %s"):format(name, value)
     end
     lines[#lines + 1] = ""
-    lines[#lines + 1] = body
+    lines[#lines + 1] = ""
+    return table.concat(lines, "\r\n")
+end
 
-    client:write(table.concat(lines, "\r\n"), function()
-        if not client:is_closing() then
-            pcall(client.shutdown, client, function()
-                if not client:is_closing() then
-                    client:close()
-                end
-            end)
-        end
+local function send(client, status, headers, body)
+    body = body or ""
+    client:write(response_head(status, headers, #body) .. body, function()
+        close_client(client)
     end)
 end
 
@@ -74,6 +106,65 @@ local function send_json(client, status, payload)
     send(client, status, {
         ["Content-Type"] = content_types.json,
     }, html.json(payload))
+end
+
+local function send_file(client, path, fd, stat)
+    local offset = 0
+    local function close_file()
+        if fd then
+            pcall(uv.fs_close, fd)
+            fd = nil
+        end
+    end
+
+    local function finish()
+        close_file()
+        close_client(client)
+    end
+
+    local function write_next(write_err)
+        if write_err then
+            log.add("warn", "native preview artifact write failed", {
+                path = path,
+                error = write_err,
+            })
+            finish()
+            return
+        end
+        if client:is_closing() then
+            close_file()
+            return
+        end
+        if offset >= stat.size then
+            finish()
+            return
+        end
+
+        local length = math.min(STREAM_CHUNK_BYTES, stat.size - offset)
+        local chunk, read_err = uv.fs_read(fd, length, offset)
+        if not chunk then
+            log.add("warn", "native preview artifact read failed", {
+                path = path,
+                error = read_err,
+            })
+            finish()
+            return
+        end
+        if #chunk == 0 then
+            finish()
+            return
+        end
+
+        offset = offset + #chunk
+        client:write(chunk, write_next)
+    end
+
+    client:write(
+        response_head("200 OK", {
+            ["Content-Type"] = mime_for(path),
+        }, stat.size),
+        write_next
+    )
 end
 
 local function decode_component(value)
@@ -142,17 +233,21 @@ local function handle_route(client, method, path, query)
     end
 
     if leaf == "artifact" then
-        local body, err = read_binary(route.output)
-        if not body then
-            send_json(client, "404 Not Found", {
-                ok = false,
-                error = err,
-            })
+        local fd, stat, err, reason = open_artifact(route.output)
+        if not fd then
+            send_json(
+                client,
+                reason == "too_large" and "413 Payload Too Large"
+                    or "404 Not Found",
+                {
+                    ok = false,
+                    error = err,
+                    reason = reason,
+                }
+            )
             return
         end
-        send(client, "200 OK", {
-            ["Content-Type"] = mime_for(route.output),
-        }, body)
+        send_file(client, route.output, fd, stat)
         return
     end
 
@@ -164,8 +259,35 @@ end
 
 local function handle_client(client)
     local chunks = {}
+    local byte_count = 0
+    local timer = uv.new_timer()
+    if timer then
+        timer:start(READ_TIMEOUT_MS, 0, function()
+            if not client:is_closing() then
+                client:read_stop()
+                send_json(client, "408 Request Timeout", {
+                    ok = false,
+                    error = "request timed out",
+                    reason = "timeout",
+                })
+            end
+            if timer and not timer:is_closing() then
+                timer:close()
+            end
+        end)
+    end
+
+    local function close_timer()
+        if timer and not timer:is_closing() then
+            timer:stop()
+            timer:close()
+        end
+        timer = nil
+    end
+
     client:read_start(function(err, chunk)
         if err then
+            close_timer()
             log.add("warn", "native preview client read failed", {
                 error = err,
             })
@@ -175,15 +297,32 @@ local function handle_client(client)
             return
         end
         if not chunk then
+            close_timer()
+            if not client:is_closing() then
+                client:close()
+            end
             return
         end
 
         chunks[#chunks + 1] = chunk
+        byte_count = byte_count + #chunk
+        if byte_count > HEADER_LIMIT_BYTES then
+            close_timer()
+            client:read_stop()
+            send_json(client, "413 Payload Too Large", {
+                ok = false,
+                error = "request headers are too large",
+                reason = "header_too_large",
+                limit = HEADER_LIMIT_BYTES,
+            })
+            return
+        end
         local request = table.concat(chunks)
         if not request:find("\r\n\r\n", 1, true) then
             return
         end
 
+        close_timer()
         client:read_stop()
         local method, target = request:match("^([A-Z]+)%s+([^%s]+)")
         target = target or "/"
@@ -245,6 +384,32 @@ function M.start(browser)
         port = sockname.port or port,
     }
     return server
+end
+
+function M.stop()
+    local current = server
+    server = nil
+    if current and current.handle and not current.handle:is_closing() then
+        current.handle:close()
+        return true
+    end
+    return false
+end
+
+function M.reset()
+    local stopped = M.stop()
+    session.reset()
+    return stopped
+end
+
+function M.is_running()
+    return server ~= nil
+        and server.handle ~= nil
+        and not server.handle:is_closing()
+end
+
+function M._stream_chunk_bytes()
+    return STREAM_CHUNK_BYTES
 end
 
 return M

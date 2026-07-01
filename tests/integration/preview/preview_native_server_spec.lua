@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local helpers = dofile(root .. "/tests/helpers.lua")
 local typst = require("typst")
+local native_server = require("typst.preview.native.server")
 
 local uv = vim.uv or vim.loop
 
@@ -249,5 +250,9 @@ else
 end
 
 assert(typst.viewer.preview_stop({ notify = false }) == true)
+assert(
+    not native_server.is_running(),
+    "native server should stop after the last preview route is cleared"
+)
 
 vim.cmd("qa!")

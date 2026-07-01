@@ -288,6 +288,26 @@ typst.reset({ force = true })
 
 local provider_forward_request = nil
 local provider_inverse_request = nil
+local provider_adapter = require("typst.integrations.provider_adapter")
+local original_provider_invoke = provider_adapter.invoke
+local source_map_context_checks = 0
+provider_adapter.invoke = function(provider, methods, context, request, control)
+    if control and control.kind == "source_map" then
+        source_map_context_checks = source_map_context_checks + 1
+        assert(
+            control.args and context == control.args[1],
+            "source-map adapter context should match provider argument"
+        )
+    end
+    return original_provider_invoke(
+        provider,
+        methods,
+        context,
+        request,
+        control
+    )
+end
+
 typst.providers.register("source_map", "registered-source-map", {
     name = "registered-source-map",
     capabilities = function()
@@ -377,5 +397,10 @@ assert(
         and provider_inverse.column == 8,
     "registered source-map provider should receive inverse request"
 )
+assert(
+    source_map_context_checks >= 2,
+    "source-map provider invocations should use a stable context"
+)
+provider_adapter.invoke = original_provider_invoke
 
 vim.cmd("qa!")

@@ -95,6 +95,9 @@ end
 
 function M.cleanup(project)
     local _, file_item = session.clear(project)
+    if session.route_count() == 0 then
+        server.stop()
+    end
     local ok, err = file_shell.stop(file_item)
     if not ok then
         log.add("warn", "failed to stop native preview file shell", {

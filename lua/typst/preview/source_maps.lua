@@ -77,16 +77,28 @@ local function invoke_provider(project, methods, request, callback)
         return nil
     end
 
+    local provider_context = provider_project(project)
     return provider_adapter.invoke(
         provider,
         methods,
-        provider_project(project),
+        provider_context,
         request,
         {
             kind = "source_map",
             provider_name = provider_name(provider),
-            args = { provider_project(project), request },
+            args = { provider_context, request },
             on_result = callback,
+            result_fields = {
+                path = true,
+                file = true,
+                filename = true,
+                line = true,
+                column = true,
+                x = true,
+                y = true,
+                target = true,
+                source_maps = true,
+            },
             invalid_result_message = "Source-map provider returned no result",
         }
     )
