@@ -62,6 +62,25 @@ local function read_json(path)
     return vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
 end
 
+local function wait_json(path, message)
+    local payload
+    assert(
+        vim.wait(10000, function()
+            if vim.fn.filereadable(path) ~= 1 then
+                return false
+            end
+            local ok, decoded = pcall(read_json, path)
+            if ok and type(decoded) == "table" then
+                payload = decoded
+                return true
+            end
+            return false
+        end, 20),
+        message
+    )
+    return payload
+end
+
 local function command_has(command, value)
     for _, arg in ipairs(command or {}) do
         if arg == value then
@@ -101,6 +120,10 @@ run_case("open records callback viewer state", function(group)
         viewer = {
             open = function(path)
                 opened = path
+                return {
+                    opened = true,
+                    path = path,
+                }
             end,
         },
     })
@@ -129,7 +152,7 @@ run_case("open records callback viewer state", function(group)
     local viewed = typst.viewer.view()
     assert(
         viewed == typst_test_compiler(project).output,
-        "view should return the output path"
+        "view should accept structural-only viewer callback results and return the output path"
     )
     assert(
         opened == typst_test_compiler(project).output,
@@ -671,14 +694,10 @@ run_case("executable source sync requires declared capability", function()
         enabled_forward,
         "forward command with source-sync capability should return a job handle"
     )
-    assert(
-        vim.wait(10000, function()
-            return vim.fn.filereadable(log_path) == 1
-        end, 20),
+    local payload = wait_json(
+        log_path,
         "source-sync-enabled forward command did not launch the viewer"
     )
-
-    local payload = read_json(log_path)
     assert(
         payload.args[1] == "--forward",
         "viewer forward args should preserve flags"
@@ -871,14 +890,8 @@ run_case("inverse source-sync and executable backend", function(group)
         command_result,
         "viewer inverse executable should return a job handle"
     )
-    assert(
-        vim.wait(10000, function()
-            return vim.fn.filereadable(log_path) == 1
-        end, 20),
-        "fake inverse viewer did not record invocation"
-    )
-
-    local payload = read_json(log_path)
+    local payload =
+        wait_json(log_path, "fake inverse viewer did not record invocation")
     assert(
         payload.cwd == root,
         "viewer inverse command should run from project root"
@@ -953,14 +966,7 @@ run_case("executable viewer args and info reporting", function(group)
 
     typst.viewer.view()
 
-    assert(
-        vim.wait(10000, function()
-            return vim.fn.filereadable(log_path) == 1
-        end, 20),
-        "fake viewer did not record invocation"
-    )
-
-    local payload = read_json(log_path)
+    local payload = wait_json(log_path, "fake viewer did not record invocation")
     assert(payload.cwd == root, "viewer command should run from project root")
     assert(
         payload.args[1] == "--reuse-instance",
@@ -1076,14 +1082,8 @@ run_case("viewer provider preset capabilities and state", function(group)
     })
 
     typst.viewer.view()
-    assert(
-        vim.wait(10000, function()
-            return vim.fn.filereadable(log_path) == 1
-        end, 20),
-        "fake provider viewer did not record invocation"
-    )
-
-    local payload = read_json(log_path)
+    local payload =
+        wait_json(log_path, "fake provider viewer did not record invocation")
     assert(
         payload.args[1] == "--reuse-instance",
         "zathura preset should include reuse-instance"
@@ -1201,12 +1201,13 @@ run_case("compile opens viewer and notifies reload consumers", function()
 
     assert(
         vim.wait(10000, function()
-            return done and vim.fn.filereadable(viewer_log) == 1
+            return done
         end, 20),
-        "compile.open did not open the configured viewer"
+        "compile.open did not finish"
     )
 
-    local viewer_payload = read_json(viewer_log)
+    local viewer_payload =
+        wait_json(viewer_log, "compile.open did not open the configured viewer")
     assert(
         viewer_payload.args[2] == typst_test_compiler(project).output,
         "viewer open should receive the compiler output path"
@@ -1333,15 +1334,13 @@ run_case("watch opens viewer and notifies reload consumers", function()
 
     assert(
         vim.wait(10000, function()
-            return #callbacks >= 3
-                and #reloads >= 3
-                and #refreshes >= 3
-                and vim.fn.filereadable(viewer_log) == 1
+            return #callbacks >= 3 and #reloads >= 3 and #refreshes >= 3
         end, 20),
         "watch did not open viewer and notify reload/refresh callbacks"
     )
 
-    local viewer_payload = read_json(viewer_log)
+    local viewer_payload =
+        wait_json(viewer_log, "watch did not write a viewer invocation")
     assert(
         viewer_payload.args[2] == typst_test_compiler(project).output,
         "watch viewer open should receive the compiler output path"

@@ -35,6 +35,18 @@ local function provider_run(kind, project, opts, callback)
             callback_position = 3,
             timeout_ms = opts.timeout_ms or 10000,
             on_result = provider_callback,
+            result_fields = {
+                output = true,
+                path = true,
+                stdout = true,
+                stderr = true,
+                text = true,
+                report = true,
+                profile = true,
+                coverage = true,
+                artifacts = true,
+                outputs = true,
+            },
             invalid_result_message = ("Typst %s provider returned no result"):format(
                 kind
             ),

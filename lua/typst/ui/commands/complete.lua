@@ -17,23 +17,23 @@ function M.profile()
 end
 
 function M.project_key(arglead)
-    local registry = require("typst.project.registry")
+    local store = require("typst.project.store")
     local names = {}
     for key in pairs(require("typst.project").all()) do
-        names[#names + 1] = registry.encode_key(key)
+        names[#names + 1] = store.encode_key(key)
     end
     table.sort(names)
     return prefix_filter(names, arglead)
 end
 
 function M.retained_project_key(arglead)
-    local registry = require("typst.project.registry")
+    local store = require("typst.project.store")
     local compiler_service = require("typst.project.services.compiler")
     local retained = {}
     local other = {}
     for key, project in pairs(require("typst.project").all()) do
         local compiler = compiler_service.get(project) or {}
-        local encoded = registry.encode_key(key)
+        local encoded = store.encode_key(key)
         if compiler.status == "stopping_failed" then
             retained[#retained + 1] = encoded
         else

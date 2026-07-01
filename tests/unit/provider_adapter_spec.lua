@@ -276,4 +276,47 @@ assert(
     "handle return mode should still accept explicit result-shaped tables"
 )
 
+local ambiguous_table = adapter.invoke(
+    function()
+        return {
+            path = "/tmp/typst.nvim-ambiguous-handle.pdf",
+        }
+    end,
+    nil,
+    {},
+    {},
+    {
+        kind = "render",
+        provider_name = "ambiguous-table",
+        async = false,
+    }
+)
+assert(
+    ambiguous_table.reason == "invalid_result",
+    "generic provider tables with only structural fields should be invalid by default"
+)
+
+local allowed_table = adapter.invoke(
+    function()
+        return {
+            path = "/tmp/typst.nvim-source-map-target.typ",
+            line = 1,
+            column = 1,
+        }
+    end,
+    nil,
+    {},
+    {},
+    {
+        kind = "source_map",
+        provider_name = "location-table",
+        async = false,
+        result_fields = { path = true, line = true, column = true },
+    }
+)
+assert(
+    allowed_table.path == "/tmp/typst.nvim-source-map-target.typ",
+    "provider-specific result fields should accept structural table results"
+)
+
 vim.cmd("qa!")

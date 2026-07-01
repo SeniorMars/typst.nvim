@@ -409,7 +409,6 @@ assert(
 typst.providers.register("render", "phase4-render", {
     render = function(project, opts)
         return {
-            ok = true,
             kind = opts.kind,
             provider = "phase4-render",
             path = typst_test_cache_path("render-cache/provider.")
@@ -421,7 +420,10 @@ local provider_page = typst.render.page({
     provider = "phase4-render",
     open = false,
 })
-assert(provider_page.ok, "render provider should handle page previews")
+assert(
+    provider_page.path and provider_page.path:match("provider%.svg$"),
+    "render provider should accept structural-only path results"
+)
 assert(
     provider_page.provider == "phase4-render",
     "provider result should be returned"
@@ -432,7 +434,6 @@ typst.providers.register("render", "phase4-pending-render", {
     render = function(project, opts, callback)
         vim.schedule(function()
             callback({
-                ok = true,
                 kind = opts.kind,
                 provider = "phase4-pending-render",
                 path = opts.output_path,
@@ -497,7 +498,6 @@ typst.providers.register("render", "phase4-async-render", {
         async_render_calls = async_render_calls + 1
         vim.schedule(function()
             callback({
-                ok = true,
                 kind = opts.kind,
                 provider = "phase4-async-render",
                 path = opts.output_path,
@@ -541,7 +541,10 @@ assert(
     end, 10),
     "async render provider callback did not run"
 )
-assert(async_rendered.ok, "async render provider should finish successfully")
+assert(
+    async_rendered.path and async_rendered.provider == "phase4-async-render",
+    "async render provider should accept structural-only path callbacks"
+)
 
 local process = require("typst.core.process")
 local original_system = process.system

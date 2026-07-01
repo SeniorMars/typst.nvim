@@ -11,6 +11,23 @@ typst.setup({
     output_dir = typst_test_cache_path("export-spec-output"),
 })
 
+local lease_existing_path =
+    typst_test_cache_path("export-lease-existing/existing.pdf")
+vim.fn.mkdir(vim.fn.fnamemodify(lease_existing_path, ":h"), "p")
+local lease_existing =
+    assert(path_leases.acquire(lease_existing_path, { kind = "lease-test" }))
+local _, lease_err = path_leases.acquire(
+    vim.fn.fnamemodify(lease_existing_path, ":h") .. "/sub/../existing.pdf",
+    { kind = "lease-test-collision" }
+)
+assert(
+    lease_err
+        and lease_err.reason == "active_output"
+        and lease_err.active_output == lease_existing_path,
+    "lease conflict should report the existing active output path"
+)
+path_leases.release(lease_existing)
+
 local original_spawn = process.spawn
 local spawned = {}
 local option_output_path = root .. "/--version"

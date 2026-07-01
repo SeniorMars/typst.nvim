@@ -27,6 +27,15 @@ local function provider_init(opts, callback)
         callback_position = 2,
         timeout_ms = opts.timeout_ms or 10000,
         on_result = callback,
+        result_fields = {
+            path = true,
+            files = true,
+            created = true,
+            template = true,
+            output = true,
+            stdout = true,
+            stderr = true,
+        },
         invalid_result_message = "Template provider returned no result",
     })
 end

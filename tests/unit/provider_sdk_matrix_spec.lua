@@ -198,5 +198,34 @@ assert(
     vim.tbl_contains(sdk.result_contract.terminal_fields, "ok"),
     "provider SDK contract should document terminal result fields"
 )
+assert(
+    type(sdk.structural_results) == "table",
+    "provider SDK contract should document structural result fields"
+)
+
+for kind, fields in pairs(contract.structural_results()) do
+    local field = fields[1]
+    local structural_value = field == "diagnostics" and {} or "value"
+    local result = adapter.invoke(
+        function()
+            return { [field] = structural_value }
+        end,
+        nil,
+        {},
+        {},
+        {
+            kind = kind,
+            provider_name = kind .. "-structural-result",
+            result_fields = fields,
+        }
+    )
+    assert(
+        type(result) == "table" and result[field] ~= nil,
+        ("provider kind `%s` should accept structural-only `%s` results when opted in"):format(
+            kind,
+            field
+        )
+    )
+end
 
 vim.cmd("qa!")

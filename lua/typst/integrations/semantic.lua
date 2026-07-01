@@ -8,6 +8,22 @@ local util = require("typst.core.util")
 
 local M = {}
 local namespace = vim.api.nvim_create_namespace("typst.semantic")
+local semantic_result_fields = {
+    actions = true,
+    code_actions = true,
+    colors = true,
+    count = true,
+    definitions = true,
+    edits = true,
+    hints = true,
+    items = true,
+    lenses = true,
+    links = true,
+    presentations = true,
+    range = true,
+    references = true,
+    symbols = true,
+}
 
 -- Semantic features are callback-first because Tinymist answers over LSP.
 -- Synchronous callers can still use non-Tinymist providers, but Tinymist paths
@@ -39,6 +55,7 @@ local function provider_run(name, project, opts)
             provider_name = "callback",
             args = { name, provider_project, opts },
             async = false,
+            result_fields = semantic_result_fields,
             invalid_result_message = "Semantic provider returned no result",
         })
     end
@@ -48,6 +65,7 @@ local function provider_run(name, project, opts)
             provider_name = semantic_provider.provider_name(provider),
             args = { provider_project, opts },
             async = false,
+            result_fields = semantic_result_fields,
             invalid_result_message = "Semantic provider returned no result",
         })
     end
@@ -62,6 +80,7 @@ local function provider_run(name, project, opts)
                 provider_name = semantic_provider.provider_name(provider),
                 args = { name, provider_project, opts },
                 async = false,
+                result_fields = semantic_result_fields,
                 invalid_result_message = "Semantic provider returned no result",
             }
         )

@@ -169,6 +169,21 @@ local result_contract = {
     cancel_signature = "cancel(self_or_opts, opts?) -> boolean, result?",
 }
 
+local structural_results = {
+    source_map = { "path", "file", "filename", "line", "column" },
+    lint = { "diagnostics", "by_buffer" },
+    grammar = { "diagnostics", "by_buffer" },
+    export = { "path", "output", "outputs", "artifacts" },
+    render = { "path", "output", "outputs", "artifacts" },
+    viewer = { "opened", "path", "output" },
+    eval = { "output", "stdout", "stderr", "text", "value", "values" },
+    init = { "path", "files", "created", "template", "output" },
+    profile = { "output", "stdout", "stderr", "text", "report" },
+    test = { "output", "stdout", "stderr", "text", "report" },
+    bench = { "output", "stdout", "stderr", "text", "report" },
+    coverage = { "output", "stdout", "stderr", "text", "coverage" },
+}
+
 local function sorted_keys(tbl)
     local keys = vim.tbl_keys(tbl)
     table.sort(keys)
@@ -204,6 +219,10 @@ function M.result_contract()
     return vim.deepcopy(result_contract)
 end
 
+function M.structural_results()
+    return vim.deepcopy(structural_results)
+end
+
 function M.sdk_contract()
     return {
         version = 1,
@@ -211,6 +230,7 @@ function M.sdk_contract()
         kinds = M.kinds(),
         methods = vim.deepcopy(methods),
         result_contract = M.result_contract(),
+        structural_results = M.structural_results(),
         fixture_cases = M.fixture_cases(),
     }
 end

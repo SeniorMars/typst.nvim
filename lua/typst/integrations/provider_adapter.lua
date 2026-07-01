@@ -79,8 +79,9 @@ end
 --- Classify whether a provider return value is already a terminal result.
 ---
 --- Anything outside this shape is treated as a handle unless a caller supplied
---- a normalizer, which lets providers return custom process objects without
---- typst.nvim misclassifying them as completed work.
+--- a normalizer or explicitly opted into table result shapes. This prevents
+--- handle-like provider tables from being misclassified only because they
+--- contain fields such as `path` or `diagnostics`.
 ---@param value any Provider return value to classify.
 ---@return boolean result_like True when `value` should be treated as a completed provider result.
 function M.result_like(value)
@@ -98,26 +99,47 @@ function M.result_like(value)
         or value.stopped ~= nil
         or value.forced ~= nil
         or value.orphaned ~= nil
-        or value.output ~= nil
-        or value.text ~= nil
-        or value.path ~= nil
-        or value.artifacts ~= nil
-        or value.outputs ~= nil
-        or value.by_buffer ~= nil
-        or value.diagnostics ~= nil
 end
 
 local function explicit_result_like(value)
-    return type(value) == "table"
-        and (
-            value.ok ~= nil
-            or value.code ~= nil
-            or value.reason ~= nil
-            or value.message ~= nil
-            or value.stopped ~= nil
-            or value.forced ~= nil
-            or value.orphaned ~= nil
-        )
+    return M.result_like(value) and type(value) == "table"
+end
+
+local function allowed_result_field(control, value)
+    if type(value) ~= "table" then
+        return false
+    end
+    local fields = control.result_fields
+    if type(fields) ~= "table" then
+        return false
+    end
+    for key, enabled in pairs(fields) do
+        if enabled and value[key] ~= nil then
+            return true
+        end
+    end
+    for _, key in ipairs(fields) do
+        if value[key] ~= nil then
+            return true
+        end
+    end
+    return false
+end
+
+local function returned_result_like(control, value, handle_mode)
+    if value == nil then
+        return false
+    end
+    if control.accept_table_result == true and type(value) == "table" then
+        return true
+    end
+    if handle_mode then
+        return explicit_result_like(value)
+    end
+    if type(control.normalize) == "function" then
+        return true
+    end
+    return M.result_like(value) or allowed_result_field(control, value)
 end
 
 local function invalid_result(kind, name, message)
@@ -473,12 +495,7 @@ function M.invoke(provider, method, context, opts, control)
     local returned_result = returned ~= nil
         and not returned_pending
         and not returned_handle
-        and (
-            control.accept_table_result == true
-            or (handle_mode and explicit_result_like(returned))
-            or (not handle_mode and M.result_like(returned))
-            or (not handle_mode and type(control.normalize) == "function")
-        )
+        and returned_result_like(control, returned, handle_mode)
 
     if
         returned ~= nil

@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local contract = require("typst.integrations.provider_contract")
+local provider_adapter = require("typst.integrations.provider_adapter")
 local providers = require("typst.integrations.providers")
 
 local function read(rel)
@@ -19,6 +20,60 @@ for alias, kind in pairs(aliases) do
 end
 
 local docs = read("docs/provider-contracts.md")
+local structural_results = contract.structural_results()
+assert(
+    provider_adapter.result_like({ ok = true }) == true,
+    "explicit provider result fields should be terminal"
+)
+assert(
+    provider_adapter.result_like({ path = "/tmp/main.pdf" }) == false,
+    "path-only provider tables should not be generic terminal results"
+)
+assert(
+    provider_adapter.result_like({ diagnostics = {} }) == false,
+    "diagnostics-only provider tables should not be generic terminal results"
+)
+assert(
+    docs:find(
+        "Generic table returns are terminal only when they\n  include explicit result fields",
+        1,
+        true
+    )
+        and docs:find(
+            "as `path`, `output`, `artifacts`, `by_buffer`, or `diagnostics` is not\n  terminal by default",
+            1,
+            true
+        ),
+    "provider docs should match stricter generic result classification"
+)
+assert(
+    docs:find(
+        "provider adapters must opt into\nthose shapes or normalize them",
+        1,
+        true
+    ),
+    "provider docs should repeat structural-shape opt-in guidance"
+)
+assert(
+    not docs:find(
+        "`output`, `path`, `artifacts`, `by_buffer`, or `diagnostics` are\n  treated as terminal results",
+        1,
+        true
+    ),
+    "provider docs should not document old shape-based terminal detection"
+)
+for kind, fields in pairs(structural_results) do
+    assert(
+        docs:find("`" .. kind .. "`", 1, true),
+        ("provider docs should list structural result kind `%s`"):format(kind)
+    )
+    for _, field in ipairs(fields) do
+        assert(
+            docs:find("`" .. field .. "`", 1, true),
+            ("provider docs should list structural field `%s`"):format(field)
+        )
+    end
+end
 for _, kind in ipairs(contract.kinds()) do
     assert(
         docs:find("`" .. kind .. "`", 1, true),
@@ -50,6 +105,38 @@ for _, text in ipairs({
         "provider docs should mention native preview contract: " .. text
     )
 end
+
+local structural_provider_paths = {
+    ["lua/typst/preview/source_maps.lua"] = "result_fields",
+    ["lua/typst/integrations/semantic.lua"] = "result_fields",
+    ["lua/typst/lint/init.lua"] = "normalize",
+    ["lua/typst/syntax/grammar.lua"] = "normalize",
+    ["lua/typst/workflows/artifacts.lua"] = "normalize",
+    ["lua/typst/workflows/render/provider.lua"] = "normalize",
+    ["lua/typst/viewer/generic.lua"] = "normalize",
+    ["lua/typst/viewer/source_sync.lua"] = "normalize",
+    ["lua/typst/workflows/development.lua"] = "result_fields",
+    ["lua/typst/workflows/eval.lua"] = "result_fields",
+    ["lua/typst/workflows/templates.lua"] = "result_fields",
+}
+for rel, expected in pairs(structural_provider_paths) do
+    assert(
+        read(rel):find(expected, 1, true),
+        rel
+            .. " should opt structural provider returns into explicit result fields"
+    )
+end
+
+local compiler_output_query = read("lua/typst/compiler/provider_binding.lua")
+assert(
+    compiler_output_query:find(
+        "Compiler output provider returned no result",
+        1,
+        true
+    )
+        and compiler_output_query:find('type(output) == "string"', 1, true),
+    "compiler output provider lookup is a string-only exception, not a structural table result"
+)
 
 providers.register("compile", "provider-contract-alias", { compile = true })
 assert(

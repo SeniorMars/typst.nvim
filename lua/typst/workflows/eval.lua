@@ -35,6 +35,14 @@ local function provider_eval(project, opts, callback)
             callback_position = 3,
             timeout_ms = opts.timeout_ms or 10000,
             on_result = provider_callback,
+            result_fields = {
+                output = true,
+                stdout = true,
+                stderr = true,
+                text = true,
+                value = true,
+                values = true,
+            },
             invalid_result_message = "Eval provider returned no result",
         }
     )
