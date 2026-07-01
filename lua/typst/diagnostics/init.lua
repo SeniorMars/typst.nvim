@@ -2,6 +2,7 @@ local config = require("typst.config")
 local diagnostic_parser = require("typst.diagnostics.parser")
 local events = require("typst.core.events")
 local diagnostics_service = require("typst.project.services.diagnostics")
+local publisher = require("typst.diagnostics.publisher")
 local quickfix = require("typst.diagnostics.quickfix")
 local semantic_provider = require("typst.integrations.semantic_provider")
 
@@ -12,6 +13,8 @@ local default_source = "compiler"
 local global_namespaces = {
     [default_source] = M.namespace,
 }
+local source_buffers
+local rebuild_diagnostic_buffers
 
 local function source_key(source)
     if type(source) ~= "string" or source == "" then
@@ -139,14 +142,6 @@ function M.policy_label(project)
     })[M.policy_state(project)]
 end
 
-local function diagnostic_total(by_buffer)
-    local count = 0
-    for _, diagnostics in pairs(by_buffer or {}) do
-        count = count + #diagnostics
-    end
-    return count
-end
-
 --- Replace the Typst-owned quickfix list with diagnostics.
 ---@param project table Project state that owns the quickfix list.
 ---@param by_buffer table<integer, table[]> Diagnostics grouped by buffer.
@@ -172,7 +167,7 @@ function M.quickfix(project, opts)
     return quickfix.open(project, M.namespace_for(project, opts.source), opts)
 end
 
-local function source_buffers(project, key)
+source_buffers = function(project, key)
     local diagnostic_state = diagnostics_service.get(project) or {}
     diagnostic_state.by_source = diagnostic_state.by_source or {}
     diagnostic_state.by_source[key] = diagnostic_state.by_source[key] or {}
@@ -203,7 +198,7 @@ local function source_keys(project, source)
     return keys
 end
 
-local function rebuild_diagnostic_buffers(project)
+rebuild_diagnostic_buffers = function(project)
     local diagnostic_buffers = {}
     local diagnostic_state = diagnostics_service.get(project) or {}
     for _, buffers in pairs(diagnostic_state.by_source or {}) do
@@ -301,30 +296,16 @@ end
 ---@param project table Project state whose buffers receive diagnostics.
 ---@param text string Raw compiler/lint/grammar output.
 ---@param opts? table Publish options, including optional diagnostic source.
----@return table<integer, table[]> by_buffer Diagnostics grouped by buffer.
+---@return table<integer, table[]> by_buffer Diagnostics published by valid buffer.
 function M.publish(project, text, opts)
-    opts = opts or {}
-    local key = source_key(opts.source)
-    M.clear(project, { emit = false, source = key })
-
-    local by_buffer = M.parse(project, text, opts)
-    local namespace = M.namespace_for(project, key)
-    local buffers = source_buffers(project, key)
-
-    for bufnr, diagnostics in pairs(by_buffer) do
-        vim.diagnostic.set(namespace, bufnr, diagnostics)
-        buffers[bufnr] = true
-    end
-    rebuild_diagnostic_buffers(project)
-
-    quickfix.maybe_set(project, by_buffer)
-
-    events.emit("TypstDiagnosticsPublished", project, {
-        diagnostics_count = diagnostic_total(by_buffer),
-        diagnostic_buffers = vim.tbl_count(by_buffer),
-    })
-
-    return by_buffer
+    return publisher.publish({
+        source_key = source_key,
+        namespace_for = M.namespace_for,
+        source_buffers = source_buffers,
+        rebuild_diagnostic_buffers = rebuild_diagnostic_buffers,
+        clear = M.clear,
+        parse = M.parse,
+    }, project, text, opts)
 end
 
 --- Publish native Neovim diagnostics grouped by buffer.
@@ -334,34 +315,14 @@ end
 ---@return table<integer, table[]> by_buffer Diagnostics that were published.
 ---@return table[] quickfix_items Quickfix items that were set when enabled.
 function M.publish_by_buffer(project, by_buffer, opts)
-    opts = opts or {}
-    local key = source_key(opts.source)
-    M.clear(project, { emit = false, source = key })
-
-    local namespace = M.namespace_for(project, key)
-    local buffers = source_buffers(project, key)
-    local published = {}
-
-    for bufnr, buffer_diagnostics in pairs(by_buffer or {}) do
-        if vim.api.nvim_buf_is_valid(bufnr) then
-            local diagnostics_for_buffer =
-                vim.deepcopy(buffer_diagnostics or {})
-            vim.diagnostic.set(namespace, bufnr, diagnostics_for_buffer)
-            if #diagnostics_for_buffer > 0 then
-                buffers[bufnr] = true
-                published[bufnr] = diagnostics_for_buffer
-            end
-        end
-    end
-    rebuild_diagnostic_buffers(project)
-
-    local items = quickfix.maybe_set(project, published)
-    events.emit("TypstDiagnosticsPublished", project, {
-        diagnostics_count = diagnostic_total(published),
-        diagnostic_buffers = vim.tbl_count(published),
-    })
-
-    return published, items
+    return publisher.publish_by_buffer({
+        source_key = source_key,
+        namespace_for = M.namespace_for,
+        source_buffers = source_buffers,
+        rebuild_diagnostic_buffers = rebuild_diagnostic_buffers,
+        clear = M.clear,
+        parse = M.parse,
+    }, project, by_buffer, opts)
 end
 
 --- Parse Typst diagnostics without publishing them to Neovim.

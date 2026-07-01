@@ -31,10 +31,24 @@ local function to_qf_item(bufnr, diagnostic, opts)
     }
 end
 
+local function valid_buffer(bufnr)
+    return type(bufnr) == "number"
+        and bufnr > 0
+        and vim.api.nvim_buf_is_valid(bufnr)
+end
+
+local function buffer_name(bufnr)
+    if not valid_buffer(bufnr) then
+        return ""
+    end
+    local ok, name = pcall(vim.api.nvim_buf_get_name, bufnr)
+    return ok and name or ""
+end
+
 local function sort_qf_items(items)
     table.sort(items, function(left, right)
-        local left_name = vim.api.nvim_buf_get_name(left.bufnr)
-        local right_name = vim.api.nvim_buf_get_name(right.bufnr)
+        local left_name = buffer_name(left.bufnr)
+        local right_name = buffer_name(right.bufnr)
 
         if left_name ~= right_name then
             return left_name < right_name
@@ -121,8 +135,10 @@ end
 function M.items(by_buffer, opts)
     local items = {}
     for bufnr, diagnostics in pairs(by_buffer or {}) do
-        for _, diagnostic in ipairs(diagnostics) do
-            items[#items + 1] = to_qf_item(bufnr, diagnostic, opts)
+        if valid_buffer(bufnr) then
+            for _, diagnostic in ipairs(diagnostics) do
+                items[#items + 1] = to_qf_item(bufnr, diagnostic, opts)
+            end
         end
     end
     return sort_qf_items(items)

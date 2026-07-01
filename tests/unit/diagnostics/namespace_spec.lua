@@ -173,6 +173,7 @@ assert(
 
 local allowed_diagnostic_writers = {
     ["lua/typst/diagnostics/init.lua"] = true,
+    ["lua/typst/diagnostics/publisher.lua"] = true,
     ["lua/typst/bibliography/diagnostics.lua"] = true,
     ["lua/typst/metadata/fonts.lua"] = true,
 }
