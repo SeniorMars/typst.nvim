@@ -5,6 +5,7 @@ local typst = require("typst")
 local compiler = require("typst.compiler")
 local lifecycle = require("typst.core.lifecycle")
 local operations = require("typst.project.services.operations")
+local preview_service = require("typst.project.services.preview")
 local project_services = require("typst.project.services")
 local project_registry = require("typst.project")
 
@@ -26,6 +27,30 @@ local function attach_project(name)
     local project =
         assert(typst.project.set_main(file), "expected project attachment")
     return project, bufnr
+end
+
+local function pending_stop_handle()
+    local handle = {
+        pending = true,
+        on_finish_style = "colon",
+    }
+    function handle:on_finish(callback)
+        self.callback = callback
+        return self
+    end
+    return handle
+end
+
+local function record_active_preview(project, backend, command)
+    preview_service.set(project, {
+        active = true,
+        active_backend = backend,
+        active_command = command,
+        active_cwd = root,
+        last_backend = backend,
+        last_command = command and vim.deepcopy(command) or nil,
+        last_cwd = root,
+    })
 end
 
 for _, kind in ipairs({ "export", "render_image", "format" }) do
@@ -169,6 +194,267 @@ assert(
 typst_test_compiler(stop_project).process = nil
 typst_test_compiler(stop_project).status = "idle"
 project_registry.prune(stop_project, "test cleanup")
+
+typst.reset({ force = true })
+
+local prune_pending_stop_calls = 0
+typst.setup({
+    root = root,
+    output_dir = typst_test_cache_path("lifecycle-preview-prune-output"),
+    preview = {
+        open = function()
+            return true
+        end,
+        stop = function()
+            prune_pending_stop_calls = prune_pending_stop_calls + 1
+            return pending_stop_handle()
+        end,
+    },
+})
+
+local preview_prune_project, preview_prune_bufnr =
+    attach_project("preview-prune-pending")
+assert(
+    typst.viewer.preview({ mode = "document" }) == true,
+    "pending prune preview should open"
+)
+preview_prune_project.bufs[preview_prune_bufnr] = nil
+
+local preview_prune_handled = lifecycle.stop_before_prune(
+    preview_prune_project,
+    "stopping pending preview in lifecycle matrix test",
+    "preview pending prune"
+)
+
+assert(preview_prune_handled, "pending preview prune should be handled")
+assert(
+    prune_pending_stop_calls == 1,
+    "pending preview prune should request preview stop"
+)
+assert(
+    typst_test_preview(preview_prune_project).active == true,
+    "pending preview prune should keep active preview state"
+)
+assert(
+    typst_test_preview(preview_prune_project).status == "stopping_failed",
+    "pending preview prune should record unconfirmed stop status"
+)
+assert(
+    typst_test_preview(preview_prune_project).stopping == true,
+    "pending preview prune should record stopping=true"
+)
+assert(
+    typst_test_preview(preview_prune_project).stop_prune_reason
+        == "preview pending prune",
+    "pending preview prune should record prune reason"
+)
+assert(
+    project_registry.all()[preview_prune_project.key] == preview_prune_project,
+    "pending preview prune should retain project ownership"
+)
+
+typst.reset({ force = true })
+
+local reset_pending_stop_calls = 0
+typst.setup({
+    root = root,
+    output_dir = typst_test_cache_path("lifecycle-preview-reset-output"),
+    preview = {
+        open = function()
+            return true
+        end,
+        stop = function()
+            reset_pending_stop_calls = reset_pending_stop_calls + 1
+            return pending_stop_handle()
+        end,
+    },
+})
+
+local preview_reset_project = attach_project("preview-reset-pending")
+assert(
+    typst.viewer.preview({ mode = "document" }) == true,
+    "pending reset preview should open"
+)
+local preview_reset_summary = typst.reset({ keep_telemetry = true })
+
+assert(
+    preview_reset_summary and preview_reset_summary.ok == false,
+    "pending preview reset should report a retained resource"
+)
+assert(
+    reset_pending_stop_calls == 1,
+    "pending preview reset should request preview stop"
+)
+assert(
+    typst_test_preview(preview_reset_project).active == true,
+    "pending preview reset should keep active preview state"
+)
+assert(
+    typst_test_preview(preview_reset_project).status == "stopping_failed",
+    "pending preview reset should record unconfirmed stop status"
+)
+assert(
+    typst_test_preview(preview_reset_project).stopping == true,
+    "pending preview reset should record stopping=true"
+)
+assert(
+    typst_test_preview(preview_reset_project).stop_prune_reason == "reset",
+    "pending preview reset should record reset as stop reason"
+)
+
+typst.reset({ force = true })
+
+typst.setup({
+    root = root,
+    output_dir = typst_test_cache_path("lifecycle-native-prune-output"),
+    preview = {
+        native = "browser",
+    },
+})
+
+local native_prune_project, native_prune_bufnr =
+    attach_project("preview-native-prune")
+record_active_preview(native_prune_project, "native-browser")
+native_prune_project.bufs[native_prune_bufnr] = nil
+
+assert(
+    lifecycle.stop_before_prune(
+        native_prune_project,
+        "stopping native preview in lifecycle matrix test",
+        "native preview prune"
+    ),
+    "native preview prune should be handled"
+)
+assert(
+    typst_test_preview(native_prune_project).active == false,
+    "native preview prune should clear active preview state"
+)
+assert(
+    project_registry.all()[native_prune_project.key] == nil,
+    "native preview prune should prune empty project"
+)
+
+typst.reset({ force = true })
+
+typst.setup({
+    root = root,
+    output_dir = typst_test_cache_path("lifecycle-native-reset-output"),
+    preview = {
+        native = "browser",
+    },
+})
+
+local native_reset_project = attach_project("preview-native-reset")
+record_active_preview(native_reset_project, "native-browser")
+local native_reset_summary = typst.reset({ keep_telemetry = true })
+
+assert(
+    native_reset_summary and native_reset_summary.ok == true,
+    "native preview reset should stop cleanly"
+)
+assert(
+    typst_test_preview(native_reset_project).active == false,
+    "native preview reset should clear active preview state"
+)
+
+typst.reset({ force = true })
+
+local delegated_stop_calls = 0
+local delegated_stop_buffer = nil
+local delegated_stop_cwd = nil
+local function install_delegated_stop()
+    vim.api.nvim_create_user_command("TypstPreviewStop", function()
+        delegated_stop_calls = delegated_stop_calls + 1
+        delegated_stop_buffer = vim.api.nvim_buf_get_name(0)
+        delegated_stop_cwd = vim.fn.getcwd()
+    end, { force = true })
+end
+
+typst.setup({
+    root = root,
+    output_dir = typst_test_cache_path("lifecycle-delegated-prune-output"),
+    preview = {
+        provider = "typst-preview.nvim",
+    },
+})
+install_delegated_stop()
+
+local delegated_prune_project, delegated_prune_bufnr =
+    attach_project("preview-delegated-prune")
+record_active_preview(delegated_prune_project, "typst-preview.nvim", {
+    "TypstPreview document",
+})
+delegated_prune_project.bufs[delegated_prune_bufnr] = nil
+
+assert(
+    lifecycle.stop_before_prune(
+        delegated_prune_project,
+        "stopping delegated preview in lifecycle matrix test",
+        "delegated preview prune"
+    ),
+    "delegated preview prune should be handled"
+)
+assert(
+    delegated_stop_calls == 1,
+    "delegated preview prune should invoke TypstPreviewStop"
+)
+assert(
+    delegated_stop_buffer == delegated_prune_project.main,
+    "delegated preview prune should run stop from the main buffer"
+)
+assert(
+    delegated_stop_cwd == root,
+    "delegated preview prune should run stop from the project root"
+)
+assert(
+    typst_test_preview(delegated_prune_project).active == false,
+    "delegated preview prune should clear active preview state"
+)
+assert(
+    project_registry.all()[delegated_prune_project.key] == nil,
+    "delegated preview prune should prune empty project"
+)
+
+typst.reset({ force = true })
+
+delegated_stop_calls = 0
+delegated_stop_buffer = nil
+delegated_stop_cwd = nil
+typst.setup({
+    root = root,
+    output_dir = typst_test_cache_path("lifecycle-delegated-reset-output"),
+    preview = {
+        provider = "typst-preview.nvim",
+    },
+})
+install_delegated_stop()
+
+local delegated_reset_project = attach_project("preview-delegated-reset")
+record_active_preview(delegated_reset_project, "typst-preview.nvim", {
+    "TypstPreview document",
+})
+local delegated_reset_summary = typst.reset({ keep_telemetry = true })
+
+assert(
+    delegated_reset_summary and delegated_reset_summary.ok == true,
+    "delegated preview reset should stop cleanly"
+)
+assert(
+    delegated_stop_calls == 1,
+    "delegated preview reset should invoke TypstPreviewStop"
+)
+assert(
+    delegated_stop_buffer == delegated_reset_project.main,
+    "delegated preview reset should run stop from the main buffer"
+)
+assert(
+    delegated_stop_cwd == root,
+    "delegated preview reset should run stop from the project root"
+)
+assert(
+    typst_test_preview(delegated_reset_project).active == false,
+    "delegated preview reset should clear active preview state"
+)
 
 typst.reset({ force = true })
 

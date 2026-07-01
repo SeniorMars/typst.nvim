@@ -66,6 +66,19 @@ local function record_stop_failed(project, result)
     })
 end
 
+local function record_stop_unconfirmed(project, result, reason)
+    preview_service.set(project, {
+        active = true,
+        stopping = true,
+        status = "stopping_failed",
+        last_result = type(result) == "table" and result or nil,
+        last_error = type(result) == "table"
+                and (result.error or result.message or result.reason or "pending")
+            or result,
+        stop_prune_reason = reason,
+    })
+end
+
 local function record_open_failed(project, result)
     preview_service.set(project, {
         clear = {
@@ -611,6 +624,53 @@ function M.stop(project, opts)
         main = project.main,
         backend = (preview_service.get(project) or {}).last_backend,
     })
+    return result
+end
+
+--- Stop preview during global exit cleanup.
+---
+--- VimLeavePre cannot rely on later scheduled callbacks, so a pending callback
+--- provider stop is recorded as unconfirmed instead of clearing active state.
+---@param project table Project state whose preview service owns backend state.
+---@param opts? table Stop controls forwarded to configured preview callbacks.
+---@return boolean|table|nil result Stop status or unconfirmed pending payload.
+function M.stop_for_exit(project, opts)
+    opts = vim.tbl_extend("force", {
+        lifecycle = true,
+        exit = true,
+        reason = "exit",
+    }, opts or {})
+
+    local ok, result = pcall(M.stop, project, opts)
+    if not ok then
+        result = callback_error(project, "stop", result)
+        record_stop_failed(project, result)
+        return result
+    end
+
+    if type(result) == "table" and result.pending == true then
+        record_stop_unconfirmed(project, result, opts.reason or "exit")
+        log.add("warn", "preview stop remained pending during exit", {
+            main = project.main,
+            backend = (preview_service.get(project) or {}).last_backend,
+        })
+        return result
+    end
+
+    if
+        result == false
+        or (
+            type(result) == "table"
+            and (result.ok == false or result.stopped == false)
+        )
+    then
+        record_stop_failed(project, result)
+        log.add("warn", "preview stop failed during exit", {
+            main = project.main,
+            result = result,
+        })
+    end
+
     return result
 end
 

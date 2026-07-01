@@ -39,7 +39,11 @@ function M.register(ctx)
         end,
         vim.tbl_extend(
             "force",
-            opts("Run a one-shot Typst compile", "?", complete.profile),
+            opts(
+                "Alias for :TypstCompile for VimTeX muscle memory",
+                "?",
+                complete.profile
+            ),
             {
                 bang = true,
             }
@@ -101,6 +105,28 @@ function M.register(ctx)
     create("TypstStopAll", function()
         api.compiler.stop_all()
     end, opts("Stop active Typst compilers for all known projects"))
+
+    create(
+        "TypstCompilerForceClear",
+        function(args)
+            api.compiler.force_clear({
+                force = args.bang == true,
+                key = args.args ~= "" and args.args or nil,
+                key_encoded = args.args ~= "",
+            })
+        end,
+        vim.tbl_extend(
+            "force",
+            opts(
+                "Discard unconfirmed external compiler state after stop timeout",
+                "?",
+                complete.retained_project_key
+            ),
+            {
+                bang = true,
+            }
+        )
+    )
 
     create("TypstView", function()
         api.viewer.view()

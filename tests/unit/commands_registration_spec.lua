@@ -17,6 +17,7 @@ local public_commands = {
     "TypstWatch",
     "TypstStop",
     "TypstStopAll",
+    "TypstCompilerForceClear",
     "TypstStatus",
     "TypstStatusAll",
     "TypstCount",
@@ -218,6 +219,7 @@ assert(logged, "command failure should be logged with the command name")
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 typst.project.set_main(main)
+local attached_project = typst.project.get()
 
 local saved = {
     debug = typst.debug,
@@ -249,20 +251,36 @@ if not ok then
 end
 
 local compile_calls = {}
+local force_clear_calls = {}
 require("typst.ui.commands.compiler").register({
     api = {
         compiler = {
             compile = function(call_opts)
                 compile_calls[#compile_calls + 1] = vim.deepcopy(call_opts)
             end,
+            force_clear = function(call_opts)
+                force_clear_calls[#force_clear_calls + 1] =
+                    vim.deepcopy(call_opts)
+            end,
         },
     },
 })
+
+local compile_ss_command = vim.api.nvim_get_commands({})["TypstCompileSS"]
+assert(
+    compile_ss_command
+        and compile_ss_command.desc
+        and compile_ss_command.desc:find("Alias for :TypstCompile", 1, true),
+    "TypstCompileSS description should document alias semantics"
+)
 
 vim.cmd("TypstCompile")
 vim.cmd("TypstCompileSS")
 vim.cmd("TypstCompile! draft")
 vim.cmd("TypstCompileSS! draft")
+vim.cmd("TypstCompilerForceClear")
+vim.cmd("TypstCompilerForceClear!")
+vim.cmd("TypstCompilerForceClear retained-project-key")
 
 assert(
     vim.deep_equal(compile_calls[1], compile_calls[2]),
@@ -279,6 +297,40 @@ assert(
 assert(
     compile_calls[3].open == true and compile_calls[3].profile == "draft",
     "bang/profile compile commands should pass open/profile"
+)
+assert(
+    force_clear_calls[1] and force_clear_calls[1].force == false,
+    "TypstCompilerForceClear should not force by default"
+)
+assert(
+    force_clear_calls[2] and force_clear_calls[2].force == true,
+    "TypstCompilerForceClear! should force discard"
+)
+assert(
+    force_clear_calls[3]
+        and force_clear_calls[3].force == false
+        and force_clear_calls[3].key == "retained-project-key",
+    "TypstCompilerForceClear should pass an optional project key"
+)
+assert(
+    force_clear_calls[3].key_encoded == true,
+    "TypstCompilerForceClear should mark command keys as encoded display keys"
+)
+
+local command_complete = require("typst.ui.commands.complete")
+local compiler_service = require("typst.project.services.compiler")
+local project_registry = require("typst.project.registry")
+
+compiler_service.set(attached_project, { status = "stopping_failed" })
+local retained_key = project_registry.encode_key(attached_project.key)
+assert(
+    vim.tbl_contains(command_complete.retained_project_key(""), retained_key),
+    "force-clear completion should include retained/stopping_failed projects"
+)
+compiler_service.set(attached_project, { status = "idle" })
+assert(
+    vim.tbl_contains(command_complete.retained_project_key(""), retained_key),
+    "force-clear completion should include non-retained projects for bang usage"
 )
 
 vim.cmd("qa!")

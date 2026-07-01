@@ -67,6 +67,23 @@ assert(
 )
 assert(payload.stdout == nil, "raw stdout should not leak into User payloads")
 
+local _, raw_failure_payload = compiler_events.payload("compile_failure", {
+    status = "stopping_failed",
+})
+assert(
+    raw_failure_payload.status == "error",
+    "raw provider status should not override normalized failure status"
+)
+
+local _, internal_failure_payload = compiler_events.payload("compile_failure", {
+    status = "stopping_failed",
+    _typst_status_authoritative = true,
+})
+assert(
+    internal_failure_payload.status == "stopping_failed",
+    "internal status override should expose stopping_failed"
+)
+
 local project = {
     key = "compiler-events-test",
     root = root,

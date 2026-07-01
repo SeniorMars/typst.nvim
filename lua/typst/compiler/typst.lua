@@ -283,23 +283,26 @@ function M.stop_for_exit(project, opts)
         kill_timeout_ms = 750,
     }, opts or {})
 
-    local stopped = false
+    local attempted = false
+    local stopped = true
     local ok = true
 
     local did_stop, stop_ok =
         compiler_process.stop_compile_for_exit(project, opts)
     if did_stop then
-        stopped = true
+        attempted = true
+        stopped = stopped and stop_ok
         ok = ok and stop_ok
     end
 
     did_stop, stop_ok = compiler_process.stop_watcher_for_exit(project, opts)
     if did_stop then
-        stopped = true
+        attempted = true
+        stopped = stopped and stop_ok
         ok = ok and stop_ok
     end
 
-    if not stopped then
+    if not attempted then
         compiler_service.set(project, {
             clear = { "process", "watcher" },
             status = "idle",
@@ -310,7 +313,7 @@ function M.stop_for_exit(project, opts)
         code = ok and 0 or 1,
         stale = false,
         stopped = stopped,
-        idle = not stopped,
+        idle = not attempted,
     }
 end
 

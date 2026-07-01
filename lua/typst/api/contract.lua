@@ -20,6 +20,7 @@ local event_aliases = {
     TypstCompileSuccess = { "TypstEventCompileSuccess" },
     TypstCompileFailed = { "TypstEventCompileFailed" },
     TypstCompileStopped = { "TypstEventCompileStopped" },
+    TypstCompilerForceCleared = { "TypstEventCompilerForceCleared" },
     TypstPreviewOpened = { "TypstEventPreviewStarted" },
     TypstPreviewForwarded = { "TypstEventPreviewForwarded" },
     TypstPreviewInverse = { "TypstEventPreviewInverse" },
@@ -156,6 +157,20 @@ local event_payloads = {
     TypstEventCompileSuccess = vim.deepcopy(compile_payload),
     TypstEventCompileFailed = vim.deepcopy(compile_payload),
     TypstEventCompileStopped = vim.deepcopy(compile_payload),
+    TypstEventCompilerForceCleared = vim.list_extend(
+        vim.deepcopy(common_project_payload),
+        {
+            "key_display",
+            "output",
+            "released_lease",
+            "stopped",
+            "forced",
+            "discarded",
+            "reason",
+            "message",
+            "lease_owner",
+        }
+    ),
     TypstEventPreviewStarted = vim.list_extend(
         vim.deepcopy(common_project_payload),
         preview_started_payload
@@ -253,6 +268,8 @@ event_payloads.TypstCompileStarted = payload_for("TypstEventCompileStarted")
 event_payloads.TypstCompileSuccess = payload_for("TypstEventCompileSuccess")
 event_payloads.TypstCompileFailed = payload_for("TypstEventCompileFailed")
 event_payloads.TypstCompileStopped = payload_for("TypstEventCompileStopped")
+event_payloads.TypstCompilerForceCleared =
+    payload_for("TypstEventCompilerForceCleared")
 event_payloads.TypstPreviewOpened = payload_for("TypstEventPreviewStarted")
 event_payloads.TypstPreviewForwarded = payload_for("TypstEventPreviewForwarded")
 event_payloads.TypstPreviewInverse = payload_for("TypstEventPreviewInverse")
@@ -305,6 +322,7 @@ local compatibility_events = {
     "TypstCompileStarted",
     "TypstCompileStopped",
     "TypstCompileSuccess",
+    "TypstCompilerForceCleared",
     "TypstDiagnosticsCleared",
     "TypstDiagnosticsPublished",
     "TypstOutputCleaned",

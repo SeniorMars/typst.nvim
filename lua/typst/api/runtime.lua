@@ -68,6 +68,81 @@ function M.install(api, notify, normalize_bufnr)
         )
     end
 
+    local function force_clear(opts)
+        opts = opts or {}
+        local state = opts.project
+        local key_given = type(opts.key) == "string" and opts.key ~= ""
+        if not state and key_given then
+            local registry = require("typst.project.registry")
+            local key_error = nil
+            local decoded_key = nil
+            if opts.key_encoded == true then
+                state = registry.get_encoded(opts.key)
+            else
+                state, key_error, decoded_key = registry.resolve_key(opts.key)
+            end
+            if key_error == "ambiguous_project_key" then
+                local result = {
+                    ok = false,
+                    code = 1,
+                    stale = false,
+                    stopped = false,
+                    reason = "ambiguous_project_key",
+                    message = ("Ambiguous Typst project key: %s; pass a project object or key_encoded=true"):format(
+                        opts.key
+                    ),
+                    key = opts.key,
+                    key_display = opts.key,
+                    decoded_key = decoded_key,
+                }
+                if opts.notify ~= false and type(notify) == "function" then
+                    notify(result.message, vim.log.levels.ERROR)
+                end
+                return result
+            end
+            if not state then
+                local result = {
+                    ok = false,
+                    code = 1,
+                    stale = false,
+                    stopped = false,
+                    reason = "unknown_project_key",
+                    message = ("Unknown Typst project key: %s"):format(
+                        opts.key
+                    ),
+                    key = opts.key,
+                    key_display = opts.key,
+                }
+                if opts.notify ~= false and type(notify) == "function" then
+                    notify(result.message, vim.log.levels.ERROR)
+                end
+                return result
+            end
+        elseif not state then
+            local bufnr = normalize_bufnr(opts.bufnr)
+            state = require("typst.project.registry").project_for_buffer(bufnr)
+        end
+        if not state then
+            local result = {
+                ok = false,
+                code = 1,
+                stale = false,
+                stopped = false,
+                reason = "no_project",
+                message = "No Typst project is attached; pass a project key or run from a Typst buffer",
+            }
+            if opts.notify ~= false and type(notify) == "function" then
+                notify(result.message, vim.log.levels.WARN)
+            end
+            return result
+        end
+        return require("typst.project.services.operations").force_clear_compiler(
+            state,
+            opts,
+            notify
+        )
+    end
+
     local function view(opts)
         opts = opts or {}
         local state = api.project.get(opts.bufnr)
@@ -174,6 +249,7 @@ function M.install(api, notify, normalize_bufnr)
         watch = watch,
         stop = stop,
         stop_all = stop_all,
+        force_clear = force_clear,
         status = function(opts)
             opts = opts or {}
             local state = api.project.get(opts.bufnr)

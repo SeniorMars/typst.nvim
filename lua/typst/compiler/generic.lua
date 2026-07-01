@@ -3,7 +3,7 @@ local compiler_output = require("typst.compiler.output")
 local log = require("typst.core.log")
 local operation = require("typst.core.operation")
 local output_path_util = require("typst.compiler.output_path")
-local path_leases = require("typst.core.path_leases")
+local output_ownership = require("typst.resources.outputs")
 local process = require("typst.core.process")
 local compiler_service = require("typst.project.services.compiler")
 local util = require("typst.core.util")
@@ -12,7 +12,7 @@ local M = {}
 
 local function release_lease(state)
     if state and state.lease then
-        path_leases.release(state.lease)
+        output_ownership.release(state.lease)
         state.lease = nil
     end
 end
@@ -129,7 +129,7 @@ local function run(kind, mode, project, callback, run_config)
     end
 
     local ctx = context(project, run_config, kind)
-    local lease, lease_err = path_leases.acquire(ctx.output, {
+    local lease, lease_err = output_ownership.acquire(ctx.output, {
         kind = ("generic-%s-%s"):format(kind, mode),
         project_key = project.key,
         main = project.main,
@@ -156,9 +156,9 @@ local function run(kind, mode, project, callback, run_config)
         return nil
     end
     compiler_service.set(project, { output = ctx.output })
-    local parent_ok, parent_err = util.ensure_parent(ctx.output)
+    local parent_ok, parent_err = output_ownership.ensure_parent(ctx.output)
     if not parent_ok then
-        path_leases.release(lease)
+        output_ownership.release(lease)
         local result = {
             code = 1,
             stdout = "",

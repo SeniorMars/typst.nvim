@@ -41,6 +41,17 @@ assert(
     all_lines[1]:find("main", 1, true),
     "status_all should include a table header"
 )
+assert(
+    snapshots[1].key_display
+        and not snapshots[1].key_display:find("\n", 1, true),
+    "status_all snapshots should expose command-safe project keys"
+)
+assert(
+    table
+        .concat(all_lines, "\n")
+        :find(snapshots[1].key_display:sub(1, 77), 1, true),
+    "status_all should print a readable command-safe project key prefix"
+)
 
 local bang_snapshots, bang_lines =
     typst.ui.status_report({ bang = true, echo = false })
@@ -128,6 +139,27 @@ assert(
 assert(
     quickfix[1].text:find("command test diagnostic", 1, true),
     "TypstErrors quickfix should include diagnostics"
+)
+
+local long_key = string.rep("k", 120)
+local truncated_lines = require("typst.ui.reports").status_all_lines({
+    {
+        main_name = "main.typ",
+        key = "raw-key",
+        key_display = long_key,
+        status = "stopping_failed",
+        diagnostics = 0,
+    },
+})
+assert(
+    not truncated_lines[2]:find(long_key, 1, true),
+    "status_all table should truncate very long key columns"
+)
+assert(
+    table
+        .concat(truncated_lines, "\n")
+        :find(":TypstCompilerForceClear! " .. long_key, 1, true),
+    "status_all should still print full force-clear command keys"
 )
 
 vim.cmd("qa!")

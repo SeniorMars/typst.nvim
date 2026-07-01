@@ -7,9 +7,8 @@ local diagnostics = require("typst.diagnostics")
 local compiler_events = require("typst.compiler.events")
 local log = require("typst.core.log")
 local operation = require("typst.core.operation")
-local path_leases = require("typst.core.path_leases")
+local output_ownership = require("typst.resources.outputs")
 local compiler_service = require("typst.project.services.compiler")
-local util = require("typst.core.util")
 
 local M = {}
 
@@ -23,7 +22,7 @@ function M.start(project, callback, run_config)
     local compiler_state = compiler_service.get(project) or {}
     local generation = (compiler_state.generation or 0) + 1
     local output = output_path_util.output_path(project, opts)
-    local lease, lease_err = path_leases.acquire(output, {
+    local lease, lease_err = output_ownership.acquire(output, {
         kind = "compile",
         project_key = project.key,
         main = project.main,
@@ -58,9 +57,9 @@ function M.start(project, callback, run_config)
         output = output,
         last_profile = opts.compile.profile,
     })
-    local parent_ok, parent_err = util.ensure_parent(output)
+    local parent_ok, parent_err = output_ownership.ensure_parent(output)
     if not parent_ok then
-        path_leases.release(lease)
+        output_ownership.release(lease)
         local result = {
             code = 1,
             stdout = "",
@@ -86,7 +85,7 @@ function M.start(project, callback, run_config)
         return compiler_command.build("compile", project, opts)
     end, debug.traceback)
     if not build_ok then
-        path_leases.release(lease)
+        output_ownership.release(lease)
         local result = {
             code = 1,
             stdout = "",
@@ -132,7 +131,7 @@ function M.start(project, callback, run_config)
     local run_ok, run_result = xpcall(function()
         return operation.run("compiler-typst-compile", command, process_opts, {
             cleanup = function()
-                path_leases.release(lease)
+                output_ownership.release(lease)
             end,
             on_finish = function(result)
                 if
@@ -231,7 +230,7 @@ function M.start(project, callback, run_config)
         })
     end, debug.traceback)
     if not run_ok then
-        path_leases.release(lease)
+        output_ownership.release(lease)
         compiler_dependencies.cleanup_file(deps_path)
         local result = {
             code = 1,

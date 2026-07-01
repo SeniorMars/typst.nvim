@@ -100,10 +100,18 @@ local ok, err = xpcall(function()
             return true
         end
 
+        local cancel_callbacks = 0
         local stopped, cancel_result = orphan:cancel({
             timeout_ms = 0,
             kill_timeout_ms = 0,
-        })
+        }, function(stopped_result, result)
+            cancel_callbacks = cancel_callbacks + 1
+            assert(stopped_result == false, "orphan cancel should fail stop")
+            assert(
+                result.orphaned == true,
+                "orphan cancel should retain result"
+            )
+        end)
         assert(
             not stopped
                 and cancel_result
@@ -115,6 +123,7 @@ local ok, err = xpcall(function()
             orphan.state == "orphaned-retained",
             "unconfirmed kill should retain an orphan"
         )
+        assert(cancel_callbacks == 1, "orphan cancel callback should settle")
         assert(late_finished == 0, "orphan should not finish early")
         assert(late_cleaned == 0, "orphan should not clean early")
         assert(

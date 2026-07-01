@@ -1,3 +1,4 @@
+local core_result = require("typst.core.result")
 local events = require("typst.core.events")
 
 local M = {}
@@ -94,7 +95,10 @@ local function copy_payload(spec, opts)
             and spec.event_kind ~= "compile_start"
             and spec.event_kind ~= "cycle_start"
         then
-            value = spec.status
+            value = opts._typst_status_authoritative == true
+                    and opts.status == "stopping_failed"
+                    and opts.status
+                or spec.status
         else
             value = opts[key]
             if value == nil then
@@ -166,7 +170,7 @@ end
 ---@param project TypstProject Project state used for event payload base fields.
 ---@param result TypstCompilerResult Compiler result.
 function M.from_result(project, result)
-    if result.stopped or result.idle then
+    if core_result.is_confirmed_stopped(result) then
         M.stopped(project, result)
     elseif result.watch == true and result.code == 0 then
         M.cycle_succeeded(project, result)

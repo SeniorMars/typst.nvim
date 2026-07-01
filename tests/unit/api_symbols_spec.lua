@@ -47,6 +47,13 @@ assert(
 )
 assert(
     vim.tbl_contains(
+        api_contract.compatibility_events,
+        "TypstCompilerForceCleared"
+    ),
+    "contract() should expose force-clear compatibility event"
+)
+assert(
+    vim.tbl_contains(
         api_contract.event_payloads.TypstEventBufferDetach,
         "event_kind"
     ),
@@ -119,6 +126,14 @@ assert(
 assert(
     not vim.tbl_contains(stable_symbols, "development.profile"),
     "development workflows should not be part of the stable pre-1.0 API"
+)
+assert(
+    not vim.tbl_contains(stable_symbols, "compiler.force_clear"),
+    "destructive compiler force-clear should not become stable accidentally"
+)
+assert(
+    vim.tbl_contains(experimental_symbols, "compiler.force_clear"),
+    "compiler force-clear Lua API should be reported as experimental"
 )
 assert(
     vim.tbl_contains(experimental_symbols, "development.profile"),

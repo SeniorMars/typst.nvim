@@ -2,6 +2,7 @@ local diagnostics = require("typst.diagnostics")
 local compiler = require("typst.compiler")
 local count = require("typst.diagnostics.count")
 local project = require("typst.project")
+local project_registry = require("typst.project.registry")
 local compiler_service = require("typst.project.services.compiler")
 local diagnostics_service = require("typst.project.services.diagnostics")
 local graph_service = require("typst.project.services.graph")
@@ -217,6 +218,7 @@ function M.project_snapshot(state)
     end
 
     snapshot.key = state.key
+    snapshot.key_display = project_registry.encode_key(state.key)
     snapshot.root = state.root
     snapshot.main = state.main
     snapshot.main_name = util.basename(state.main)

@@ -193,6 +193,54 @@ function M.stop(state, callback, notify)
     end)
 end
 
+--- Force-clear unconfirmed external compiler provider state for one project.
+---@param state TypstProject Project state whose compiler state may be discarded.
+---@param opts? {force?:boolean} Clear controls; force bypasses the stopping_failed guard.
+---@param notify? fun(message:string, level?:integer) Notification sink used by commands/API calls.
+---@return TypstCompilerResult result Force-clear status.
+function M.force_clear(state, opts, notify)
+    opts = opts or {}
+    if not state then
+        local result = {
+            ok = false,
+            code = 1,
+            stale = false,
+            stopped = false,
+            reason = "no_project",
+            message = "No Typst project is attached; pass a project key or run from a Typst buffer",
+        }
+        if opts.notify ~= false then
+            notify_user(notify, result.message, vim.log.levels.ERROR)
+        end
+        return result
+    end
+
+    local result = compiler.force_clear(state, opts)
+    if result.ok and result.discarded then
+        if opts.notify ~= false then
+            notify_user(
+                notify,
+                ("Cleared unconfirmed external compiler state for %s"):format(
+                    util.relpath(state.main, state.root)
+                ),
+                vim.log.levels.WARN
+            )
+        end
+    elseif result.ok and opts.notify ~= false then
+        notify_user(
+            notify,
+            result.message or "No external compiler state was cleared"
+        )
+    elseif opts.notify ~= false then
+        notify_user(
+            notify,
+            result.message or "No external compiler state was cleared",
+            vim.log.levels.ERROR
+        )
+    end
+    return result
+end
+
 --- Stop compiler resources for every tracked project.
 ---@param opts? table Stop options forwarded to project operation cancellation.
 ---@param callback? fun(result:TypstCompilerResult, state:TypstProject, summary:table) Callback invoked once per project stop result.

@@ -151,4 +151,69 @@ assert(
     "VimLeavePre should return stopped watcher projects to idle"
 )
 
+typst.reset()
+
+local pending_stop_called = 0
+local pending_stop_handle = nil
+typst.setup({
+    root = root,
+    executable = executable,
+    output_dir = typst_test_cache_path("exit-cleanup-pending-preview"),
+    compile = {
+        deps = false,
+    },
+    preview = {
+        open = function()
+            return true
+        end,
+        stop = function()
+            pending_stop_called = pending_stop_called + 1
+            pending_stop_handle = {
+                pending = true,
+                on_finish_style = "colon",
+            }
+            function pending_stop_handle:on_finish(callback)
+                self.callback = callback
+                return self
+            end
+            return pending_stop_handle
+        end,
+    },
+})
+
+vim.cmd.edit(main)
+local pending_project = typst.project.set_main(main)
+assert(
+    typst.viewer.preview({ mode = "document" }) == true,
+    "pending-stop preview should open before VimLeavePre cleanup"
+)
+assert(
+    typst_test_preview(pending_project).active == true,
+    "pending-stop preview should be active before VimLeavePre cleanup"
+)
+
+vim.api.nvim_exec_autocmds("VimLeavePre", { modeline = false })
+
+assert(pending_stop_called == 1, "VimLeavePre should request preview stop")
+assert(
+    pending_stop_handle and pending_stop_handle.pending == true,
+    "preview stop fixture should return a pending handle"
+)
+assert(
+    typst_test_preview(pending_project).active == true,
+    "pending preview stop should not clear active state during exit"
+)
+assert(
+    typst_test_preview(pending_project).status == "stopping_failed",
+    "pending preview stop should be recorded as unconfirmed during exit"
+)
+assert(
+    typst_test_preview(pending_project).stopping == true,
+    "pending preview stop should record stopping=true during exit"
+)
+assert(
+    typst_test_preview(pending_project).last_error == "pending",
+    "pending preview stop should record a last_error during exit"
+)
+
 vim.cmd("qa!")

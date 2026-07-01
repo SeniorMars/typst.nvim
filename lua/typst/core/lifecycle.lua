@@ -1,6 +1,7 @@
 local M = {}
 
 local config = require("typst.config")
+local core_result = require("typst.core.result")
 local events = require("typst.core.events")
 local ftplugin_state = require("typst.core.ftplugin_state")
 local log = require("typst.core.log")
@@ -83,10 +84,11 @@ end
 local function record_preview_stop_failure(state, prune_reason, result)
     preview_service.set(state, {
         active = true,
+        stopping = type(result) == "table" and result.pending == true,
         status = "stopping_failed",
         last_result = type(result) == "table" and result or nil,
         last_error = type(result) == "table"
-                and (result.error or result.message or result.reason)
+                and (result.error or result.message or result.reason or "pending")
             or result,
         stop_prune_reason = prune_reason,
     })
@@ -292,7 +294,7 @@ local function stop_compiler_for_reset(state, opts)
         end
     end
 
-    if result and (result.stopped or result.idle) then
+    if core_result.is_confirmed_stopped(result) then
         clear_lifecycle_compile_handle(state)
         compiler_service.set(state, {
             clear = { "process", "watcher", "stopping_compile" },
@@ -351,6 +353,7 @@ function M.reset_project_resources(opts)
                     main = state.main,
                     error = result,
                 })
+                record_preview_stop_failure(state, "reset", result)
                 reset_failed(summary, state, "preview_stop_error", result)
                 if opts.force then
                     preview_module().clear_state(
@@ -362,6 +365,7 @@ function M.reset_project_resources(opts)
                 log.add("warn", "preview stop pending during reset", {
                     main = state.main,
                 })
+                record_preview_stop_failure(state, "reset", result)
                 reset_failed(summary, state, "preview_stop_pending", result)
                 if opts.force then
                     preview_module().clear_state(
@@ -375,6 +379,7 @@ function M.reset_project_resources(opts)
                     reason = result.reason,
                     message = result.message,
                 })
+                record_preview_stop_failure(state, "reset", result)
                 reset_failed(summary, state, "preview_stop_failed", result)
                 if opts.force then
                     preview_module().clear_state(
@@ -386,6 +391,7 @@ function M.reset_project_resources(opts)
                 log.add("warn", "preview stop declined during reset", {
                     main = state.main,
                 })
+                record_preview_stop_failure(state, "reset", result)
                 reset_failed(summary, state, "preview_stop_declined", result)
                 if opts.force then
                     preview_module().clear_state(
@@ -397,7 +403,7 @@ function M.reset_project_resources(opts)
         end
 
         local stopped = stop_compiler_for_reset(state, opts)
-        if not (stopped and (stopped.stopped or stopped.idle)) then
+        if not core_result.is_confirmed_stopped(stopped) then
             reset_failed(summary, state, "compiler_stop_failed", stopped)
         end
         local cancelled = project_operations.cancel_project(state, {
@@ -516,15 +522,11 @@ function M.register_autocmds()
             for _, state in pairs(project.all()) do
                 if (preview_service.get(state) or {}).active then
                     local ok, result = pcall(
-                        preview_module().stop,
+                        preview_module().stop_for_exit,
                         state,
-                        { lifecycle = true }
+                        { lifecycle = true, reason = "exit" }
                     )
-                    if
-                        not ok
-                        or result == false
-                        or (type(result) == "table" and result.ok == false)
-                    then
+                    if not ok then
                         preview_module().clear_state(
                             state,
                             { lifecycle = true, reason = "exit" }

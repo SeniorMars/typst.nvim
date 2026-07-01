@@ -27,6 +27,16 @@ for _, event in ipairs(api_contract.compatibility_events or {}) do
         ("compatibility event should document payload fields: %s"):format(event)
     )
 end
+for event in pairs(api_contract.event_aliases or {}) do
+    if not event:find("^TypstEvent") then
+        assert(
+            vim.tbl_contains(api_contract.compatibility_events, event),
+            ("compatibility alias should be listed as compatibility event: %s"):format(
+                event
+            )
+        )
+    end
+end
 
 local seen = {}
 local event_order = {}

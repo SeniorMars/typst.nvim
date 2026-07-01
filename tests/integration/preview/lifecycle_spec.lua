@@ -263,6 +263,10 @@ assert(
     "failed lifecycle cleanup should mark preview stopping failed"
 )
 assert(
+    typst_test_preview(project).stopping == false,
+    "immediate preview stop failure should not look like a pending stop"
+)
+assert(
     typst_test_compiler(project).status ~= "stopping_failed",
     "failed preview cleanup should not mark the compiler stopping failed"
 )

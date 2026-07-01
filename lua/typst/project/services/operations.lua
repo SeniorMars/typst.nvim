@@ -1,4 +1,5 @@
 local log = require("typst.core.log")
+local core_result = require("typst.core.result")
 local services = require("typst.project.services")
 
 local M = {}
@@ -582,7 +583,7 @@ local function finish_stop(project, record, callback)
             return
         end
         called = true
-        if type(result) == "table" and (result.stopped or result.idle) then
+        if core_result.is_confirmed_stopped(result) then
             M.clear(project, "compile")
             M.clear(project, "watch")
         end
@@ -710,6 +711,25 @@ function M.stop(project, callback, notify)
     return result
 end
 
+--- Force-clear unconfirmed external compiler state for a project.
+---@param project table? Project state whose compiler state should be discarded.
+---@param opts? table Force-clear options.
+---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
+---@return TypstCompilerResult result Force-clear status.
+function M.force_clear_compiler(project, opts, notify)
+    local result =
+        require("typst.compiler.api").force_clear(project, opts, notify)
+    if result and result.ok and result.discarded == true then
+        M.clear(project, "compile")
+        M.clear(project, "watch")
+        M.clear(project, "stop")
+        if project then
+            require("typst.project").prune(project, "compiler force clear")
+        end
+    end
+    return result
+end
+
 --- Stop compiler work for all projects and clear settled operation records.
 ---@param opts? table Stop-all options forwarded to the compiler API.
 ---@param callback? fun(result:TypstCompilerResult, project?:table, summary?:table) Per-project stop callback.
@@ -719,11 +739,7 @@ function M.stop_all(opts, callback, notify)
     return require("typst.compiler.api").stop_all(
         opts,
         function(result, project, summary)
-            if
-                project
-                and type(result) == "table"
-                and (result.stopped or result.idle)
-            then
+            if project and core_result.is_confirmed_stopped(result) then
                 M.clear(project, "compile")
                 M.clear(project, "watch")
             end

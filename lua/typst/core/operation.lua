@@ -37,6 +37,7 @@ local retained = {}
 ---@field exited boolean|nil
 ---@field wait_timeout number|nil
 ---@field _callbacks table[]
+---@field _cancel_callbacks table[]|nil
 local Operation = {}
 Operation.__index = Operation
 
@@ -124,6 +125,43 @@ local function run_callbacks(operation)
     end
 end
 
+local function cancel_settled(operation)
+    return operation.state == "finished"
+        or operation.state == "orphaned-retained"
+end
+
+local function protected_cancel_callback(operation, callback)
+    local stopped = operation.stopped ~= false
+    local ok, err = pcall(callback, stopped, operation)
+    if not ok then
+        log.add("warn", "operation cancel callback failed", {
+            id = operation.id,
+            kind = operation.kind,
+            error = err,
+        })
+    end
+end
+
+local function add_cancel_callback(operation, callback)
+    if type(callback) ~= "function" then
+        return
+    end
+    if cancel_settled(operation) then
+        protected_cancel_callback(operation, callback)
+        return
+    end
+    operation._cancel_callbacks = operation._cancel_callbacks or {}
+    operation._cancel_callbacks[#operation._cancel_callbacks + 1] = callback
+end
+
+local function drain_cancel_callbacks(operation)
+    local callbacks = callbacks_snapshot(operation._cancel_callbacks)
+    operation._cancel_callbacks = {}
+    for _, callback in ipairs(callbacks) do
+        protected_cancel_callback(operation, callback)
+    end
+end
+
 local function terminal_state(state)
     return state == "finished"
 end
@@ -132,10 +170,17 @@ local function wait_released_state(state)
     return state == "finished" or state == "orphaned-retained"
 end
 
---- Register a callback to run when operation completes.
---- Duplicate and late callbacks are handled explicitly so one caller can safely attach
---- after completion and still observe terminal result.
----@param callback fun(operation:typst.Operation) Callback invoked with this operation at terminal state.
+--- Register a callback to run when the process-backed operation really exits.
+---
+--- Retained orphans are removed from the active wait set, but they are not
+--- "finished": the external process may still hold output files or other
+--- resources. Cancellation callbacks passed to `_cancel()` settle at orphan
+--- retention; `on_finish()` callbacks and destructive cleanup wait for the
+--- actual process exit.
+---
+--- Duplicate and late callbacks are handled explicitly so one caller can safely
+--- attach after completion and still observe terminal result.
+---@param callback fun(operation:typst.Operation) Callback invoked with this operation after real process/provider completion.
 ---@return typst.Operation operation This operation, for chaining.
 function Operation:on_finish(callback)
     if type(callback) ~= "function" then
@@ -191,6 +236,7 @@ function Operation:finish(result)
     retained[self.id] = nil
 
     copy_result_fields(self, result)
+    drain_cancel_callbacks(self)
 
     if type(self.cleanup) == "function" then
         local ok, err = pcall(self.cleanup, self)
@@ -260,6 +306,11 @@ function Operation:_orphan(result)
 end
 
 --- Move an orphan out of the active wait set while preserving late-exit cleanup.
+---
+--- This is a stop-settlement state, not an operation-finish state. It drains
+--- callbacks registered through `_cancel(..., callback)` so stop/restart callers
+--- are not left pending, but intentionally does not run `on_finish()` callbacks
+--- or cleanup hooks because the process is not confirmed stopped.
 ---@param result? table Failure metadata to merge into the retained orphan result.
 ---@return typst.Operation operation This operation after retention metadata is recorded.
 function Operation:_retain_orphan(result)
@@ -307,6 +358,7 @@ function Operation:_retain_orphan(result)
         kind = self.kind,
         error = self.error,
     })
+    drain_cancel_callbacks(self)
     return self
 end
 
@@ -330,9 +382,15 @@ function Operation:_force_finish(result)
 end
 
 --- Cancel an active operation using graceful then forceful process termination.
+---
+--- The optional callback observes stop settlement. It is called exactly once
+--- when the process is confirmed stopped or when typst.nvim gives up and
+--- retains the process as an orphan. `on_finish()` remains tied to the real
+--- process exit and may run later for retained orphans.
+---
 --- Returns whether stop was achieved and the best-known result payload.
 ---@param opts? {reason?:string,term_signal?:number,kill_signal?:number,timeout_ms?:number,kill_timeout_ms?:number,wait?:boolean} Cancellation and signal timing overrides.
----@param callback? fun(stopped:boolean, result:table) Optional callback invoked after asynchronous cancellation resolves.
+---@param callback? fun(stopped:boolean, result:table) Optional stop-settlement callback invoked after cancellation resolves or retention begins.
 ---@return boolean stopped True when the process is confirmed stopped or was already idle.
 ---@return table result Best-known cancellation result payload.
 function Operation:_cancel(opts, callback)
@@ -483,18 +541,14 @@ function Operation:_cancel(opts, callback)
         force_finish_later()
     end
 
+    add_cancel_callback(self, callback)
+
     if (opts.timeout_ms or 0) <= 0 then
         escalate()
     else
         self._kill_timer = uv.new_timer()
         self._kill_timer:start(opts.timeout_ms, 0, function()
             schedule(escalate)
-        end)
-    end
-
-    if type(callback) == "function" then
-        self:on_finish(function(finished)
-            callback(finished.stopped ~= false, finished)
         end)
     end
 
@@ -556,6 +610,7 @@ function M.new(kind, opts)
         on_cancel = opts.on_cancel,
         on_cancel_failed = opts.on_cancel_failed,
         _callbacks = {},
+        _cancel_callbacks = {},
     }, Operation)
     operation.cancel = function(first, second, third)
         if first == operation then

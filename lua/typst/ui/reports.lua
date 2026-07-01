@@ -17,6 +17,7 @@ local status = require("typst.ui.status")
 local semantic_provider = require("typst.integrations.semantic_provider")
 local tinymist = require("typst.integrations.tinymist")
 local cache_registry = require("typst.core.cache_registry")
+local output_ownership = require("typst.resources.outputs")
 local util = require("typst.core.util")
 
 function M.echo_lines(lines)
@@ -398,6 +399,31 @@ function M.project_lines(state, bufnr, opts)
         )
     end
 
+    local active_leases = {}
+    for _, lease in ipairs(output_ownership.snapshot(state)) do
+        active_leases[#active_leases + 1] = lease.path
+    end
+    table.sort(active_leases)
+    if #active_leases > 0 then
+        lines[#lines + 1] = ("  active output leases: %d"):format(
+            #active_leases
+        )
+        for _, path in ipairs(active_leases) do
+            lines[#lines + 1] = ("    %s"):format(
+                util.relpath(path, state.root)
+            )
+        end
+    end
+
+    local operations_state = state.services and state.services.operations or {}
+    local retained_orphans =
+        vim.tbl_count(operations_state.retained_by_id or {})
+    if retained_orphans > 0 then
+        lines[#lines + 1] = ("  retained orphan operations: %d"):format(
+            retained_orphans
+        )
+    end
+
     if
         artifact_counts.document > 0
         or artifact_counts.preview > 0
@@ -652,6 +678,9 @@ function M.status_report_lines(snapshot)
 end
 
 local function status_label(snapshot)
+    if snapshot.status == "stopping_failed" then
+        return "stopping_failed"
+    end
     if snapshot.process_pid then
         return ("compiling pid %s"):format(snapshot.process_pid)
     end
@@ -681,22 +710,46 @@ local function result_label(snapshot)
     return "last build unknown"
 end
 
+local function truncate(value, width)
+    value = tostring(value or "")
+    if #value <= width then
+        return value
+    end
+    if width <= 3 then
+        return value:sub(1, width)
+    end
+    return value:sub(1, width - 3) .. "..."
+end
+
 function M.status_all_lines(snapshots)
     if #snapshots == 0 then
         return { "No Typst projects are registered" }
     end
 
     local main_width = #"main"
+    local key_width = #"project-key"
     local state_width = #"state"
     for _, snapshot in ipairs(snapshots) do
         main_width =
             math.max(main_width, #(snapshot.main_name or snapshot.main or ""))
+        key_width =
+            math.max(key_width, #(snapshot.key_display or snapshot.key or ""))
         state_width = math.max(state_width, #status_label(snapshot))
     end
+    key_width = math.min(key_width, 80)
 
     local lines = {
-        ("%-" .. main_width .. "s  %-" .. state_width .. "s  %-18s  %s"):format(
+        (
+            "%-"
+            .. main_width
+            .. "s  %-"
+            .. key_width
+            .. "s  %-"
+            .. state_width
+            .. "s  %-18s  %s"
+        ):format(
             "main",
+            "project-key",
             "state",
             "result",
             "diagnostics"
@@ -709,15 +762,32 @@ function M.status_all_lines(snapshots)
             "%-"
             .. main_width
             .. "s  %-"
+            .. key_width
+            .. "s  %-"
             .. state_width
             .. "s  %-18s  %d %s"
         ):format(
             snapshot.main_name or snapshot.main or "<unknown>",
+            truncate(snapshot.key_display or snapshot.key or "", key_width),
             status_label(snapshot),
             result_label(snapshot),
             diagnostics_count,
             diagnostics_count == 1 and "error" or "errors"
         )
+    end
+
+    local retained = {}
+    for _, snapshot in ipairs(snapshots) do
+        if snapshot.status == "stopping_failed" and snapshot.key then
+            retained[#retained + 1] = snapshot.key_display or snapshot.key
+        end
+    end
+    if #retained > 0 then
+        lines[#lines + 1] = ""
+        lines[#lines + 1] = "force-clear retained external compiler state with:"
+        for _, key in ipairs(retained) do
+            lines[#lines + 1] = ("  :TypstCompilerForceClear! %s"):format(key)
+        end
     end
 
     return lines

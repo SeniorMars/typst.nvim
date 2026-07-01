@@ -9,9 +9,8 @@ local compiler_process = require("typst.compiler.typst_process")
 local diagnostics = require("typst.diagnostics")
 local log = require("typst.core.log")
 local operation = require("typst.core.operation")
-local path_leases = require("typst.core.path_leases")
+local output_ownership = require("typst.resources.outputs")
 local compiler_service = require("typst.project.services.compiler")
-local util = require("typst.core.util")
 
 local M = {}
 
@@ -257,7 +256,7 @@ function M.start(project, callback, run_config)
     local output = output_path_util.output_path(project, opts)
     -- Hold the output lease for the whole watch lifetime so compile/export or
     -- render jobs cannot write the same PDF while `typst watch` is active.
-    local lease, lease_err = path_leases.acquire(output, {
+    local lease, lease_err = output_ownership.acquire(output, {
         kind = "watch",
         project_key = project.key,
         main = project.main,
@@ -292,9 +291,9 @@ function M.start(project, callback, run_config)
         output = output,
         last_profile = opts.compile.profile,
     })
-    local parent_ok, parent_err = util.ensure_parent(output)
+    local parent_ok, parent_err = output_ownership.ensure_parent(output)
     if not parent_ok then
-        path_leases.release(lease)
+        output_ownership.release(lease)
         local result = {
             code = 1,
             stdout = "",
@@ -320,7 +319,7 @@ function M.start(project, callback, run_config)
         return compiler_command.build("watch", project, opts)
     end, debug.traceback)
     if not build_ok then
-        path_leases.release(lease)
+        output_ownership.release(lease)
         local result = {
             code = 1,
             stdout = "",
@@ -393,7 +392,7 @@ function M.start(project, callback, run_config)
             end,
         }, {
             cleanup = function()
-                path_leases.release(lease)
+                output_ownership.release(lease)
             end,
             on_finish = function(result)
                 finish_watcher(
@@ -407,7 +406,7 @@ function M.start(project, callback, run_config)
         })
     end, debug.traceback)
     if not run_ok then
-        path_leases.release(lease)
+        output_ownership.release(lease)
         compiler_dependencies.cleanup_file(deps_path)
         local result = {
             code = 1,

@@ -1,11 +1,14 @@
-local path_leases = require("typst.core.path_leases")
+local output_ownership = require("typst.resources.outputs")
 local process = require("typst.core.process")
 local lifecycle = require("typst.compiler.lifecycle")
 local compiler_service = require("typst.project.services.compiler")
+local core_result = require("typst.core.result")
+local events = require("typst.core.events")
+local log = require("typst.core.log")
 local provider_binding = require("typst.compiler.provider_binding")
 local provider_adapter = require("typst.integrations.provider_adapter")
 local compiler_result = require("typst.compiler.state_machine")
-local util = require("typst.core.util")
+local project_registry = require("typst.project.registry")
 
 local M = {}
 
@@ -45,9 +48,11 @@ local function release_output_lease(project)
     local compiler_state = compiler_service.get(project) or {}
     local lease = compiler_state.output_lease
     if lease then
-        path_leases.release(lease)
+        local released = output_ownership.release(lease)
         compiler_service.set(project, { clear = { "output_lease" } })
+        return released, lease
     end
+    return false, nil
 end
 
 ---@param project TypstProject Project whose output path is leased.
@@ -61,7 +66,7 @@ local function acquire_output_lease(project, kind, callback)
         return true
     end
 
-    local parent_ok, parent_err = util.ensure_parent(output)
+    local parent_ok, parent_err = output_ownership.ensure_parent(output)
     if not parent_ok then
         local result = {
             ok = false,
@@ -87,7 +92,7 @@ local function acquire_output_lease(project, kind, callback)
     -- External providers may not share typst.nvim's project state, so use a
     -- lease on the rendered output path to prevent concurrent compilers from
     -- trampling the same PDF.
-    local lease, err = path_leases.acquire(output, {
+    local lease, err = output_ownership.acquire(output, {
         kind = kind,
         project_key = project.key,
         main = project.main,
@@ -191,7 +196,10 @@ function M.compile(project, callback, run_config)
         {
             active_field = "process",
             on_terminal = function(result)
-                if compiler_result.terminal(result) then
+                if
+                    compiler_result.terminal(result)
+                    and not core_result.is_unconfirmed_stop(result)
+                then
                     release_output_lease(project)
                 end
             end,
@@ -278,7 +286,10 @@ function M.start(project, callback, run_config)
         {
             active_field = "watcher",
             on_terminal = function(result)
-                if compiler_result.terminal(result) then
+                if
+                    compiler_result.terminal(result)
+                    and not core_result.is_unconfirmed_stop(result)
+                then
                     release_output_lease(project)
                 end
             end,
@@ -335,10 +346,18 @@ function M.stop(project, callback)
         normalize = compiler_result.normalize,
         on_result = function(result)
             result = compiler_result.normalize(result)
-            if result.stopped or result.idle or result.reason == "timeout" then
+            if core_result.is_confirmed_stopped(result) then
                 release_output_lease(project)
                 compiler_service.set(project, {
                     clear = { "process", "watcher", "output_lease" },
+                })
+            else
+                result._typst_unconfirmed_stop = true
+                result.status = "stopping_failed"
+                result._typst_status_authoritative = true
+                compiler_service.set(project, {
+                    status = "stopping_failed",
+                    last_result = result,
                 })
             end
 
@@ -383,7 +402,7 @@ function M.stop_for_exit(project, opts)
             clear = { "watcher", "process" },
             status = "idle",
         })
-        return { code = 0, stale = false, stopped = false, idle = true }
+        return { code = 0, stale = false, stopped = true, idle = true }
     end
 
     local result
@@ -423,16 +442,117 @@ function M.stop_for_exit(project, opts)
     result = compiler_result.normalize(
         result or { code = 0, stale = false, stopped = true }
     )
-    if result.stopped or result.idle then
+    if core_result.is_confirmed_stopped(result) then
         release_output_lease(project)
         compiler_service.set(project, {
             clear = { "process", "watcher", "output_lease" },
         })
     else
-        compiler_service.set(project, { status = "stopping_failed" })
+        result._typst_unconfirmed_stop = true
+        result.status = "stopping_failed"
+        result._typst_status_authoritative = true
+        compiler_service.set(project, {
+            status = "stopping_failed",
+            last_result = result,
+        })
     end
     compiler_result.emit(project, result)
     provider_binding.clear_if_idle(project)
+    return result
+end
+
+--- Explicitly discard unconfirmed external compiler provider state.
+---
+--- This is a recovery path for provider stop timeouts. It releases typst.nvim's
+--- output lease and clears the active external handle without claiming the
+--- provider process stopped.
+---@param project TypstProject Project whose retained external compiler state should be discarded.
+---@param opts? {force?:boolean} Force clearing even when status is not `stopping_failed`.
+---@return TypstCompilerResult result Force-clear result.
+function M.force_clear(project, opts)
+    opts = opts or {}
+    local compiler_state = compiler_service.get(project) or {}
+    local binding = project and project.compiler_provider or nil
+    local active = compiler_service.has_active(compiler_state)
+    local output = compiler_state.output
+    local key = project and project.key or nil
+    local key_display = key and project_registry.encode_key(key) or nil
+
+    if type(binding) ~= "table" or binding.external ~= true then
+        return {
+            ok = false,
+            code = 1,
+            stale = false,
+            stopped = false,
+            reason = "not_external_provider",
+            message = "No external compiler provider state is active",
+            key = key,
+            key_display = key_display,
+        }
+    end
+
+    if not active and not compiler_state.output_lease then
+        provider_binding.clear_if_idle(project)
+        return {
+            ok = true,
+            code = 0,
+            stale = false,
+            stopped = true,
+            idle = true,
+            reason = "nothing_to_clear",
+            message = "No external compiler provider state is retained",
+            key = key,
+            key_display = key_display,
+        }
+    end
+
+    if compiler_state.status ~= "stopping_failed" and opts.force ~= true then
+        return {
+            ok = false,
+            code = 1,
+            stale = false,
+            stopped = false,
+            reason = "not_stopping_failed",
+            message = "Compiler state is not marked as stopping_failed; use force to discard it anyway",
+            status = compiler_state.status,
+            output = output,
+            key = key,
+            key_display = key_display,
+        }
+    end
+
+    local released_lease, lease = release_output_lease(project)
+    local result = {
+        ok = true,
+        code = 0,
+        stale = false,
+        stopped = false,
+        forced = opts.force == true,
+        discarded = true,
+        reason = "force_cleared",
+        message = "Discarded unconfirmed external compiler provider state",
+        output = output,
+        released_lease = released_lease,
+        lease_owner = lease and lease.owner or nil,
+        key = key,
+        key_display = key_display,
+    }
+
+    compiler_service.set(project, {
+        clear = {
+            "process",
+            "watcher",
+            "stopping_compile",
+            "output_lease",
+            "process_operation",
+            "watcher_operation",
+        },
+        status = "idle",
+        last_result = result,
+    })
+    provider_binding.clear_if_idle(project)
+    log.add("warn", "force-cleared unconfirmed external compiler state", result)
+    events.emit("TypstCompilerForceCleared", project, result)
     return result
 end
 
@@ -440,6 +560,11 @@ end
 ---@param project TypstProject Project state to query.
 ---@return string? status Provider-reported status or stored project compiler status.
 function M.status(project)
+    local compiler_state = compiler_service.get(project) or {}
+    if compiler_state.status == "stopping_failed" then
+        return "stopping_failed"
+    end
+
     local provider, _, external = provider_binding.active(project)
     local provider_project = provider_binding.project_arg(project, external)
     local result =
@@ -453,7 +578,7 @@ function M.status(project)
     if type(result) == "string" then
         return result
     end
-    return (compiler_service.get(project) or {}).status
+    return compiler_state.status
 end
 
 --- Return the current compiler output path for a project.

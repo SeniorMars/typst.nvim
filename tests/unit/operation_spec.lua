@@ -68,8 +68,17 @@ local ok, err = xpcall(function()
         return true
     end
 
-    local stopping, stopping_result =
-        orphan:cancel({ timeout_ms = 1, kill_timeout_ms = 1 })
+    local cancel_callbacks = 0
+    local cancel_stopped = nil
+    local cancel_payload = nil
+    local stopping, stopping_result = orphan:cancel(
+        { timeout_ms = 1, kill_timeout_ms = 1 },
+        function(stopped, result)
+            cancel_callbacks = cancel_callbacks + 1
+            cancel_stopped = stopped
+            cancel_payload = result
+        end
+    )
     assert(
         not stopping
             and stopping_result
@@ -96,6 +105,12 @@ local ok, err = xpcall(function()
         operation.retained()[orphan.id] == orphan,
         "retained orphan should remain visible for later ownership"
     )
+    assert(cancel_callbacks == 1, "orphan cancel callback should run once")
+    assert(cancel_stopped == false, "orphan cancel callback should fail stop")
+    assert(
+        cancel_payload == orphan and cancel_payload.orphaned == true,
+        "orphan cancel callback should receive retained operation"
+    )
     assert(
         orphan_callback == nil,
         "orphaned operation should not report finish before process exit"
@@ -105,10 +120,23 @@ local ok, err = xpcall(function()
         "orphaned operation should not run destructive cleanup"
     )
 
+    local late_orphan_callback = nil
+    orphan:on_finish(function(finished)
+        late_orphan_callback = finished
+    end)
+    assert(
+        late_orphan_callback == nil,
+        "late on_finish should also wait for real orphan exit"
+    )
+
     orphan:finish({ code = 1, stdout = "", stderr = "late exit" })
     assert(
         orphan_callback == orphan,
         "late process exit should report the terminal result"
+    )
+    assert(
+        late_orphan_callback == orphan,
+        "late on_finish should run when retained orphan exits"
     )
     assert(orphan_cleaned, "cleanup should run after the process really exits")
     assert(
@@ -150,7 +178,18 @@ local ok, err = xpcall(function()
         return false, "term denied"
     end
 
-    local stopped, cancel_result = term_failed:cancel()
+    local term_cancel_callbacks = 0
+    local stopped, cancel_result = term_failed:cancel(
+        nil,
+        function(stopped_result, result)
+            term_cancel_callbacks = term_cancel_callbacks + 1
+            assert(stopped_result == false, "TERM callback should fail stop")
+            assert(
+                result.orphaned == true,
+                "TERM callback should report orphan"
+            )
+        end
+    )
     assert(not stopped, "TERM failure should report failed cancellation")
     assert(
         cancel_result and cancel_result.orphaned,
@@ -168,6 +207,32 @@ local ok, err = xpcall(function()
     assert(
         operation.retained()[term_failed.id] == term_failed,
         "TERM-failed operation should remain retained"
+    )
+    assert(
+        term_cancel_callbacks == 1,
+        "TERM-failed cancel callback should run once"
+    )
+
+    local sync_finished = operation.new("sync-finish-during-cancel")
+    sync_finished.handle = {}
+    process.kill = function(handle)
+        assert(handle == sync_finished.handle, "cancel should kill sync handle")
+        sync_finished:finish({ code = 0, stopped = true })
+        return true
+    end
+    local sync_cancel_callbacks = 0
+    local sync_cancel_stopped = nil
+    sync_finished:cancel({ timeout_ms = 0 }, function(stopped_result)
+        sync_cancel_callbacks = sync_cancel_callbacks + 1
+        sync_cancel_stopped = stopped_result
+    end)
+    assert(
+        sync_finished.state == "finished",
+        "synchronous process exit during cancel should finish operation"
+    )
+    assert(
+        sync_cancel_callbacks == 1 and sync_cancel_stopped == true,
+        "cancel callback registered after sync finish should run immediately"
     )
 
     local sync_notifications = {}
