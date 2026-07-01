@@ -1,5 +1,6 @@
 local contract = require("tests.helpers.api_contract")
 local root, typst = contract.setup()
+local api_spec = require("typst.api.spec")
 
 local public_functions = {
     "setup",
@@ -112,10 +113,6 @@ assert(
     "stable API should explicitly include compiler.compile"
 )
 assert(
-    vim.tbl_contains(stable_symbols, "completion.complete"),
-    "stable API should explicitly include completion.complete"
-)
-assert(
     not vim.tbl_contains(stable_symbols, "project.services"),
     "runtime project helpers should not become stable by namespace introspection"
 )
@@ -132,12 +129,50 @@ assert(
     "destructive compiler force-clear should not become stable accidentally"
 )
 assert(
+    not vim.tbl_contains(stable_symbols, "completion.complete"),
+    "completion helpers should remain experimental before the API hardening pass"
+)
+assert(
+    not vim.tbl_contains(stable_symbols, "edit.unwrap_function"),
+    "editing helpers should remain experimental before the API hardening pass"
+)
+assert(
+    not vim.tbl_contains(stable_symbols, "artifact.export"),
+    "artifact workflows should remain experimental before the API hardening pass"
+)
+assert(
+    not vim.tbl_contains(stable_symbols, "reset"),
+    "reset semantics are intentionally experimental before the API hardening pass"
+)
+assert(
     vim.tbl_contains(experimental_symbols, "compiler.force_clear"),
     "compiler force-clear Lua API should be reported as experimental"
 )
 assert(
+    vim.tbl_contains(experimental_symbols, "completion.complete"),
+    "completion helpers should be reported as experimental"
+)
+assert(
+    vim.tbl_contains(experimental_symbols, "edit.unwrap_function"),
+    "editing helpers should be reported as experimental"
+)
+assert(
+    vim.tbl_contains(experimental_symbols, "artifact.export"),
+    "artifact workflows should be reported as experimental"
+)
+assert(
+    vim.tbl_contains(experimental_symbols, "reset"),
+    "reset should be reported as experimental"
+)
+assert(
     vim.tbl_contains(experimental_symbols, "development.profile"),
     "broad pre-1.0 namespaces should be reported as experimental"
+)
+local api_doc = table.concat(vim.fn.readfile(root .. "/API.md"), "\n")
+assert(
+    api_doc:find("Pre%-1%.0 Tier Narrowing")
+        and api_doc:find("demoted to experimental", 1, true),
+    "API.md should document the pre-1.0 tier narrowing migration"
 )
 assert(
     vim.tbl_contains(experimental_symbols, "project.services"),
@@ -150,6 +185,49 @@ assert(
 assert(
     type(require("typst.internal.debug").telemetry().setup) == "table",
     "setup should record performance telemetry"
+)
+
+local allowed_tiers = { mixed = true, experimental = true, internal = true }
+assert(
+    vim.tbl_isempty(api_spec.stable_namespaces),
+    "stable API must be explicit by dotted symbol, not whole namespace"
+)
+for name, tier in pairs(api_spec.namespace_tiers) do
+    assert(
+        allowed_tiers[tier],
+        ("invalid API namespace tier for %s: %s"):format(name, tostring(tier))
+    )
+end
+for _, namespace in ipairs(api_spec.namespaces) do
+    local tier = api_spec.namespace_tiers[namespace.name]
+    assert(tier, ("missing API namespace tier: %s"):format(namespace.name))
+    assert(
+        allowed_tiers[tier],
+        ("invalid API namespace tier for %s: %s"):format(
+            namespace.name,
+            tostring(tier)
+        )
+    )
+end
+for name, value in pairs(typst) do
+    if type(value) == "table" and name:sub(1, 1) ~= "_" then
+        assert(
+            api_spec.namespace_tiers[name],
+            ("installed API namespace has no tier: %s"):format(name)
+        )
+    end
+end
+assert(
+    api_contract.namespace_tiers.project == "mixed",
+    "project namespace should be documented as a mixed stable/experimental API"
+)
+assert(
+    api_contract.namespace_tiers.completion == "experimental",
+    "completion namespace should be documented as experimental"
+)
+assert(
+    vim.tbl_contains(api_contract.internal_module_prefixes, "typst.core."),
+    "contract should expose internal module prefix guidance"
 )
 
 local function assert_namespace(namespace, names)

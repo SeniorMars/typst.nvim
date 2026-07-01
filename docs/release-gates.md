@@ -73,10 +73,17 @@ patch.
 
 ## Public API Stability
 
-The stable Lua surface is the structured namespace API documented in `API.md`
-and `docs/api.md`. Experimental symbols may change between minor releases, but
-stable symbols need a migration note, compatibility alias, or explicit major
-version decision.
+The stable Lua surface is the exact dotted symbol list documented in `API.md`
+and returned by `require("typst").stable_symbols()`. Installed namespaces may
+contain experimental helpers; those are reported by `experimental_symbols()` and
+may change between minor releases. Stable symbols need a migration note,
+compatibility alias, or explicit major version decision.
+
+For this reset-phase hardening release, call out the pre-1.0 API tier narrowing
+explicitly in release notes: API level remains 1, but stability is narrowed from
+namespace-level wording to exact dotted symbols. Installed helpers remain
+available; use `stable_symbols()` and `experimental_symbols()` to audit
+compatibility.
 
 Flat workflow aliases are intentionally not exported. CI checks command and API
 documentation against the runtime registry to avoid unintentional public surface

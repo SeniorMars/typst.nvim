@@ -396,7 +396,7 @@ The ownership model behind that layout is:
 
 ```text
 project owns identity
-resources owns liveness
+resources centralizes liveness migration
 compiler owns compile/watch state
 preview owns preview sessions
 viewer owns output opening
@@ -436,9 +436,13 @@ boundaries with regression coverage:
 
 ```text
 project resolver does not mutate registry
+project.store owns live project identity
+project.attachments owns buffer hook installation
 resources session decides project activity
 outputs facade owns leases
+resources.supervisor is the reset/prune/exit cleanup entry point
 diagnostics publisher is the only diagnostic writer
+compiler.fanout routes compiler-state post-result consumers
 compiler controller decides stop/timeout semantics
 preview controller decides preview stop semantics
 ```
@@ -458,16 +462,22 @@ buffer membership, dependency graph, index state, and service-table existence.
 They should not know how to kill a compiler, stop a preview server, release an
 output lease, or publish diagnostics.
 
-Resources modules own liveness. Long term, `project.lifecycle` should ask
-`resources.cleanup` to clean a project; `resources.cleanup` should delegate to
-compiler, preview, operations, diagnostics, and outputs. Project prune/reset code
-should not learn backend-specific stop details.
+Resources modules are the liveness migration boundary. Runtime reset, exit
+cleanup, and stop-before-prune orchestration should go through
+`resources.supervisor` (`resources.cleanup` is a compatibility alias) so project
+lifecycle code stops learning backend-specific compiler, preview, operation,
+diagnostics, or output details. This is still a facade over some older lifecycle
+code; ownership is being migrated behind it.
 
 Compiler modules own compile/watch state, provider policy, Typst CLI behavior,
 watch output parsing, and compiler events. The compiler controller should decide
 when a timeout is an unconfirmed writer and when leases may be released. The
 built-in Typst CLI backend should live under `compiler/cli/` over time so it is
-clearly separate from custom-provider dispatch.
+clearly separate from custom-provider dispatch. Post-result side effects such
+as artifact ownership, diagnostics, dependency refresh, logging, and events
+route through `compiler.fanout` today. Viewer and preview refresh route through
+`compiler.consumers` from the existing API/controller paths rather than being
+duplicated by each backend.
 
 Diagnostics modules own diagnostic publication. Only `diagnostics.publisher`
 should call `vim.diagnostic.set` for compiler/lint/grammar diagnostics. Parser,
@@ -526,7 +536,11 @@ Resolution order is intentionally conservative:
 
 The resolver may read bounded source snippets and filesystem metadata, but it
 must not start compiler, preview, Tinymist, or watcher work. Attach/lifecycle
-code owns side effects after resolution succeeds.
+code owns side effects after resolution succeeds. Import scanning is still a
+synchronous fallback, so it is capped by candidate count, ancestor depth, and
+filesystem entry count. It uses a short-lived path/root/config/root-metadata
+cache, and roots that exceed the entry cap abort the import-scan attempt instead
+of using partial scan results.
 
 Project identity is keyed by root plus main. Modules should use project API
 snapshots for observation and service controllers for mutation instead of
@@ -547,9 +561,16 @@ reporting should use the session view when asking whether a project still owns
 live resources.
 
 Generated output ownership goes through `resources/outputs.lua`. It wraps the
-low-level in-process lease table and provides project-filtered ownership views.
-Compiler, watch, render, export, reports, and health should depend on
-`resources.outputs` rather than `core.path_leases` directly.
+low-level in-process lease table, adds atomic file-backed lock directories under
+the typst.nvim cache directory for cross-Neovim collision detection between
+sessions that share the same cache root, and provides project-filtered ownership
+views. Lock owner records include PID, output path, and project owner metadata.
+Dead-owner locks are recovered; live-PID locks are not auto-stolen by age alone
+because a long-running watch may legitimately hold the output. Missing, empty,
+unreadable, or corrupt owner records are treated as active for a short
+incomplete-lock grace period so partially-written acquisitions are not stolen,
+then recovered. Compiler, watch, render, export, reports, and health should
+depend on `resources.outputs` rather than `core.path_leases` directly.
 
 ## Service Ownership
 
@@ -692,11 +713,18 @@ Do not move files before tests pin ownership. The migration order is:
 
 1. Stabilize boundaries without big moves.
    - `core.result` is the only generic stopped/pending/orphan predicate layer.
-   - `project.registry` is the only live project map.
+   - `project.store` is the ProjectStore facade for live identity, buffer
+     ownership, encoded keys, and prune bookkeeping; `project.registry` remains
+     the low-level table owner.
    - `project.resolver` resolves candidates without mutating state.
+   - `project.attachments` is the BufferAttachment facade for buffer hooks and
+     setup reapplication.
    - `resources.outputs` is the output lease facade used outside low-level tests.
    - `resources.session` is the project liveness view.
+   - `resources.supervisor` is the reset, exit, and stop-before-prune cleanup
+     entry point while ownership migrates behind it.
    - `diagnostics.publisher` is the compiler diagnostic writer.
+   - `compiler.fanout` routes compiler-state result consumers.
 2. Move compiler internals behind `compiler.controller`.
    - Keep `require("typst.compiler").compile/watch/stop` compatible.
    - Split provider dispatch from Typst CLI backend code.
@@ -726,7 +754,7 @@ Command-to-module intent should stay simple for users:
 :TypstCompile               compiler.controller
 :TypstWatch                 compiler.controller
 :TypstStop                  compiler.controller
-:TypstStopAll               compiler.controller + resources.cleanup
+:TypstStopAll               compiler.controller + resources.supervisor
 :TypstCompilerForceClear    compiler.controller + resources.outputs
 :TypstErrors                diagnostics.quickfix
 :TypstView                  viewer.controller

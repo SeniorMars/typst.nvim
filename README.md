@@ -192,9 +192,34 @@ Useful entry points:
 - `:help typst-projects` for root/main resolution and project ownership.
 - `:help typst-compile` for compile/watch, output ownership, and profiles.
 - `:help typst-troubleshooting` for runtime diagnosis.
-- [docs/api.md](docs/api.md) for stable Lua namespaces and async result shapes.
+- [API.md](API.md) for the normative Lua compatibility contract.
+- [docs/api.md](docs/api.md) for Lua API usage notes and async result shapes.
 - [docs/provider-contracts.md](docs/provider-contracts.md) for provider callbacks,
   pending handles, cancellation, and stop timeout semantics.
+
+## Stability and limitations
+
+| Surface | Status | Notes |
+| --- | --- | --- |
+| User commands | Supported, but still early-reset quality. | Commands are the preferred automation surface while internals settle. |
+| Installed Lua namespaces such as `typst.project`, `typst.compiler`, diagnostics, viewer, completion, conceal, bibliography, and metadata | Only exact dotted symbols listed in [API.md](API.md) are stable. | API stability is checked in CI; [docs/api.md](docs/api.md) explains usage tiers and examples. |
+| Provider contracts | Supported but intentionally strict. | Compiler providers that may write output must call back, expose cancellation, or accept retained leases until force-clear. |
+| Service tables, project lifecycle internals, resource/session internals | Internal. | These may move as ownership boundaries harden. Use commands or documented API wrappers instead. |
+
+Known limitations:
+
+- Human `typst watch` output is best-effort parsed. Prefer structured provider
+  output where available, and check `:TypstInfo!` when watch status looks stale.
+- Normal Typst PDF output does not provide SyncTeX-style source sync. Forward
+  and inverse search depend on viewer, preview, or source-map provider
+  capabilities.
+- Import scanning is bounded and cached briefly, but it is still a synchronous
+  fallback for leaf files. Once `project.import_scan_max_entries` is reached,
+  typst.nvim abandons that import-scan attempt and falls back to later main-file
+  heuristics; disable `project.import_scan` entirely in remote trees if attach
+  latency matters.
+- Rich conceal changes window-local `conceallevel` while enabled. Disable
+  `conceal.enabled` or use `:TypstConcealDisable` for a plain-source workflow.
 
 ## Usage
 
@@ -205,6 +230,8 @@ With a Typst buffer open:
 :TypstInfo!
 :TypstReloadState
 :TypstClearCache
+:TypstLocks
+:TypstCleanLocks
 :TypstSetMain path/to/main.typ
 :TypstToggleMain
 :TypstEditMain
@@ -303,11 +330,13 @@ unconfirmed stop result once. `on_finish()` callbacks, final cleanup, and lease
 release still wait for a later real exit, which reports `was_orphaned = true`,
 `exited_after_orphan = true`, and does not synthesize `stopped = true`. Reset
 and clear-cache paths cancel background probes including Tinymist completion,
-package info, font scans, and metadata version
-detection. Before 1.0, the stable Lua namespaces are intentionally narrow:
-`project`, `compiler`, `viewer`, `artifact`, `edit`, `completion`, and
-`metadata`; `experimental_symbols()` reports installed helpers outside that
-compatibility contract.
+package info, font scans, and metadata version detection. Before 1.0, the
+stable Lua API is intentionally narrow and symbol-based, not namespace-based.
+Setup/contract introspection plus core `project`, `compiler`, and `viewer`
+workflow helpers are stable when listed by `stable_symbols()`. Editing,
+completion, artifact, metadata, provider, navigation, preview helper, and
+development APIs remain installed but experimental unless promoted in `API.md`;
+`experimental_symbols()` reports those helpers explicitly.
 Use `contract()` to inspect the versioned API/event contract, including
 documented `TypstEvent*` names and payload fields.
 
@@ -427,6 +456,7 @@ require("typst").setup({
     import_scan = true,
     import_scan_max_files = 200,
     import_scan_max_depth = 3,
+    import_scan_max_entries = 2000,
     persist_main = true,
     index = {
       fs_watchers = "auto",
@@ -845,6 +875,9 @@ from a loopback URL and refreshes active browser previews after compile/watch
 cycles. The browser shell polls preview state every `preview.browser.refresh_ms`
 milliseconds, which defaults to 250ms, and exposes lightweight reload, zoom,
 fit, page, status/error, and source-sync controls.
+Artifact responses larger than `preview.browser.max_artifact_bytes` return
+`413 Payload Too Large`; under-cap artifacts are streamed in bounded chunks.
+Setting the cap to `0` disables the size check for trusted local use.
 When loopback binding is unavailable, typst.nvim opens a generated HTML shell
 under `preview.browser.output_dir` instead. Set `preview.native = "auto"` to try
 the browser shell first and fall back to the configured viewer.
@@ -1348,10 +1381,15 @@ rename, URL, DOI, and readable attached-PDF actions. Attached PDFs are resolved
 from configured bibliography fields and path patterns.
 
 The project index is persistent per project and caches each scanned Typst or
-bibliography file by loaded-buffer `changedtick` or on-disk mtime/size. Unnamed
-Typst buffers use their scratch project main path as the index key and are
-rescanned by buffer changedtick, so fallback headings, labels, references,
-definitions, and TODOs work before the buffer has a file name.
+bibliography file by loaded-buffer `changedtick` or on-disk mtime/size plus the
+active index policy. `project.index.max_file_bytes` limits unloaded-file static
+indexing. `project.index.large_file_policy = "skip"` omits oversized unloaded
+files, `"headings-only"` reads the file to recover headings and local
+imports/includes while skipping heavier symbol/reference scans, and `"scan"`
+fully scans oversized files. Unnamed Typst buffers use their scratch project
+main path as the index key and are rescanned by buffer changedtick, so fallback
+headings, labels, references, definitions, and TODOs work before the buffer has
+a file name.
 Bibliography parsing handles multiline/concatenated BibTeX fields and nested
 or inline Hayagriva YAML fields for citation metadata. Public bibliography
 helpers expose expanded BibTeX `crossref`/`xdata` fields, formatted citation
@@ -1713,20 +1751,21 @@ for that output.
 root/main decision sources, active profile, output path, last background
 command, active compile/watch PID, Tinymist mode/client/capabilities, and
 process working directory for debugging project decisions. The `:TypstInfo!`
-bang form opens the detailed state in a scratch buffer. `:TypstReloadState`
-detaches and re-resolves the
-current buffer, preserving active resources for the same project and stopping
-resources from any old project that becomes detached. `:TypstClearCache`
-invalidates metadata, package, symbol, index, and conceal caches. `:TypstInfo`
-and health also show the active semantic provider, whether typst.nvim can see
-an attached Tinymist Neovim LSP client for each project, and whether compiler
-diagnostics are active, always enabled, off, or suppressed by semantic-provider
-ownership. With the default `diagnostics.source = "fallback"`, compiler
-diagnostics publish unless Tinymist owns diagnostics for the project through
-Neovim LSP/coc-tinymist or a custom semantic provider explicitly declares
-diagnostic ownership. Use `"always"` to keep compiler diagnostics beside
-semantic-provider diagnostics, or `"off"` to disable compiler diagnostics
-completely.
+bang form opens the detailed state in a scratch buffer. `:TypstLocks` lists
+file-backed output locks, and `:TypstCleanLocks[!] [output-or-lockdir]` removes
+stale locks, with bang reserved for explicit external lock recovery.
+`:TypstReloadState` detaches and re-resolves the current buffer, preserving
+active resources for the same project and stopping resources from any old
+project that becomes detached. `:TypstClearCache` invalidates metadata,
+package, symbol, index, and conceal caches. `:TypstInfo` and health also show
+the active semantic provider, whether typst.nvim can see an attached Tinymist
+Neovim LSP client for each project, and whether compiler diagnostics are
+active, always enabled, off, or suppressed by semantic-provider ownership. With
+the default `diagnostics.source = "fallback"`, compiler diagnostics publish
+unless Tinymist owns diagnostics for the project through Neovim LSP/coc-tinymist
+or a custom semantic provider explicitly declares diagnostic ownership. Use
+`"always"` to keep compiler diagnostics beside semantic-provider diagnostics,
+or `"off"` to disable compiler diagnostics completely.
 `:TypstCompileOutput` opens the latest compiler stdout/stderr for the current
 project. `:TypstLog`
 opens the structured in-memory log, including command, cwd, root, main, and

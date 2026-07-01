@@ -20,10 +20,14 @@ CONTENTS                                                         *typst-contents
 15. Configuration                                                |typst-config|
 16. VimTeX parity and Typst differences                    |typst-vimtex-parity|
 17. Troubleshooting                                      |typst-troubleshooting|
-18. Reference notes                                      |typst-project-docs|
-19. Lua API                                                        |typst-lua|
-20. Public API                                                    |typst-api|
-21. Events                                                      |typst-events|
+18. Architecture                                          |typst-architecture|
+19. Performance                                            |typst-performance|
+20. Debugging                                                |typst-debugging|
+21. API stability                                        |typst-api-stability|
+22. Reference notes                                      |typst-project-docs|
+23. Lua API                                                        |typst-lua|
+24. Public API                                                    |typst-api|
+25. Events                                                      |typst-events|
 
 ==============================================================================
 INTRODUCTION                                                *typst-introduction*
@@ -236,10 +240,15 @@ priority order so heuristic associations do not override explicit or
 compiler-discovered project membership.
 
 The syntactic project index is persistent per project. It caches each scanned
-Typst or bibliography file by loaded-buffer changedtick or on-disk mtime/size.
-Unnamed Typst buffers use their scratch project main path as the index key and
-are rescanned by buffer changedtick, so fallback headings, labels, references,
-definitions, and TODOs work before the buffer has a file name.
+Typst or bibliography file by loaded-buffer changedtick or on-disk mtime/size
+plus the active index policy. `project.index.max_file_bytes` limits unloaded
+file static indexing. `project.index.large_file_policy = "skip"` omits
+oversized unloaded files, `"headings-only"` reads the file to recover headings
+and local imports/includes while skipping heavier symbol/reference scans, and
+`"scan"` fully scans oversized files. Unnamed Typst buffers use their scratch
+project main path as the index key and are rescanned by buffer changedtick, so
+fallback headings, labels, references, definitions, and TODOs work before the
+buffer has a file name.
 
 Typst buffers detach on `BufUnload`, `BufDelete`, and `BufWipeout`, and on
 `BufHidden` when the buffer's `bufhidden` policy will unload, delete, or wipe
@@ -317,6 +326,9 @@ document artifacts from preview-owned cache exports. Preview-owned artifact
 records also retain their preview export target, mode, profile/provider, and
 format so |:TypstArtifacts|, |:TypstInfo|, and health can report preview cache
 exports separately from document exports.
+Browser artifact responses larger than `preview.browser.max_artifact_bytes`
+return `413 Payload Too Large`; under-cap artifacts are streamed in bounded
+chunks. Setting it to `0` disables the cap for trusted local use.
 `preview.browser.style.variables` overrides browser-shell CSS custom
 properties, `preview.browser.style.css` appends trusted inline CSS, and
 `preview.browser.style.css_path` loads an absolute or project-relative
@@ -502,8 +514,9 @@ Command groups:
 
   Project state:
     |:TypstInfo|, |:TypstReloadState|, |:TypstClearCache|,
-    |:TypstSetMain|, |:TypstToggleMain|, |:TypstEditMain|, |:TypstFiles|,
-    |:TypstCd|, |:TypstStatus|, |:TypstStatusAll|, |:TypstCount|
+    |:TypstLocks|, |:TypstCleanLocks|, |:TypstSetMain|,
+    |:TypstToggleMain|, |:TypstEditMain|, |:TypstFiles|, |:TypstCd|,
+    |:TypstStatus|, |:TypstStatusAll|, |:TypstCount|
 
   Compile, diagnostics, and output:
     |:TypstCompile|, |:TypstCompileSS|, |:TypstCompileSelected|,
@@ -570,9 +583,25 @@ Command groups:
                                                         *:TypstClearCache*
 :TypstClearCache
     Clear generated metadata selection, package resource cache state, symbol
-    search caches, project index caches, Tree-sitter collection caches, and
-    conceal match caches through typst.nvim's cache registry, then redraw
+    search caches, import-scan cache, project index caches, Tree-sitter
+    collection caches, and conceal match caches through typst.nvim's cache
+    registry, then redraw
     conceal decorations.
+
+                                                        *:TypstLocks*
+:TypstLocks [output-or-lockdir]
+    List typst.nvim file-backed output locks. The optional argument filters by
+    output path, lock directory, or owner file path. This is useful when a
+    compile, watch, export, render, or preview workflow reports
+    `active_output` with `external_lock = true`.
+
+                                                        *:TypstCleanLocks*
+:TypstCleanLocks[!] [output-or-lockdir]
+    Remove stale typst.nvim file-backed output locks. Without bang, only locks
+    whose owner process is gone or whose incomplete owner record has aged past
+    the grace period are removed. With bang and an explicit output path, lock
+    directory, or owner file path, live or unknown external locks matching that
+    filter may be removed; active locks owned by this Neovim process are kept.
 
                                                         *:TypstSetMain*
 :TypstSetMain [file]
@@ -2119,6 +2148,7 @@ Defaults: >
       import_scan = true,
       import_scan_max_files = 200,
       import_scan_max_depth = 3,
+      import_scan_max_entries = 2000,
       persist_main = true,
       index = {
         fs_watchers = "auto",
@@ -2564,7 +2594,8 @@ Defaults: >
 Project and main-file resolution are explained in |typst-projects|. The
 configuration keys that affect that model are `root_markers`, `main`,
 `project.import_scan`, `project.import_scan_max_files`,
-`project.import_scan_max_depth`, and `project.persist_main`.
+`project.import_scan_max_depth`, `project.import_scan_max_entries`, and
+`project.persist_main`.
 
 Set any mapping to `false` to leave it unbound, or set `mappings.enabled` to
 `false` to disable all default Typst buffer mappings.
@@ -2799,8 +2830,9 @@ resolve before a broader `.git` marker.
 
 `project.import_scan` enables a fallback scan for local `#include` and
 `#import` statements that reference the current buffer. It is capped by
-`project.import_scan_max_files`; when no root marker is found, ancestor scanning
-is capped by `project.import_scan_max_depth`. Package imports such as
+`project.import_scan_max_files` and `project.import_scan_max_entries`; when no
+root marker is found, ancestor scanning is capped by
+`project.import_scan_max_depth`. Package imports such as
 `@preview/name:version` are ignored by this resolver.
 
 Set `indent.enabled = false` to leave Typst buffer indentation untouched.
@@ -3172,14 +3204,154 @@ Command argument alternatives should be written with commas, for example
 pipe-delimited help tags as links.
 
 ==============================================================================
+ARCHITECTURE                                             *typst-architecture*
+
+typst.nvim is organized around workflow ownership, not only feature names.
+The intended ownership model is:
+
+- project identity: `typst.project`, `typst.project.resolver`, and
+  `typst.project.store`;
+- buffer hook ownership: `typst.project.attachments`;
+- live resource liveness migration: `typst.resources.session` and
+  `typst.resources.supervisor`;
+- generated output leases: `typst.resources.outputs`;
+- compile/watch state: `typst.compiler`;
+- compiler result fanout: `typst.compiler.fanout` and
+  `typst.compiler.consumers`;
+- diagnostic publication: `typst.diagnostics.publisher`;
+- user presentation: commands, status reports, notifications, and health.
+
+Project resolution should answer root, main file, buffer source, and project
+key questions without owning compiler or preview shutdown. The ProjectStore
+facade owns live projects, encoded keys, buffer membership, and prune
+bookkeeping while `project.registry` remains the raw low-level map. Resource
+modules summarize active compiler, preview, operation, diagnostic, and
+output-lease state so prune, reset, exit, and force-clear paths do not need to
+duplicate backend details.
+
+The long-term directory target is documented in `docs/architecture.md`.
+Contributor patches should prefer strengthening these boundaries before large
+file moves:
+
+- resolver code should not mutate the registry;
+- attachment code should go through `project.attachments`;
+- reset/exit/prune cleanup should go through `resources.supervisor`, which is
+  the cleanup entry point while ownership migrates behind it;
+- project code should not publish diagnostics directly;
+- output-producing workflows should acquire/release leases through
+  `resources.outputs`;
+- compiler backends should route artifact, diagnostics, dependency, log, and
+  event consumers through compiler fanout modules; viewer and preview refresh
+  should route through `compiler.consumers` from the existing API/controller
+  paths;
+- only diagnostics publisher code should write compiler diagnostics with
+  `vim.diagnostic.set`;
+- compiler stop/timeout semantics should preserve unconfirmed writers until
+  exit is confirmed or the user explicitly force-clears retained state.
+
+==============================================================================
+PERFORMANCE                                                 *typst-performance*
+
+The expensive paths are project discovery, project indexing, conceal rendering,
+completion sources, Tinymist requests, and preview refresh. The defaults favor
+a useful out-of-box workflow, but large repositories may need tighter settings.
+
+Project import scanning is bounded by `project.import_scan_max_files`,
+`project.import_scan_max_depth`, and `project.import_scan_max_entries`. It is
+kept in a short-lived cache keyed by path, root, config generation, and root
+metadata, and |:TypstClearCache| clears it immediately. The scan remains
+synchronous; when a scan root exceeds the entry cap, typst.nvim abandons that
+import-scan attempt and falls back to later main-file heuristics before
+candidate files are read.
+If opening a leaf file is slow, inspect |:TypstInfo|, lower
+`project.import_scan_max_entries`, disable `project.import_scan`, or set a
+`.typstmain`/`:TypstSetMain` decision.
+For project indexing, `project.index.large_file_policy = "headings-only"` avoids
+expensive label/reference/path scans for oversized unloaded files, but it still
+reads those files to recover headings and local imports/includes.
+
+Window feature application is idempotent by buffer and window signatures so
+ordinary `WinEnter`/`BufWinEnter` events do not repeatedly reapply folds and
+conceal when the relevant state has not changed. Conceal still uses
+Tree-sitter and decoration-provider state, so large visible ranges should be
+measured with |:TypstTelemetry| before changing cache rules.
+
+Completion and Tinymist requests use generation, changedtick, cursor, timeout,
+and waiter guards. Late async responses are ignored when the buffer changed or
+the request no longer matches the active context.
+
+Watch output is retained with bounded stdout/stderr history and a capped
+pre-drain stream queue. If a broken provider floods output, typst.nvim
+truncates or drops additional incoming chunks once the queue is full, marks the
+watcher as truncated, and logs throttled warnings instead of allowing
+unbounded memory growth.
+
+==============================================================================
+DEBUGGING                                                     *typst-debugging*
+
+Use these commands in order when a workflow behaves unexpectedly:
+
+1. |:TypstInfo| or `:TypstInfo!` for project root/main, provider, output,
+   diagnostics policy, active resources, leases, and status details.
+2. |:TypstStatusAll| or `:TypstStatusAll!` for all retained projects and
+   copyable force-clear commands when a provider stop was unconfirmed.
+3. |:TypstLog| for bounded lifecycle, provider, process, and callback errors.
+4. |:TypstTelemetry| for recent timings and counters around setup, attach,
+   import scanning, TOC follow, conceal, completion, and watch output.
+5. `:checkhealth typst` for executable, Tree-sitter, Tinymist, viewer, preview,
+   and attached-project checks.
+
+Wrong-main problems should start with `root_source` and `main_source` in
+|:TypstInfo|. Slow leaf-file opens usually point at import scanning. Missing
+conceal/folds/motions usually point at Tree-sitter query/parser health. Preview
+or viewer source-sync failures should be checked against backend capabilities:
+normal Typst PDF output does not provide SyncTeX-style guarantees by itself.
+
+When an external compiler provider times out or reports `stopped = false`,
+typst.nvim treats the writer as unconfirmed. The active lease is retained,
+status becomes `stopping_failed`, and |:TypstCompilerForceClear| is the explicit
+escape hatch after the external process has been handled outside Neovim.
+
+==============================================================================
+API STABILITY                                             *typst-api-stability*
+
+The public Lua module is installed broadly for commands and integrations, but
+the stable contract is intentionally narrow before 1.0. No namespace is stable
+merely because it exists. Stability is decided by dotted symbols:
+
+>
+  require("typst").stable_symbols()
+  require("typst").experimental_symbols()
+  require("typst").contract()
+<
+
+Stable symbols currently cover setup/contract introspection, project attach
+and main-file helpers, compiler compile/watch/stop/status/output helpers, and
+viewer open/source-sync capability helpers. Installed editing, completion,
+artifact, metadata, provider, navigation, preview-helper, development, and
+reset APIs are experimental unless their exact dotted name appears in
+`stable_symbols()`.
+
+Internal implementation modules are not part of the user API even when they are
+loadable. Treat `typst.core.*`, `typst.resources.*`,
+`typst.project.services.*`, `typst.runtime.*`, and `typst.internal.*` as
+internal unless a function is exposed through `require("typst")` and documented
+in `API.md`.
+
+Provider contracts are public extension points. Provider authors should prefer
+the documented provider registry and `docs/provider-contracts.md` over calling
+internal process, operation, resource, or project-service modules directly.
+
+==============================================================================
 REFERENCE NOTES                                           *typst-project-docs*
 
 The repository includes project-level documentation for the non-command
 workflow surface and compatibility contract:
 
 - `README.md`: quick project overview, requirements, and common commands.
-- `API.md`: public API compatibility surface and stable namespaces.
-- `ARCHITECTURE.md`: maintainer-facing lifecycle and ownership invariants.
+- `API.md`: public API compatibility surface and stable/experimental tiers.
+- `docs/architecture.md`: maintainer-facing lifecycle and ownership
+  invariants.
 - `CONTRIBUTING.md`: local gates and patch expectations.
 - `docs/api.md`: structured API notes and extension contracts.
 - `docs/provider-contracts.md`: provider return, callback, timeout, and
@@ -3343,13 +3515,19 @@ workflow functions:
 The public Lua API is versioned. `api_version()` returns the current API level,
 currently `1`; `version()` returns a table with the same level as `api` and
 `api_version`; `contract()` returns the versioned API/event contract, including
-documented `TypstEvent*` names and payload fields. Stable API level 1 symbols
-are additive unless a migration is documented. Before 1.0, the deliberately
-stable namespaces are `project`, `compiler`, `viewer`, `artifact`, `edit`,
-`completion`, and `metadata`.
-`stable_symbols()` returns the exact dotted stable list.
+documented `TypstEvent*` names, payload fields, namespace tiers, and internal
+module prefixes. Stable API level 1 symbols are additive unless a migration is
+documented. Before 1.0, stability is symbol-based: `project`, `compiler`, and
+`viewer` are mixed namespaces with explicit stable entry points, while editing,
+completion, artifact, metadata, provider, navigation, preview-helper,
+development, and reset APIs are experimental unless promoted by exact dotted
+name. `stable_symbols()` returns the exact stable list.
 `experimental_symbols()` returns installed helper APIs that are intentionally
-outside the stable compatibility contract for now.
+outside the stable compatibility contract for now. See |typst-api-stability|.
+Earlier reset-phase docs used broad namespace stability language. That wording
+has been narrowed before 1.0 without an API-level bump: installed namespaces
+remain available, but demoted helpers are experimental unless their exact
+dotted name appears in `stable_symbols()`.
 
 Process-backed async calls such as export, eval, template init,
 profile/test/bench/coverage, and rendered preview compiles return a pending

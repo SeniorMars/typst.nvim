@@ -1,5 +1,9 @@
 # typst.nvim Lua API
 
+`API.md` is the normative compatibility contract. This file explains how to use
+that public surface and mirrors the same stable/experimental tiering for
+readability.
+
 The stable Lua entrypoint is:
 
 ```lua
@@ -14,9 +18,14 @@ typst.api_version()
 typst.version()
 ```
 
-## Stable Namespaces
+## API Tiers
 
-Prefer structured namespaces for new code:
+Prefer structured namespaces for new code, but do not treat an installed
+namespace as stable by itself. Stable symbols are the exact dotted names
+returned by `typst.stable_symbols()`. Installed helpers outside that list are
+reported by `typst.experimental_symbols()` before 1.0.
+
+Mixed namespaces currently contain the stable workflow entry points:
 
 ```lua
 typst.project.get()
@@ -27,6 +36,12 @@ typst.compiler.compile()
 typst.compiler.watch()
 typst.compiler.stop()
 typst.viewer.view()
+```
+
+Experimental namespaces and helpers remain useful for plugin users and
+integrations, but their signatures can change before promotion:
+
+```lua
 typst.artifact.export()
 typst.render.fragment()
 typst.evaluation.eval()
@@ -49,7 +64,15 @@ The stable API level is additive within a level. Stable function, command,
 event, provider-kind, or documented result-field changes need a migration note;
 removals need a compatibility alias for one minor release or an API-level bump.
 Experimental symbols are explicitly reported by `typst.experimental_symbols()`
-until they are promoted or removed with a migration note.
+until they are promoted or removed with a migration note. Internal modules
+under `typst.core.*`, `typst.resources.*`, `typst.project.services.*`,
+`typst.runtime.*`, and `typst.internal.*` are not API even when loadable.
+
+Earlier reset-phase docs treated several whole namespaces as stable. Before
+1.0, that promise has been narrowed to exact dotted symbols without bumping the
+API level: the namespaces still load, but artifact, completion, editing,
+metadata, provider, preview-helper, development, and reset helpers are
+experimental unless `typst.stable_symbols()` lists the exact name.
 
 CI runs `tests/run_api_stability.sh` as the public API stability gate. Provider
 contract changes must also pass `tests/run_provider_matrix.sh` across Linux,
@@ -118,7 +141,8 @@ returns `ambiguous_project_key` instead of guessing.
 ## Namespace-Only Lua API
 
 The root module does not export workflow, edit, package, symbol, completion, or
-provider helper functions. Use the stable namespaced API instead.
+provider helper functions. Use the public namespaced API instead, and check
+`stable_symbols()` before relying on compatibility.
 
 ## Project State
 

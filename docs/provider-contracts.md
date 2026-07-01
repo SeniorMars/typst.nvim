@@ -96,10 +96,13 @@ timeout.
 
 typst.nvim has two adapter modes:
 
-- **Result mode** is used for provider methods where a returned table normally
-  means completed work. Tables with `ok`, `code`, `reason`, `message`,
-  `stopped`, `output`, `path`, `artifacts`, `by_buffer`, or `diagnostics` are
-  treated as terminal results unless `pending = true` is present.
+- **Result mode** is used for provider methods where synchronous returns may
+  complete the request. Generic table returns are terminal only when they
+  include explicit result fields such as `ok`, `code`, `reason`, `message`,
+  `stopped`, `forced`, or `orphaned`. A table with only structural fields such
+  as `path`, `output`, `artifacts`, `by_buffer`, or `diagnostics` is not
+  terminal by default; individual provider kinds must opt into those shapes or
+  normalize them.
 - **Handle mode** is used for compiler/watch/start-style methods where the
   returned value may be an active process or custom pending handle. In this
   mode, tables with only handle-like fields such as `path`, `output`,
@@ -111,6 +114,21 @@ as `ok`, `code`, `reason`, `message`, `stopped`, `forced`, or `orphaned`.
 Use `{ pending = true }` for pending handles that should expose adapter-managed
 timeout/cancel behavior. If a custom handle looks result-shaped, either include
 `pending = true` or ensure the call site supplies an explicit handle predicate.
+
+Structural-only results are accepted only by provider kinds whose adapters
+declare those fields or normalize the table before classification:
+
+| Provider kind | Structural result fields |
+| --- | --- |
+| `source_map` | `path`, `file`, `filename`, `line`, `column` |
+| `lint` | `diagnostics`, `by_buffer` |
+| `grammar` | `diagnostics`, `by_buffer` |
+| `export` | `path`, `output`, `outputs`, `artifacts` |
+| `render` | `path`, `output`, `outputs`, `artifacts` |
+| `viewer` | `opened`, `path`, `output` |
+| `eval` | `output`, `stdout`, `stderr`, `text`, `value`, `values` |
+| `init` | `path`, `files`, `created`, `template`, `output` |
+| `profile`, `test`, `bench`, `coverage` | `output`, `stdout`, `stderr`, `text`, `report` or workflow-specific coverage fields |
 
 Examples:
 
@@ -208,6 +226,11 @@ Use `ok` for provider-native success/failure and `reason` for machine-readable
 failure classes such as `timeout`, `cancelled`, `invalid_result`, or
 `provider_error`.
 
+Process-backed providers that call internal process helpers must pass argv
+tables, for example `{ "typst", "compile", main, output }`. Shell strings such
+as `"typst compile main.typ"` are rejected with `reason = "invalid_command"` so
+providers do not accidentally depend on shell splitting or Neovim internals.
+
 Lint and grammar providers may return native Neovim diagnostics grouped by
 buffer:
 
@@ -230,6 +253,14 @@ When `by_buffer` is present and `published ~= true`, typst.nvim publishes the
 diagnostics under the provider source namespace, updates project diagnostic
 bookkeeping, and populates quickfix when requested. Providers that publish
 diagnostics themselves must set `published = true`.
+
+Generic provider table returns are terminal only when they include explicit
+result fields such as `ok`, `code`, `reason`, `message`, `stopped`, `forced`, or
+`orphaned`, or when that provider kind documents an allowed structural return
+shape. A table that only has fields like `path`, `output`, or `diagnostics` is
+not treated as a completed result by default; provider adapters must opt into
+those shapes or normalize them. This avoids confusing cancellable provider
+handles with completed work.
 
 ## Cancellation
 
@@ -270,6 +301,21 @@ discarding that unconfirmed state; it releases typst.nvim's lease without
 asserting the provider stopped.
 `output` is called before compile or watch starts so events, leases, status, and
 `:TypstInfo` agree on the planned artifact path.
+Output ownership is enforced by an in-process lease and a file-backed lock
+directory under typst.nvim's cache directory. The file-backed lock coordinates
+Neovim sessions that share the same cache root; it is not a global filesystem
+lock across users, containers, or different XDG/cache roots. If another live
+Neovim process owns the same output lock, compile/watch/export/render startup
+fails with `reason = "active_output"` and `external_lock = true`. Lock records
+from dead processes are recovered before acquiring a new lease. Live PID locks
+are never auto-stolen by age alone; use force-clear/manual lock cleanup only
+after verifying the owner is gone. Missing, empty, unreadable, or corrupt owner
+records are treated as active for a short incomplete-lock grace period so
+partially-written acquisitions are not stolen, then recovered.
+Use `:TypstLocks` to inspect the lock directory, owner PID, age, output path,
+and owner kind. Use `:TypstCleanLocks` for dead-owner or expired incomplete
+records, and `:TypstCleanLocks! [output-or-lockdir]` only after confirming a
+live or unknown external owner is safe to discard.
 
 Compile/watch providers must not write outside the output path they reported
 unless their own provider contract documents extra artifacts and ownership.
@@ -412,6 +458,14 @@ opener candidates; `{url}` is replaced with the preview URL, and the URL is
 appended when no placeholder is present. Configure commands only when the
 default opener or `app` picker is wrong for the environment, such as WSL, SSH,
 remote Neovim sessions, or app-specific browser checks:
+
+The native browser server is local by default (`127.0.0.1`) and is bounded for
+accidental local misuse: request headers are capped, idle request reads time out,
+artifact responses larger than `preview.browser.max_artifact_bytes` return
+`413 Payload Too Large`, and under-cap artifacts are streamed in bounded chunks.
+The listener stops when the last browser preview route is cleared, on reset, and
+on force-reset cleanup. Set `preview.browser.max_artifact_bytes = 0` only for
+trusted local use; it disables the artifact size cap.
 
 ```lua
 preview = {

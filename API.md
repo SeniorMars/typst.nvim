@@ -16,23 +16,38 @@ that same API level as `api` and `api_version`.
 including stable root symbols, documented `TypstEvent*` names, compatibility
 aliases, and payload field names.
 
-Within API level 1, the stable functions listed below, command names, event
-names, provider kinds, and result-table fields are additive unless the project
-explicitly documents a migration. Broader namespaced helpers may still be
-installed for users and commands, but anything reported by
-`require("typst").experimental_symbols()` is pre-1.0 experimental and can
-change before the stable API is frozen. Internal modules under `typst.core`,
-`typst.edit`, and other implementation namespaces can still change unless they
-are listed in this file.
+Within API level 1, only the stable functions listed below, command names,
+event names, provider kinds, and result-table fields are additive unless the
+project explicitly documents a migration. Namespaces can be installed without
+being stable as a whole: `project`, `compiler`, and `viewer` are mixed
+namespaces with explicit stable entry points, while editing, completion,
+artifacts, metadata, providers, navigation, preview helpers, and development
+workflows are pre-1.0 experimental unless a dotted symbol is listed in the
+stable block. Internal modules under `typst.core`, `typst.resources`,
+`typst.project.services`, `typst.runtime`, and `typst.internal` can still
+change unless promoted here.
+
+### Pre-1.0 Tier Narrowing
+
+Earlier drafts of this document described stability at a broad namespace
+level. That was pre-freeze wording from the reset phase. API level 1 now uses
+explicit dotted symbols as the compatibility source of truth while typst.nvim
+remains pre-1.0. The installed namespaces are kept for compatibility, but
+helpers such as artifact workflows, completion, editing transforms, metadata,
+provider registry helpers, preview helpers, development workflows, and
+`reset()` are demoted to experimental unless they appear in the stable symbol
+list below. Use `stable_symbols()` and `experimental_symbols()` to audit the
+current tier of an installed helper.
 
 ## Compatibility Policy
 
 Stable API changes follow these rules:
 
 - Stable symbols are explicit: they must be declared in `typst.api.spec`, not
-  inferred from runtime-installed helper functions.
-- Additions to stable namespaces are allowed in minor releases when they do not
-  change existing behavior.
+  inferred from runtime-installed helper functions or namespace membership.
+- `typst.api.spec` must assign every installed namespace a tier. Mixed
+  namespaces can contain stable symbols, but unlisted methods remain
+  experimental.
 - Behavioral changes to stable functions, commands, event names, provider
   kinds, or documented result fields require a migration note in this file and
   the help docs.
@@ -99,7 +114,7 @@ require("typst").setup({
 })
 ```
 
-The supported buffer attachment entry point is:
+The supported project attachment entry point is:
 
 ```lua
 require("typst").project.attach(bufnr)
@@ -110,15 +125,16 @@ print(require("typst").api_version())
 Flat workflow aliases were removed from the stable Lua API. Use the namespaced
 APIs documented below.
 
-The deliberately stable pre-1.0 namespaces are:
+The deliberately stable pre-1.0 Lua surface is narrow:
 
-- `require("typst").project.*`
-- `require("typst").compiler.*`
-- `require("typst").viewer.*`
-- `require("typst").artifact.*`
-- `require("typst").edit.*`
-- `require("typst").completion.*`
-- `require("typst").metadata.*`
+- setup and contract introspection on `require("typst")`;
+- project attachment, main-file, project snapshot, cd, reload, and cache
+  helpers;
+- compiler compile/watch/stop/status/output helpers;
+- viewer open, forward/inverse jump, and capability helpers.
+
+No namespace is stable merely because it is installed. Use the symbol lists
+below to distinguish stable, experimental, and internal surfaces.
 
 Use `require("typst").stable_symbols()` to inspect the exact stable dotted
 symbol list. Use `require("typst").experimental_symbols()` to audit installed
@@ -131,12 +147,6 @@ code and this document together when the public symbol surface changes.
 
 <!-- typst.nvim stable-symbols:start -->
 - `api_version`
-- `artifact.clean`
-- `artifact.export`
-- `artifact.html_preview`
-- `artifact.list`
-- `artifact.open`
-- `artifact.presentation`
 - `compiler.compile`
 - `compiler.compile_selected`
 - `compiler.current_output`
@@ -145,6 +155,59 @@ code and this document together when the public symbol surface changes.
 - `compiler.stop`
 - `compiler.stop_all`
 - `compiler.watch`
+- `contract`
+- `experimental_symbols`
+- `is_setup`
+- `project.attach`
+- `project.cd`
+- `project.clear_cache`
+- `project.detach`
+- `project.edit_main`
+- `project.get`
+- `project.projects`
+- `project.reload_state`
+- `project.set_main`
+- `project.snapshot`
+- `project.toggle_main`
+- `public_symbols`
+- `setup`
+- `stable_symbols`
+- `version`
+- `viewer.capabilities`
+- `viewer.view`
+- `viewer.view_forward`
+- `viewer.view_inverse`
+<!-- typst.nvim stable-symbols:end -->
+
+### Experimental Symbols
+
+<!-- typst.nvim experimental-symbols:start -->
+- `artifact.clean`
+- `artifact.export`
+- `artifact.html_preview`
+- `artifact.list`
+- `artifact.open`
+- `artifact.presentation`
+- `bibliography.attachment`
+- `bibliography.attachments`
+- `bibliography.clear_diagnostics`
+- `bibliography.diagnostics`
+- `bibliography.diagnostics_namespace`
+- `bibliography.expanded_fields`
+- `bibliography.fields`
+- `bibliography.foldexpr`
+- `bibliography.indentexpr`
+- `bibliography.insert`
+- `bibliography.insert_text`
+- `bibliography.open`
+- `bibliography.parse_bibtex_file`
+- `bibliography.parse_hayagriva_file`
+- `bibliography.preview`
+- `bibliography.rename_key`
+- `bibliography.rename_plan`
+- `bibliography.search`
+- `bibliography.status`
+- `compiler.force_clear`
 - `completion.blink`
 - `completion.blink_source`
 - `completion.cmp`
@@ -153,7 +216,23 @@ code and this document together when the public symbol surface changes.
 - `completion.native`
 - `completion.omnifunc`
 - `completion.signature`
-- `contract`
+- `conceal.custom`
+- `conceal.disable`
+- `conceal.enable`
+- `conceal.inspect`
+- `conceal.is_enabled`
+- `conceal.refresh`
+- `conceal.register`
+- `conceal.toggle`
+- `conceal.unregister`
+- `context.open`
+- `development.bench`
+- `development.coverage`
+- `development.profile`
+- `development.test`
+- `diagnostics.bibliography`
+- `diagnostics.errors`
+- `diagnostics.quickfix`
 - `edit.add_trailing_comma`
 - `edit.change_delimiter`
 - `edit.change_delimiter_block`
@@ -231,102 +310,6 @@ code and this document together when the public symbol surface changes.
 - `edit.toggle_strong`
 - `edit.toggle_trailing_comma`
 - `edit.unwrap_function`
-- `experimental_symbols`
-- `is_setup`
-- `metadata.available_versions`
-- `metadata.catalog`
-- `metadata.emoji`
-- `metadata.emoji_glyph`
-- `metadata.emoji_names`
-- `metadata.emoji_variants`
-- `metadata.emojis`
-- `metadata.shorthands`
-- `metadata.signature`
-- `metadata.stdlib`
-- `metadata.stdlib_complete`
-- `metadata.stdlib_constants_by_type`
-- `metadata.stdlib_item`
-- `metadata.stdlib_param_docs`
-- `metadata.symbol`
-- `metadata.symbol_deprecation`
-- `metadata.symbol_glyph`
-- `metadata.symbol_names`
-- `metadata.symbol_variants`
-- `project.attach`
-- `project.cd`
-- `project.clear_cache`
-- `project.detach`
-- `project.edit_main`
-- `project.get`
-- `project.invalidate`
-- `project.invalidation_snapshot`
-- `project.on_invalidate`
-- `project.projects`
-- `project.reload_state`
-- `project.set_main`
-- `project.snapshot`
-- `project.toggle_main`
-- `public_symbols`
-- `reset`
-- `setup`
-- `stable_symbols`
-- `version`
-- `viewer.capabilities`
-- `viewer.clean`
-- `viewer.clean_preview`
-- `viewer.preview`
-- `viewer.preview_capabilities`
-- `viewer.preview_inverse`
-- `viewer.preview_open_browser`
-- `viewer.preview_reload`
-- `viewer.preview_status`
-- `viewer.preview_stop`
-- `viewer.preview_toggle`
-- `viewer.view`
-- `viewer.view_forward`
-- `viewer.view_inverse`
-<!-- typst.nvim stable-symbols:end -->
-
-### Experimental Symbols
-
-<!-- typst.nvim experimental-symbols:start -->
-- `bibliography.attachment`
-- `bibliography.attachments`
-- `bibliography.clear_diagnostics`
-- `bibliography.diagnostics`
-- `bibliography.diagnostics_namespace`
-- `bibliography.expanded_fields`
-- `bibliography.fields`
-- `bibliography.foldexpr`
-- `bibliography.indentexpr`
-- `bibliography.insert`
-- `bibliography.insert_text`
-- `bibliography.open`
-- `bibliography.parse_bibtex_file`
-- `bibliography.parse_hayagriva_file`
-- `bibliography.preview`
-- `bibliography.rename_key`
-- `bibliography.rename_plan`
-- `bibliography.search`
-- `bibliography.status`
-- `compiler.force_clear`
-- `conceal.custom`
-- `conceal.disable`
-- `conceal.enable`
-- `conceal.inspect`
-- `conceal.is_enabled`
-- `conceal.refresh`
-- `conceal.register`
-- `conceal.toggle`
-- `conceal.unregister`
-- `context.open`
-- `development.bench`
-- `development.coverage`
-- `development.profile`
-- `development.test`
-- `diagnostics.bibliography`
-- `diagnostics.errors`
-- `diagnostics.quickfix`
 - `evaluation.eval`
 - `evaluation.inspect`
 - `evaluation.selection`
@@ -356,6 +339,25 @@ code and this document together when the public symbol surface changes.
 - `match_highlight.is_enabled`
 - `match_highlight.refresh`
 - `match_highlight.toggle`
+- `metadata.available_versions`
+- `metadata.catalog`
+- `metadata.emoji`
+- `metadata.emoji_glyph`
+- `metadata.emoji_names`
+- `metadata.emoji_variants`
+- `metadata.emojis`
+- `metadata.shorthands`
+- `metadata.signature`
+- `metadata.stdlib`
+- `metadata.stdlib_complete`
+- `metadata.stdlib_constants_by_type`
+- `metadata.stdlib_item`
+- `metadata.stdlib_param_docs`
+- `metadata.symbol`
+- `metadata.symbol_deprecation`
+- `metadata.symbol_glyph`
+- `metadata.symbol_names`
+- `metadata.symbol_variants`
 - `navigation.citations`
 - `navigation.files`
 - `navigation.follow`
@@ -379,6 +381,9 @@ code and this document together when the public symbol surface changes.
 - `picker.open`
 - `picker.open_item`
 - `picker.pick`
+- `project.invalidate`
+- `project.invalidation_snapshot`
+- `project.on_invalidate`
 - `project.operations`
 - `project.services`
 - `providers.get`
@@ -392,6 +397,7 @@ code and this document together when the public symbol surface changes.
 - `render.fragment`
 - `render.image`
 - `render.page`
+- `reset`
 - `semantic.code_action`
 - `semantic.code_lens`
 - `semantic.color_info`
@@ -425,6 +431,16 @@ code and this document together when the public symbol surface changes.
 - `ui.status_all`
 - `ui.status_report`
 - `ui.statusline`
+- `viewer.clean`
+- `viewer.clean_preview`
+- `viewer.preview`
+- `viewer.preview_capabilities`
+- `viewer.preview_inverse`
+- `viewer.preview_open_browser`
+- `viewer.preview_reload`
+- `viewer.preview_status`
+- `viewer.preview_stop`
+- `viewer.preview_toggle`
 <!-- typst.nvim experimental-symbols:end -->
 
 `project.set_main(path, bufnr, { persist = true })` saves the explicit main-file choice
@@ -1106,7 +1122,7 @@ that detailed project report in a scratch buffer. `reload_state()` detaches and
 re-resolves the current buffer and reapplies typst.nvim buffer state without
 stopping active compilers.
 `clear_cache()` invalidates generated metadata selection, package resource cache
-state, and conceal match caches.
+state, import-scan cache, project index cache, and conceal match caches.
 `metadata_version` may pin a bundled Typst metadata snapshot such as `"0.14.2"` or `"0.15.0"`;
 when unset, typst.nvim uses the newest compatible bundled metadata and reports
 version mismatches through catalog/status metadata.
@@ -1297,6 +1313,8 @@ The public command surface is:
 - `:TypstInfo!`
 - `:TypstReloadState`
 - `:TypstClearCache`
+- `:TypstLocks [output-or-lockdir]`
+- `:TypstCleanLocks[!] [output-or-lockdir]`
 - `:TypstSetMain [file]`
 - `:TypstToggleMain`
 - `:TypstEditMain`

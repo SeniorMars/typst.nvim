@@ -411,6 +411,8 @@ function M.snapshot()
         stable_root_functions = sorted(api_spec.stable_root_functions),
         stable_namespaces = sorted_keys(api_spec.stable_namespaces),
         stable_runtime_symbols = sorted(api_spec.stable_runtime_symbols),
+        namespace_tiers = vim.deepcopy(api_spec.namespace_tiers or {}),
+        internal_module_prefixes = sorted(api_spec.internal_module_prefixes),
         events = M.events(),
         compatibility_events = M.compatibility_events(),
         event_aliases = M.event_aliases(),

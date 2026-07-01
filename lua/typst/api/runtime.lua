@@ -73,7 +73,7 @@ function M.install(api, notify, normalize_bufnr)
         local state = opts.project
         local key_given = type(opts.key) == "string" and opts.key ~= ""
         if not state and key_given then
-            local registry = require("typst.project.registry")
+            local registry = require("typst.project.store")
             local key_error = nil
             local decoded_key = nil
             if opts.key_encoded == true then
@@ -120,7 +120,7 @@ function M.install(api, notify, normalize_bufnr)
             end
         elseif not state then
             local bufnr = normalize_bufnr(opts.bufnr)
-            state = require("typst.project.registry").project_for_buffer(bufnr)
+            state = require("typst.project.store").project_for_buffer(bufnr)
         end
         if not state then
             local result = {
