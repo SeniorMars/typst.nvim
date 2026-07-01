@@ -67,6 +67,54 @@ if result.pending then
 end
 ```
 
+Common result fields:
+
+```lua
+---@class TypstResult
+---@field ok boolean? True when the operation succeeded.
+---@field pending boolean? True while async work is still active.
+---@field stopped boolean? True only when stop was confirmed.
+---@field idle boolean? True when there was no active work to stop.
+---@field reason string? Machine-readable failure or cancellation reason.
+---@field message string? Human-readable detail.
+---@field orphaned boolean? True when shutdown could not be confirmed.
+---@field orphan_retained boolean? True when typst.nvim retained an orphan.
+---@field stale boolean? True when a late generation result was ignored.
+```
+
+Cancellation callbacks settle when a stop is confirmed or when an operation is
+retained as an orphan. `on_finish()` callbacks are stricter: they run only when
+the underlying process/provider really exits. Retained orphans stay visible for
+diagnostics and keep owned resources guarded until that later real exit or an
+explicit cleanup/reset path.
+
+External compiler provider compile/watch/stop timeouts retain typst.nvim's
+output lease because timeout is not proof of process exit. Use
+`typst.compiler.force_clear({ key = project_key })` to discard that retained
+state for attached or bufferless projects; its result sets `stopped = false`
+because the provider process was not confirmed stopped.
+The Lua symbol is experimental for now; the supported user-facing recovery path
+is `:TypstCompilerForceClear[!] [project-key]`.
+
+Lua callers may pass raw `project.key`, encoded `key_display` with
+`key_encoded = true`, or a direct `project` object. The command should use the
+encoded `key_display` printed by `:TypstStatusAll!`. When Lua code already has a
+project object, pass `project = project`; it is authoritative even if `key` is
+also present. Without `key_encoded = true`, an ambiguous raw/encoded collision
+returns `ambiguous_project_key` instead of guessing.
+
+```lua
+---@class TypstCompilerForceClearResult
+---@field ok boolean
+---@field stopped false False when state was discarded without proof of shutdown.
+---@field forced boolean? True only when the caller passed bang/force to bypass the stopping_failed guard.
+---@field discarded boolean? True when typst.nvim state was discarded.
+---@field released_lease boolean? True when typst.nvim released its lease.
+---@field reason '"force_cleared"'|'"not_external_provider"'|'"nothing_to_clear"'|'"not_stopping_failed"'|'"no_project"'|'"unknown_project_key"'|'"ambiguous_project_key"'
+---@field key string? Project key accepted by the public API.
+---@field key_display string? Command-safe encoded project key.
+```
+
 ## Namespace-Only Lua API
 
 The root module does not export workflow, edit, package, symbol, completion, or

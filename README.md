@@ -174,6 +174,28 @@ Optional integrations:
 - [SeniorMars/tree-sitter-typst](https://github.com/SeniorMars/tree-sitter-typst)
   for structural editing and query-backed features
 
+## Choose your workflow
+
+Start with the smallest setup that matches how you edit Typst, then add
+integrations only when you need them.
+
+| Workflow | Use when | Setup notes |
+| --- | --- | --- |
+| Built-in Typst CLI | You want project detection, `:TypstCompile`, `:TypstWatch`, diagnostics parsed from Typst output, and `:TypstView`. | Install `typst` and run `:checkhealth typst`. This path works without Tinymist or preview plugins. |
+| Typst CLI + Tinymist | You want LSP-backed completion, references, rename, color/code-lens actions, or Tinymist diagnostics. | Keep `integrations.tinymist.lsp = "auto"` for typst.nvim-managed nvim-lsp startup, use `"detect"` to reuse an existing nvim-lsp client, or use Coc's own Tinymist settings when coc.nvim owns the LSP session. |
+| Native preview | You want typst.nvim to open the compiler output in a viewer or browser shell. | Keep `preview.provider = "native"`. The default `preview.native = "viewer"` opens the current compiler output; set `"browser"` for the local browser shell. |
+| typst-preview.nvim compatibility | You already use typst-preview.nvim and want typst.nvim project commands around it. | Set `preview.provider = "typst-preview.nvim"`. typst.nvim delegates preview open/stop/source-sync commands instead of pretending to own that backend. |
+| Custom providers | You wrap another compiler, viewer, formatter, linter, renderer, or preview backend. | Register providers with `require("typst").providers.register(...)` and follow [docs/provider-contracts.md](docs/provider-contracts.md), especially timeout and pending-handle behavior. |
+
+Useful entry points:
+
+- `:help typst-projects` for root/main resolution and project ownership.
+- `:help typst-compile` for compile/watch, output ownership, and profiles.
+- `:help typst-troubleshooting` for runtime diagnosis.
+- [docs/api.md](docs/api.md) for stable Lua namespaces and async result shapes.
+- [docs/provider-contracts.md](docs/provider-contracts.md) for provider callbacks,
+  pending handles, cancellation, and stop timeout semantics.
+
 ## Usage
 
 With a Typst buffer open:
@@ -196,6 +218,7 @@ With a Typst buffer open:
 :TypstWatch
 :TypstStop
 :TypstStopAll
+:TypstCompilerForceClear[!] [project-key]
 :TypstStatus
 :TypstStatusAll
 :TypstCount
@@ -272,11 +295,12 @@ artifacts.
 
 The public Lua API is versioned: `api_version()` returns the current API level
 and `version()` returns the same value in a table. Process-backed async result
-tables expose `cancel()`, stop the originating process tree, and ignore late
-process-exit callbacks. If graceful and forceful shutdown cannot prove the
-process exited, the operation first becomes `orphaned-running`, then
-`orphaned-retained` after bounded stop attempts so normal active-operation waits
-can continue. A later real exit reports `was_orphaned = true`,
+tables expose `cancel()` and stop the originating process tree. If graceful and
+forceful shutdown cannot prove the process exited, the operation first becomes
+`orphaned-running`, then `orphaned-retained` after bounded stop attempts so
+normal active-operation waits can continue. Cancellation callbacks receive that
+unconfirmed stop result once. `on_finish()` callbacks, final cleanup, and lease
+release still wait for a later real exit, which reports `was_orphaned = true`,
 `exited_after_orphan = true`, and does not synthesize `stopped = true`. Reset
 and clear-cache paths cancel background probes including Tinymist completion,
 package info, font scans, and metadata version
@@ -1512,7 +1536,22 @@ events, and output ownership consistently. A stop result means confirmed
 termination only when it sets `stopped = true`; `stopped = false` or an
 `orphaned` result keeps failure visible instead of pretending cleanup succeeded.
 Retained orphans remain visible in reports/logs and keep leases guarded until a
-real late exit releases them or the user explicitly forces cleanup.
+real late exit releases them, `typst.reset({ force = true })` clears retained
+state, or the user explicitly discards external compiler state with
+`:TypstCompilerForceClear[!]`.
+Provider `on_finish()`-style callbacks are reserved for that real terminal exit;
+stop callbacks are the settlement point for unconfirmed retention.
+If an external compiler provider compile, watch, or stop request times out,
+typst.nvim treats the provider as an unconfirmed writer and keeps its handle plus
+output lease recorded. `:TypstCompilerForceClear[!] [project-key]` discards that
+retained provider handle and output lease after the project is marked
+`stopping_failed`; bang forces the discard even when that guard is not set. This
+does not prove the provider process stopped. `:TypstStatusAll!` shows encoded,
+command-safe `key_display` values for bufferless retained projects. Lua callers
+may pass raw `project.key`, encoded `key_display` with `key_encoded = true`, or a
+direct project object; command users should copy the encoded key from
+`:TypstStatusAll!`. Lua code that already has a project object should pass
+`project = project`, which is authoritative even when `key` is also present.
 
 `:TypstClean` removes temporary Typst artifacts for the current project.
 `:TypstClean!` also requests deletion of the resolved generated output file,
@@ -1693,7 +1732,48 @@ project. `:TypstLog`
 opens the structured in-memory log, including command, cwd, root, main, and
 output fields for compiler runs. `:TypstInfo` also shows viewer and preview
 backend details. `:TypstInfo` and health report status through the active
-compiler provider's `status(project)` method.
+compiler provider's `status(project)` method. If an external provider
+compile/watch/stop timeout leaves an active output lease visible,
+`:TypstCompilerForceClear[!] [project-key]` provides the explicit discard path.
+
+## Troubleshooting
+
+Start with `:checkhealth typst`, `:TypstInfo!`, `:TypstCompileOutput`, and
+`:TypstLog`. They show the resolved root/main/output, Tinymist ownership,
+active compiler/preview state, last command output, and lifecycle/provider
+errors.
+
+- Wrong file compiles: inspect `root_source` and `main_source` in
+  `:TypstInfo!`; use `:TypstSetMain`, `.typstmain`, or a setup `main` policy.
+- `:TypstWatch` runs but preview does not refresh: check watcher status,
+  `watch_unknown_status_lines`, output path, and preview backend in
+  `:TypstInfo!`; human `typst watch` output can change between Typst versions.
+- Watch reports success but no output appears: check
+  `compile.watch_output_wait_ms`, `output_dir`, `output_name`, and filesystem
+  permissions. Set `watch_output_wait_ms = 0` only when you want no delayed
+  output wait.
+- Compiler diagnostics disappeared after Tinymist attached: with
+  `diagnostics.source = "fallback"`, compiler diagnostics are suppressed when
+  Tinymist or another semantic provider owns diagnostics. Use `"always"` to
+  keep compiler diagnostics beside semantic diagnostics.
+- coc.nvim is active and native Tinymist did not start: configure
+  `coc-tinymist` through Coc settings, or set
+  `integrations.tinymist.lsp = "start"` if you intentionally want
+  typst.nvim to start a separate nvim-lsp Tinymist client.
+- Output path is already being written: another compile/watch/export still owns
+  the path. Stop it with `:TypstStop`/`:TypstStopAll`, inspect active leases in
+  `:TypstInfo!`, and use `:TypstCompilerForceClear[!]` only after handling the
+  external process yourself.
+- Preview stop is pending or failed: check `:TypstPreviewStatus` and
+  `:TypstLog`. Native preview and delegated providers have different stop
+  guarantees; pending provider stops are not treated as confirmed process exit.
+- Tree-sitter-backed features are missing or stale: run `:checkhealth typst`
+  and verify the Typst parser plus shipped queries load. Parser/query mismatch
+  affects rich conceal, folds, motions, text objects, and package syntax.
+- External provider timed out: typst.nvim keeps the provider state and output
+  lease because timeout is not proof that the process stopped. Clear it only
+  through `typst.reset({ force = true })` or
+  `:TypstCompilerForceClear[!] [project-key]`.
 
 ## Development
 
@@ -1717,7 +1797,7 @@ back to a different bundled version. This reset currently ships generated Typst
 The old `nvim-oxi` prototype is preserved in `experiments/nvim-oxi/`. It is not
 part of the plugin's main implementation.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for boundaries and roadmap.
+See [docs/architecture.md](docs/architecture.md) for boundaries and roadmap.
 See [docs/provider-contracts.md](docs/provider-contracts.md) for provider
 behavior, [API.md](API.md) for the public API surface, and
 [CREDITS.md](CREDITS.md) for ecosystem acknowledgements.

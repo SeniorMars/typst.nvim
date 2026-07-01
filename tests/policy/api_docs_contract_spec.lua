@@ -14,6 +14,8 @@ end
 
 local api_doc = read_doc("API.md")
 local help_doc = read_doc("doc/typst.txt")
+local readme_doc = read_doc("README.md")
+local provider_contracts_doc = read_doc("docs/provider-contracts.md")
 
 local function sorted_keys(set)
     local out = {}
@@ -79,6 +81,35 @@ assert_same_list(
 local public_symbols = {}
 for _, symbol in ipairs(typst.public_symbols()) do
     public_symbols[symbol] = true
+end
+
+for label, target in readme_doc:gmatch("%[([^%]]+)%]%(([^%)]+)%)") do
+    if
+        not target:match("^%a[%w+.-]*:")
+        and not target:match("^#")
+        and target:match("%.md$")
+    then
+        local normalized = target:gsub("#.*$", "")
+        assert(
+            vim.fn.filereadable(root .. "/" .. normalized) == 1,
+            ("README.md link %q points to missing file: %s"):format(
+                label,
+                target
+            )
+        )
+    end
+end
+
+for _, doc in ipairs({
+    { path = "README.md", content = readme_doc },
+    { path = "doc/typst.txt", content = help_doc },
+    { path = "docs/provider-contracts.md", content = provider_contracts_doc },
+}) do
+    assert(
+        not doc.content:find("integrations.tinymist.provider", 1, true),
+        doc.path
+            .. " should document integrations.tinymist.lsp, not a nonexistent provider key"
+    )
 end
 
 local function documented_api_examples(content)

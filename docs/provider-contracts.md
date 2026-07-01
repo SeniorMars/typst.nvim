@@ -83,8 +83,14 @@ The adapter enforces a single terminal result. Late duplicate callbacks after a
 timeout, cancellation, or earlier result are logged and ignored.
 
 When a timeout is configured, raw handles and pending tables are watchdog
-protected. A provider that never calls back receives a synthetic timeout result,
-and typst.nvim clears active lifecycle state through the normal terminal path.
+protected. A provider that never calls back receives a synthetic timeout result.
+For compiler-provider compile, watch/start, and stop paths, timeout means
+"unconfirmed writer": typst.nvim keeps the active provider handle and output
+lease recorded because the provider may still write its declared output.
+Recovery requires `typst.reset({ force = true })` or
+`:TypstCompilerForceClear[!] [project-key]`. Providers that can confirm shutdown
+should call back with `{ stopped = true }` or report `idle = true` before the
+timeout.
 
 ### Handle and Result Classification
 
@@ -257,9 +263,13 @@ output(project, run_config)
 ```
 
 `compile` is one-shot. `start` is watch mode. `stop` should eventually call back
-with `{ stopped = true }` or a failure result. `output` is called before compile
-or watch starts so events, leases, status, and `:TypstInfo` agree on the planned
-artifact path.
+with `{ stopped = true }` or a failure result. A timeout or `{ stopped = false }`
+does not release output ownership because the provider may still be writing.
+`:TypstCompilerForceClear[!] [project-key]` is the user-facing escape hatch for
+discarding that unconfirmed state; it releases typst.nvim's lease without
+asserting the provider stopped.
+`output` is called before compile or watch starts so events, leases, status, and
+`:TypstInfo` agree on the planned artifact path.
 
 Compile/watch providers must not write outside the output path they reported
 unless their own provider contract documents extra artifacts and ownership.

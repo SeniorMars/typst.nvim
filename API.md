@@ -51,13 +51,28 @@ provider contract docs. The broader fake-provider behavior matrix is
 `tests/run_provider_matrix.sh` and runs across Linux, macOS, and Windows in CI.
 
 Process-backed async calls return a pending result table with `cancel()`.
-Cancelling marks the result as `cancelled`, clears `pending`, shuts down the
-originating process tree, and ignores any later process-exit callbacks from that
-run. This applies to export, eval, template init, profile/test/bench/coverage,
-and rendered preview compiles. Compiler and watcher runs remain cancellable
-through `stop()` and `stop_all()`. Background probes that do not return a
-result table, such as Tinymist completion requests, package info, font scans,
-and metadata version detection, are cancelled by their reset/clear-cache paths.
+Cancelling marks the result as `cancelled` and shuts down the originating
+process tree. If shutdown cannot be confirmed, typst.nvim retains an orphaned
+operation and settles cancellation callbacks once, while `on_finish()` callbacks
+and cleanup wait for the real late process exit. Compiler and watcher runs
+remain cancellable through `stop()` and `stop_all()`. External compiler provider
+compile/watch/stop timeouts retain output leases until the provider confirms
+exit or the user explicitly discards the retained state with
+`compiler.force_clear({ key = project_key })` /
+`:TypstCompilerForceClear[!] [project-key]`. The Lua `compiler.force_clear`
+symbol is experimental while the command/result contract settles. Background
+probes that do not return a result table, such as Tinymist completion requests,
+package info, font scans, and metadata version detection, are cancelled by their
+reset/clear-cache paths.
+
+The Lua force-clear API accepts raw `project.key`, encoded `key_display` with
+`key_encoded = true`, or a direct `project` object. The command form should use
+the encoded `key_display` copied from `:TypstStatusAll!`, especially for
+bufferless retained projects whose raw key may contain spaces, newlines, or path
+separators. If Lua code is holding a project object, prefer `project = project`;
+it is authoritative even when `key` is also present. Without `key_encoded =
+true`, an ambiguous raw/encoded collision returns `ambiguous_project_key`
+instead of guessing.
 
 ## Source and Destination Windows
 
@@ -294,6 +309,7 @@ code and this document together when the public symbol surface changes.
 - `bibliography.rename_plan`
 - `bibliography.search`
 - `bibliography.status`
+- `compiler.force_clear`
 - `conceal.custom`
 - `conceal.disable`
 - `conceal.enable`
@@ -1293,6 +1309,7 @@ The public command surface is:
 - `:TypstWatch[!] [profile]`
 - `:TypstStop`
 - `:TypstStopAll`
+- `:TypstCompilerForceClear[!] [project-key]`
 - `:TypstStatus[!]`
 - `:TypstStatusAll[!]`
 - `:TypstCount[!]`
@@ -1446,6 +1463,7 @@ The plugin emits these public `User` events:
 - `TypstEventCompileSuccess`
 - `TypstEventCompileFailed`
 - `TypstEventCompileStopped`
+- `TypstEventCompilerForceCleared`
 - `TypstEventPreviewStarted`
 - `TypstEventPreviewForwarded`
 - `TypstEventPreviewInverse`
@@ -1468,6 +1486,7 @@ For compatibility, the plugin also emits the older event names:
 - `TypstCompileSuccess`
 - `TypstCompileFailed`
 - `TypstCompileStopped`
+- `TypstCompilerForceCleared`
 - `TypstDiagnosticsPublished`
 - `TypstDiagnosticsCleared`
 - `TypstViewOpened`
@@ -1491,6 +1510,10 @@ is the precise event for a buffer leaving a project. `TypstEventProjectDetach`
 remains a compatibility alias for that buffer-detach moment. `TypstEventProjectPruned`
 fires only when an empty project is removed from typst.nvim's registry and
 includes `event_kind`, `reason`, `remaining_buffers`, and `project_pruned`.
+`TypstEventCompilerForceCleared` includes `key_display`, `output`,
+`released_lease`, `stopped`, `forced`, `discarded`, `reason`, and
+`lease_owner`. `forced` is true only when bang/`force = true` bypassed the
+`stopping_failed` guard.
 Diagnostic events include
 `diagnostics_count` and `diagnostic_buffers`. View events include
 `viewer_provider`, `viewer_backend`, and may include `viewer_command` and

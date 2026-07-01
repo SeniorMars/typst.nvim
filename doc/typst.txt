@@ -692,6 +692,16 @@ Command groups:
     Stop active one-shot compiles and watchers for all registered Typst
     projects. Idle projects are counted as no-ops.
 
+                                                        *:TypstCompilerForceClear*
+:TypstCompilerForceClear[!] [project-key]
+    Discard unconfirmed external compiler provider state after a compile, watch,
+    or stop timeout. The non-bang form only clears when the project compiler
+    status is `stopping_failed`. Bang forces the discard. This releases
+    typst.nvim's output lease and clears the retained provider handle without
+    proving the external process has stopped. Pass the encoded project key shown
+    by |:TypstStatusAll!| when the retained project no longer has an attached
+    buffer.
+
                                                         *:TypstStatus*
 :TypstStatus[!]
     Echo the compact current-project status. With bang, echo the compact
@@ -980,7 +990,9 @@ Command groups:
 :TypstPreviewStop
     Stop the active preview through `preview.stop` when configured, clear an
     active native browser preview session, or delegate to typst-preview.nvim
-    when `preview.provider = "typst-preview.nvim"`.
+    when `preview.provider = "typst-preview.nvim"`. During VimLeavePre,
+    pending stop results are recorded as unconfirmed instead of clearing active
+    preview state.
 
                                                         *:TypstPreviewToggle*
 :TypstPreviewToggle [document|slide]
@@ -2851,7 +2863,8 @@ non-stale results update `project.services.compiler.last_result`, status,
 events, and output ownership consistently. `stopped = true` means confirmed
 termination; `stopped = false` or `orphaned = true` keeps failed cleanup
 visible. Retained orphans remain visible in reports/logs and keep leases guarded
-until a real late exit releases them or the user explicitly forces cleanup.
+until a real late exit releases them or the user runs an explicit reset/cleanup
+path.
 
 `viewer.provider` chooses the output viewer preset. The default `"generic"`
 uses `viewer.open` when configured and otherwise falls back to `vim.ui.open`.
@@ -3094,18 +3107,59 @@ viewer provider in |:TypstInfo|. With custom compiler providers, ensure the
 provider's `output(project, run_config)` path matches the file the command
 actually writes.
 
+If |:TypstWatch| appears to run but preview does not refresh, inspect watcher
+status, `watch_unknown_status_lines`, active output, and preview backend in
+`:TypstInfo!`. Human `typst watch` output is parsed as a compatibility path and
+can change between Typst versions; structured provider/watch output is more
+stable when a provider supports it.
+
+If Typst watch reports success but no output appears, check
+`compile.watch_output_wait_ms`, `output_dir`, `output_name`, and filesystem
+permissions. `compile.watch_output_wait_ms = 0` disables the delayed output
+wait, which is useful for strict tests but can expose slow filesystem races.
+
+If a custom compiler provider timed out while compiling, watching, or stopping,
+|:TypstInfo| and health continue to show the active output lease. Use
+|:TypstCompilerForceClear| only after you have handled the external process
+yourself or accept that it may still be running.
+
 If diagnostics appear twice, check `diagnostics.source`. The default
 `"fallback"` publishes compiler diagnostics only when Tinymist is not attached
 to the project through Neovim's built-in LSP client and coc.nvim does not appear
 to own the Typst LSP session.
 
+If compiler diagnostics disappear after Tinymist attaches, the same
+`diagnostics.source = "fallback"` policy is usually the reason. Use
+`diagnostics.source = "always"` when you intentionally want typst.nvim compiler
+diagnostics beside Tinymist or another semantic provider.
+
+If coc.nvim is active and native Tinymist did not start, configure
+`coc-tinymist` through Coc settings such as `tinymist.serverPath` and
+`tinymist.serverArgs`. Set `integrations.tinymist.lsp = "start"` only when
+you intentionally want typst.nvim to start a separate nvim-lsp Tinymist client.
+
+If an output path is already being written, another compile, watch, export, or
+external provider still owns its lease. Use |:TypstStop| or |:TypstStopAll|,
+inspect active leases in `:TypstInfo!`, and use |:TypstCompilerForceClear| only
+after handling the external process yourself.
+
 If motions, text objects, folds, indentation, package syntax, or conceal are
 missing, check that the Typst Tree-sitter parser and shipped queries load in
 `:checkhealth typst`.
 
+If Tree-sitter-backed features are stale after parser/query changes, run
+|:TypstReloadState| or |:TypstClearCache| after confirming health. Rich conceal,
+folds, motions, text objects, raw-code injections, and package syntax all depend
+on a compatible parser/query pair.
+
 If browser preview opens but source sync does not work, check the preview
 backend capabilities. PDF viewing, browser preview, forward search, and inverse
 search are separate capabilities in Typst workflows.
+
+If preview stop is pending or failed, check |:TypstPreviewStatus| and
+|:TypstLog|. Native preview, typst-preview.nvim delegation, and custom callback
+providers have different stop guarantees; a pending provider stop is not treated
+as confirmed process exit until the provider reports a terminal result.
 
 If cached project data looks stale, run |:TypstReloadState| to re-resolve the
 current buffer or |:TypstClearCache| to clear generated metadata selection,
@@ -3299,13 +3353,15 @@ outside the stable compatibility contract for now.
 
 Process-backed async calls such as export, eval, template init,
 profile/test/bench/coverage, and rendered preview compiles return a pending
-result table with `cancel()`. Cancellation marks the result as cancelled,
-stops the originating process tree, and ignores late process-exit callbacks.
+result table with `cancel()`. Cancellation marks the result as cancelled and
+stops the originating process tree.
 If graceful and forceful shutdown cannot prove the process exited, the
 operation first becomes `orphaned-running`, then `orphaned-retained` after
-bounded stop attempts so normal active-operation waits can continue. A later
-real exit reports `was_orphaned = true` and `exited_after_orphan = true`
-without synthesizing `stopped = true`.
+bounded stop attempts so normal active-operation waits can continue.
+Cancellation callbacks receive that unconfirmed result once. `on_finish()`
+callbacks, final cleanup, and lease release still wait for a later real exit,
+which reports `was_orphaned = true` and `exited_after_orphan = true` without
+synthesizing `stopped = true`.
 Compiler/watch runs are cancelled with `stop()` and `stop_all()`. Reset and
 clear-cache paths cancel pending background probes such as Tinymist completion,
 package info, font scans, and metadata version detection.
@@ -3375,6 +3431,7 @@ The plugin emits these public `User` events:
 - `TypstEventCompileSuccess`
 - `TypstEventCompileFailed`
 - `TypstEventCompileStopped`
+- `TypstEventCompilerForceCleared`
 - `TypstEventPreviewStarted`
 - `TypstEventPreviewForwarded`
 - `TypstEventPreviewInverse`
@@ -3407,6 +3464,7 @@ The older event names remain emitted for compatibility:
 - `TypstCompileSuccess`
 - `TypstCompileFailed`
 - `TypstCompileStopped`
+- `TypstCompilerForceCleared`
 - `TypstDiagnosticsPublished`
 - `TypstDiagnosticsCleared`
 - `TypstViewOpened`
@@ -3428,6 +3486,10 @@ Project attach events add `event_kind`, `bufnr`, `buffer`, `reason`, and
 `remaining_buffers`. Buffer detach events add those same fields plus
 `project_pruned`. `TypstEventProjectPruned` includes `event_kind`, `reason`,
 `remaining_buffers`, and `project_pruned`.
+`TypstEventCompilerForceCleared` includes `key_display`, `output`,
+`released_lease`, `stopped`, `forced`, `discarded`, `reason`, and
+`lease_owner`. `forced` is true only when bang/`force = true` bypassed the
+`stopping_failed` guard.
 `TypstDiagnosticsPublished` and `TypstDiagnosticsCleared` include
 `diagnostics_count` and `diagnostic_buffers`.
 `TypstViewOpened` also includes `viewer_provider`, `viewer_backend`, and may
