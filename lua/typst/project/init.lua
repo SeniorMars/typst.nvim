@@ -3,11 +3,11 @@ local context = require("typst.project.context")
 local log = require("typst.core.log")
 local dependencies = require("typst.project.dependencies")
 local diagnostics = require("typst.diagnostics")
-local graph_match = require("typst.project.graph_match")
 local index_cache = require("typst.project.index_cache")
 local graph_sources = require("typst.project.graph.sources")
-local main_file = require("typst.project.main_file")
 local project_model = require("typst.project.model")
+local project_registry = require("typst.project.registry")
+local project_resolver = require("typst.project.resolver")
 local project_services = require("typst.project.services")
 local compiler_service = require("typst.project.services.compiler")
 local root_discovery = require("typst.project.root")
@@ -22,13 +22,10 @@ local M = {}
 -- contain multiple documents, and a single Neovim session can edit several of
 -- them at once. Buffer membership is tracked separately so moving a buffer to a
 -- new main can detach diagnostics and compiler state from the old project.
-local registry = {}
-local buffer_projects = {}
 
 local project_key = project_model.project_key
 local normalize_bufnr = project_model.normalize_bufnr
 local current_buffer_path = project_model.current_buffer_path
-local scratch_buffer_path = project_model.scratch_buffer_path
 local rebuild_files = project_model.rebuild_files
 
 ---@param project TypstProject Project whose buffer resolution is recorded.
@@ -60,7 +57,7 @@ local function prune_if_empty(state, reason)
         return false
     end
 
-    registry[state.key] = nil
+    project_registry.remove(state.key)
     index_cache.reset(state)
     state._typst_project_pruned = true
     state._typst_project_pruned_reason = reason
@@ -94,12 +91,12 @@ local function emit_project_pruned(state, reason)
 end
 
 local function transfer_buffer(bufnr, next_key)
-    local previous_key = buffer_projects[bufnr]
+    local previous_key = project_registry.key_for_buffer(bufnr)
     if previous_key == nil or previous_key == next_key then
         return
     end
 
-    local previous = registry[previous_key]
+    local previous = project_registry.get(previous_key)
     if previous then
         previous.bufs[bufnr] = nil
         diagnostics.clear_buffer(previous, bufnr, { emit = false })
@@ -122,11 +119,11 @@ end
 ---@return TypstProject project Attached project state.
 local function create_or_update(root, main, bufnr, path, resolution)
     local key = project_key(root, main)
-    local project = registry[key]
+    local project = project_registry.get(key)
 
     if not project then
         project = project_model.new_project(root, main, key)
-        registry[key] = project
+        project_registry.set(key, project)
         log.add("info", "created project", { root = root, main = main })
     end
 
@@ -155,7 +152,7 @@ local function create_or_update(root, main, bufnr, path, resolution)
             output = project_model.output_path(project),
         })
     end
-    buffer_projects[bufnr] = key
+    project_registry.set_buffer(bufnr, key)
     record_resolution(project, bufnr, path, resolution)
     return project
 end
@@ -165,127 +162,7 @@ end
 ---@param resolve_opts? table Resolution controls such as ignored previous project key.
 ---@return table candidate Attachment candidate with root, main, path, and resolution metadata.
 function M.resolve_candidate(bufnr, resolve_opts)
-    bufnr = normalize_bufnr(bufnr)
-    resolve_opts = resolve_opts or {}
-    local path = current_buffer_path(bufnr)
-    local scratch = false
-    if not path then
-        path = scratch_buffer_path(bufnr)
-        scratch = true
-    end
-
-    local opts = config.unsafe_get()
-    local root, root_source = root_discovery.detect(path, bufnr, opts)
-    if scratch and root_source == "buffer directory" then
-        root, root_source =
-            util.normalize(vim.fn.getcwd()), "unnamed buffer cwd"
-    end
-    local main, main_source = main_file.buffer_main(bufnr, root)
-    main, main_source =
-        main_file.discard_unreadable(bufnr, path, main, main_source)
-
-    -- Main-file resolution is ordered from explicit user intent to heuristics.
-    -- Scratch buffers skip persisted and filesystem scans because they have no
-    -- stable path to use as a persistence key or import target.
-    if not scratch and not main then
-        main, main_source = main_file.persisted(path, opts)
-        main, main_source =
-            main_file.discard_unreadable(bufnr, path, main, main_source)
-        root, root_source = root_discovery.reconcile_for_main(
-            root,
-            root_source,
-            path,
-            main,
-            main_source
-        )
-    end
-
-    if not scratch and not main then
-        main, main_source = main_file.directive(path, bufnr)
-        main, main_source =
-            main_file.discard_unreadable(bufnr, path, main, main_source)
-        root, root_source = root_discovery.reconcile_for_main(
-            root,
-            root_source,
-            path,
-            main,
-            main_source
-        )
-    end
-
-    if not main then
-        main, main_source = main_file.configured(path, bufnr, root, opts)
-        main, main_source =
-            main_file.discard_unreadable(bufnr, path, main, main_source)
-    end
-
-    if not scratch and not main then
-        local project_root, project_root_source
-        main, main_source, project_root, project_root_source =
-            main_file.project_file(path)
-        main, main_source =
-            main_file.discard_unreadable(bufnr, path, main, main_source)
-        if main and root_source == "buffer directory" then
-            root, root_source = project_root, project_root_source
-        end
-    end
-
-    if not scratch and not main then
-        local existing, ambiguous, graph_source =
-            graph_match.existing_project_for(
-                registry,
-                path,
-                resolve_opts.ignore_project_key
-            )
-        if existing then
-            return {
-                bufnr = bufnr,
-                path = path,
-                root = existing.root,
-                main = existing.main,
-                previous_key = buffer_projects[bufnr],
-                resolution = {
-                    root_source = "existing project",
-                    main_source = "existing project graph",
-                    graph_source = graph_source or "unknown",
-                },
-            }
-        elseif ambiguous then
-            log.add(
-                "info",
-                "project graph attachment was ambiguous; continuing resolver fallbacks",
-                { path = path }
-            )
-        end
-    end
-
-    if not scratch and not main then
-        local scan_root, scan_root_source
-        main, main_source, scan_root, scan_root_source =
-            root_discovery.import_scan_main(path, root, root_source, opts)
-        if main then
-            root, root_source = scan_root, scan_root_source
-        end
-    end
-
-    if scratch and not main then
-        main, main_source = path, "unnamed buffer"
-    elseif not main then
-        main, main_source = main_file.heuristic(path, root)
-    end
-
-    return {
-        bufnr = bufnr,
-        path = path,
-        root = root,
-        main = main,
-        previous_key = buffer_projects[bufnr],
-        resolution = {
-            root_source = root_source,
-            main_source = main_source,
-            scratch = scratch,
-        },
-    }
+    return project_resolver.resolve_candidate(bufnr, resolve_opts)
 end
 
 --- Commit a resolved attachment candidate into the project registry.
@@ -326,8 +203,7 @@ end
 ---@return TypstProject|nil state Attached project state, if any.
 function M.get(bufnr)
     bufnr = normalize_bufnr(bufnr)
-    local key = buffer_projects[bufnr]
-    return key and registry[key] or nil
+    return project_registry.project_for_buffer(bufnr)
 end
 
 --- Check whether a buffer's attached main file is no longer readable.
@@ -358,13 +234,13 @@ end
 ---@return TypstProject|nil state Project state the buffer belonged to before detach.
 function M.detach(bufnr)
     bufnr = normalize_bufnr(bufnr)
-    local key = buffer_projects[bufnr]
+    local key = project_registry.key_for_buffer(bufnr)
     if not key then
         return nil
     end
 
-    local state = registry[key]
-    buffer_projects[bufnr] = nil
+    local state = project_registry.get(key)
+    project_registry.clear_buffer(bufnr)
 
     if state then
         state.bufs[bufnr] = nil
@@ -414,13 +290,13 @@ function M.clear_main(bufnr, opts)
         error("typst.nvim: current buffer has no file name")
     end
 
-    local previous_key = buffer_projects[bufnr]
-    local previous = previous_key and registry[previous_key] or nil
+    local previous_key = project_registry.key_for_buffer(bufnr)
+    local previous = previous_key and project_registry.get(previous_key) or nil
     if previous then
         previous.bufs[bufnr] = nil
         diagnostics.clear_buffer(previous, bufnr, { emit = false })
         previous.resolutions[bufnr] = nil
-        buffer_projects[bufnr] = nil
+        project_registry.clear_buffer(bufnr)
         rebuild_files(previous)
         prune_if_empty(previous, "buffer main cleared")
     end
@@ -445,7 +321,7 @@ end
 --- Return the live project registry.
 ---@return table<string, TypstProject> registry Project registry keyed by project key.
 function M.all()
-    return registry
+    return project_registry.all()
 end
 
 --- Return a public snapshot for one project or buffer.
@@ -464,7 +340,7 @@ end
 ---@param opts? table Snapshot options.
 ---@return table[] snapshots Project snapshots.
 function M.all_snapshots(opts)
-    return context.list(registry, opts)
+    return context.list(project_registry.all(), opts)
 end
 
 --- Prune a project if it no longer owns buffers or active resources.
@@ -473,7 +349,7 @@ end
 ---@return boolean? pruned True when the project was removed.
 function M.prune(state, reason)
     if type(state) == "string" then
-        state = registry[state]
+        state = project_registry.get(state)
     end
 
     local pruned = prune_if_empty(state, reason or "manual prune")
@@ -500,8 +376,7 @@ end
 
 --- Clear all project registry state.
 function M.reset()
-    registry = {}
-    buffer_projects = {}
+    project_registry.reset()
 end
 
 return M

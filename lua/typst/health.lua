@@ -13,6 +13,7 @@ local artifacts_service = require("typst.project.services.artifacts")
 local compiler_service = require("typst.project.services.compiler")
 local index_service = require("typst.project.services.index")
 local preview_service = require("typst.project.services.preview")
+local output_ownership = require("typst.resources.outputs")
 local util = require("typst.core.util")
 local viewer = require("typst.viewer")
 
@@ -416,6 +417,17 @@ local function project_status_line(state)
             index_stats.bibliography_misses or 0
         ),
     }
+
+    local lease_count = #output_ownership.snapshot(state)
+    if lease_count > 0 then
+        fields[#fields + 1] = ("active_leases=%d"):format(lease_count)
+    end
+
+    local operations_state = state.services and state.services.operations or {}
+    local retained_count = vim.tbl_count(operations_state.retained_by_id or {})
+    if retained_count > 0 then
+        fields[#fields + 1] = ("retained_orphans=%d"):format(retained_count)
+    end
 
     if compiler_state.last_profile then
         fields[#fields + 1] = ("profile=%s"):format(compiler_state.last_profile)

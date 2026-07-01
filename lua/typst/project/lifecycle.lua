@@ -23,9 +23,44 @@ local function attach_impl(api, bufnr)
             and previous.resolutions
             and vim.deepcopy(previous.resolutions[bufnr])
         or nil
+    local resolve_started = telemetry.start()
     local ok, candidate = pcall(project.resolve_candidate, bufnr)
+    telemetry.finish("project.resolve", resolve_started, {
+        ok = ok,
+        bufnr = bufnr,
+        previous_key = previous and previous.key or nil,
+        root_source = ok
+                and candidate
+                and candidate.resolution
+                and candidate.resolution.root_source
+            or nil,
+        main_source = ok
+                and candidate
+                and candidate.resolution
+                and candidate.resolution.main_source
+            or nil,
+        scratch = ok
+                and candidate
+                and candidate.resolution
+                and candidate.resolution.scratch
+            or nil,
+    })
     if ok then
+        local commit_started = telemetry.start()
         local commit_ok, state = pcall(project.commit_attach, candidate)
+        telemetry.finish("project.commit_attach", commit_started, {
+            ok = commit_ok,
+            bufnr = bufnr,
+            project_key = commit_ok and state and state.key or nil,
+            root_source = candidate
+                    and candidate.resolution
+                    and candidate.resolution.root_source
+                or nil,
+            main_source = candidate
+                    and candidate.resolution
+                    and candidate.resolution.main_source
+                or nil,
+        })
         if not commit_ok then
             core_lifecycle.clear_buffer(bufnr)
             log.add("warn", "failed to commit Typst project attachment", {
@@ -35,8 +70,14 @@ local function attach_impl(api, bufnr)
             return nil
         end
 
+        local install_started = telemetry.start()
         local install_ok, install_err =
             pcall(lifecycle_buffers.install, api, bufnr)
+        telemetry.finish("project.attach_buffers", install_started, {
+            ok = install_ok,
+            bufnr = bufnr,
+            project_key = state.key,
+        })
         if not install_ok then
             project.detach(bufnr)
             core_lifecycle.clear_buffer(bufnr)
@@ -74,9 +115,20 @@ end
 ---@param bufnr? integer Buffer to attach.
 ---@return table|nil state Attached project state.
 function M.attach(api, bufnr)
-    return telemetry.time("project.attach", function()
-        return attach_impl(api, bufnr)
-    end)
+    bufnr = normalize_bufnr(bufnr)
+    local started = telemetry.start()
+    local state = attach_impl(api, bufnr)
+    local resolution = state and state.resolutions and state.resolutions[bufnr]
+        or nil
+    telemetry.finish("project.attach", started, {
+        ok = state ~= nil,
+        bufnr = bufnr,
+        project_key = state and state.key or nil,
+        root_source = resolution and resolution.root_source or nil,
+        main_source = resolution and resolution.main_source or nil,
+        scratch = resolution and resolution.scratch or nil,
+    })
+    return state
 end
 
 --- Detach a Typst buffer and emit lifecycle cleanup/events.

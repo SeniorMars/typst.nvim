@@ -378,6 +378,7 @@ run_case("compiler provider state", function()
             and item.message:find("cwd=" .. root, 1, true)
             and item.message:find("command=health-provider watch", 1, true)
             and item.message:find("watcher_pid=4242", 1, true)
+            and item.message:find("active_leases=1", 1, true)
             and item.message:find("root_source=config.root", 1, true)
             and item.message:find(
                 "main_source=buffer variable vim.b.typst_main",

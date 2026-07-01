@@ -1,6 +1,8 @@
 local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
+local output_ownership = require("typst.resources.outputs")
+local operations = require("typst.project.services.operations")
 local typst = require("typst")
 typst.reset()
 typst.setup({
@@ -99,5 +101,41 @@ assert(
     text:find("compiler diagnostics:%s+fallback active"),
     "TypstInfo should explain active fallback diagnostics when Tinymist is absent"
 )
+
+local lease = assert(
+    output_ownership.acquire(
+        typst_test_cache_path("info-output/held.pdf"),
+        output_ownership.owner("info-test", project)
+    )
+)
+local record = assert(operations.begin(project, "export"))
+operations.retain(project, record, { orphaned = true, reason = "test" })
+
+captured = {}
+vim.api.nvim_echo = function(chunks)
+    for _, chunk in ipairs(chunks) do
+        captured[#captured + 1] = chunk[1]
+    end
+end
+
+ok, err = pcall(function()
+    typst.ui.info()
+end)
+
+vim.api.nvim_echo = original_echo
+assert(ok, err)
+
+text = table.concat(captured, "\n")
+assert(
+    text:find("active output leases:%s+1"),
+    "TypstInfo should show active output leases"
+)
+assert(
+    text:find("retained orphan operations:%s+1"),
+    "TypstInfo should show retained orphan operations"
+)
+
+output_ownership.release(lease)
+operations.clear(project, record)
 
 vim.cmd("qa!")

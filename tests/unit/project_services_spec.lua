@@ -44,6 +44,7 @@ local provider = {
 
 local typst = require("typst")
 local project_services = require("typst.project.services")
+local telemetry = require("typst.core.telemetry")
 typst.reset()
 typst.setup({
     root = root,
@@ -55,7 +56,30 @@ typst.setup({
 
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
-local project = typst.project.set_main(main)
+telemetry.reset()
+local project =
+    assert(typst.project.attach(0), "project service fixture attaches")
+local telemetry_snapshot = telemetry.snapshot()
+assert(
+    telemetry_snapshot["project.resolve"],
+    "project attach should record resolution telemetry"
+)
+assert(
+    telemetry_snapshot["project.commit_attach"],
+    "project attach should record commit telemetry"
+)
+assert(
+    telemetry_snapshot["project.attach"],
+    "project attach should record overall attach telemetry"
+)
+assert(
+    telemetry_snapshot["project.attach"].last_fields.main_source,
+    "project attach telemetry should include main resolution source"
+)
+assert(
+    telemetry_snapshot["project.attach"].last_fields.root_source,
+    "project attach telemetry should include root resolution source"
+)
 local project_context = require("typst.project.context")
 local project_registry = require("typst.project")
 assert(

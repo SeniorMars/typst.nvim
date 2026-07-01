@@ -4,7 +4,7 @@ local events = require("typst.core.events")
 local log = require("typst.core.log")
 local operation = require("typst.core.operation")
 local output_policy = require("typst.core.output_policy")
-local path_leases = require("typst.core.path_leases")
+local output_ownership = require("typst.resources.outputs")
 local providers = require("typst.integrations.providers")
 local graph_service = require("typst.project.services.graph")
 local index_service = require("typst.project.services.index")
@@ -528,7 +528,7 @@ local function render_source(project, kind, source, opts, callback, notify)
 
     -- Reserve output before writing the temporary source so compile/export/watch
     -- jobs cannot target the same preview file while this render is pending.
-    local lease, lease_err = path_leases.acquire(path, {
+    local lease, lease_err = output_ownership.acquire(path, {
         kind = "render-" .. kind,
         project_key = project.key,
         main = project.main,
@@ -547,9 +547,9 @@ local function render_source(project, kind, source, opts, callback, notify)
         }
     end
 
-    local parent_ok, parent_err = util.ensure_parent(path)
+    local parent_ok, parent_err = output_ownership.ensure_parent(path)
     if not parent_ok then
-        path_leases.release(lease)
+        output_ownership.release(lease)
         rollback_render_generation(project, kind, generation)
         return {
             ok = false,
@@ -563,7 +563,7 @@ local function render_source(project, kind, source, opts, callback, notify)
     local source_mode, source_reason, source_message =
         generated_source_mode(project, source_path, stdin_source)
     if not source_mode then
-        path_leases.release(lease)
+        output_ownership.release(lease)
         rollback_render_generation(project, kind, generation)
         return {
             ok = false,
@@ -577,7 +577,7 @@ local function render_source(project, kind, source, opts, callback, notify)
     if source_mode ~= "stdin" or not stdin_source then
         local ok, err = write_source(source_path, source)
         if not ok then
-            path_leases.release(lease)
+            output_ownership.release(lease)
             rollback_render_generation(project, kind, generation)
             return {
                 ok = false,
@@ -608,7 +608,7 @@ local function render_source(project, kind, source, opts, callback, notify)
         stdin = opts.stdin_source and source or nil,
     }, {
         cleanup = function()
-            path_leases.release(lease)
+            output_ownership.release(lease)
         end,
         on_finish = function(exit)
             if async.cancelled(result) then
@@ -831,7 +831,7 @@ function M.page(project, opts, callback, notify)
         return render_display.display(hit, opts, notify)
     end
 
-    local lease, lease_err = path_leases.acquire(path, {
+    local lease, lease_err = output_ownership.acquire(path, {
         kind = "render-page",
         project_key = project.key,
         main = project.main,
@@ -849,9 +849,9 @@ function M.page(project, opts, callback, notify)
             path = path,
         }
     end
-    local parent_ok, parent_err = util.ensure_parent(path)
+    local parent_ok, parent_err = output_ownership.ensure_parent(path)
     if not parent_ok then
-        path_leases.release(lease)
+        output_ownership.release(lease)
         rollback_render_generation(project, "page", generation)
         return {
             ok = false,
@@ -880,7 +880,7 @@ function M.page(project, opts, callback, notify)
         detach = false,
     }, {
         cleanup = function()
-            path_leases.release(lease)
+            output_ownership.release(lease)
         end,
         on_finish = function(exit)
             if async.cancelled(result) then

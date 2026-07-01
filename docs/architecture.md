@@ -5,10 +5,517 @@ project, compiler, preview, diagnostics, completion, conceal, and provider
 features grow. Public API details live in `API.md` and
 `docs/provider-contracts.md`; this file is about ownership and lifecycle rules.
 
+## Workflow-First Target Layout
+
+The long-term layout should make typst.nvim read like a Typst workflow
+environment, not a bag of feature files. The important questions are:
+
+1. Who owns project identity?
+2. Who owns live resources?
+3. Who owns generated outputs?
+4. Who owns compiler/watch lifecycle?
+5. Who publishes diagnostics?
+6. Which modules are public API versus internal implementation?
+
+The target top level is:
+
+```text
+lua/typst/
+  api/             Stable Lua facade and API spec.
+  runtime/         Setup, reset, autocmds, command registration, health.
+  config/          Defaults, validation, profiles, schema/docs generation.
+  core/            Pure primitives: result, process, operation, path, events, cache.
+  project/         Root/main resolution, registry, lifecycle, services, index.
+  resources/       Project resource/session ownership, output leases, cleanup.
+  compiler/        Compile/watch controller, providers, Typst CLI backend, watch parser.
+  diagnostics/     Policy, parser, publisher, quickfix/location list.
+  viewer/          Output viewers and source-sync capabilities.
+  preview/         Native/custom/delegated preview sessions and source sync.
+  navigation/      TOC, gf/follow, labels, citations, symbols, pickers.
+  editor/          Motions, text objects, transforms, folds, indent, formatexpr.
+  completion/      Completion sources and frontends.
+  conceal/         Conceal matching, rendering, custom rules, inspection.
+  bibliography/    BibTeX/Hayagriva parsing, diagnostics, citation workflows.
+  metadata/        Generated Typst metadata, package/font/style data.
+  workflows/       Export, render, eval, template, clean, lint, format, dev tasks.
+  integrations/    Tinymist, provider adapter, picker adapters, external plugins.
+  ui/              Commands, reports, status, notifications.
+  internal/        Debugging, invariant checks, compatibility helpers.
+```
+
+The ideal expanded target is:
+
+```text
+lua/typst/
+  init.lua
+
+  api/
+    init.lua
+    spec.lua
+    exports.lua
+    runtime.lua
+    contract.lua
+
+  runtime/
+    setup.lua
+    reset.lua
+    autocmds.lua
+    commands.lua
+    health.lua
+    ftplugin.lua
+    state.lua
+
+  config/
+    init.lua
+    defaults.lua
+    validate.lua
+    schema.lua
+    profiles.lua
+    docs.lua
+
+  core/
+    result.lua
+    async.lua
+    pending.lua
+    operation.lua
+    process.lua
+    path.lua
+    buffer.lua
+    files.lua
+    cache.lua
+    scan_cache.lua
+    cache_registry.lua
+    events.lua
+    log.lua
+    telemetry.lua
+    coordinates.lua
+    lsp_request.lua
+    tables.lua
+    text.lua
+    xdg.lua
+
+  project/
+    init.lua
+    registry.lua
+    resolver.lua
+    model.lua
+    lifecycle.lua
+    context.lua
+    root.lua
+    main_file.lua
+    dependencies.lua
+    graph/
+      init.lua
+      sources.lua
+      match.lua
+      dependencies.lua
+    index/
+      init.lua
+      collector.lua
+      cache.lua
+      parser.lua
+      files.lua
+      invalidation.lua
+    services/
+      init.lua
+      compiler.lua
+      preview.lua
+      viewer.lua
+      diagnostics.lua
+      artifacts.lua
+      operations.lua
+      graph.lua
+      index.lua
+      invalidation.lua
+
+  resources/
+    session.lua
+    outputs.lua
+    cleanup.lua
+    operations.lua
+    leases.lua
+    retained.lua
+
+  compiler/
+    init.lua
+    api.lua
+    controller.lua
+    result.lua
+    provider.lua
+    provider_binding.lua
+    cli/
+      init.lua
+      command.lua
+      compile.lua
+      watch.lua
+      process.lua
+      dependencies.lua
+      output_path.lua
+    watch/
+      runner.lua
+      state.lua
+      parser.lua
+      output.lua
+      fixtures.lua
+    generic.lua
+    lifecycle.lua
+    events.lua
+
+  diagnostics/
+    init.lua
+    policy.lua
+    parser.lua
+    publisher.lua
+    quickfix.lua
+    count.lua
+
+  preview/
+    init.lua
+    controller.lua
+    native/
+      init.lua
+      browser.lua
+      server.lua
+      session.lua
+      transport.lua
+    provider.lua
+    typst_preview_nvim.lua
+    source_sync.lua
+    events.lua
+    capabilities.lua
+
+  viewer/
+    init.lua
+    controller.lua
+    provider.lua
+    commands.lua
+    source_sync.lua
+    capabilities.lua
+    backends/
+      generic.lua
+      zathura.lua
+      sioyek.lua
+      skim.lua
+      sumatra.lua
+
+  navigation/
+    init.lua
+    toc/
+      init.lua
+      collect.lua
+      state.lua
+      window.lua
+      quickfix.lua
+      layers.lua
+    follow/
+      init.lua
+      import.lua
+      path.lua
+      package.lua
+      label.lua
+      citation.lua
+      definition.lua
+      url.lua
+    picker/
+      init.lua
+      providers.lua
+      items.lua
+    symbols.lua
+    labels.lua
+    citations.lua
+    references.lua
+    links.lua
+
+  editor/
+    init.lua
+    treesitter.lua
+    context.lua
+    motions/
+    textobjects/
+    folds.lua
+    indent.lua
+    imaps.lua
+    match_highlight.lua
+    format_expr.lua
+    surround.lua
+    transforms/
+      markup.lua
+      raw.lua
+      math.lua
+      list.lua
+      function.lua
+      label.lua
+      reference.lua
+
+  completion/
+    init.lua
+    context.lua
+    sources/
+      lsp.lua
+      stdlib.lua
+      project.lua
+      packages.lua
+      paths.lua
+      bibliography.lua
+      labels.lua
+      citations.lua
+      fonts.lua
+      colors.lua
+      raw.lua
+      csl.lua
+      parameters.lua
+    frontends/
+      omnifunc.lua
+      native.lua
+      cmp.lua
+      blink.lua
+    cache.lua
+
+  conceal/
+    init.lua
+    controller.lua
+    matches.lua
+    render.lua
+    match_query.lua
+    rules.lua
+    lookup.lua
+    shadows.lua
+    syntax.lua
+    symbols.lua
+    math.lua
+    emoji.lua
+    custom.lua
+    inspect.lua
+
+  bibliography/
+    init.lua
+    parser.lua
+    bibtex.lua
+    hayagriva.lua
+    diagnostics.lua
+    edit.lua
+    workflow.lua
+    attachments.lua
+
+  metadata/
+    init.lua
+    symbols.lua
+    packages.lua
+    fonts.lua
+    csl.lua
+    raw_languages.lua
+    cache.lua
+
+  workflows/
+    artifacts.lua
+    export.lua
+    render.lua
+    eval.lua
+    template.lua
+    clean.lua
+    lint.lua
+    format.lua
+    grammar.lua
+    development.lua
+
+  integrations/
+    providers.lua
+    provider_adapter.lua
+    semantic_provider.lua
+    tinymist/
+      init.lua
+      clients.lua
+      requests.lua
+      commands.lua
+      features.lua
+      code_actions.lua
+      symbols.lua
+    coc.lua
+    treesitter.lua
+    telescope.lua
+    fzf_lua.lua
+    snacks.lua
+
+  ui/
+    commands/
+      init.lua
+      compiler.lua
+      project.lua
+      preview.lua
+      viewer.lua
+      navigation.lua
+      editing.lua
+      tools.lua
+      complete.lua
+      util.lua
+    reports.lua
+    status.lua
+    log.lua
+    notify.lua
+    select.lua
+
+  internal/
+    debug.lua
+    compat.lua
+    invariants.lua
+```
+
+This is a target, not a mandate for a single PR. Move ownership first and files
+second. A file move is acceptable only after tests pin the boundary it
+represents.
+
+## Top-Level Mental Model
+
+When a maintainer opens `lua/typst/`, the directories should communicate the
+product workflow and ownership model:
+
+```text
+api          public Lua surface
+runtime      setup/reset/autocmd/commands/health
+config       configuration
+core         reusable primitives
+project      root/main/project identity
+resources    live resources and cleanup
+compiler     compile/watch
+diagnostics  diagnostic parsing/publishing
+viewer       open generated output
+preview      live preview sessions
+navigation   toc/gf/pickers/labels/citations
+editor       motions/textobjects/format/folds/indent
+completion   completion sources/frontends
+conceal      visual conceal engine
+bibliography bibliography-specific support
+metadata     generated Typst metadata
+workflows    export/render/eval/lint/format/etc.
+integrations external plugin/tool adapters
+ui           command/report/status presentation
+internal     debug/compat/invariant checks
+```
+
+The ownership model behind that layout is:
+
+```text
+project owns identity
+resources owns liveness
+compiler owns compile/watch state
+preview owns preview sessions
+viewer owns output opening
+diagnostics owns diagnostic publication
+navigation/editor/completion/conceal own editing experience
+ui owns presentation
+integrations adapt external tools
+core owns primitives only
+```
+
+## What Not To Do
+
+Do not create a generic `features/` directory:
+
+```text
+features/compiler.lua
+features/preview.lua
+features/diagnostics.lua
+features/navigation.lua
+```
+
+That hides ownership and makes cleanup rules harder to audit.
+
+Do not put every external-facing behavior under `integrations/`:
+
+```text
+integrations/compiler.lua
+integrations/preview.lua
+integrations/viewer.lua
+```
+
+Compiler and preview are core workflows. Only external tool/plugin adapters
+belong under `integrations/`.
+
+Do not move files before tests pin ownership. The layout should follow
+boundaries with regression coverage:
+
+```text
+project resolver does not mutate registry
+resources session decides project activity
+outputs facade owns leases
+diagnostics publisher is the only diagnostic writer
+compiler controller decides stop/timeout semantics
+preview controller decides preview stop semantics
+```
+
+## Hard Ownership Boundaries
+
+Core modules should be boring and dependency-light. `core/` must not know about
+Typst projects, preview, compiler, diagnostics, or UI. It owns reusable
+primitives such as process shutdown, pending handles, path helpers, generic
+result predicates, logging, events, and caches. Compiler-specific result
+normalization should eventually move from `core.result` into
+`compiler/result.lua`; `core.result` should retain only generic result predicates
+and constructors.
+
+Project modules own identity, not live resources. They answer root, main, key,
+buffer membership, dependency graph, index state, and service-table existence.
+They should not know how to kill a compiler, stop a preview server, release an
+output lease, or publish diagnostics.
+
+Resources modules own liveness. Long term, `project.lifecycle` should ask
+`resources.cleanup` to clean a project; `resources.cleanup` should delegate to
+compiler, preview, operations, diagnostics, and outputs. Project prune/reset code
+should not learn backend-specific stop details.
+
+Compiler modules own compile/watch state, provider policy, Typst CLI behavior,
+watch output parsing, and compiler events. The compiler controller should decide
+when a timeout is an unconfirmed writer and when leases may be released. The
+built-in Typst CLI backend should live under `compiler/cli/` over time so it is
+clearly separate from custom-provider dispatch.
+
+Diagnostics modules own diagnostic publication. Only `diagnostics.publisher`
+should call `vim.diagnostic.set` for compiler/lint/grammar diagnostics. Parser,
+policy, quickfix, and count helpers should feed that publisher or clearly
+document an exception.
+
+Viewer and preview are separate workflows. A viewer opens or controls existing
+artifacts. Preview owns long-lived preview sessions, including native browser
+preview and delegated `typst-preview.nvim` compatibility. Source-sync capability
+reporting should make this distinction explicit.
+
+Navigation modules return item lists and jump actions. UI modules decide how to
+show them, and integrations supply optional semantic data. Navigation should not
+depend directly on Telescope, fzf-lua, Snacks, or other picker implementations.
+
+Editor modules own editing behavior: motions, text objects, transforms, folds,
+indent, insert mappings, match highlighting, and formatexpr. Project lifecycle
+may apply or detach editor hooks, but it should not know their internal behavior.
+
+Workflows own user-triggered jobs that are not the main compiler loop: export,
+render, eval, template init, clean, lint, format, grammar, and development tools.
+Output-producing workflows should use `resources.outputs`,
+`resources.operations`, `core.process`, and the provider adapter instead of
+talking directly to low-level lease tables.
+
+Integrations adapt external tools and plugins. They should not own core
+typst.nvim resource lifecycle. Tinymist, coc, picker adapters, Tree-sitter
+adapter glue, and provider invocation normalization belong here; preview and
+compiler controllers do not.
+
+UI owns presentation only: commands, reports, status lines, notifications,
+selection, and log display. UI modules may ask project/resources/compiler/preview
+for snapshots, but they should not mutate service state except by calling public
+or controller APIs.
+
 ## Project Resolution
 
 Project resolution produces a project with a root, main file, output plan, and
-buffer membership. Resolution order is intentionally conservative:
+buffer membership. The compatibility facade is `typst.project`; the stateful
+pieces are split underneath it:
+
+- `project/resolver.lua` decides root/main/path candidates and must not mutate
+  registry state.
+- `project/registry.lua` owns live project and buffer-to-project maps.
+- `project/init.lua` remains the public/internal facade that commits resolver
+  candidates into the registry and preserves existing API entry points.
+
+Resolution order is intentionally conservative:
 
 1. Explicit runtime options and public project API calls.
 2. Buffer-local overrides such as Typst main/root variables.
@@ -24,6 +531,25 @@ code owns side effects after resolution succeeds.
 Project identity is keyed by root plus main. Modules should use project API
 snapshots for observation and service controllers for mutation instead of
 constructing keys by hand.
+
+## Result and Resource Boundaries
+
+`core/result.lua` defines shared result constructors and predicates for
+compiler, provider, preview, and operation lifecycle code. In particular,
+`is_confirmed_stopped()` is the only generic predicate that should release owned
+resources, while timeout/orphaned/pending stop results remain unconfirmed.
+
+Project-scoped resource state is observed through `resources/session.lua`. It
+summarizes compiler handles, preview activity, active/retained operations,
+diagnostic buffers, and active output leases for a project. Cleanup code may
+still delegate to compiler/preview/operation controllers, but pruning and
+reporting should use the session view when asking whether a project still owns
+live resources.
+
+Generated output ownership goes through `resources/outputs.lua`. It wraps the
+low-level in-process lease table and provides project-filtered ownership views.
+Compiler, watch, render, export, reports, and health should depend on
+`resources.outputs` rather than `core.path_leases` directly.
 
 ## Service Ownership
 
@@ -162,6 +688,58 @@ The current architecture is intentionally migration-friendly rather than a
 rewrite target. Refactors should land behind compatibility facades and preserve
 the existing public API.
 
+Do not move files before tests pin ownership. The migration order is:
+
+1. Stabilize boundaries without big moves.
+   - `core.result` is the only generic stopped/pending/orphan predicate layer.
+   - `project.registry` is the only live project map.
+   - `project.resolver` resolves candidates without mutating state.
+   - `resources.outputs` is the output lease facade used outside low-level tests.
+   - `resources.session` is the project liveness view.
+   - `diagnostics.publisher` is the compiler diagnostic writer.
+2. Move compiler internals behind `compiler.controller`.
+   - Keep `require("typst.compiler").compile/watch/stop` compatible.
+   - Split provider dispatch from Typst CLI backend code.
+   - Move the built-in CLI implementation toward `compiler/cli/`.
+   - Keep watch parser/state under `compiler/watch/`.
+3. Move preview and viewer out of integration-owned lifecycle code.
+   - `preview.controller` should own open/stop/refresh/toggle/status.
+   - `preview/native/*` should own native browser/server/session details.
+   - `preview/typst_preview_nvim.lua` should own delegated compatibility.
+   - `viewer.controller` should own artifact opening and viewer source sync.
+4. Split navigation and editor after lifecycle is stable.
+   - TOC, follow, labels, citations, references, symbols, and pickers belong
+     under `navigation/`.
+   - Motions, text objects, transforms, folds, indent, insert mappings, and
+     formatexpr belong under `editor/`.
+5. Harden the public API once workflows have stable homes.
+   - Keep implementation paths movable.
+   - Expose workflow namespaces deliberately: project, compiler, viewer,
+     preview, diagnostics, navigation, editor, completion, conceal,
+     bibliography, metadata, providers.
+
+Command-to-module intent should stay simple for users:
+
+```text
+:TypstInfo                  ui.reports -> project/resources/compiler/preview
+:TypstSetMain               project.lifecycle
+:TypstCompile               compiler.controller
+:TypstWatch                 compiler.controller
+:TypstStop                  compiler.controller
+:TypstStopAll               compiler.controller + resources.cleanup
+:TypstCompilerForceClear    compiler.controller + resources.outputs
+:TypstErrors                diagnostics.quickfix
+:TypstView                  viewer.controller
+:TypstPreview               preview.controller
+:TypstPreviewStop           preview.controller
+:TypstToc                   navigation.toc
+:TypstPick                  navigation.picker
+gf                          navigation.follow
+motions/textobjects         editor.*
+completion                  completion.*
+conceal                     conceal.*
+```
+
 ### Typed Service Controllers
 
 Service modules under `typst.project.services.*` are the controller boundary.
@@ -179,6 +757,15 @@ Add controller methods in this order:
 
 Each method should document the fields it owns and should return the updated
 service table or a structured refusal result.
+
+### Diagnostics Publisher Split
+
+`diagnostics/init.lua` owns namespace policy, source keys, parsing entry points,
+and public compatibility methods. `diagnostics/publisher.lua` owns the actual
+publish operation: valid-buffer filtering, deep-copying diagnostics into
+Neovim, quickfix/list updates, and `TypstDiagnosticsPublished` events. New
+diagnostic producers should call the public diagnostics facade, while publisher
+tests can target grouped buffer data directly.
 
 ### Project Lifecycle Split
 

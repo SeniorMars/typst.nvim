@@ -1,5 +1,5 @@
 local operation = require("typst.core.operation")
-local path_leases = require("typst.core.path_leases")
+local output_ownership = require("typst.resources.outputs")
 local project_registry = require("typst.project")
 local project_services = require("typst.project.services")
 local telemetry = require("typst.core.telemetry")
@@ -94,7 +94,7 @@ local function check_operations(findings)
 end
 
 local function check_leases(findings)
-    for key, lease in pairs(path_leases.active()) do
+    for key, lease in pairs(output_ownership.active()) do
         if type(lease.owner) ~= "table" or not lease.owner.kind then
             add(
                 findings,
@@ -146,7 +146,7 @@ function M.check_invariants()
         projects = vim.tbl_count(projects),
         active_operations = vim.tbl_count(operation.active()),
         retained_operations = vim.tbl_count(operation.retained()),
-        active_leases = vim.tbl_count(path_leases.active()),
+        active_leases = vim.tbl_count(output_ownership.active()),
     }
 end
 

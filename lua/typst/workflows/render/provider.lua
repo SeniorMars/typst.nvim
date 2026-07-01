@@ -1,7 +1,6 @@
-local path_leases = require("typst.core.path_leases")
+local output_ownership = require("typst.resources.outputs")
 local providers = require("typst.integrations.providers")
 local provider_adapter = require("typst.integrations.provider_adapter")
-local util = require("typst.core.util")
 
 local M = {}
 
@@ -25,7 +24,7 @@ function M.call(project, kind, opts, context)
     local lease = nil
     local lease_path = opts.output_path or opts.path
     if type(lease_path) == "string" and lease_path ~= "" then
-        local parent_ok, parent_err = util.ensure_parent(lease_path)
+        local parent_ok, parent_err = output_ownership.ensure_parent(lease_path)
         if not parent_ok then
             context.rollback_generation(project, kind, generation)
             return {
@@ -40,7 +39,7 @@ function M.call(project, kind, opts, context)
         end
 
         local lease_err
-        lease, lease_err = path_leases.acquire(lease_path, {
+        lease, lease_err = output_ownership.acquire(lease_path, {
             kind = "render-provider-" .. kind,
             project_key = project.key,
             main = project.main,
@@ -69,7 +68,7 @@ function M.call(project, kind, opts, context)
         end
         released = true
         if lease then
-            path_leases.release(lease)
+            output_ownership.release(lease)
         end
     end
 

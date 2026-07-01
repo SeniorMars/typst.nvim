@@ -97,8 +97,8 @@ local entries = {
         optional = true,
     },
     {
-        name = "path_leases",
-        module = "typst.core.path_leases",
+        name = "outputs",
+        module = "typst.resources.outputs",
         reset = "reset",
         optional = false,
         requires_pruned_projects = true,

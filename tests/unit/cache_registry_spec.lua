@@ -54,8 +54,8 @@ assert(reloaded.conceal == true, "registry reload should refresh conceal")
 local reset = registry.reset({ retain_projects = true })
 assert(reset.state == true, "registry reset should clear persisted state cache")
 assert(
-    reset.path_leases ~= true,
-    "retain-project reset should not clear path leases"
+    reset.outputs ~= true,
+    "retain-project reset should not clear output leases"
 )
 
 local original_indent = package.loaded["typst.edit.indent"]

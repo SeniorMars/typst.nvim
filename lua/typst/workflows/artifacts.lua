@@ -5,7 +5,7 @@ local log = require("typst.core.log")
 local open_helper = require("typst.core.open")
 local operation = require("typst.core.operation")
 local output_path_util = require("typst.compiler.output_path")
-local path_leases = require("typst.core.path_leases")
+local output_ownership = require("typst.resources.outputs")
 local providers = require("typst.integrations.providers")
 local provider_adapter = require("typst.integrations.provider_adapter")
 local artifacts_service = require("typst.project.services.artifacts")
@@ -648,13 +648,13 @@ local function release_leases_once(leases)
             return
         end
         released = true
-        path_leases.release_many(leases)
+        output_ownership.release_many(leases)
     end
 end
 
 local function preflight_planned_outputs(planned)
     for _, item in ipairs(planned or {}) do
-        local parent_ok, parent_err = util.ensure_parent(item.path)
+        local parent_ok, parent_err = output_ownership.ensure_parent(item.path)
         if not parent_ok then
             return false,
                 {
@@ -700,7 +700,7 @@ local function provider_export(project, opts, callback, notify, planned)
     if not parent_ok then
         return parent_result
     end
-    local leases, lease_err = path_leases.acquire_many(planned, {
+    local leases, lease_err = output_ownership.acquire_many(planned, {
         kind = "export-provider",
         project_key = project.key,
         main = project.main,
@@ -816,7 +816,7 @@ local function common_spec_provider(specs)
 end
 
 local function write_stdout_artifact(path, stdout)
-    local parent_ok, parent_err = util.ensure_parent(path)
+    local parent_ok, parent_err = output_ownership.ensure_parent(path)
     if not parent_ok then
         return false, tostring(parent_err)
     end
@@ -950,7 +950,7 @@ function M.export(project, opts, callback, notify)
         return vim.tbl_extend("force", result, parent_result)
     end
 
-    local leases, lease_err = path_leases.acquire_many(planned, {
+    local leases, lease_err = output_ownership.acquire_many(planned, {
         kind = "export",
         project_key = project.key,
         main = project.main,
@@ -1005,7 +1005,7 @@ function M.export(project, opts, callback, notify)
             detach = false,
         }, {
             cleanup = function()
-                path_leases.release(item.lease)
+                output_ownership.release(item.lease)
             end,
             on_cancel_failed = function()
                 result.orphaned = true
@@ -1114,7 +1114,7 @@ end
 
 --- Reset artifact path leases used by export/render workflows.
 function M.reset()
-    path_leases.reset()
+    output_ownership.reset()
 end
 
 --- Return known artifacts for a project.
