@@ -80,7 +80,14 @@ function M._window_matches(bufnr, winid, opts)
         return {}
     end
 
-    return render.window_matches(bufnr, winid, opts, custom.all())
+    return telemetry.time("conceal.window_matches", function()
+        return render.window_matches(bufnr, winid, opts, custom.all())
+    end, {
+        bufnr = bufnr,
+        start_row = opts and opts.topline or opts and opts.start_row or nil,
+        end_row = opts and opts.botline or opts and opts.end_row or nil,
+        line_count = line_count(bufnr),
+    })
 end
 
 local function restore_conceallevel(winid)

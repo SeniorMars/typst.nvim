@@ -15,6 +15,73 @@ local M = {}
 ---@field layer? string
 ---@field source string
 
+local layer_order = {
+    heading = 1,
+    figure = 2,
+    table = 3,
+    equation = 4,
+    label = 5,
+    reference = 6,
+    citation = 7,
+    import = 8,
+    file = 9,
+    todo = 10,
+    definition = 11,
+}
+
+local function looks_like_windows_path(path)
+    return type(path) == "string"
+        and (path:match("^%a:") ~= nil or path:match("^[/\\][/\\]") ~= nil)
+end
+
+local function cached_path_key(cache, file)
+    if not file then
+        return ""
+    end
+    local key = cache[file]
+    if not key then
+        if looks_like_windows_path(file) then
+            key = util.path_key(file)
+        else
+            key = util.path_key(util.canonical(file))
+        end
+        cache[file] = key
+    end
+    return key
+end
+
+local function sort_items(project, items, opts)
+    opts = opts or {}
+    local path_cache = {}
+    local main_key = cached_path_key(path_cache, project.main)
+
+    table.sort(items, function(a, b)
+        local a_key = cached_path_key(path_cache, a.file)
+        local b_key = cached_path_key(path_cache, b.file)
+        if a_key == b_key then
+            if a.lnum == b.lnum then
+                if opts.layers == false then
+                    return (a.col or 1) < (b.col or 1)
+                end
+                local a_order = layer_order[a.layer or "heading"] or 99
+                local b_order = layer_order[b.layer or "heading"] or 99
+                if a_order == b_order then
+                    return (a.col or 1) < (b.col or 1)
+                end
+                return a_order < b_order
+            end
+            return (a.lnum or 1) < (b.lnum or 1)
+        end
+        if a_key == main_key then
+            return true
+        end
+        if b_key == main_key then
+            return false
+        end
+        return a_key < b_key
+    end)
+end
+
 local function collect_treesitter(project, collected)
     local items = {}
 
@@ -30,35 +97,8 @@ local function collect_treesitter(project, collected)
         }
     end
 
-    table.sort(items, function(a, b)
-        if util.same_path(a.file, b.file) then
-            return a.lnum < b.lnum
-        end
-        if util.same_path(a.file, project.main) then
-            return true
-        end
-        if util.same_path(b.file, project.main) then
-            return false
-        end
-        return a.file < b.file
-    end)
-
     return items
 end
-
-local layer_order = {
-    heading = 1,
-    figure = 2,
-    table = 3,
-    equation = 4,
-    label = 5,
-    reference = 6,
-    citation = 7,
-    import = 8,
-    file = 9,
-    todo = 10,
-    definition = 11,
-}
 
 local function source_item(layer, title, source)
     if not source or not source.path then
@@ -215,29 +255,6 @@ local function collect_provider_layers(project, opts)
     return items
 end
 
-local function sort_items(project, items)
-    table.sort(items, function(a, b)
-        if util.same_path(a.file, b.file) then
-            if a.lnum == b.lnum then
-                local a_order = layer_order[a.layer or "heading"] or 99
-                local b_order = layer_order[b.layer or "heading"] or 99
-                if a_order == b_order then
-                    return a.col < b.col
-                end
-                return a_order < b_order
-            end
-            return a.lnum < b.lnum
-        end
-        if util.same_path(a.file, project.main) then
-            return true
-        end
-        if util.same_path(b.file, project.main) then
-            return false
-        end
-        return a.file < b.file
-    end)
-end
-
 function M.collect(project, opts)
     opts = opts or {}
 
@@ -246,8 +263,8 @@ function M.collect(project, opts)
     if opts.layers ~= false then
         vim.list_extend(items, collect_index_layers(project, collected))
         vim.list_extend(items, collect_provider_layers(project, opts))
-        sort_items(project, items)
     end
+    sort_items(project, items, { layers = opts.layers })
     return items
 end
 

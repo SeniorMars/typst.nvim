@@ -24,6 +24,7 @@ local budgets = {
     large_package_completion_p95 = 500 * scale,
     first_package_lookup_miss = 1500 * scale,
     large_toc_p95 = 1500 * scale,
+    large_toc_follow_coalescing = 200 * scale,
     large_picker_p95 = 2000 * scale,
     large_conceal_redraw_p95 = 500 * scale,
     large_bibliography_diagnostics = 3000 * scale,
@@ -203,6 +204,56 @@ local large_toc_items = assert_p95("large_toc_p95", 5, function()
 end)
 assert(#large_toc_items >= 100, "large TOC p95 fixture should expose headings")
 
+local nav_toc = require("typst.navigation.toc")
+local old_is_open = nav_toc.is_open
+local old_follow = nav_toc.follow
+local follow_calls = 0
+nav_toc.is_open = function(attached)
+    return attached == project
+end
+nav_toc.follow = function(attached, follow_bufnr)
+    assert(attached == project, "large TOC follow should keep project context")
+    assert(
+        follow_bufnr == vim.api.nvim_get_current_buf(),
+        "large TOC follow should target source buffer"
+    )
+    follow_calls = follow_calls + 1
+    return true
+end
+local follow_ok, follow_err = xpcall(function()
+    telemetry.reset()
+    assert_budget("large_toc_follow_coalescing", function()
+        for _ = 1, 100 do
+            nav_toc.schedule_follow(project, vim.api.nvim_get_current_buf(), {
+                delay_ms = 1,
+            })
+        end
+        assert(
+            vim.wait(1000, function()
+                return follow_calls == 1
+            end, 5),
+            "large TOC follow should coalesce cursor burst into one follow"
+        )
+        return follow_calls
+    end)
+    local follow_telemetry = telemetry.snapshot()
+    assert(
+        follow_telemetry["toc.follow.coalesced"]
+            and follow_telemetry["toc.follow.coalesced"].count >= 99,
+        "large TOC follow should report coalesced cursor events"
+    )
+    assert(
+        follow_telemetry["toc.follow.execute"]
+            and follow_telemetry["toc.follow.execute"].count == 1,
+        "large TOC follow should report one executed follow"
+    )
+end, debug.traceback)
+nav_toc.is_open = old_is_open
+nav_toc.follow = old_follow
+if not follow_ok then
+    error(follow_err)
+end
+
 local large_picker_items = assert_p95("large_picker_p95", 5, function()
     return typst.picker.items({
         project = project,
@@ -222,6 +273,24 @@ assert_p95("large_conceal_redraw_p95", 5, function()
         { topline = 0, botline = math.min(60, vim.api.nvim_buf_line_count(0)) }
     )
 end)
+local conceal_window_metric = assert(
+    telemetry.snapshot()["conceal.window_matches"],
+    "missing conceal window-match telemetry"
+)
+assert(
+    conceal_window_metric.p95_ms <= budgets.large_conceal_redraw_p95,
+    ("conceal window-match telemetry p95 exceeded %.1fms budget: %.1fms"):format(
+        budgets.large_conceal_redraw_p95,
+        conceal_window_metric.p95_ms
+    )
+)
+perf.record_metric(spec_name, {
+    name = "large_conceal_window_matches_telemetry_p95",
+    p95_ms = conceal_window_metric.p95_ms,
+    budget_ms = budgets.large_conceal_redraw_p95,
+    ratio = conceal_window_metric.p95_ms / budgets.large_conceal_redraw_p95,
+    samples = conceal_window_metric.sample_count,
+})
 
 local completion_items = assert_budget("large_completion", function()
     return typst.completion.complete({

@@ -5,6 +5,7 @@ local toc_quickfix = require("typst.navigation.toc_quickfix")
 local toc_state = require("typst.navigation.toc_state")
 local toc_window = require("typst.navigation.toc_window")
 local log = require("typst.core.log")
+local telemetry = require("typst.core.telemetry")
 
 -- Table-of-contents presentation layer.
 --
@@ -248,8 +249,23 @@ function M.schedule_follow(project, bufnr, opts)
     end
 
     local state = toc_state.for_project(project)
+    local coalesced = state.follow_timer ~= nil
+    local delay_ms = opts.delay_ms or toc_config.follow_delay_ms or 40
     state.follow_bufnr = bufnr
     toc_state.close_timer(state.follow_timer)
+    telemetry.record("toc.follow.schedule", 0, {
+        bufnr = bufnr,
+        coalesced = coalesced,
+        delay_ms = delay_ms,
+        project_key = project and project.key or nil,
+    })
+    if coalesced then
+        telemetry.record("toc.follow.coalesced", 0, {
+            bufnr = bufnr,
+            delay_ms = delay_ms,
+            project_key = project and project.key or nil,
+        })
+    end
     state.follow_timer = vim.defer_fn(function()
         local follow_bufnr = state.follow_bufnr
         state.follow_timer = nil
@@ -257,8 +273,14 @@ function M.schedule_follow(project, bufnr, opts)
         if not toc_config.follow_cursor or not M.is_open(project) then
             return
         end
-        M.follow(project, follow_bufnr, opts)
-    end, opts.delay_ms or toc_config.follow_delay_ms or 40)
+        local started = telemetry.start()
+        local line = M.follow(project, follow_bufnr, opts)
+        telemetry.finish("toc.follow.execute", started, {
+            bufnr = follow_bufnr,
+            followed = line ~= nil,
+            project_key = project and project.key or nil,
+        })
+    end, delay_ms)
     return true
 end
 

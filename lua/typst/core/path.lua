@@ -37,6 +37,11 @@ local function normalize_foreign_windows_path(path)
     return normalized
 end
 
+--- Join trusted path components without interpreting absolute tails specially.
+---
+--- This is a lightweight string join for call sites that already validated
+--- their components. Use `join_checked()` or `resolve_path()` when any tail
+--- component comes from user input, Typst output, or a provider.
 function M.join(...)
     local parts = vim.iter({ ... })
         :flatten()
@@ -50,6 +55,79 @@ function M.join(...)
     end
 
     return table.concat(parts, M.path_sep())
+end
+
+local function has_parent_segment(path)
+    if type(path) ~= "string" then
+        return false
+    end
+    for segment in path:gmatch("[^/\\]+") do
+        if segment == ".." then
+            return true
+        end
+    end
+    return false
+end
+
+--- Safely join a base path with relative child components.
+---@param base string Base directory that must contain the final path.
+---@param ... string Relative path components.
+---@return string|nil path Normalized joined path on success.
+---@return table|nil error Failure payload with `reason` and `message`.
+function M.join_checked(base, ...)
+    if type(base) ~= "string" or base == "" then
+        return nil,
+            {
+                reason = "invalid_base",
+                message = "Base path is invalid",
+            }
+    end
+
+    local parts = vim.iter({ ... })
+        :flatten()
+        :filter(function(part)
+            return part ~= nil and part ~= ""
+        end)
+        :totable()
+
+    for _, part in ipairs(parts) do
+        if type(part) ~= "string" then
+            return nil,
+                {
+                    reason = "invalid_component",
+                    message = "Path component must be a string",
+                    component = part,
+                }
+        end
+        if M.is_absolute(part) or looks_like_windows_path(part) then
+            return nil,
+                {
+                    reason = "absolute_component",
+                    message = "Path component must be relative",
+                    component = part,
+                }
+        end
+        if has_parent_segment(part) then
+            return nil,
+                {
+                    reason = "parent_component",
+                    message = "Path component must not contain '..'",
+                    component = part,
+                }
+        end
+    end
+
+    local joined = M.normalize(M.join(base, parts))
+    if not M.path_within(M.canonical(joined), M.canonical(base)) then
+        return nil,
+            {
+                reason = "outside_base",
+                message = "Joined path escaped the base directory",
+                path = joined,
+                base = base,
+            }
+    end
+    return joined
 end
 
 function M.normalize(path)
@@ -148,7 +226,7 @@ local function comparison_key(path)
         return M.path_identity(path)
     end
 
-    return M.path_key(path)
+    return M.path_identity(M.canonical(path))
 end
 
 function M.same_path(left, right)

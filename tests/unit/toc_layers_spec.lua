@@ -233,6 +233,7 @@ assert(
 )
 
 local nav_toc = require("typst.navigation.toc")
+local telemetry = require("typst.core.telemetry")
 
 typst.reset()
 typst.setup({
@@ -275,6 +276,7 @@ local function cursor_moved()
 end
 
 local ok, err = xpcall(function()
+    telemetry.reset()
     cursor_moved()
     vim.wait(60, function()
         return calls > 0
@@ -295,6 +297,22 @@ local ok, err = xpcall(function()
     assert(
         followed_bufnr == bufnr,
         "debounced follow should use the source buffer"
+    )
+    local follow_telemetry = telemetry.snapshot()
+    assert(
+        follow_telemetry["toc.follow.schedule"]
+            and follow_telemetry["toc.follow.schedule"].count == 8,
+        "cursor follow should record one schedule metric per open TOC cursor event"
+    )
+    assert(
+        follow_telemetry["toc.follow.coalesced"]
+            and follow_telemetry["toc.follow.coalesced"].count == 7,
+        "cursor follow should record coalesced timer replacements"
+    )
+    assert(
+        follow_telemetry["toc.follow.execute"]
+            and follow_telemetry["toc.follow.execute"].count == 1,
+        "cursor follow should execute only once after coalescing"
     )
 
     vim.wait(60, function()
