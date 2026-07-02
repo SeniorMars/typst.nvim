@@ -10,9 +10,27 @@ local M = {}
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification callback passed through to service operations.
 ---@param normalize_bufnr fun(bufnr?:integer):integer Buffer normalizer used before project lookup.
 function M.install(api, notify, normalize_bufnr)
+    local api_context = require("typst.api.context")
+
+    local function project_or_error(opts, policy)
+        local ctx = api_context.project(opts or {}, policy, notify)
+        if not ctx.ok then
+            return nil, ctx.error
+        end
+        return ctx.project, nil
+    end
+
     local function compile(opts, callback)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = true,
+            require_typst = true,
+            settle_pending = true,
+            operation = "compiler.compile",
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.project.services.operations").compile(
             state,
             opts,
@@ -24,10 +42,19 @@ function M.install(api, notify, normalize_bufnr)
     local function compile_selected(opts, callback)
         opts = opts or {}
         local bufnr = normalize_bufnr(opts.bufnr)
-        local state = api.project.get(bufnr)
+        local request_opts = vim.tbl_extend("force", opts, { bufnr = bufnr })
+        local state, err = project_or_error(request_opts, {
+            create = true,
+            require_typst = true,
+            settle_pending = true,
+            operation = "compiler.compile_selected",
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.project.services.operations").compile_selected(
             state,
-            vim.tbl_extend("force", opts, { bufnr = bufnr }),
+            request_opts,
             callback,
             notify
         )
@@ -35,13 +62,29 @@ function M.install(api, notify, normalize_bufnr)
 
     local function compile_output(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = false,
+            settle_pending = true,
+            operation = "compiler.output",
+            passive = true,
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.compiler.api").compile_output(state, opts)
     end
 
     local function watch(opts, callback)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = true,
+            require_typst = true,
+            settle_pending = true,
+            operation = "compiler.watch",
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.project.services.operations").watch(
             state,
             opts,
@@ -52,7 +95,14 @@ function M.install(api, notify, normalize_bufnr)
 
     local function stop(opts, callback)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = false,
+            settle_pending = true,
+            operation = "compiler.stop",
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.project.services.operations").stop(
             state,
             callback,
@@ -145,19 +195,43 @@ function M.install(api, notify, normalize_bufnr)
 
     local function view(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = true,
+            require_typst = true,
+            settle_pending = true,
+            operation = "viewer.view",
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.viewer.api").view(state, opts, notify)
     end
 
     local function view_forward(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = true,
+            require_typst = true,
+            settle_pending = true,
+            operation = "viewer.view_forward",
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.viewer.api").view_forward(state, opts, notify)
     end
 
     local function view_inverse(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = false,
+            settle_pending = true,
+            operation = "viewer.view_inverse",
+            source_path = true,
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.viewer.api").view_inverse(state, opts, notify)
     end
 
@@ -167,31 +241,69 @@ function M.install(api, notify, normalize_bufnr)
 
     local function preview_capabilities(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = false,
+            settle_pending = true,
+            operation = "viewer.preview_capabilities",
+            passive = true,
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.viewer.api").preview_capabilities(state)
     end
 
     local function clean(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = false,
+            settle_pending = true,
+            operation = "viewer.clean",
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.viewer.api").clean(state, opts, notify)
     end
 
     local function clean_preview(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = false,
+            settle_pending = true,
+            operation = "viewer.clean_preview",
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.viewer.api").clean_preview(state, opts, notify)
     end
 
     local function preview(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = true,
+            require_typst = true,
+            settle_pending = true,
+            operation = "viewer.preview",
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.viewer.api").preview(state, opts, notify)
     end
 
     local function preview_open_browser(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = true,
+            require_typst = true,
+            settle_pending = true,
+            operation = "viewer.preview_open_browser",
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.viewer.api").preview_open_browser(
             state,
             opts,
@@ -201,43 +313,93 @@ function M.install(api, notify, normalize_bufnr)
 
     local function preview_reload(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = false,
+            settle_pending = true,
+            operation = "viewer.preview_reload",
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.viewer.api").preview_reload(state, opts, notify)
     end
 
     local function preview_status(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = false,
+            settle_pending = true,
+            operation = "viewer.preview_status",
+            passive = true,
+        })
+        if not state then
+            return {
+                ok = false,
+                reason = err.reason,
+                message = err.message,
+            }
+        end
         return require("typst.viewer.api").preview_status(state, opts, notify)
     end
 
     local function preview_stop(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = false,
+            settle_pending = true,
+            operation = "viewer.preview_stop",
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.viewer.api").preview_stop(state, opts, notify)
     end
 
     local function preview_toggle(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = true,
+            require_typst = true,
+            settle_pending = true,
+            operation = "viewer.preview_toggle",
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.viewer.api").preview_toggle(state, opts, notify)
     end
 
     local function preview_inverse(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = false,
+            settle_pending = true,
+            operation = "viewer.preview_inverse",
+            source_path = true,
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.viewer.api").preview_inverse(state, opts, notify)
     end
 
     api.project.services = function(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, {
+            create = false,
+            settle_pending = true,
+            passive = true,
+            operation = "project.services",
+        })
+        if not state then
+            return nil, err
+        end
         return require("typst.project.services").snapshot(state)
     end
 
     api.project.operations = function(opts)
-        local snapshot = api.project.services(opts)
-        return snapshot and snapshot.operations or nil
+        local snapshot, err = api.project.services(opts)
+        return snapshot and snapshot.operations or nil, err
     end
 
     api.compiler = {
@@ -250,12 +412,28 @@ function M.install(api, notify, normalize_bufnr)
         force_clear = force_clear,
         status = function(opts)
             opts = opts or {}
-            local state = api.project.get(opts.bufnr)
+            local state, err = project_or_error(opts, {
+                create = false,
+                settle_pending = true,
+                passive = true,
+                operation = "compiler.status",
+            })
+            if not state then
+                return nil, err
+            end
             return require("typst.compiler").status(state)
         end,
         current_output = function(opts)
             opts = opts or {}
-            local state = api.project.get(opts.bufnr)
+            local state, err = project_or_error(opts, {
+                create = false,
+                settle_pending = true,
+                passive = true,
+                operation = "compiler.current_output",
+            })
+            if not state then
+                return nil, err
+            end
             return require("typst.compiler").output(state)
         end,
     }

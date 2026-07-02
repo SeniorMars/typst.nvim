@@ -164,6 +164,7 @@ local unicode_inverse = typst.viewer.preview_inverse({
     line = 2,
     column = 2,
     notify = false,
+    fallback_to_buffer_on_source_miss = true,
 })
 assert(
     unicode_inverse and unicode_inverse.path == unicode_path,

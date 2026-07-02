@@ -8,6 +8,9 @@ local viewer = require("typst.viewer")
 
 local M = {}
 
+-- Viewer commands and preview-facing public command orchestration enter here.
+-- Keep this as the stable path until the public command/API surface is frozen.
+
 local notify_user = require("typst.core.notify").user
 
 local function source_position(opts)

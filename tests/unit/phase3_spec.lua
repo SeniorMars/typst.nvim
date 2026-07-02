@@ -570,12 +570,14 @@ local fake_tinymist =
     helpers.python_command(root .. "/tests/fixtures/fake-tinymist-dev.py")
 local util = require("typst.core.util")
 local default_test = nil
-local default_test_run = typst.development.test(
-    { executable = fake_tinymist, args = { "--update" }, open = false },
-    function(result)
-        default_test = result
-    end
-)
+local default_test_run = typst.development.test({
+    executable = fake_tinymist,
+    args = { "--update" },
+    open = false,
+    bufnr = semantic_source_buf,
+}, function(result)
+    default_test = result
+end)
 assert(
     default_test_run.ok and default_test_run.pending,
     "default Tinymist test provider should run asynchronously"
@@ -609,6 +611,7 @@ typst.development.coverage({
     },
     full = true,
     open = false,
+    bufnr = semantic_source_buf,
 }, function(result)
     default_coverage = result
 end)
@@ -646,6 +649,7 @@ typst.development.coverage({
         "sh",
     },
     open = false,
+    bufnr = semantic_source_buf,
 }, function(result)
     unreported_coverage = result
 end)
@@ -677,12 +681,14 @@ assert(
 local fake_crityp =
     helpers.python_command(root .. "/tests/fixtures/fake-crityp.py")
 local default_bench = nil
-typst.development.bench(
-    { executable = fake_crityp, args = { "--warmup", "1" }, open = false },
-    function(result)
-        default_bench = result
-    end
-)
+typst.development.bench({
+    executable = fake_crityp,
+    args = { "--warmup", "1" },
+    open = false,
+    bufnr = semantic_source_buf,
+}, function(result)
+    default_bench = result
+end)
 assert(
     vim.wait(5000, function()
         return default_bench ~= nil
@@ -705,6 +711,7 @@ assert(
 local missing_test_provider = typst.development.test({
     notify = false,
     executable = root .. "/does-not-exist-tinymist",
+    bufnr = semantic_source_buf,
 })
 assert(
     not missing_test_provider.ok,

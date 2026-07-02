@@ -326,6 +326,7 @@ assert(
     "render provider should be listed"
 )
 local displayed = typst.render.image({
+    bufnr = main_bufnr,
     path = image,
     display_provider = "phase4-display",
 })
@@ -339,6 +340,7 @@ assert(
 local old_kitty = vim.env.KITTY_WINDOW_ID
 vim.env.KITTY_WINDOW_ID = "unit-test"
 local terminal_displayed = typst.render.image({
+    bufnr = main_bufnr,
     path = image,
     display_provider = "terminal",
 })
@@ -354,6 +356,7 @@ assert(
 )
 
 local kitty_path_transfer = typst.render.image({
+    bufnr = main_bufnr,
     path = image,
     display_provider = "kitty",
     max_inline_image_bytes = 1,
@@ -369,6 +372,7 @@ assert(
 )
 
 local oversized_terminal = typst.render.image({
+    bufnr = main_bufnr,
     path = image,
     display_provider = "iterm",
     max_inline_image_bytes = 1,
@@ -389,6 +393,7 @@ vim.system = function(command)
     return old_system(command)
 end
 local inline_terminal = typst.render.image({
+    bufnr = main_bufnr,
     path = image,
     display_provider = "iterm",
 })
@@ -417,6 +422,7 @@ typst.providers.register("render", "phase4-render", {
     end,
 })
 local provider_page = typst.render.page({
+    bufnr = main_bufnr,
     provider = "phase4-render",
     open = false,
 })
@@ -450,6 +456,7 @@ typst.providers.register("render", "phase4-pending-render", {
 })
 local pending_provider_done = nil
 local pending_provider_page = typst.render.page({
+    bufnr = main_bufnr,
     provider = "phase4-pending-render",
     output_path = typst_test_cache_path("render-cache/pending-provider.svg"),
 }, function(result)
@@ -483,6 +490,7 @@ typst.providers.register("render", "phase4-failing-render", {
     end,
 })
 local failing_provider_page = typst.render.page({
+    bufnr = main_bufnr,
     provider = "phase4-failing-render",
     output_path = typst_test_cache_path("render-cache/failing-provider.svg"),
 })
@@ -514,7 +522,7 @@ typst.providers.register("render", "phase4-async-render", {
     end,
 })
 local async_render_pending = typst.render.page(
-    { provider = "phase4-async-render", open = false },
+    { bufnr = main_bufnr, provider = "phase4-async-render", open = false },
     function(result)
         async_rendered = result
     end
@@ -524,6 +532,7 @@ assert(
     "async render provider should return pending"
 )
 local blocked_render = typst.render.page({
+    bufnr = main_bufnr,
     provider = "phase4-async-render",
     open = false,
 })

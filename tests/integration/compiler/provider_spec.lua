@@ -516,6 +516,12 @@ normalized_provider.compile = function(_, callback)
     callback({ ok = false, stderr = "normalized boom", stale = false })
     return { provider = "normalized-failed" }
 end
+typst.setup({
+    root = root,
+    compile = {
+        provider = normalized_provider,
+    },
+})
 local normalized_failure = nil
 typst.compiler.compile({}, function(result)
     normalized_failure = result

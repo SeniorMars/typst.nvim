@@ -1,4 +1,5 @@
 local M = {}
+local api_context = require("typst.api.context")
 local operation = require("typst.core.operation")
 local project_context = require("typst.project.context")
 
@@ -40,10 +41,52 @@ end
 ---@param api table Public API table mutated in place.
 ---@param notify fun(message:string, level?:vim.log.levels|integer) Notification sink used by report/tool wrappers.
 function M.install(api, notify)
+    local function attached_project(opts, operation_name, policy)
+        policy = vim.tbl_extend("force", {
+            create = false,
+            settle_pending = true,
+            passive = true,
+            operation = operation_name,
+        }, policy or {})
+        local ctx = api_context.project(opts or {}, policy, notify)
+        if not ctx.ok then
+            return nil, ctx.error
+        end
+        return ctx.project, nil
+    end
+
+    local function no_project_lines(err, bufnr)
+        local name = vim.api.nvim_buf_is_valid(bufnr)
+                and vim.api.nvim_buf_get_name(bufnr)
+            or ""
+        local filetype = vim.api.nvim_buf_is_valid(bufnr)
+                and vim.bo[bufnr].filetype
+            or ""
+        return {
+            err.message,
+            ("Buffer filetype: %s"):format(
+                filetype ~= "" and filetype or "<none>"
+            ),
+            ("Buffer name: %s"):format(name ~= "" and name or "<unnamed>"),
+            "Open a Typst buffer, run :setfiletype typst, or pass a project/key.",
+        }
+    end
+
     local function info(bufnr)
         local opts = info_opts(bufnr)
         bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
-        local state = api.project.get(bufnr)
+        opts = vim.tbl_extend("force", opts, { bufnr = bufnr })
+        local state, err = attached_project(opts, "ui.info", {
+            create = true,
+            require_typst = true,
+        })
+        if not state then
+            local lines = no_project_lines(err, bufnr)
+            if opts.echo ~= false then
+                require("typst.ui.reports").echo_lines(lines)
+            end
+            return nil, lines, nil
+        end
         local reports = require("typst.ui.reports")
         local lines = reports.project_lines(state, bufnr, {
             detailed = opts.bang or opts.open,
@@ -72,7 +115,21 @@ function M.install(api, notify)
 
         if opts.detailed then
             local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
-            local state = api.project.get(bufnr)
+            local state, err = attached_project(
+                vim.tbl_extend("force", opts, { bufnr = bufnr }),
+                "ui.status_report",
+                {
+                    create = true,
+                    require_typst = true,
+                }
+            )
+            if not state then
+                local lines = no_project_lines(err, bufnr)
+                if opts.echo ~= false then
+                    reports.echo_lines(lines)
+                end
+                return nil, lines
+            end
             local lines = reports.project_lines(state, bufnr, {
                 detailed = opts.detailed,
             })

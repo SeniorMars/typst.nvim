@@ -74,7 +74,7 @@ function M.register(ctx)
     )
 
     create("TypstCompileOutput", function()
-        api.compiler.output()
+        api.compiler.output({ notify = true })
     end, opts("Open the current project's Typst compiler output"))
 
     create(

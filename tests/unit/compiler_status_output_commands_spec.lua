@@ -118,6 +118,31 @@ assert(
     "TypstCompileOutput should open output"
 )
 
+local original_notify = vim.notify
+local output_command_notifications = {}
+vim.notify = function(message, level)
+    output_command_notifications[#output_command_notifications + 1] = {
+        message = message,
+        level = level,
+    }
+end
+local notify_ok, notify_err = xpcall(function()
+    vim.cmd.enew()
+    vim.bo.filetype = ""
+    vim.cmd("TypstCompileOutput")
+    assert(
+        output_command_notifications[1]
+            and output_command_notifications[1].message:find(
+                "No Typst project",
+                1,
+                true
+            ),
+        "TypstCompileOutput should report no-project errors visibly"
+    )
+end, debug.traceback)
+vim.notify = original_notify
+assert(notify_ok, notify_err)
+
 local stop_summary = typst.compiler.stop_all({ notify = false })
 assert(stop_summary.total >= 1, "stop_all should see the registered project")
 assert(stop_summary.idle >= 1, "stop_all should count idle projects")

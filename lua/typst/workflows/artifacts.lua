@@ -1327,32 +1327,31 @@ function M.clean(project, opts, notify)
                     path = artifact.path,
                     reason = "active_preview",
                 }
-                goto continue
-            end
-            -- Cleaning is conservative: a file whose fingerprint changed since
-            -- creation is treated as user-owned unless the caller forces it.
-            local owned, reason = M.owned_current(project, artifact.path)
-            if not owned and opts.force ~= true then
-                skipped[#skipped + 1] = {
-                    path = artifact.path,
-                    reason = reason,
-                }
             else
-                local ok, err = remove_file(artifact.path)
-                if ok then
-                    deleted[#deleted + 1] = artifact.path
-                    local state = artifact_state(project)
-                    state.owned[path_key(artifact.path)] = nil
-                    artifacts_service.set(project, { owned = state.owned })
-                else
-                    failed[#failed + 1] = {
+                -- Cleaning is conservative: a file whose fingerprint changed
+                -- since creation is treated as user-owned unless forced.
+                local owned, reason = M.owned_current(project, artifact.path)
+                if not owned and opts.force ~= true then
+                    skipped[#skipped + 1] = {
                         path = artifact.path,
-                        error = err,
+                        reason = reason,
                     }
+                else
+                    local ok, err = remove_file(artifact.path)
+                    if ok then
+                        deleted[#deleted + 1] = artifact.path
+                        local state = artifact_state(project)
+                        state.owned[path_key(artifact.path)] = nil
+                        artifacts_service.set(project, { owned = state.owned })
+                    else
+                        failed[#failed + 1] = {
+                            path = artifact.path,
+                            error = err,
+                        }
+                    end
                 end
             end
         end
-        ::continue::
     end
 
     if #failed > 0 or #skipped > 0 then

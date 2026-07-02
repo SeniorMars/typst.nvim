@@ -17,9 +17,27 @@ end
 ---@param notify fun(message:string, level?:vim.log.levels|integer) Notification sink for user-facing actions.
 ---@param normalize_bufnr fun(bufnr?:integer):integer Shared buffer resolver used before LSP calls.
 function M.install(api, notify, normalize_bufnr)
+    local api_context = require("typst.api.context")
+
+    local function project_or_error(opts, operation)
+        local ctx = api_context.project(opts or {}, {
+            create = true,
+            require_typst = true,
+            settle_pending = true,
+            operation = operation,
+        }, notify)
+        if not ctx.ok then
+            return nil, ctx.error
+        end
+        return ctx.project, nil
+    end
+
     local function files(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, "navigation.files")
+        if not state then
+            return nil, err
+        end
         return require("typst.navigation.lists").files(
             state,
             opts,
@@ -30,7 +48,10 @@ function M.install(api, notify, normalize_bufnr)
 
     local function toc_open_impl(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, "navigation.toc")
+        if not state then
+            return nil, err
+        end
         local events = require("typst.core.events")
         local toc = require("typst.navigation.toc")
         local items = toc.open(state, opts)
@@ -68,7 +89,10 @@ function M.install(api, notify, normalize_bufnr)
             return {}
         end
 
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, "navigation.toc_toggle")
+        if not state then
+            return nil, err
+        end
         if toc.is_open(state) then
             toc.close(state)
             notify("TOC closed")
@@ -80,19 +104,32 @@ function M.install(api, notify, normalize_bufnr)
 
     local function labels(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, "navigation.labels")
+        if not state then
+            return nil, err
+        end
         return require("typst.navigation.lists").labels(state, opts, notify)
     end
 
     local function citations(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, "navigation.citations")
+        if not state then
+            return nil, err
+        end
         return require("typst.navigation.lists").citations(state, opts, notify)
     end
 
     local function bibliography_diagnostics(opts)
         opts = opts or {}
-        opts.project = opts.project or api.project.get(opts.bufnr)
+        if not opts.project then
+            local state, err =
+                project_or_error(opts, "diagnostics.bibliography")
+            if not state then
+                return nil, err
+            end
+            opts.project = state
+        end
         local result = require("typst.bibliography").diagnostics(opts)
         notify(
             ("Bibliography diagnostics: %d item%s"):format(
@@ -105,23 +142,26 @@ function M.install(api, notify, normalize_bufnr)
 
     local function symbols(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, "navigation.symbols")
+        if not state then
+            return nil, err
+        end
         return require("typst.navigation.lists").symbols(state, opts, notify)
     end
 
     local function follow(opts)
         opts = opts or {}
+        local state, err = project_or_error(opts, "navigation.follow")
+        if not state then
+            return nil, err
+        end
         local function report(target)
             if not target then
                 notify("No Typst target under cursor", vim.log.levels.WARN)
                 return
             end
 
-            local label = target.path
-                    and util.relpath(
-                        target.path,
-                        api.project.get(opts.bufnr).root
-                    )
+            local label = target.path and util.relpath(target.path, state.root)
                 or target.url
                 or target.spec
                 or target.name
@@ -161,7 +201,10 @@ function M.install(api, notify, normalize_bufnr)
 
     local function diagnostics(opts)
         opts = opts or {}
-        local state = api.project.get(opts.bufnr)
+        local state, err = project_or_error(opts, "diagnostics.quickfix")
+        if not state then
+            return nil, err
+        end
         local items = require("typst.diagnostics").quickfix(state, opts)
         notify(
             ("Diagnostics: %d item%s"):format(#items, #items == 1 and "" or "s")

@@ -870,6 +870,10 @@ run_case("inverse source-sync and executable backend", function(group)
     })
     vim.cmd.edit(main)
     local command_project = typst.project.set_main(main)
+    require("typst.project").update_dependencies(command_project, {
+        main,
+        chapter,
+    })
 
     local command_event = nil
     vim.api.nvim_create_autocmd("User", {
