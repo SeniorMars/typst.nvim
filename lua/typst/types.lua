@@ -10,6 +10,9 @@
 ---@field last_resolution table? Last project resolution metadata.
 ---@field root_source string? Source that selected `root`.
 ---@field main_source string? Source that selected `main`.
+---@field main_confidence '"high"'|'"medium"'|'"low"'? Confidence of main resolution.
+---@field main_confidence_source string? Original source used for confidence.
+---@field resolution_pending '"import_scan"'? Deferred resolver stage still running.
 ---@field compiler_provider TypstProviderBinding? Active compiler binding.
 ---@field _typst_project_pruned boolean? Registry prune marker used during detach.
 ---@field _typst_project_pruned_reason string? Reason recorded when pruned.
@@ -41,6 +44,77 @@
 ---@field error string?
 ---@field active_output string?
 ---@field deps_path string?
+---@field profile string?
+---@field watch_status string?
+---@field last_cycle_status string?
+---@field external_lock boolean?
+
+---@class TypstProviderResult
+---@field ok boolean?
+---@field reason string?
+---@field provider string?
+---@field error string?
+---@field message string?
+---@field client string?
+---@field method string?
+---@field pending boolean?
+---@field stopped boolean?
+---@field forced boolean?
+---@field orphaned boolean?
+---@field stale boolean?
+
+---@class typst.ProviderResult: TypstProviderResult
+
+---@class TypstProviderPendingHandle
+---@field pending true
+---@field ok boolean?
+---@field reason string?
+---@field provider string?
+---@field message string?
+---@field error string?
+---@field handle any?
+---@field cancel? fun(self_or_opts: TypstProviderPendingHandle|table?, opts?:table):boolean, TypstProviderResult?
+---@field stop? fun(self_or_opts: TypstProviderPendingHandle|table?, opts?:table):boolean, TypstProviderResult?
+---@field kill? fun(self_or_opts: TypstProviderPendingHandle|table?, opts?:table):boolean, TypstProviderResult?
+
+---@class typst.ProviderCancelHandle: TypstProviderPendingHandle
+
+---@class TypstProviderContext
+---@field key string?
+---@field root string?
+---@field main string?
+---@field path string?
+---@field bufnr integer?
+---@field output string?
+---@field profile string?
+---@field services TypstProjectServices?
+---@field last_command string[]?
+---@field last_cwd string?
+
+---@class TypstProviderInvokeControl
+---@field kind string?
+---@field provider_name string?
+---@field callback_position integer?
+---@field callback_name string?
+---@field timeout_ms integer?
+---@field async boolean?
+---@field return_mode '"result"'|'"handle"'?
+---@field accept_table_result boolean?
+---@field result_fields table<string, boolean>?
+---@field normalize? fun(raw:any, provider_name:string):TypstProviderResult|table
+---@field is_handle? fun(result:any):boolean
+---@field callback? fun(result:TypstProviderResult|table, context?:TypstProviderContext)
+---@field invalid_result_message string?
+
+---@class TypstCompilerRunConfig
+---@field profile string?
+---@field output_dir string?
+---@field output_name string?
+---@field output_format string?
+---@field extra_args string[]?
+---@field cwd string?
+---@field open boolean?
+---@field typst_open boolean?
 
 ---@class TypstProviderBinding
 ---@field provider table
@@ -49,11 +123,11 @@
 ---@field name string?
 
 ---@class TypstCompileProvider
----@field compile fun(project:TypstProject|table, callback?:fun(result:TypstCompilerResult), run_config?:table):unknown
----@field start fun(project:TypstProject|table, callback?:fun(result:TypstCompilerResult), run_config?:table):unknown
----@field stop fun(project:TypstProject|table, callback?:fun(result:TypstCompilerResult)):unknown
+---@field compile fun(project:TypstProject|TypstProviderContext|table, callback?:fun(result:TypstCompilerResult), run_config?:TypstCompilerRunConfig|table):TypstProviderPendingHandle|TypstCompilerResult|unknown
+---@field start fun(project:TypstProject|TypstProviderContext|table, callback?:fun(result:TypstCompilerResult), run_config?:TypstCompilerRunConfig|table):TypstProviderPendingHandle|TypstCompilerResult|unknown
+---@field stop fun(project:TypstProject|TypstProviderContext|table, callback?:fun(result:TypstCompilerResult)):TypstProviderPendingHandle|TypstCompilerResult|unknown
 ---@field status fun(project:TypstProject|table):string?
----@field output fun(project:TypstProject|table, run_config?:table):string?
+---@field output fun(project:TypstProject|TypstProviderContext|table, run_config?:TypstCompilerRunConfig|table):string?
 ---@field name string?
 
 ---@class TypstProjectServices
@@ -107,6 +181,8 @@
 ---@field watch_cycle integer?
 ---@field watch_cycle_status string?
 ---@field last_cycle_generation integer?
+
+---@class TypstCompilerState: TypstProjectCompilerService
 
 ---@class TypstProjectCompilerServicePatch: TypstProjectServicePatch
 ---@field status string?
@@ -220,13 +296,32 @@
 ---@field history table?
 ---@field last table?
 
+---@class TypstWatchCycle
+---@field id integer
+---@field generation integer
+---@field stdout string
+---@field stderr string
+---@field started_at integer
+---@field finished boolean
+---@field finish_timer userdata?
+---@field pending_error_reason string?
+
+---@class TypstWatchRestart
+---@field callback fun(result:TypstCompilerResult)?
+---@field opts table?
+---@field run_config TypstCompilerRunConfig|table?
+
+---@class TypstWatchStreamChunk
+---@field stream '"stdout"'|'"stderr"'
+---@field data string
+
 ---@class TypstCompilerWatcher
 ---@field handle any
 ---@field operation table?
 ---@field generation integer
 ---@field cycle integer?
 ---@field cycle_generation integer?
----@field current_cycle table?
+---@field current_cycle TypstWatchCycle?
 ---@field callback fun(result:TypstCompilerResult)?
 ---@field output string?
 ---@field deps_path string?
@@ -234,13 +329,19 @@
 ---@field stopping boolean?
 ---@field exit_cleanup boolean?
 ---@field stop_callbacks fun(result:TypstCompilerResult)[]?
----@field restart_pending table?
+---@field restart_pending TypstWatchRestart?
 ---@field kill_timer userdata?
 ---@field stdout string?
 ---@field stderr string?
 ---@field line_buffers table<string, string>?
----@field stream_queue table[]?
+---@field stream_queue TypstWatchStreamChunk[]?
 ---@field stream_queue_scheduled boolean?
+---@field stream_queue_bytes integer?
+---@field stream_queue_chunks integer?
+---@field stream_queue_truncated boolean?
+---@field stream_queue_dropped_chunks integer?
+---@field stream_queue_dropped_bytes integer?
+---@field last_stream_truncation_warning_at integer?
 ---@field last_cycle_id integer?
 ---@field last_cycle_generation integer?
 ---@field last_cycle_status string?
@@ -260,6 +361,41 @@
 ---@field kill_timer userdata?
 ---@field finished boolean?
 ---@field exit_cleanup boolean?
+
+---@class TypstCompletionContext
+---@field bufnr integer
+---@field line string?
+---@field col integer?
+---@field cursor integer[]?
+---@field mode string?
+---@field syntax string?
+---@field path string?
+---@field project TypstProject?
+
+---@class TypstCompletionItem
+---@field word string
+---@field abbr string?
+---@field menu string?
+---@field kind string?
+---@field info string?
+---@field dup integer?
+---@field icase integer?
+---@field user_data table?
+
+---@class TypstCompletionOptions
+---@field bufnr integer?
+---@field base string?
+---@field context TypstCompletionContext|table?
+---@field limit integer?
+---@field include_tinymist boolean?
+---@field completion_session string?
+---@field on_tinymist_results fun(items:TypstCompletionItem[])?
+
+---@class TypstCompletionSource
+---@field is_available? fun():boolean
+---@field get_trigger_characters? fun():string[]
+---@field complete? fun(self:any, params:table, callback:fun(result:table))
+---@field get_completions? fun(self:any, params:table, callback:fun(result:table))
 
 ---@class TypstCacheRegistryStats
 ---@field total integer

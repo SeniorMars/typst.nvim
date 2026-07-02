@@ -519,8 +519,9 @@ Project resolution produces a project with a root, main file, output plan, and
 buffer membership. The compatibility facade is `typst.project`; the stateful
 pieces are split underneath it:
 
-- `project/resolver.lua` decides root/main/path candidates and must not mutate
-  registry state.
+- `project/resolver.lua` orchestrates source-specific resolvers and must not
+  mutate registry state. Root detection, explicit main sources, graph matching,
+  and import-scan fallback live under `project/resolver/`.
 - `project/registry.lua` owns live project and buffer-to-project maps.
 - `project/init.lua` remains the public/internal facade that commits resolver
   candidates into the registry and preserves existing API entry points.
@@ -534,13 +535,25 @@ Resolution order is intentionally conservative:
 5. Bounded import scanning.
 6. Root heuristics and the current buffer as the final fallback.
 
+Configured `main = { [root] = main }` table keys are normalized during
+`setup()` against the setup-time cwd. Resolver code must not reinterpret those
+keys against the live cwd, because `:cd`/`:lcd` must not change project
+identity. Resolver candidates carry `main_confidence`: explicit sources are
+high confidence, import-scan/existing graph matches are medium confidence, and
+fallback guesses such as current-buffer or nested `main.typ` are low confidence.
+User-facing compile/watch paths warn once per project before using the nested
+`main.typ` heuristic.
+
 The resolver may read bounded source snippets and filesystem metadata, but it
 must not start compiler, preview, Tinymist, or watcher work. Attach/lifecycle
-code owns side effects after resolution succeeds. Import scanning is still a
-synchronous fallback, so it is capped by candidate count, ancestor depth, and
-filesystem entry count. It uses a short-lived path/root/config/root-metadata
-cache, and roots that exceed the entry cap abort the import-scan attempt instead
-of using partial scan results.
+code owns side effects after resolution succeeds. Attach defers import scanning
+and marks the attached project with `resolution_pending = "import_scan"` while a
+scheduled scan settles; command-time resolution forces a pending scan before
+compiler, preview, or navigation work starts. Import scanning still uses the
+same synchronous scanner when it runs, so it is capped by candidate count,
+ancestor depth, and filesystem entry count. It uses a short-lived
+path/root/config/root-metadata cache, and roots that exceed the entry cap abort
+the import-scan attempt instead of using partial scan results.
 
 Project identity is keyed by root plus main. Modules should use project API
 snapshots for observation and service controllers for mutation instead of
@@ -654,9 +667,10 @@ through the event module so handlers observe a stable payload.
 
 ## Cache Invalidation
 
-Cache owners should register with the cache registry when they expose reset,
-clear, or reload behavior. Cache clearing is a recovery path; failures should be
-logged and isolated so one bad cache cannot abort a full reset.
+Cache and local-state owners should register with the cache registry when they
+expose reset, clear, reload, buffer-forget, buffer-detach, or window-forget
+behavior. Cache clearing is a recovery path; failures should be logged and
+isolated so one bad cache cannot abort a full reset or buffer teardown.
 
 Common invalidators:
 
@@ -719,6 +733,10 @@ Do not move files before tests pin ownership. The migration order is:
    - `project.resolver` resolves candidates without mutating state.
    - `project.attachments` is the BufferAttachment facade for buffer hooks and
      setup reapplication.
+   - `project.index.*` is the migration namespace for static-index modules;
+     old `project.index_*` files stay as compatibility entry points until the
+     large files can move without churn.
+   - `core.windows` is the shared visible-window lookup primitive.
    - `resources.outputs` is the output lease facade used outside low-level tests.
    - `resources.session` is the project liveness view.
    - `resources.supervisor` is the reset, exit, and stop-before-prune cleanup
@@ -868,7 +886,8 @@ pending refresh/restart tests passing.
 ### Cache Registry Stats
 
 The cache registry exposes both detailed `status()` entries and aggregate
-`stats()` counters. New cache owners should provide reset/clear/reload methods
-where appropriate and should register enough metadata for health/report output
-to show loaded, unloaded, reset-capable, clear-capable, and reload-capable
-counts.
+`stats()` counters. New cache owners should provide reset/clear/reload and
+buffer/window lifecycle methods where appropriate, then register enough metadata
+for health/report output to show loaded, unloaded, reset-capable,
+clear-capable, reload-capable, forget-capable, detach-capable, and
+window-cleanup-capable counts.

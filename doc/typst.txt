@@ -2137,6 +2137,7 @@ and the machine-readable schema is `data/config-schema.json`. Run
 Defaults: >
 
   require("typst").setup({
+    validation = "warn",
     executable = "typst",
     metadata_version = nil,
     output_format = "pdf",
@@ -2150,8 +2151,11 @@ Defaults: >
       import_scan_max_depth = 3,
       import_scan_max_entries = 2000,
       persist_main = true,
+      warn_on_low_confidence_main = true,
       index = {
         fs_watchers = "auto",
+        max_file_bytes = 1024 * 1024,
+        large_file_policy = "skip",
       },
     },
     compile = {
@@ -2204,6 +2208,7 @@ Defaults: >
         -- Use "detect" for passive existing-client queries, "off" to disable,
         -- or "start" to force nvim-lsp startup.
         lsp = "auto",
+        client_names = { "tinymist" },
         path = "tinymist",
         -- Advanced: set cmd to override path with a full command prefix.
         cmd = nil,
@@ -2648,8 +2653,9 @@ in different windows.
 `integrations.tinymist.lsp` controls typst.nvim's Tinymist Neovim LSP
 integration. The default `"auto"` starts or reuses a Neovim built-in LSP client
 named `tinymist` when the executable is available, unless coc.nvim appears
-active. `"detect"` only queries an existing nvim-lsp Tinymist client, `"off"`
-disables typst.nvim Tinymist LSP use, and `"start"` forces
+active. Set `integrations.tinymist.client_names` to also detect custom wrapper
+client names. `"detect"` only queries an existing nvim-lsp Tinymist client,
+`"off"` disables typst.nvim Tinymist LSP use, and `"start"` forces
 nvim-lsp startup even when Coc is present. `integrations.tinymist.cmd`,
 `path`, `settings`, `init_options`, `capabilities`, and `on_attach` configure
 `vim.lsp.start()` for `"auto"` and `"start"`. `integrations.tinymist.path` is
@@ -2786,6 +2792,10 @@ that run and preserves the existing project graph.
 `{ "uv", "run", "typst" }`; typst.nvim appends the Typst subcommand and
 arguments without going through a shell.
 
+`validation = "warn"` records and logs unknown setup keys so typos such as
+`diagnostic.source` do not silently disappear into the merged config. Use
+`"strict"` to error on unknown keys, or `"off"`/`false` to disable the warning.
+
 `output_name` controls the generated output filename. It must be a basename; use
 `output_dir` for directories. If it has no extension, typst.nvim appends
 `output_format`.
@@ -2819,14 +2829,25 @@ fails to start; output artifacts remain available.
 
 `main` may be a string, callback, or table keyed by project root. Table values
 may be strings or callbacks, allowing per-root main-file mappings while keeping
-`vim.b.typst_main` as the highest-precedence override. A leading Typst comment
-directive of the form `// typst.nvim: main = ../main.typ` resolves relative to
-the current buffer. Throwing `root` or `main` callbacks are caught, logged, and
-treated as no match so later resolvers can continue and the buffer is not left
+`vim.b.typst_main` as the highest-precedence override. Relative table keys are
+normalized once during `setup()` against the setup-time cwd; later `:cd` or
+`:lcd` changes do not change those mappings. A leading Typst comment directive
+of the form `// typst.nvim: main = ../main.typ` resolves relative to the current
+buffer. Throwing `root` or `main` callbacks are caught, logged, and treated as
+no match so later resolvers can continue and the buffer is not left
 half-attached. A `.typstmain` file contains the main path relative to that
 file's directory, either as a bare path or `main = path`. When `root` is not
 configured, table keys also act as root hints, so nested Typst projects can
 resolve before a broader `.git` marker.
+
+Project resolution records a main-file confidence label. Explicit sources are
+high confidence, import-scan matches are medium confidence, and fallback
+guesses such as current-buffer or nested `main.typ` are low confidence.
+Existing-project graph matches inherit the matched project's original main
+confidence; when no prior confidence is available they are treated as medium.
+Compile/watch warn once per project before using the nested `main.typ`
+heuristic unless `project.warn_on_low_confidence_main = false`. Other
+low-confidence fallbacks are reported in |:TypstInfo!| but do not warn today.
 
 `project.import_scan` enables a fallback scan for local `#include` and
 `#import` statements that reference the current buffer. It is capped by
@@ -2834,6 +2855,10 @@ resolve before a broader `.git` marker.
 root marker is found, ancestor scanning is capped by
 `project.import_scan_max_depth`. Package imports such as
 `@preview/name:version` are ignored by this resolver.
+Buffer attach defers this bounded scan: the buffer first attaches through the
+later heuristic with `resolution_pending = "import_scan"`, then a scheduled
+scan reassigns it if a unique importing main is found. Commands force a pending
+scan before compile, watch, preview, or navigation uses the project.
 
 Set `indent.enabled = false` to leave Typst buffer indentation untouched.
 
@@ -3259,11 +3284,12 @@ a useful out-of-box workflow, but large repositories may need tighter settings.
 Project import scanning is bounded by `project.import_scan_max_files`,
 `project.import_scan_max_depth`, and `project.import_scan_max_entries`. It is
 kept in a short-lived cache keyed by path, root, config generation, and root
-metadata, and |:TypstClearCache| clears it immediately. The scan remains
-synchronous; when a scan root exceeds the entry cap, typst.nvim abandons that
-import-scan attempt and falls back to later main-file heuristics before
-candidate files are read.
-If opening a leaf file is slow, inspect |:TypstInfo|, lower
+metadata, and |:TypstClearCache| clears it immediately. Buffer attach defers
+the scan so opening a leaf file can use a fast fallback first; command paths
+force any pending scan before they operate. When a scan root exceeds the entry
+cap, typst.nvim abandons that import-scan attempt and falls back to later
+main-file heuristics before candidate files are read.
+If deferred import scanning is still too expensive, inspect |:TypstInfo|, lower
 `project.import_scan_max_entries`, disable `project.import_scan`, or set a
 `.typstmain`/`:TypstSetMain` decision.
 For project indexing, `project.index.large_file_policy = "headings-only"` avoids
@@ -3664,6 +3690,11 @@ Project attach events add `event_kind`, `bufnr`, `buffer`, `reason`, and
 `remaining_buffers`. Buffer detach events add those same fields plus
 `project_pruned`. `TypstEventProjectPruned` includes `event_kind`, `reason`,
 `remaining_buffers`, and `project_pruned`.
+Project attach events may also include `resolution_pending = "import_scan"`.
+Handlers that start watchers, previews, or external tools should either skip
+pending attaches or call the public project API to force resolution before
+acting; a later non-pending attach event is emitted when deferred import
+scanning settles on a different main file.
 `TypstEventCompilerForceCleared` includes `key_display`, `output`,
 `released_lease`, `stopped`, `forced`, `discarded`, `reason`, and
 `lease_owner`. `forced` is true only when bang/`force = true` bypassed the

@@ -165,7 +165,9 @@ Optional integrations:
   `integrations.tinymist.path` only configures Neovim's built-in LSP startup.
   Use `"detect"` to only query an already-attached nvim-lsp Tinymist client,
   `"off"` to stay on fallback paths, or `"start"` to force
-  typst.nvim-managed nvim-lsp startup even when Coc is present. `:checkhealth
+  typst.nvim-managed nvim-lsp startup even when Coc is present. Set
+  `integrations.tinymist.client_names` to detect custom nvim-lsp wrapper
+  client names. `:checkhealth
   typst` reports the selected mode, detected native Tinymist clients,
   advertised capabilities, and the Coc skip reason.
 - `typst-preview.nvim` only when explicitly selected as a compatibility preview
@@ -206,6 +208,16 @@ Useful entry points:
 | Provider contracts | Supported but intentionally strict. | Compiler providers that may write output must call back, expose cancellation, or accept retained leases until force-clear. |
 | Service tables, project lifecycle internals, resource/session internals | Internal. | These may move as ownership boundaries harden. Use commands or documented API wrappers instead. |
 
+Feature stability is grouped by workflow, not by module directory:
+
+| Group | Includes | Expectation |
+| --- | --- | --- |
+| Core workflow | Setup, project discovery, main-file control, compile/watch/stop, diagnostics, viewer dispatch, status/info/log/cache/lock commands. | Supported user workflow; regressions should be treated as bugs. |
+| Editor workflow | Completion adapters, TOC/pickers, folds, motions, text objects, conceal, formatting, lint, grammar, and structural transforms. | Supported, but quality can depend on Tree-sitter, Typst CLI, Tinymist, and configured providers. |
+| Integration workflow | Tinymist, native preview, typst-preview.nvim delegation, custom providers, export/render/eval/profile/test/bench/coverage helpers. | Supported where configured; provider contracts may still tighten before a stable release. |
+| Lua API | Exact dotted symbols listed in [API.md](API.md). | Stable at the current API level. Installed helpers outside that list are experimental. |
+| Internals | Service tables, resolver/index/preview sessions, resource supervision, generated metadata loaders, and cache registries. | Internal; use commands or documented Lua wrappers instead of depending on these shapes. |
+
 Known limitations:
 
 - Human `typst watch` output is best-effort parsed. Prefer structured provider
@@ -213,11 +225,12 @@ Known limitations:
 - Normal Typst PDF output does not provide SyncTeX-style source sync. Forward
   and inverse search depend on viewer, preview, or source-map provider
   capabilities.
-- Import scanning is bounded and cached briefly, but it is still a synchronous
-  fallback for leaf files. Once `project.import_scan_max_entries` is reached,
-  typst.nvim abandons that import-scan attempt and falls back to later main-file
-  heuristics; disable `project.import_scan` entirely in remote trees if attach
-  latency matters.
+- Import scanning is bounded, cached briefly, and deferred from buffer attach.
+  Commands force any pending scan before they compile/preview. Once
+  `project.import_scan_max_entries` is reached, typst.nvim abandons that
+  import-scan attempt and falls back to later main-file heuristics; disable
+  `project.import_scan` entirely in remote trees if even deferred scan latency
+  is not acceptable.
 - Rich conceal changes window-local `conceallevel` while enabled. Disable
   `conceal.enabled` or use `:TypstConcealDisable` for a plain-source workflow.
 
@@ -449,6 +462,7 @@ Example setup:
 
 ```lua
 require("typst").setup({
+  validation = "warn",
   metadata_version = nil,
   root_markers = { ".typstmain", "typst.toml", ".git" },
   main = nil,
@@ -458,8 +472,11 @@ require("typst").setup({
     import_scan_max_depth = 3,
     import_scan_max_entries = 2000,
     persist_main = true,
+    warn_on_low_confidence_main = true,
     index = {
       fs_watchers = "auto",
+      max_file_bytes = 1024 * 1024,
+      large_file_policy = "skip",
     },
   },
   output_dir = vim.fs.joinpath(vim.fn.stdpath("cache"), "typst.nvim", "output"),
@@ -517,6 +534,7 @@ require("typst").setup({
       -- Use "detect" for passive existing-client queries, "off" to disable,
       -- or "start" to force nvim-lsp startup.
       lsp = "auto",
+      client_names = { "tinymist" },
       path = "tinymist",
       -- Advanced: set cmd to override path with a full command prefix.
       cmd = nil,
@@ -1239,14 +1257,20 @@ template `source_dir` only when a compiler provider needs a real temporary
 source file; file-backed sources are cleaned up after the fragment compile
 resolves or if the provider fails to start. Output artifacts remain available.
 
+`validation = "warn"` records and logs unknown setup keys so typos such as
+`diagnostic.source` do not silently disappear into the merged config. Use
+`"strict"` to error on unknown keys, or `"off"`/`false` to disable the warning.
+
 Main-file resolution checks `vim.b.typst_main`, saved explicit `:TypstSetMain`
 choices, a leading `// typst.nvim: main = ../main.typ` directive, configured
 `main` values, a nearest `.typstmain` project file, existing dependency graphs, capped
 `#include`/`#import` scanning, nested-file `main.typ` heuristics, and finally the
 current buffer. `main` may be a string, callback, or table keyed by project root. Table
-values may be strings or callbacks, allowing per-root main-file mappings. When
-`root` is not configured, table keys also act as root hints, so subprojects
-inside a larger Git repository can resolve before the `.git` marker is used. A
+values may be strings or callbacks, allowing per-root main-file mappings.
+Relative table keys are normalized once during `setup()` against the setup-time
+cwd; later `:cd` or `:lcd` changes do not change those mappings. When `root` is
+not configured, table keys also act as root hints, so subprojects inside a
+larger Git repository can resolve before the `.git` marker is used. A
 throwing `root` or `main` callback is caught, logged, and treated as no match so
 the remaining resolvers can continue; typst.nvim does not leave a half-attached
 buffer because a user resolver failed. A
@@ -1265,6 +1289,17 @@ Project state records `dependency_sources` and `file_sources` values of
 `explicit`, `compiler`, or `heuristic`; existing graph attachment uses that
 priority order so heuristic associations do not override explicit or
 compiler-discovered project membership.
+Project resolution also records a main-file confidence label. Explicit sources
+are high confidence, import-scan matches are medium confidence, and fallback
+guesses such as current-buffer or nested `main.typ` are low confidence.
+Existing-project graph matches inherit the matched project's original main
+confidence; when no prior confidence is available they are treated as medium.
+Compile/watch warn once per project before using the nested `main.typ`
+heuristic unless `project.warn_on_low_confidence_main = false`. Other
+low-confidence fallbacks are reported in `:TypstInfo!` but do not warn today.
+When attach reaches the bounded import-scan fallback, it first attaches with
+the later heuristic and records `resolution_pending = "import_scan"`; a
+scheduled scan reassigns the buffer if it finds a unique importing main.
 Unnamed Typst buffers attach to a scratch in-memory project rooted at the
 current working directory; `:saveas` re-resolves them as normal file-backed
 projects and prunes the scratch project.
@@ -1774,6 +1809,25 @@ backend details. `:TypstInfo` and health report status through the active
 compiler provider's `status(project)` method. If an external provider
 compile/watch/stop timeout leaves an active output lease visible,
 `:TypstCompilerForceClear[!] [project-key]` provides the explicit discard path.
+
+## Performance tuning
+
+The expensive paths are project discovery, project indexing, completion scans,
+conceal rendering, Tinymist requests, and preview refresh. Defaults favor a
+complete editor workflow; large repositories, remote filesystems, and generated
+documents may need tighter caps.
+
+| Area | Settings | Guidance |
+| --- | --- | --- |
+| Main-file discovery | `project.import_scan`, `project.import_scan_max_files`, `project.import_scan_max_depth`, `project.import_scan_max_entries` | Import scanning is deferred from attach and uses a short-lived cache keyed by path/root/config/root metadata. Set `.typstmain` or `:TypstSetMain` for deterministic large projects; disable import scan on slow remote trees. |
+| Project index | `project.index.max_file_bytes`, `project.index.large_file_policy`, `project.index.fs_watchers` | Keep `"skip"` for the cheapest unloaded-file behavior. Use `"headings-only"` when headings/imports matter, but it still reads oversized files. Use `"scan"` only for trusted projects where full oversized-file indexing is worth the cost. |
+| Completion scans | `completion.path_scan_entry_max`, `completion.path_scan_max`, `completion.path_scan_cache_ms`, `completion.package_scan_max`, `completion.csl_scan_max`, `completion.font_scan_timeout_ms` | Lower caps when path/package completion is noisy. Set `path_scan_cache_ms = 0` to disable the brief directory cache; set `font_scan_timeout_ms = 0` to skip the `typst fonts` scan. |
+| Conceal/rendering | `conceal.enabled`, `conceal.viewport_margin`, `conceal.categories`, `conceal.renderer.mode`, `conceal.renderer.image.enabled` | Disable categories you do not use before disabling conceal entirely. Reduce `viewport_margin` for very large buffers; image conceal is opt-in and should stay off unless terminal image rendering is part of the workflow. |
+| Tinymist and async providers | `integrations.tinymist.lsp`, provider `timeout_ms` fields, `diagnostics.source` | Use `"detect"` if another plugin owns Tinymist startup. Prefer bounded provider timeouts and inspect stale callbacks or retained leases through `:TypstInfo!` and `:TypstLog`. |
+| Native browser preview | `preview.browser.server`, `preview.browser.refresh_ms`, `preview.browser.max_artifact_bytes` | The local server caps headers and artifact size, then streams under-cap artifacts. Keep the cap enabled unless previewing trusted local artifacts in a controlled session. |
+
+Use `:TypstInfo!`, `:TypstStatusAll!`, `:TypstLog`, `:checkhealth typst`, and
+`:TypstTelemetry` to decide which path is actually slow before lowering caps.
 
 ## Troubleshooting
 
