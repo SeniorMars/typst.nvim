@@ -562,6 +562,12 @@ function M.project_lines(state, bufnr, opts)
         )
         lines[#lines + 1] = ("  root source: %s"):format(resolution.root_source)
         lines[#lines + 1] = ("  main source: %s"):format(resolution.main_source)
+        lines[#lines + 1] = ("  main confidence: %s"):format(
+            resolution.main_confidence or state.main_confidence or "unknown"
+        )
+        lines[#lines + 1] = ("  resolution pending: %s"):format(
+            resolution.resolution_pending or state.resolution_pending or "none"
+        )
     end
 
     if compiler_state.last_command then

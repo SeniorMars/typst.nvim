@@ -12,6 +12,16 @@ local heuristic_main_sources = {
     ["root heuristic main.typ"] = true,
 }
 
+local medium_confidence_sources = {
+    ["existing project graph"] = true,
+    ["import scan"] = true,
+}
+
+local low_confidence_sources = {
+    ["current buffer"] = true,
+    ["root heuristic main.typ"] = true,
+}
+
 local function strip_inline_comment(value)
     return lexical.strip_line_comment(value):gsub("%s+#.*$", "")
 end
@@ -165,12 +175,7 @@ function M.configured(path, bufnr, root, opts)
         local mapped = opts.main[root]
         if mapped == nil then
             for configured_root, value in pairs(opts.main) do
-                if
-                    util.same_path(
-                        util.resolve_path(configured_root, vim.fn.getcwd()),
-                        root
-                    )
-                then
+                if util.same_path(util.normalize(configured_root), root) then
                     mapped = value
                     break
                 end
@@ -262,6 +267,19 @@ end
 ---@return boolean heuristic True when the source is heuristic.
 function M.is_heuristic_source(source)
     return heuristic_main_sources[source] == true
+end
+
+--- Return a coarse confidence label for a main-file source.
+---@param source? string Source label returned by main resolution.
+---@return '"high"'|'"medium"'|'"low"' confidence Resolution confidence.
+function M.confidence_for_source(source)
+    if low_confidence_sources[source] then
+        return "low"
+    end
+    if medium_confidence_sources[source] then
+        return "medium"
+    end
+    return "high"
 end
 
 return M

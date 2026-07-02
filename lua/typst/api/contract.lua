@@ -63,6 +63,7 @@ local attach_payload = {
     "event_kind",
     "bufnr",
     "buffer",
+    "resolution_pending",
     "reason",
     "remaining_buffers",
 }

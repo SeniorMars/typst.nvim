@@ -57,7 +57,7 @@ local function root_from_main_mapping(path, opts)
 
     local best_root = nil
     for configured_root_path in pairs(opts.main) do
-        local root = util.resolve_path(configured_root_path, vim.fn.getcwd())
+        local root = util.normalize(configured_root_path)
         if
             M.path_within(path, root) and (not best_root or #root > #best_root)
         then

@@ -41,6 +41,9 @@ local function record_resolution(project, bufnr, path, resolution)
     project.last_resolution = resolution
     project.root_source = resolution.root_source
     project.main_source = resolution.main_source
+    project.main_confidence = resolution.main_confidence
+    project.main_confidence_source = resolution.main_confidence_source
+    project_model.refresh_resolution_pending(project)
 end
 
 local function transfer_buffer(bufnr, next_key)
@@ -54,6 +57,7 @@ local function transfer_buffer(bufnr, next_key)
         previous.bufs[bufnr] = nil
         diagnostics.clear_buffer(previous, bufnr, { emit = false })
         previous.resolutions[bufnr] = nil
+        project_model.refresh_resolution_pending(previous)
         log.add("info", "moved buffer to another project", {
             bufnr = bufnr,
             from = previous.main,
@@ -193,6 +197,7 @@ function M.detach(bufnr)
         state.bufs[bufnr] = nil
         diagnostics.clear_buffer(state, bufnr, { emit = false })
         state.resolutions[bufnr] = nil
+        project_model.refresh_resolution_pending(state)
         log.add("info", "detached buffer", { bufnr = bufnr, main = state.main })
         rebuild_files(state)
         project_store.prune_if_empty(state, "buffer detached")
@@ -243,6 +248,7 @@ function M.clear_main(bufnr, opts)
         previous.bufs[bufnr] = nil
         diagnostics.clear_buffer(previous, bufnr, { emit = false })
         previous.resolutions[bufnr] = nil
+        project_model.refresh_resolution_pending(previous)
         project_store.clear_buffer(bufnr)
         rebuild_files(previous)
         project_store.prune_if_empty(previous, "buffer main cleared")

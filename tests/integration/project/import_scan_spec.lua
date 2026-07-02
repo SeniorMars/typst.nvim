@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local root_discovery = require("typst.project.root")
+local registry = require("typst.project")
 local typst = require("typst")
 local util = require("typst.core.util")
 
@@ -51,15 +52,36 @@ local ok, err = xpcall(function()
     root_discovery._clear_import_scan_cache()
     local project = assert(
         typst.project.attach(bufnr),
-        "leaf buffer should attach through import scan"
+        "leaf buffer should attach before deferred import scan"
     )
     assert(
-        util.same_path(project.main, main),
-        "large import scan should resolve the importing main"
+        util.same_path(project.main, leaf),
+        "initial attach should use the fast fallback before import scan"
     )
+    assert(
+        project.resolution_pending == "import_scan",
+        "initial attach should mark deferred import-scan resolution"
+    )
+    assert(
+        project.resolutions[bufnr].resolution_pending == "import_scan",
+        "buffer resolution should record pending import scan"
+    )
+    local initial_stats = root_discovery._import_scan_stats()
+    assert(initial_stats.scans == 0, "attach should not run import scan inline")
+
+    local resolved = vim.wait(1000, function()
+        local current = registry.get(bufnr)
+        return current and util.same_path(current.main, main)
+    end, 10)
+    assert(resolved, "deferred import scan should resolve the importing main")
+    project = assert(registry.get(bufnr), "deferred scan should keep project")
     assert(
         project.resolutions[bufnr].main_source == "import scan",
-        "project attach should record import-scan main source"
+        "deferred project attach should record import-scan main source"
+    )
+    assert(
+        project.resolution_pending == nil,
+        "deferred import scan should clear project pending state"
     )
     local first_stats = root_discovery._import_scan_stats()
     assert(first_stats.scans == 1, "first attach should run import scan")
@@ -72,10 +94,24 @@ local ok, err = xpcall(function()
     typst.project.detach(bufnr)
     local cached_project = assert(
         typst.project.attach(bufnr),
-        "leaf buffer should reattach through cached import scan"
+        "leaf buffer should reattach before cached import scan"
     )
     assert(
-        util.same_path(cached_project.main, main),
+        util.same_path(cached_project.main, leaf),
+        "cached reattach should still start with the fast fallback"
+    )
+    resolved = vim.wait(1000, function()
+        local current = registry.get(bufnr)
+        return current and util.same_path(current.main, main)
+    end, 10)
+    assert(
+        resolved,
+        "cached deferred import scan should resolve the importing main"
+    )
+    local cached_resolved_project =
+        assert(registry.get(bufnr), "cached deferred scan should keep project")
+    assert(
+        util.same_path(cached_resolved_project.main, main),
         "cached large import scan should resolve the same main"
     )
     local second_stats = root_discovery._import_scan_stats()
@@ -128,11 +164,26 @@ local ok, err = xpcall(function()
     typst.project.detach(bufnr)
     local capped_project = assert(
         typst.project.attach(bufnr),
-        "leaf buffer should still attach when import scan is entry-capped"
+        "leaf buffer should attach before entry-capped import scan"
     )
     assert(
         util.same_path(capped_project.main, capped_leaf),
-        "entry-capped import scan should fall back to the leaf file"
+        "initial entry-capped attach should use the leaf fallback"
+    )
+    assert(
+        capped_project.resolution_pending == "import_scan",
+        "entry-capped scan should still be deferred from attach"
+    )
+    local capped_finished = vim.wait(1000, function()
+        local current = registry.get(bufnr)
+        return current and current.resolution_pending == nil
+    end, 10)
+    assert(capped_finished, "entry-capped deferred scan should settle")
+    capped_project =
+        assert(registry.get(bufnr), "entry-capped attach should keep project")
+    assert(
+        util.same_path(capped_project.main, capped_leaf),
+        "entry-capped import scan should leave the leaf fallback in place"
     )
     assert(
         capped_project.resolutions[bufnr].main_source ~= "import scan",

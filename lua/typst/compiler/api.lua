@@ -3,6 +3,7 @@ local config = require("typst.config")
 local consumers = require("typst.compiler.consumers")
 local fragments = require("typst.compiler.fragments")
 local compiler_service = require("typst.project.services.compiler")
+local log = require("typst.core.log")
 local project_registry = require("typst.project")
 local reports = require("typst.ui.reports")
 local util = require("typst.core.util")
@@ -10,6 +11,40 @@ local util = require("typst.core.util")
 local M = {}
 
 local notify_user = require("typst.core.notify").user
+
+local function warn_low_confidence_main(state, action, notify)
+    local project_config = (config.unsafe_get().project or {})
+    if project_config.warn_on_low_confidence_main == false then
+        return
+    end
+    if
+        not state
+        or state.main_confidence ~= "low"
+        or state._typst_low_confidence_main_warned
+    then
+        return
+    end
+
+    local confidence_source = state.main_confidence_source or state.main_source
+    if confidence_source ~= "root heuristic main.typ" then
+        return
+    end
+
+    state._typst_low_confidence_main_warned = true
+    local message = (
+        "typst.nvim guessed the Typst main for %s from %s; "
+        .. "use :TypstSetMain, vim.b.typst_main, or .typstmain if this is wrong"
+    ):format(action, confidence_source)
+    log.add("warn", "low-confidence Typst main", {
+        action = action,
+        root = state.root,
+        main = state.main,
+        main_source = state.main_source,
+        main_confidence = state.main_confidence,
+        main_confidence_source = confidence_source,
+    })
+    notify_user(notify, message, vim.log.levels.WARN)
+end
 
 --- Run one Typst compile for a project.
 ---@param state TypstProject Project state whose main file should be compiled.
@@ -19,6 +54,7 @@ local notify_user = require("typst.core.notify").user
 ---@return any handle Provider/process handle returned by the active compiler backend.
 function M.compile(state, opts, callback, notify)
     opts = opts or {}
+    warn_low_confidence_main(state, "compile", notify)
     local run_config = config.for_run(opts.profile, {
         open = opts.open,
         typst_open = opts.typst_open,
@@ -110,6 +146,7 @@ end
 ---@return any handle Provider/process handle returned by the active compiler backend.
 function M.watch(state, opts, callback, notify)
     opts = opts or {}
+    warn_low_confidence_main(state, "watch", notify)
     local run_config = config.for_run(opts.profile, {
         open = opts.open,
         typst_open = opts.typst_open,

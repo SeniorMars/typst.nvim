@@ -15,6 +15,9 @@ local public_fields = {
     "main",
     "root_source",
     "main_source",
+    "main_confidence",
+    "main_confidence_source",
+    "resolution_pending",
 }
 
 local public_tables = {
@@ -68,7 +71,7 @@ end
 --- across project-scoped workflows: explicit project objects win, attached
 --- buffer state is reused, and resolution is attempted only when requested.
 ---@param opts? table|integer Options with `project`/`bufnr`, or a bufnr.
----@param resolve_opts? {create?: boolean}
+---@param resolve_opts? {create?: boolean, settle_pending?: boolean}
 ---@return table|nil project Resolved project state, if available.
 function M.resolve(opts, resolve_opts)
     resolve_opts = resolve_opts or {}
@@ -83,6 +86,11 @@ function M.resolve(opts, resolve_opts)
     local bufnr = normalize_bufnr(opts.bufnr)
     local registry = require("typst.project")
     local state = registry.get(bufnr)
+    if state and state.resolution_pending and resolve_opts.settle_pending then
+        local ok, resolved =
+            pcall(require("typst.project.lifecycle").get_project, bufnr)
+        return ok and resolved or state
+    end
     if state or resolve_opts.create == false then
         return state
     end

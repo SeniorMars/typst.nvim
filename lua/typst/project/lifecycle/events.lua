@@ -42,6 +42,8 @@ function M.emit_project_attach(state, bufnr, reason)
         event_kind = "project_attach",
         bufnr = bufnr,
         buffer = resolution and resolution.buffer or nil,
+        resolution_pending = resolution and resolution.resolution_pending
+            or state.resolution_pending,
         reason = reason,
         remaining_buffers = #vim.tbl_keys(state.bufs or {}),
     })

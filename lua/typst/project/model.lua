@@ -127,6 +127,25 @@ function M.association_source_for(path, main, resolution)
     return "explicit"
 end
 
+--- Recompute the aggregate pending-resolution marker from buffer resolutions.
+---@param project TypstProject? Project state whose pending flag should refresh.
+---@return string? pending Pending resolver stage, if any buffer still has one.
+function M.refresh_resolution_pending(project)
+    if type(project) ~= "table" then
+        return nil
+    end
+
+    for _, resolution in pairs(project.resolutions or {}) do
+        if type(resolution) == "table" and resolution.resolution_pending then
+            project.resolution_pending = resolution.resolution_pending
+            return project.resolution_pending
+        end
+    end
+
+    project.resolution_pending = nil
+    return nil
+end
+
 local function buffer_resolution_path(project, bufnr)
     local resolution = project.resolutions and project.resolutions[bufnr]
     if type(resolution) ~= "table" then

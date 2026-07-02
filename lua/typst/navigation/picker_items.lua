@@ -293,7 +293,7 @@ end
 
 function M.items(opts)
     opts = opts or {}
-    local project = project_context.resolve(opts)
+    local project = project_context.resolve(opts, { settle_pending = true })
     if not project then
         return {}
     end

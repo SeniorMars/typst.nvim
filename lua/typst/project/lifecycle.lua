@@ -2,13 +2,195 @@ local M = {}
 
 local core_lifecycle = require("typst.core.lifecycle")
 local attachments = require("typst.project.attachments")
+local config = require("typst.config")
 local lifecycle_events = require("typst.project.lifecycle.events")
 local log = require("typst.core.log")
+local main_file = require("typst.project.main_file")
 local project = require("typst.project")
+local project_model = require("typst.project.model")
+local root_discovery = require("typst.project.root")
 local telemetry = require("typst.core.telemetry")
 local util = require("typst.core.util")
 
 local normalize_bufnr = require("typst.core.buffer").normalize_bufnr
+
+local deferred_import_scan_tokens = {}
+local next_deferred_import_scan_token = 0
+
+local function buffer_path(bufnr)
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+        return nil
+    end
+
+    local path = vim.api.nvim_buf_get_name(bufnr)
+    if type(path) ~= "string" or path == "" then
+        return nil
+    end
+    return util.normalize(path)
+end
+
+local function clear_deferred_import_scan(state, bufnr, token, status)
+    local resolution = state and state.resolutions and state.resolutions[bufnr]
+    if not resolution or resolution.import_scan_token ~= token then
+        return
+    end
+
+    resolution.import_scan_pending = false
+    resolution.resolution_pending = nil
+    resolution.import_scan_request = nil
+    resolution.import_scan_token = nil
+    resolution.import_scan_status = status or "finished"
+    project_model.refresh_resolution_pending(state)
+end
+
+local function schedule_deferred_import_scan(bufnr, state, candidate)
+    local resolution = candidate and candidate.resolution or nil
+    local request = resolution and resolution.import_scan_request or nil
+    if type(request) ~= "table" then
+        return
+    end
+
+    next_deferred_import_scan_token = next_deferred_import_scan_token + 1
+    local token = next_deferred_import_scan_token
+    deferred_import_scan_tokens[bufnr] = token
+
+    local stored_resolution = state.resolutions and state.resolutions[bufnr]
+    if stored_resolution then
+        stored_resolution.import_scan_token = token
+    end
+
+    local expected_key = state.key
+    local expected_path = request.path
+    local expected_config_generation = request.config_generation
+        or config.generation()
+    vim.defer_fn(function()
+        if deferred_import_scan_tokens[bufnr] ~= token then
+            return
+        end
+        deferred_import_scan_tokens[bufnr] = nil
+
+        local current = project.get(bufnr)
+        local function clear_current(status)
+            clear_deferred_import_scan(current, bufnr, token, status)
+        end
+
+        if expected_config_generation ~= config.generation() then
+            clear_current("config_changed")
+            return
+        end
+
+        if not current then
+            return
+        end
+
+        local current_path = buffer_path(bufnr)
+        if
+            not current_path or not util.same_path(current_path, expected_path)
+        then
+            clear_current("path_changed")
+            return
+        end
+
+        if current.key ~= expected_key then
+            clear_current("project_changed")
+            return
+        end
+
+        local current_resolution = current.resolutions
+                and current.resolutions[bufnr]
+            or nil
+        if not current_resolution then
+            project_model.refresh_resolution_pending(current)
+            return
+        end
+
+        if current_resolution.import_scan_token ~= token then
+            return
+        end
+
+        local scan_started = telemetry.start()
+        local ok, main, main_source, scan_root, scan_root_source = pcall(
+            root_discovery.import_scan_main,
+            request.path,
+            request.root,
+            request.root_source,
+            config.unsafe_get()
+        )
+        telemetry.finish("project.deferred_import_scan", scan_started, {
+            ok = ok,
+            bufnr = bufnr,
+            project_key = current.key,
+            root = request.root,
+        })
+        if not ok then
+            clear_deferred_import_scan(current, bufnr, token, "failed")
+            log.add("warn", "deferred import scan failed", {
+                bufnr = bufnr,
+                path = request.path,
+                error = main,
+            })
+            return
+        end
+
+        if not main then
+            clear_deferred_import_scan(current, bufnr, token, "not_found")
+            return
+        end
+
+        local previous_resolution = vim.deepcopy(current_resolution)
+        local attach_candidate = {
+            bufnr = bufnr,
+            path = request.path,
+            root = scan_root,
+            main = main,
+            previous_key = current.key,
+            resolution = {
+                root_source = scan_root_source,
+                main_source = main_source,
+                main_confidence = main_file.confidence_for_source(main_source),
+                main_confidence_source = main_source,
+            },
+        }
+
+        local commit_ok, next_state =
+            pcall(project.commit_attach, attach_candidate)
+        if not commit_ok then
+            clear_deferred_import_scan(current, bufnr, token, "commit_failed")
+            log.add("warn", "failed to commit deferred import-scan project", {
+                bufnr = bufnr,
+                path = request.path,
+                main = main,
+                error = next_state,
+            })
+            return
+        end
+
+        log.add("info", "deferred import scan resolved Typst main", {
+            bufnr = bufnr,
+            path = request.path,
+            main = main,
+            root = scan_root,
+        })
+        lifecycle_events.emit_reassign(
+            current,
+            next_state,
+            bufnr,
+            "deferred import scan",
+            previous_resolution
+        )
+        lifecycle_events.stop_previous(
+            current,
+            "stopping compiler after deferred import scan reassigned buffer",
+            "compiler stopped after deferred import scan"
+        )
+        require("typst.integrations.tinymist").ensure(bufnr, next_state)
+    end, 20)
+end
+
+local function finalize_attach(bufnr, state, candidate)
+    require("typst.integrations.tinymist").ensure(bufnr, state)
+    schedule_deferred_import_scan(bufnr, state, candidate)
+end
 
 --- Reapply setup-sensitive editor state for already attached Typst buffers.
 ---@return table summary Counts of reapplied and skipped buffers.
@@ -24,7 +206,8 @@ local function attach_impl(api, bufnr)
             and vim.deepcopy(previous.resolutions[bufnr])
         or nil
     local resolve_started = telemetry.start()
-    local ok, candidate = pcall(project.resolve_candidate, bufnr)
+    local ok, candidate =
+        pcall(project.resolve_candidate, bufnr, { import_scan = "defer" })
     telemetry.finish("project.resolve", resolve_started, {
         ok = ok,
         bufnr = bufnr,
@@ -101,7 +284,7 @@ local function attach_impl(api, bufnr)
             "stopping compiler after buffer moved to another project",
             "compiler stopped after buffer moved"
         )
-        require("typst.integrations.tinymist").ensure(bufnr, state)
+        finalize_attach(bufnr, state, candidate)
         return state
     end
 
@@ -135,6 +318,7 @@ end
 ---@return table|nil state Project state the buffer belonged to before detach.
 function M.detach(bufnr)
     bufnr = normalize_bufnr(bufnr)
+    deferred_import_scan_tokens[bufnr] = nil
     local previous = project.get(bufnr)
     local resolution = previous
             and previous.resolutions
@@ -176,6 +360,7 @@ function M.get_project(bufnr)
         previous
         and not core_lifecycle.explicit_main_changed(bufnr, previous)
         and not project.main_stale(previous, bufnr)
+        and not previous.resolution_pending
     then
         return previous
     end
@@ -183,6 +368,7 @@ function M.get_project(bufnr)
     -- Commands call get_project lazily so changes to vim.b.typst_main,
     -- deleted main files, or renamed buffers are reflected before compile,
     -- preview, navigation, or diagnostics operate on project state.
+    deferred_import_scan_tokens[bufnr] = nil
     local state = project.resolve(
         bufnr,
         previous and { ignore_project_key = previous.key } or nil
@@ -368,6 +554,12 @@ function M.reload_state(api, reload_opts, notify)
         )
     end
     return state
+end
+
+--- Clear lifecycle-local deferred resolver state.
+function M.reset()
+    deferred_import_scan_tokens = {}
+    next_deferred_import_scan_token = 0
 end
 
 return M

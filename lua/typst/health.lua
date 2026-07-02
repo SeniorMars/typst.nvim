@@ -404,6 +404,12 @@ local function project_status_line(state)
         ("main_source=%s"):format(
             resolution.main_source or state.main_source or "unknown"
         ),
+        ("main_confidence=%s"):format(
+            resolution.main_confidence or state.main_confidence or "unknown"
+        ),
+        ("resolution_pending=%s"):format(
+            resolution.resolution_pending or state.resolution_pending or "none"
+        ),
         ("index_collect_cache=%d/%d"):format(
             index_stats.collect_hits or 0,
             index_stats.collect_misses or 0
