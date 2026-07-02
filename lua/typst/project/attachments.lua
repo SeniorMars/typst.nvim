@@ -14,4 +14,12 @@ function M.reapply_attached_buffers()
     return lifecycle_buffers.reapply_attached_buffers()
 end
 
+function M.forget(bufnr, project_key)
+    return lifecycle_buffers.forget(bufnr, project_key)
+end
+
+function M.reset()
+    return lifecycle_buffers.reset()
+end
+
 return M

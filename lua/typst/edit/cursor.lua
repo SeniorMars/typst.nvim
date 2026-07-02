@@ -1,23 +1,10 @@
 local M = {}
 
 local edit_context = require("typst.edit.context")
-local normalize_bufnr = require("typst.core.buffer").normalize_bufnr
+local windows = require("typst.core.windows")
 
 function M.window_for_buffer(bufnr)
-    bufnr = normalize_bufnr(bufnr)
-    local current = vim.api.nvim_get_current_win()
-    if vim.api.nvim_win_get_buf(current) == bufnr then
-        return current
-    end
-
-    for _, winid in ipairs(vim.api.nvim_list_wins()) do
-        if
-            vim.api.nvim_win_is_valid(winid)
-            and vim.api.nvim_win_get_buf(winid) == bufnr
-        then
-            return winid
-        end
-    end
+    return windows.for_buffer(bufnr)
 end
 
 function M.pos(bufnr, opts)

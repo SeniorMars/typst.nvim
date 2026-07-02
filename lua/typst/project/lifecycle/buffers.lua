@@ -50,6 +50,28 @@ local function clear_dirty_ticks_for_buffer(bufnr)
     end
 end
 
+--- Forget text-change debounce state for a buffer or one project/buffer pair.
+---@param bufnr integer Buffer whose local debounce entries should be removed.
+---@param project_key? string Project key to narrow cleanup.
+function M.forget(bufnr, project_key)
+    if project_key then
+        last_text_dirty_ticks[("%s:%d"):format(project_key, bufnr)] = nil
+        return
+    end
+    clear_dirty_ticks_for_buffer(bufnr)
+end
+
+--- Clear all lifecycle buffer-local debounce state.
+function M.reset()
+    last_text_dirty_ticks = {}
+end
+
+--- Return tracked debounce entry count for tests and health checks.
+---@return integer count Active debounce entries.
+function M._dirty_tick_count()
+    return vim.tbl_count(last_text_dirty_ticks)
+end
+
 local function set_omnifunc_if_empty(bufnr)
     if vim.bo[bufnr].omnifunc == "" then
         ftplugin_state.set_buffer_option(

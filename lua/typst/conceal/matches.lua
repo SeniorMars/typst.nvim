@@ -127,6 +127,10 @@ local function ensure_parser_callbacks(bufnr)
 
     parser:register_cbs({
         on_changedtree = function(ranges)
+            if not vim.api.nvim_buf_is_valid(bufnr) then
+                parser_callbacks[bufnr] = nil
+                return
+            end
             M.invalidate_ranges(bufnr, ranges)
         end,
         on_bytes = function(
@@ -140,6 +144,10 @@ local function ensure_parser_callbacks(bufnr)
             _,
             new_end_row
         )
+            if not vim.api.nvim_buf_is_valid(bufnr) then
+                parser_callbacks[bufnr] = nil
+                return
+            end
             if old_end_row ~= new_end_row then
                 invalidate_from(bufnr, start_row)
             else
@@ -302,6 +310,7 @@ end
 
 function M.forget(bufnr)
     cache[bufnr] = nil
+    parser_callbacks[bufnr] = nil
     shadows.forget(bufnr)
 end
 
@@ -309,6 +318,7 @@ end
 function M.reset()
     generation = 0
     cache = {}
+    parser_callbacks = {}
     lookup.reset()
     match_query.reset()
     shadows.reset()
@@ -316,6 +326,12 @@ end
 
 function M.generation()
     return generation
+end
+
+---Return parser callback tracking entry count for lifecycle tests.
+---@return integer count Number of tracked parser callback states.
+function M._parser_callback_count()
+    return vim.tbl_count(parser_callbacks)
 end
 
 return M

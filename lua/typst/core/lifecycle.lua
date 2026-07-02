@@ -1,5 +1,6 @@
 local M = {}
 
+local cache_registry = require("typst.core.cache_registry")
 local config = require("typst.config")
 local core_result = require("typst.core.result")
 local ftplugin_state = require("typst.core.ftplugin_state")
@@ -30,13 +31,6 @@ local function preview_module()
     return require("typst.integrations.typst_preview")
 end
 
-local function call_loaded(module_name, method, ...)
-    local module = package.loaded[module_name]
-    if type(module) == "table" and type(module[method]) == "function" then
-        return module[method](...)
-    end
-end
-
 -- Shared teardown and editor-state lifecycle.
 --
 -- Buffer cleanup, project pruning, compiler shutdown, and preview shutdown meet
@@ -53,19 +47,14 @@ function M.clear_buffer(bufnr)
 
     feature_signatures[bufnr] = nil
     window_feature_signatures[bufnr] = nil
-    call_loaded("typst.core.treesitter", "forget", bufnr)
-    call_loaded("typst.edit.indent", "forget", bufnr)
-    call_loaded("typst.bibliography.edit", "forget", bufnr)
-    call_loaded("typst.formatting", "forget", bufnr)
+    cache_registry.forget_buffer(bufnr)
     if not vim.api.nvim_buf_is_valid(bufnr) then
         return
     end
 
     pcall(vim.api.nvim_del_augroup_by_name, M.buffer_augroup_name(bufnr))
-    call_loaded("typst.conceal", "detach", bufnr)
-    call_loaded("typst.edit.match_highlight", "detach", bufnr)
+    cache_registry.detach_buffer(bufnr)
     ftplugin_state.restore(bufnr)
-    call_loaded("typst.syntax", "clear", bufnr)
 end
 
 local function buffer_feature_signature(bufnr)
@@ -596,7 +585,7 @@ function M.register_autocmds()
     vim.api.nvim_create_autocmd("WinClosed", {
         group = group,
         callback = function(args)
-            call_loaded("typst.conceal", "_forget_window", args.match)
+            cache_registry.forget_window(args.match)
             ftplugin_state.forget_window(args.match)
             local winid = tonumber(args.match)
             if winid then

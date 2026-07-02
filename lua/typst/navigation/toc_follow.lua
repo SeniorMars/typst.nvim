@@ -1,6 +1,7 @@
 local config = require("typst.config")
 local toc_state = require("typst.navigation.toc_state")
 local util = require("typst.core.util")
+local windows = require("typst.core.windows")
 
 local M = {}
 
@@ -9,10 +10,9 @@ local function cursor_line_for_buf(bufnr)
         return vim.api.nvim_win_get_cursor(0)[1]
     end
 
-    for _, winid in ipairs(vim.api.nvim_list_wins()) do
-        if vim.api.nvim_win_get_buf(winid) == bufnr then
-            return vim.api.nvim_win_get_cursor(winid)[1]
-        end
+    local winid = windows.for_buffer(bufnr)
+    if winid then
+        return vim.api.nvim_win_get_cursor(winid)[1]
     end
 
     return 1

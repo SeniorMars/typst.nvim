@@ -9,6 +9,7 @@ local project = require("typst.project")
 local render = require("typst.conceal.render")
 local telemetry = require("typst.core.telemetry")
 local util = require("typst.core.util")
+local windows = require("typst.core.windows")
 
 local M = {}
 
@@ -113,13 +114,8 @@ local function prune_conceallevels()
 end
 
 local function restore_buffer_conceallevel(bufnr)
-    for _, winid in ipairs(vim.api.nvim_list_wins()) do
-        if
-            vim.api.nvim_win_is_valid(winid)
-            and vim.api.nvim_win_get_buf(winid) == bufnr
-        then
-            restore_conceallevel(winid)
-        end
+    for _, winid in ipairs(windows.all_for_buffer(bufnr)) do
+        restore_conceallevel(winid)
     end
 end
 

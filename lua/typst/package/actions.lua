@@ -3,6 +3,7 @@ local M = {}
 local open_helper = require("typst.core.open")
 local resource_markdown = require("typst.package.resource_markdown")
 local util = require("typst.core.util")
+local windows = require("typst.core.windows")
 
 local resources_buf = nil
 local state_by_buf = {}
@@ -32,17 +33,6 @@ local function ensure_buffer()
     return resources_buf
 end
 
-local function window_for_buffer(bufnr)
-    for _, winid in ipairs(vim.api.nvim_list_wins()) do
-        if
-            vim.api.nvim_win_is_valid(winid)
-            and vim.api.nvim_win_get_buf(winid) == bufnr
-        then
-            return winid
-        end
-    end
-end
-
 local function show_buffer(bufnr, opts)
     opts = opts or {}
     if opts.open_winid or opts.jump_winid or opts.target_winid then
@@ -50,7 +40,7 @@ local function show_buffer(bufnr, opts)
         return opened and opened.winid or nil
     end
 
-    local winid = window_for_buffer(bufnr)
+    local winid = windows.for_buffer(bufnr)
     if not winid then
         if opts.command then
             vim.cmd(opts.command)

@@ -2,35 +2,68 @@ local M = {}
 
 local entries = {
     {
+        name = "project_attachments",
+        module = "typst.project.attachments",
+        reset = "reset",
+        forget = "forget",
+        forget_args = "bufnr",
+        optional = true,
+    },
+    {
+        name = "project_lifecycle",
+        module = "typst.project.lifecycle",
+        reset = "reset",
+        optional = true,
+    },
+    {
         name = "conceal",
         module = "typst.conceal",
         reset = "reset",
         optional = true,
         clear = "refresh",
         clear_args = "bufnr",
+        detach = "detach",
+        detach_args = "bufnr",
+        forget_window = "_forget_window",
+        forget_window_args = "winid",
     },
     {
         name = "match_highlight",
         module = "typst.edit.match_highlight",
         reset = "reset",
+        detach = "detach",
+        detach_args = "bufnr",
         optional = true,
     },
     {
         name = "indent",
         module = "typst.edit.indent",
         reset = "reset",
+        forget = "forget",
+        forget_args = "bufnr",
         optional = true,
     },
     {
         name = "bibliography_edit",
         module = "typst.bibliography.edit",
         reset = "reset",
+        forget = "forget",
+        forget_args = "bufnr",
         optional = true,
     },
     {
         name = "formatting",
         module = "typst.formatting",
         reset = "reset",
+        forget = "forget",
+        forget_args = "bufnr",
+        optional = true,
+    },
+    {
+        name = "syntax",
+        module = "typst.syntax",
+        detach = "clear",
+        detach_args = "bufnr",
         optional = true,
     },
     {
@@ -131,12 +164,21 @@ local entries = {
         module = "typst.core.treesitter",
         clear = "forget",
         clear_args = "bufnr",
+        forget = "forget",
+        forget_args = "bufnr",
     },
 }
 
 local by_name = {}
 for _, entry in ipairs(entries) do
     by_name[entry.name] = entry
+end
+
+local function rebuild_index()
+    by_name = {}
+    for _, entry in ipairs(entries) do
+        by_name[entry.name] = entry
+    end
 end
 
 local function module_for(entry, force)
@@ -146,13 +188,23 @@ local function module_for(entry, force)
     return package.loaded[entry.module]
 end
 
-local function call_entry(entry, method_name, opts)
+local function call_entry(entry, method_name, opts, operation)
     if not entry then
+        return false
+    end
+    if type(method_name) ~= "string" then
         return false
     end
 
     local force = opts and opts.force == true
-    local module = module_for(entry, force or not entry.optional)
+    local operation_name = operation or method_name
+    local lifecycle_operation = operation_name == "forget"
+        or operation_name == "detach"
+        or operation_name == "forget_window"
+    local module = module_for(
+        entry,
+        force or (not lifecycle_operation and not entry.optional)
+    )
     if type(module) ~= "table" then
         return false
     end
@@ -163,8 +215,11 @@ local function call_entry(entry, method_name, opts)
     end
 
     local ok, err
-    if entry.clear_args == "bufnr" then
+    local arg_kind = entry[(operation or method_name) .. "_args"]
+    if arg_kind == "bufnr" then
         ok, err = pcall(method, opts and opts.bufnr or nil)
+    elseif arg_kind == "winid" then
+        ok, err = pcall(method, opts and opts.winid or nil)
     else
         ok, err = pcall(method)
     end
@@ -201,7 +256,7 @@ function M.reset(opts)
         then
             summary[entry.name] = call_entry(entry, entry.reset, {
                 force = not entry.optional,
-            })
+            }, "reset")
         end
     end
     return summary
@@ -227,7 +282,52 @@ function M.clear(opts)
         summary[name] = call_entry(entry, entry.clear, {
             force = true,
             bufnr = opts.bufnr,
-        })
+        }, "clear")
+    end
+    return summary
+end
+
+--- Forget buffer-local transient state for a buffer.
+---@param bufnr integer Buffer whose registry entries should forget local state.
+---@return table<string, boolean> summary Entry names keyed by cleanup status.
+function M.forget_buffer(bufnr)
+    local summary = {}
+    for _, entry in ipairs(entries) do
+        if entry.forget then
+            summary[entry.name] = call_entry(entry, entry.forget, {
+                bufnr = bufnr,
+            }, "forget")
+        end
+    end
+    return summary
+end
+
+--- Detach buffer-local UI state from a still-valid buffer.
+---@param bufnr integer Buffer receiving detach cleanup.
+---@return table<string, boolean> summary Entry names keyed by cleanup status.
+function M.detach_buffer(bufnr)
+    local summary = {}
+    for _, entry in ipairs(entries) do
+        if entry.detach then
+            summary[entry.name] = call_entry(entry, entry.detach, {
+                bufnr = bufnr,
+            }, "detach")
+        end
+    end
+    return summary
+end
+
+--- Forget window-local transient state for a closed or closing window.
+---@param winid integer|string Window id as passed by WinClosed.
+---@return table<string, boolean> summary Entry names keyed by cleanup status.
+function M.forget_window(winid)
+    local summary = {}
+    for _, entry in ipairs(entries) do
+        if entry.forget_window then
+            summary[entry.name] = call_entry(entry, entry.forget_window, {
+                winid = winid,
+            }, "forget_window")
+        end
     end
     return summary
 end
@@ -240,16 +340,36 @@ function M.reload(opts)
     local summary = {}
     for _, entry in ipairs(entries) do
         if entry.reload then
-            summary[entry.name] = call_entry(entry, entry.reset, {
+            local method_name = entry.reload == true and entry.reset
+                or entry.reload
+            summary[entry.name] = call_entry(entry, method_name, {
                 force = true,
-            })
+            }, "reload")
         end
     end
     summary.conceal = call_entry(by_name.conceal, by_name.conceal.clear, {
         force = true,
         bufnr = opts.bufnr,
-    })
+    }, "clear")
     return summary
+end
+
+---Register a cache entry in tests.
+---@param entry table Cache registry entry.
+function M._register_for_tests(entry)
+    entries[#entries + 1] = entry
+    rebuild_index()
+end
+
+---Remove a test cache entry by name.
+---@param name string Cache registry entry name.
+function M._unregister_for_tests(name)
+    for index = #entries, 1, -1 do
+        if entries[index].name == name then
+            table.remove(entries, index)
+        end
+    end
+    rebuild_index()
 end
 
 --- Return loaded/reset status for registered cache entries.
@@ -268,6 +388,9 @@ function M.status()
             loaded = loaded,
             reset = entry.reset ~= nil,
             clear = entry.clear ~= nil,
+            forget = entry.forget ~= nil,
+            detach = entry.detach ~= nil,
+            forget_window = entry.forget_window ~= nil,
         }
         status.entries[#status.entries + 1] = item
         local bucket = loaded and status.loaded or status.unloaded
@@ -289,6 +412,9 @@ function M.stats()
         reset = 0,
         clear = 0,
         reload = 0,
+        forget = 0,
+        detach = 0,
+        forget_window = 0,
         optional = 0,
         required = 0,
         entries = status.entries,
@@ -303,6 +429,15 @@ function M.stats()
         end
         if entry.reload then
             stats.reload = stats.reload + 1
+        end
+        if entry.forget then
+            stats.forget = stats.forget + 1
+        end
+        if entry.detach then
+            stats.detach = stats.detach + 1
+        end
+        if entry.forget_window then
+            stats.forget_window = stats.forget_window + 1
         end
         if entry.optional then
             stats.optional = stats.optional + 1

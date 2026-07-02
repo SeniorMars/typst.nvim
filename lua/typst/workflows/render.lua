@@ -12,6 +12,7 @@ local render_cache = require("typst.workflows.render.cache")
 local render_display = require("typst.workflows.render.display")
 local render_provider = require("typst.workflows.render.provider")
 local util = require("typst.core.util")
+local windows = require("typst.core.windows")
 
 local M = {}
 
@@ -665,23 +666,8 @@ local function render_source(project, kind, source, opts, callback, notify)
     return result
 end
 
-local function window_for_buffer(bufnr)
-    local current = vim.api.nvim_get_current_win()
-    if vim.api.nvim_win_get_buf(current) == bufnr then
-        return current
-    end
-    for _, winid in ipairs(vim.api.nvim_list_wins()) do
-        if
-            vim.api.nvim_win_is_valid(winid)
-            and vim.api.nvim_win_get_buf(winid) == bufnr
-        then
-            return winid
-        end
-    end
-end
-
 local function cursor_for_buffer(bufnr)
-    local winid = window_for_buffer(bufnr)
+    local winid = windows.for_buffer(bufnr)
     if not winid then
         return nil
     end

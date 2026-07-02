@@ -1,4 +1,5 @@
 local normalize_bufnr = require("typst.core.buffer").normalize_bufnr
+local windows = require("typst.core.windows")
 
 local M = {}
 
@@ -61,25 +62,8 @@ local function node_span(node)
     return (end_row - start_row) * 100000 + (end_col - start_col)
 end
 
-local function window_for_buffer(bufnr)
-    bufnr = normalize_bufnr(bufnr)
-    local current = vim.api.nvim_get_current_win()
-    if vim.api.nvim_win_get_buf(current) == bufnr then
-        return current
-    end
-
-    for _, winid in ipairs(vim.api.nvim_list_wins()) do
-        if
-            vim.api.nvim_win_is_valid(winid)
-            and vim.api.nvim_win_get_buf(winid) == bufnr
-        then
-            return winid
-        end
-    end
-end
-
 local function cursor_pos(bufnr)
-    local winid = window_for_buffer(bufnr)
+    local winid = windows.for_buffer(bufnr)
     if not winid then
         return nil, nil
     end
@@ -157,9 +141,16 @@ function M.walk(node, callback)
     if not node then
         return
     end
-    callback(node)
-    for _, child in ipairs(M.children(node)) do
-        M.walk(child, callback)
+
+    local stack = { node }
+    while #stack > 0 do
+        local current = table.remove(stack)
+        callback(current)
+
+        local children = M.children(current)
+        for index = #children, 1, -1 do
+            stack[#stack + 1] = children[index]
+        end
     end
 end
 
@@ -507,7 +498,7 @@ function M.select_range(bufnr, range)
         return false
     end
 
-    local winid = window_for_buffer(bufnr)
+    local winid = windows.for_buffer(bufnr)
     if not winid then
         return false
     end

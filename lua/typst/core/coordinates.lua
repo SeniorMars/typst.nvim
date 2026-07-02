@@ -1,4 +1,5 @@
 local util = require("typst.core.util")
+local windows = require("typst.core.windows")
 
 local M = {}
 
@@ -116,19 +117,7 @@ function M.explicit_position(bufnr, client, pos)
 end
 
 function M.window_for_buffer(bufnr)
-    local current = vim.api.nvim_get_current_win()
-    if vim.api.nvim_win_get_buf(current) == bufnr then
-        return current
-    end
-
-    for _, winid in ipairs(vim.api.nvim_list_wins()) do
-        if
-            vim.api.nvim_win_is_valid(winid)
-            and vim.api.nvim_win_get_buf(winid) == bufnr
-        then
-            return winid
-        end
-    end
+    return windows.for_buffer(bufnr)
 end
 
 function M.current_position(bufnr, client)
