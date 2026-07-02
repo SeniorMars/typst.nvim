@@ -2,6 +2,11 @@ local M = {}
 
 local reset_hooks = {
     {
+        name = "core.events",
+        module = "typst.core.events",
+        method = "reset",
+    },
+    {
         name = "preview.follow_buffer",
         module = "typst.preview.follow_buffer",
         method = "reset",

@@ -73,7 +73,7 @@ function M.prune_if_empty(state, reason)
         return false
     end
 
-    project_registry.remove(state.key)
+    M.remove(state.key)
     index_cache.reset(state)
     state._typst_project_pruned = true
     state._typst_project_pruned_reason = reason

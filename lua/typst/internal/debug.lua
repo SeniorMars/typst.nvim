@@ -1,6 +1,7 @@
 local operation = require("typst.core.operation")
 local output_ownership = require("typst.resources.outputs")
 local project_registry = require("typst.project")
+local project_store = require("typst.project.store")
 local project_services = require("typst.project.services")
 local telemetry = require("typst.core.telemetry")
 
@@ -19,6 +20,15 @@ local function check_project_buffers(findings, projects)
         for bufnr in pairs(project.bufs or {}) do
             owners[bufnr] = owners[bufnr] or {}
             owners[bufnr][#owners[bufnr] + 1] = key
+
+            if not vim.api.nvim_buf_is_valid(bufnr) then
+                add(
+                    findings,
+                    "invalid_project_buffer",
+                    "project owns an invalid buffer",
+                    { bufnr = bufnr, project = key }
+                )
+            end
 
             local attached = project_registry.get(bufnr)
             if attached ~= project then
@@ -40,6 +50,37 @@ local function check_project_buffers(findings, projects)
                 "buffer belongs to more than one project",
                 { bufnr = bufnr, projects = keys }
             )
+        end
+    end
+end
+
+local function check_buffer_mappings(findings, projects)
+    for bufnr, key in pairs(project_store.buffers()) do
+        local project = projects[key]
+        if not project then
+            add(
+                findings,
+                "buffer_mapping_missing_project",
+                "buffer mapping points at a missing project",
+                { bufnr = bufnr, project = key }
+            )
+        else
+            if not vim.api.nvim_buf_is_valid(bufnr) then
+                add(
+                    findings,
+                    "invalid_mapped_buffer",
+                    "registry maps an invalid buffer to a project",
+                    { bufnr = bufnr, project = key }
+                )
+            end
+            if not (project.bufs or {})[bufnr] then
+                add(
+                    findings,
+                    "buffer_mapping_missing_reverse_owner",
+                    "buffer registry map is not mirrored by project.bufs",
+                    { bufnr = bufnr, project = key }
+                )
+            end
         end
     end
 end
@@ -103,6 +144,23 @@ local function check_leases(findings)
                 { path = lease.path, key = key }
             )
         end
+        if
+            type(lease.owner) == "table"
+            and type(lease.owner.project_key) == "string"
+            and not project_store.get(lease.owner.project_key)
+        then
+            add(
+                findings,
+                "lease_unknown_project",
+                "path lease references a project that is no longer registered",
+                {
+                    path = lease.path,
+                    key = key,
+                    project = lease.owner.project_key,
+                    owner_kind = lease.owner.kind,
+                }
+            )
+        end
     end
 end
 
@@ -130,20 +188,44 @@ local function check_diagnostic_namespaces(findings, projects)
     end
 end
 
+local function check_follow_buffer_autocmds(findings)
+    local ok, runtime_setup = pcall(require, "typst.runtime.setup")
+    if not ok or runtime_setup.is_setup() then
+        return
+    end
+
+    local autocmd_ok, autocmds = pcall(vim.api.nvim_get_autocmds, {
+        group = "typst_nvim_preview_follow_buffer",
+    })
+    if autocmd_ok and #autocmds > 0 then
+        add(
+            findings,
+            "follow_buffer_autocmd_after_reset",
+            "follow-buffer autocmds remain after runtime setup was reset",
+            { autocmds = #autocmds }
+        )
+    end
+end
+
 function M.check_invariants()
     local findings = {}
     local projects = project_registry.all()
 
+    check_buffer_mappings(findings, projects)
     check_project_buffers(findings, projects)
     check_project_resources(findings, projects)
     check_operations(findings)
     check_leases(findings)
     check_diagnostic_namespaces(findings, projects)
+    check_follow_buffer_autocmds(findings)
 
     return {
         ok = #findings == 0,
         findings = findings,
+        errors = findings,
+        warnings = {},
         projects = vim.tbl_count(projects),
+        attached_buffers = vim.tbl_count(project_store.buffers()),
         active_operations = vim.tbl_count(operation.active()),
         retained_operations = vim.tbl_count(operation.retained()),
         active_leases = vim.tbl_count(output_ownership.active()),

@@ -7,30 +7,65 @@ local log = require("typst.core.log")
 
 typst.reset()
 log.clear()
-typst.setup({
-    diagnostic = {
-        source = "always",
-    },
-})
-
-local unknown = config.last_unknown_keys()
-assert(
-    vim.tbl_contains(unknown, "diagnostic"),
-    "unknown top-level config keys should be recorded"
-)
-
-local saw_warning = false
-for _, entry in ipairs(log.entries()) do
-    if
-        entry.level == "warn"
-        and entry.message == "unknown Typst config keys"
-        and vim.tbl_contains(entry.fields.keys or {}, "diagnostic")
-    then
-        saw_warning = true
-        break
+local original_notify = vim.notify
+local notifications = {}
+local notify_ok, notify_err = xpcall(function()
+    vim.notify = function(message, level)
+        notifications[#notifications + 1] = {
+            message = message,
+            level = level,
+        }
     end
-end
-assert(saw_warning, "unknown config keys should warn by default")
+    typst.setup({
+        diagnostic = {
+            source = "always",
+        },
+    })
+
+    local unknown = config.last_unknown_keys()
+    assert(
+        vim.tbl_contains(unknown, "diagnostic"),
+        "unknown top-level config keys should be recorded"
+    )
+
+    local saw_warning = false
+    for _, entry in ipairs(log.entries()) do
+        if
+            entry.level == "warn"
+            and entry.message == "unknown Typst config keys"
+            and vim.tbl_contains(entry.fields.keys or {}, "diagnostic")
+        then
+            saw_warning = true
+            break
+        end
+    end
+    assert(saw_warning, "unknown config keys should warn by default")
+    assert(
+        notifications[1]
+            and notifications[1].level == vim.log.levels.WARN
+            and notifications[1].message:find("diagnostic", 1, true),
+        "unknown config keys should be visible through vim.notify"
+    )
+end, debug.traceback)
+vim.notify = original_notify
+assert(notify_ok, notify_err)
+
+local notify_failure_ok, notify_failure_err = xpcall(function()
+    vim.notify = function()
+        error("synthetic notify failure")
+    end
+    typst.setup({
+        diagnostic = {
+            source = "always",
+        },
+    })
+end, debug.traceback)
+vim.notify = original_notify
+assert(
+    notify_failure_ok,
+    notify_failure_err
+        or "unknown-key notification failures should not abort setup"
+)
 
 local strict_ok, strict_err = pcall(function()
     typst.setup({

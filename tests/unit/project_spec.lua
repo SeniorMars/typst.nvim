@@ -86,6 +86,36 @@ assert(
     "project.resolve should accept nil resolution options"
 )
 
+local raw_registry = require("typst.project.registry")
+local registry_copy = raw_registry.all()
+registry_copy[project.key] = nil
+assert(
+    raw_registry.get(project.key) == project,
+    "project registry all() should not expose the mutable project map"
+)
+local buffer_registry_copy = raw_registry.buffers()
+buffer_registry_copy[bufnr] = nil
+assert(
+    raw_registry.key_for_buffer(bufnr) == project.key,
+    "project registry buffers() should not expose the mutable buffer map"
+)
+
+local bogus_bufnr = bufnr + 10000
+raw_registry.set_buffer(bogus_bufnr, "missing-project-key")
+local invariant_result = require("typst.internal.debug").check_invariants()
+raw_registry.clear_buffer(bogus_bufnr)
+local reported_missing_mapping = false
+for _, finding in ipairs(invariant_result.findings or {}) do
+    if finding.code == "buffer_mapping_missing_project" then
+        reported_missing_mapping = true
+        break
+    end
+end
+assert(
+    reported_missing_mapping,
+    "TypstDoctor invariant check should report stale buffer project mappings"
+)
+
 project = typst.project.set_main(main, nil, { persist = true })
 local failed_ok = pcall(function()
     typst.project.set_main(missing_main, nil, { persist = true })
@@ -106,6 +136,30 @@ assert(
     typst.project.get(bufnr).key == project.key,
     "failed set_main should keep the existing project attached"
 )
+
+local project_module = require("typst.project")
+local original_commit_attach = project_module.commit_attach
+local rollback_ok, rollback_err = xpcall(function()
+    project_module.commit_attach = function()
+        error("forced commit failure")
+    end
+    local ok = pcall(function()
+        typst.project.set_main(chapter, nil, { persist = true })
+    end)
+    assert(not ok, "set_main should surface commit failures")
+    assert(
+        vim.b.typst_main == main,
+        "set_main should roll back buffer-local main after commit failure"
+    )
+    assert(
+        state_store.explicit_main(chapter) == main,
+        "set_main should roll back persisted main after commit failure"
+    )
+end, debug.traceback)
+project_module.commit_attach = original_commit_attach
+if not rollback_ok then
+    error(rollback_err)
+end
 
 local forced_missing = root .. "/tests/fixtures/basic/generated-later.typ"
 vim.fn.delete(forced_missing)

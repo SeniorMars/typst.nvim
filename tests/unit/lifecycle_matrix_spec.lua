@@ -3,11 +3,14 @@ vim.opt.runtimepath:prepend(root)
 
 local typst = require("typst")
 local compiler = require("typst.compiler")
+local debug_tools = require("typst.internal.debug")
 local lifecycle = require("typst.core.lifecycle")
 local operations = require("typst.project.services.operations")
+local output_ownership = require("typst.resources.outputs")
 local preview_service = require("typst.project.services.preview")
 local project_services = require("typst.project.services")
 local project_registry = require("typst.project")
+local resource_supervisor = require("typst.resources.supervisor")
 
 local fixture_dir =
     typst_test_cache_path(("lifecycle-matrix-%d"):format(vim.uv.hrtime()))
@@ -69,6 +72,14 @@ for _, kind in ipairs({ "export", "render_image", "format" }) do
             .. kind
             .. " work"
     )
+    assert(
+        resource_supervisor.stop_before_prune(
+            project,
+            "checking active operation retention in lifecycle matrix test",
+            "active operation retention"
+        ) == true,
+        "resources.supervisor should report active operation retention"
+    )
 
     operations.finish(project, record, { ok = true, kind = kind })
     assert(
@@ -78,6 +89,43 @@ for _, kind in ipairs({ "export", "render_image", "format" }) do
             .. " work should allow empty project pruning"
     )
 end
+
+local lease_project, lease_bufnr = attach_project("detach-output-lease")
+local lease = assert(
+    output_ownership.acquire(
+        typst_test_cache_path("lifecycle-matrix-output/detach-output-lease.pdf"),
+        output_ownership.owner("unit-test", lease_project)
+    )
+)
+typst.project.detach(lease_bufnr)
+assert(
+    project_registry.all()[lease_project.key] == lease_project,
+    "last-buffer detach should retain a project with an active output lease"
+)
+assert(
+    resource_supervisor.stop_before_prune(
+        lease_project,
+        "checking active output lease retention in lifecycle matrix test",
+        "active output lease retention"
+    ) == true,
+    "resources.supervisor should report active output lease retention"
+)
+local invariant_result = debug_tools.check_invariants()
+for _, finding in ipairs(invariant_result.findings or {}) do
+    assert(
+        finding.code ~= "lease_unknown_project",
+        "detached project with active lease should stay registered"
+    )
+end
+assert(
+    output_ownership.release(lease) == true,
+    "active output lease should release during lifecycle matrix cleanup"
+)
+assert(
+    project_registry.prune(lease_project, "released output lease cleanup")
+        == true,
+    "released output lease should allow detached project pruning"
+)
 
 local orphan_project, orphan_bufnr = attach_project("reset-orphan")
 local orphan_record = assert(
@@ -194,6 +242,68 @@ assert(
 typst_test_compiler(stop_project).process = nil
 typst_test_compiler(stop_project).status = "idle"
 project_registry.prune(stop_project, "test cleanup")
+
+local mixed_project, mixed_bufnr =
+    attach_project("preview-fails-compiler-stops")
+mixed_project.bufs[mixed_bufnr] = nil
+preview_service.set(mixed_project, {
+    active = true,
+    active_backend = "callback",
+    status = "running",
+})
+typst_test_compiler(mixed_project).process = {
+    is_closing = function()
+        return false
+    end,
+}
+typst_test_compiler(mixed_project).status = "watching"
+
+local original_mixed_compiler_stop = compiler.stop
+compiler.stop = function(state, callback)
+    typst_test_compiler(state).process = nil
+    typst_test_compiler(state).watcher = nil
+    typst_test_compiler(state).status = "idle"
+    callback({
+        code = 0,
+        stale = false,
+        stopped = true,
+    })
+    return nil
+end
+
+local mixed_handled = lifecycle.stop_before_prune(
+    mixed_project,
+    "stopping compiler after preview failure in lifecycle matrix test",
+    "preview failure with compiler success"
+)
+
+compiler.stop = original_mixed_compiler_stop
+
+assert(mixed_handled, "mixed preview/compiler prune should be handled")
+assert(
+    project_registry.all()[mixed_project.key] == mixed_project,
+    "preview stop failure should retain project ownership"
+)
+assert(
+    typst_test_preview(mixed_project).status == "stopping_failed",
+    "preview stop failure should be recorded on preview state"
+)
+assert(
+    typst_test_compiler(mixed_project).status == "idle",
+    "successful compiler stop should not be overwritten by preview failure"
+)
+
+preview_service.set(mixed_project, {
+    active = false,
+    status = "idle",
+    clear = {
+        "active_backend",
+        "last_result",
+        "last_error",
+        "stop_prune_reason",
+    },
+})
+project_registry.prune(mixed_project, "test cleanup")
 
 typst.reset({ force = true })
 

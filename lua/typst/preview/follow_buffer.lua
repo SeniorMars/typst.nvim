@@ -45,12 +45,12 @@ function M.on_buffer(bufnr)
         return nil
     end
 
-    local project_registry = require("typst.project")
-    local current = project_registry.get(bufnr)
-    if not current then
-        local ok, resolved = pcall(project_registry.resolve, bufnr)
-        current = ok and resolved or nil
-    end
+    local current = require("typst.project.context").resolve({
+        bufnr = bufnr,
+    }, {
+        create = false,
+        settle_pending = true,
+    })
     if not current then
         return nil
     end
@@ -97,6 +97,9 @@ function M.setup()
     vim.api.nvim_create_autocmd({ "BufEnter", "WinEnter" }, {
         group = group,
         callback = function(args)
+            if not enabled() then
+                return
+            end
             schedule(args.buf)
         end,
     })

@@ -14,6 +14,7 @@ local M = {}
 local emitting_depth = 0
 local deferred_state_changes = {}
 local draining_deferred = false
+local reset_generation = 0
 
 -- `TypstEvent*` names are the documented autocmd surface. The shorter
 -- `TypstCompileStarted`-style names remain as compatibility aliases, so event
@@ -95,10 +96,15 @@ local function drain_deferred()
 end
 
 local function emit_batch(items)
+    local generation = reset_generation
     emitting_depth = emitting_depth + 1
     for _, item in ipairs(items) do
         emit_one(item.pattern, item.data)
+        if reset_generation ~= generation then
+            return
+        end
     end
+
     emitting_depth = emitting_depth - 1
     if emitting_depth == 0 then
         drain_deferred()
@@ -164,10 +170,14 @@ function M.defer_state_change(label, fn)
     return true
 end
 
-function M._reset_for_tests()
+--- Clear active event/deferred lifecycle state during runtime reset.
+function M.reset()
+    reset_generation = reset_generation + 1
     emitting_depth = 0
     deferred_state_changes = {}
     draining_deferred = false
 end
+
+M._reset_for_tests = M.reset
 
 return M

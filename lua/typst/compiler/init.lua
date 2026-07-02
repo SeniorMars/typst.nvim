@@ -12,11 +12,10 @@ local project_store = require("typst.project.store")
 
 local M = {}
 
--- Provider-neutral compile/watch coordinator.
---
--- Built-in Typst jobs, user-supplied compiler providers, and command-style
--- providers all report through this module so project compiler state, events,
--- output leases, and restart behavior stay consistent.
+-- Provider-neutral compile/watch/stop lifecycle enters here. Built-in Typst
+-- jobs, user-supplied compiler providers, and command-style providers all
+-- report through this module so project compiler state, events, output leases,
+-- and restart behavior stay consistent.
 
 ---@param project TypstProject Project whose active compiler work is replaced.
 ---@param start_next fun(callback:fun(result:TypstCompilerResult)):unknown

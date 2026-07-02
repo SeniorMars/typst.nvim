@@ -243,14 +243,44 @@ function M.set_main(bufnr, main, opts)
             )
         )
     end
+
+    local had_previous_buf_var = util.get_buf_var(bufnr, "typst_main") ~= nil
+    local previous_buf_var = util.get_buf_var(bufnr, "typst_main")
+    local persist_main = opts.persist
+        and config.unsafe_get().project.persist_main
+    local previous_persisted = persist_main and state_store.explicit_main(path)
+        or nil
+
+    local function restore_previous_main()
+        if had_previous_buf_var then
+            util.set_buf_var(bufnr, "typst_main", previous_buf_var)
+        else
+            util.del_buf_var(bufnr, "typst_main")
+        end
+        if persist_main then
+            if previous_persisted then
+                state_store.set_explicit_main(path, previous_persisted)
+            else
+                state_store.clear_explicit_main(path)
+            end
+        end
+    end
+
     util.set_buf_var(bufnr, "typst_main", resolved)
-    if opts.persist and config.unsafe_get().project.persist_main then
+    if persist_main then
         state_store.set_explicit_main(path, resolved)
     end
     log.add("info", "set buffer main", { buffer = path, main = resolved })
-    return M.resolve(bufnr, {
-        allow_unreadable_explicit_main = opts.force == true,
-    })
+    local ok, state = xpcall(function()
+        return M.resolve(bufnr, {
+            allow_unreadable_explicit_main = opts.force == true,
+        })
+    end, debug.traceback)
+    if not ok then
+        restore_previous_main()
+        error(state, 0)
+    end
+    return state
 end
 
 --- Clear a buffer-local explicit main file and re-resolve its project.

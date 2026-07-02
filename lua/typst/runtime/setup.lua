@@ -2,12 +2,13 @@ local telemetry = require("typst.core.telemetry")
 
 local M = {}
 
-local did_setup = false
-local runtime_api_installed = false
+local did_setup_once = false
+local did_configure = false
+local runtime_api_installed_for = setmetatable({}, { __mode = "k" })
 local package_prewarm_scheduled = false
 
 local function install_runtime_api(api, notify)
-    if runtime_api_installed then
+    if runtime_api_installed_for[api] then
         return
     end
 
@@ -17,7 +18,85 @@ local function install_runtime_api(api, notify)
     require("typst.api.workflows").install(api, notify, normalize_bufnr)
     require("typst.api.render").install(api, notify)
     require("typst.api.navigation").install(api, notify, normalize_bufnr)
-    runtime_api_installed = true
+    runtime_api_installed_for[api] = true
+end
+
+--- Install process-global runtime state once for a public API facade.
+---@param api table Public API facade receiving runtime methods.
+---@param notify fun(message:string, level?:integer)?
+function M.setup_once(api, notify)
+    if did_setup_once then
+        install_runtime_api(api, notify)
+        return {
+            ok = true,
+            first_setup = false,
+            setup_once = false,
+        }
+    end
+
+    install_runtime_api(api, notify)
+    require("typst.edit.mappings").register_plugs()
+    require("typst.commands").register(api, { notify = notify })
+    require("typst.core.lifecycle").register_autocmds()
+    require("typst.preview.follow_buffer").setup()
+    did_setup_once = true
+    return {
+        ok = true,
+        first_setup = true,
+        setup_once = true,
+    }
+end
+
+local function maybe_prewarm_packages()
+    if
+        require("typst.config").get().completion.package_cache_prewarm
+        and not package_prewarm_scheduled
+    then
+        local ok, package_completion =
+            pcall(require, "typst.completion.packages")
+        if ok and type(package_completion.prewarm) == "function" then
+            package_completion.prewarm({ schedule = true })
+            package_prewarm_scheduled = true
+        end
+    end
+end
+
+local function reconfigure_attached_buffers()
+    local reapply =
+        require("typst.project.attachments").reapply_attached_buffers()
+    maybe_prewarm_packages()
+    did_configure = true
+    return {
+        ok = true,
+        reapply = reapply,
+    }
+end
+
+local function configure_impl(opts)
+    require("typst.config").setup(opts)
+    return reconfigure_attached_buffers()
+end
+
+--- Apply user configuration and reconfigure attached buffers.
+---@param opts? table User configuration.
+---@return table result Configure summary.
+function M.configure(opts)
+    if not did_setup_once then
+        return {
+            ok = false,
+            reason = "runtime_not_setup",
+            message = "runtime.configure() requires setup_once() first",
+        }
+    end
+
+    local result = configure_impl(opts)
+    require("typst.core.events").emit_global("TypstEventConfigChanged", {
+        did_setup = did_configure,
+        first_setup = false,
+        reconfigure = true,
+        reapply = result.reapply,
+    })
+    return result
 end
 
 --- Initialize typst.nvim runtime services for the current session.
@@ -28,42 +107,33 @@ end
 function M.setup(api, notify, opts)
     local result = telemetry.time("setup", function()
         local events = require("typst.core.events")
-        local first_setup = not did_setup
+        local first_setup = not did_configure
         events.emit_global("TypstEventInitPre", {
-            did_setup = did_setup,
+            did_setup = did_configure,
             first_setup = first_setup,
             reconfigure = not first_setup,
+            setup_once = not did_setup_once,
         })
-        -- Order matters: config must be visible before feature modules read
-        -- defaults, and commands should be registered only after the public API
-        -- facade has been installed.
+
+        -- Config is installed before first-time side effects so feature modules
+        -- read the user configuration even when plugin/typst.lua auto-loads.
         require("typst.config").setup(opts)
-        install_runtime_api(api, notify)
-        require("typst.edit.mappings").register_plugs()
-        require("typst.commands").register(api, { notify = notify })
-        require("typst.core.lifecycle").register_autocmds()
-        require("typst.preview.follow_buffer").setup()
-        require("typst.project.attachments").reapply_attached_buffers()
-        -- Repeated setup is a supported reconfigure path. Static commands and
-        -- autocmds are replaced idempotently, but package prewarm is an async
-        -- background probe, so schedule it at most once per runtime setup cycle.
-        if
-            require("typst.config").get().completion.package_cache_prewarm
-            and not package_prewarm_scheduled
-        then
-            local ok, package_completion =
-                pcall(require, "typst.completion.packages")
-            if ok and type(package_completion.prewarm) == "function" then
-                package_completion.prewarm({ schedule = true })
-                package_prewarm_scheduled = true
-            end
+        local setup_once_result = M.setup_once(api, notify)
+        local configure_result = reconfigure_attached_buffers()
+        if not first_setup then
+            events.emit_global("TypstEventConfigChanged", {
+                did_setup = true,
+                first_setup = false,
+                reconfigure = true,
+                reapply = configure_result.reapply,
+            })
         end
-        did_setup = true
         require("typst.core.log").add("info", "setup complete")
         events.emit_global("TypstEventInitPost", {
-            did_setup = did_setup,
+            did_setup = did_configure,
             first_setup = first_setup,
             reconfigure = not first_setup,
+            setup_once = setup_once_result.setup_once == true,
         })
     end)
     return result
@@ -72,7 +142,7 @@ end
 --- Report whether setup has completed.
 ---@return boolean ready True after setup finishes.
 function M.is_setup()
-    return did_setup
+    return did_configure
 end
 
 local function reset_impl(opts)
@@ -101,7 +171,8 @@ local function reset_impl(opts)
     if not retain_projects then
         log.clear()
     end
-    did_setup = false
+    did_setup_once = false
+    did_configure = false
     package_prewarm_scheduled = false
     if type(reset_result) == "table" then
         reset_result.runtime_hooks = hook_summary

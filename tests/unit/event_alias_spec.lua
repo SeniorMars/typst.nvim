@@ -6,6 +6,17 @@ typst.reset()
 
 local api_contract = typst.contract()
 assert(
+    vim.tbl_contains(
+        api_contract.event_payloads.TypstEventProjectAttach,
+        "finalization_error"
+    )
+        and vim.tbl_contains(
+            api_contract.event_payloads.TypstEventProjectAttach,
+            "finalization_ok"
+        ),
+    "project attach contract should expose finalization result fields"
+)
+assert(
     api_contract.event_aliases.TypstBufferDetach
         and vim.tbl_contains(
             api_contract.event_aliases.TypstBufferDetach,
@@ -70,6 +81,7 @@ end
 for _, pattern in ipairs({
     "TypstEventInitPre",
     "TypstEventInitPost",
+    "TypstEventConfigChanged",
     "TypstEventProjectAttach",
     "TypstEventBufferDetach",
     "TypstEventProjectDetach",
@@ -157,6 +169,7 @@ assert(
     seen.TypstEventInitPre[1].did_setup == false,
     "TypstEventInitPre should report pre-setup state"
 )
+assert_payload_documented("TypstEventInitPre", seen.TypstEventInitPre[1])
 assert(
     seen.TypstEventInitPost and seen.TypstEventInitPost[1],
     "TypstEventInitPost should be emitted"
@@ -183,6 +196,10 @@ assert(
 assert(
     seen.TypstEventProjectAttach[1].provider == "event-alias-provider",
     "attach alias should include provider"
+)
+assert(
+    seen.TypstEventProjectAttach[1].finalization_ok == true,
+    "successful attach events should expose finalization_ok"
 )
 assert_payload_documented(
     "TypstEventProjectAttach",

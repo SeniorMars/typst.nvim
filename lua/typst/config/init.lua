@@ -345,6 +345,12 @@ local function log_unknown_keys(keys)
     end
 end
 
+local function notify_unknown_keys(message)
+    if type(vim.notify) == "function" then
+        pcall(vim.notify, message, vim.log.levels.WARN)
+    end
+end
+
 --- Validate and install the active plugin configuration.
 ---@param opts? table Plugin configuration partial to validate and apply.
 ---@return table config Active configuration table after validation.
@@ -370,6 +376,7 @@ function M.setup(opts)
             error(message)
         elseif unknown_mode == "warn" then
             log_unknown_keys(last_unknown_keys)
+            notify_unknown_keys(message)
         end
     end
 

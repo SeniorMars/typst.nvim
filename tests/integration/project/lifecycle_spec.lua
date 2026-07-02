@@ -418,6 +418,16 @@ vim.fn.writefile({ "= Main B", '#include "chapter.typ"' }, event_main_b)
 vim.cmd.edit(vim.fn.fnameescape(event_chapter))
 local event_project_a = typst.project.set_main(event_main_a)
 local seen_events = {}
+local tinymist = require("typst.integrations.tinymist")
+local original_tinymist_ensure = tinymist.ensure
+local finalized_projects = {}
+local attach_events_saw_finalized = {}
+tinymist.ensure = function(buf, state)
+    if state and state.key then
+        finalized_projects[state.key] = true
+    end
+    return original_tinymist_ensure(buf, state)
+end
 local event_group = vim.api.nvim_create_augroup(
     "TypstProjectMainChangeEventSpec",
     { clear = true }
@@ -430,10 +440,19 @@ vim.api.nvim_create_autocmd("User", {
             match = args.match,
             key = args.data and args.data.key,
         }
+        if args.match == "TypstEventProjectAttach" and args.data then
+            attach_events_saw_finalized[args.data.key] = finalized_projects[args.data.key]
+                == true
+        end
     end,
 })
 
-local event_project_b = typst.project.set_main(event_main_b)
+local event_project_b
+local event_ok, event_err = pcall(function()
+    event_project_b = typst.project.set_main(event_main_b)
+end)
+tinymist.ensure = original_tinymist_ensure
+assert(event_ok, event_err)
 assert(
     event_project_b.key ~= event_project_a.key,
     "set_main test should move the buffer to a new project"
@@ -452,10 +471,26 @@ assert(
         and seen_events[2].key == event_project_b.key,
     "set_main should attach the new project second"
 )
+assert(
+    attach_events_saw_finalized[event_project_b.key] == true,
+    "set_main attach events should observe finalized buffer project state"
+)
 
 seen_events = {}
+attach_events_saw_finalized = {}
+tinymist.ensure = function(buf, state)
+    if state and state.key then
+        finalized_projects[state.key] = true
+    end
+    return original_tinymist_ensure(buf, state)
+end
 vim.b.typst_main = event_main_a
-local lazy_project = typst.project.get(0)
+local lazy_project
+local lazy_ok, lazy_err = pcall(function()
+    lazy_project = typst.project.get(0)
+end)
+tinymist.ensure = original_tinymist_ensure
+assert(lazy_ok, lazy_err)
 assert(
     lazy_project.key == event_project_a.key,
     "lazy get should honor a changed buffer-local main"
@@ -473,6 +508,79 @@ assert(
     seen_events[2].match == "TypstEventProjectAttach"
         and seen_events[2].key == event_project_a.key,
     "lazy re-resolution should attach the new project second"
+)
+assert(
+    attach_events_saw_finalized[event_project_a.key] == true,
+    "lazy re-resolution attach events should observe finalized buffer project state"
+)
+
+local reload_finalize_count = 0
+tinymist.ensure = function(buf, state)
+    reload_finalize_count = reload_finalize_count + 1
+    return original_tinymist_ensure(buf, state)
+end
+local reload_ok, reload_err = pcall(function()
+    typst.project.reload_state({ notify = false })
+end)
+tinymist.ensure = original_tinymist_ensure
+assert(reload_ok, reload_err)
+assert(
+    reload_finalize_count == 1,
+    "reload_state should finalize the reattached project exactly once"
+)
+
+local failure_root = vim.fn.tempname()
+vim.fn.mkdir(failure_root, "p")
+local failure_chapter = failure_root .. "/chapter.typ"
+local failure_main_a = failure_root .. "/main-a.typ"
+local failure_main_b = failure_root .. "/main-b.typ"
+vim.fn.writefile({ "= Chapter" }, failure_chapter)
+vim.fn.writefile({ "= Main A", '#include "chapter.typ"' }, failure_main_a)
+vim.fn.writefile({ "= Main B", '#include "chapter.typ"' }, failure_main_b)
+
+vim.cmd.edit(vim.fn.fnameescape(failure_chapter))
+local failure_project_a = typst.project.set_main(failure_main_a)
+local finalization_error_event = nil
+local finalization_ok_event = nil
+local failure_group = vim.api.nvim_create_augroup(
+    "TypstProjectFinalizationFailureSpec",
+    { clear = true }
+)
+vim.api.nvim_create_autocmd("User", {
+    group = failure_group,
+    pattern = "TypstEventProjectAttach",
+    callback = function(args)
+        finalization_error_event = args.data and args.data.finalization_error
+            or nil
+        finalization_ok_event = args.data and args.data.finalization_ok
+    end,
+})
+tinymist.ensure = function()
+    error("synthetic tinymist ensure failure")
+end
+local failure_project_b
+local failure_ok, failure_err = pcall(function()
+    failure_project_b = typst.project.set_main(failure_main_b)
+end)
+tinymist.ensure = original_tinymist_ensure
+pcall(vim.api.nvim_del_augroup_by_id, failure_group)
+assert(failure_ok, failure_err)
+assert(
+    failure_project_b and failure_project_b.key ~= failure_project_a.key,
+    "finalization failure should not block committed project transitions"
+)
+assert(
+    type(finalization_error_event) == "string"
+        and finalization_error_event:find(
+            "synthetic tinymist ensure failure",
+            1,
+            true
+        ),
+    "attach events should report project finalization failures"
+)
+assert(
+    finalization_ok_event == false,
+    "attach events should expose finalization_ok=false after finalizer failure"
 )
 
 vim.cmd("qa!")

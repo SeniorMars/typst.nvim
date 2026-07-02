@@ -16,11 +16,7 @@ local normalize_bufnr = require("typst.core.buffer").normalize_bufnr
 
 local deferred_import_scan_tokens = {}
 local next_deferred_import_scan_token = 0
-local finalize_buffer_project_transition
-
--- Deferred import-scan reassignment must share the same post-commit feature and
--- Tinymist finalization as normal attach so buffer/window feature signatures and
--- semantic-provider state follow the final project key.
+local transition_buffer
 
 local function buffer_path(bufnr)
     if not vim.api.nvim_buf_is_valid(bufnr) then
@@ -176,38 +172,121 @@ local function schedule_deferred_import_scan(bufnr, state, candidate)
             main = main,
             root = scan_root,
         })
-        lifecycle_events.emit_reassign(
-            current,
-            next_state,
-            bufnr,
-            "deferred import scan",
-            previous_resolution
-        )
-        lifecycle_events.stop_previous(
-            current,
-            "stopping compiler after deferred import scan reassigned buffer",
-            "compiler stopped after deferred import scan"
-        )
-        finalize_buffer_project_transition(bufnr, next_state, nil, {
+        transition_buffer(bufnr, current, next_state, {
+            reason = "deferred import scan",
+            previous_resolution = previous_resolution,
             reapply_features = true,
+            schedule_deferred = false,
+            stop_log_message = "stopping compiler after deferred import scan reassigned buffer",
+            stop_prune_reason = "compiler stopped after deferred import scan",
         })
     end, 20)
 end
 
-local function finalize_attach(bufnr, state, candidate)
-    require("typst.integrations.tinymist").ensure(bufnr, state)
-    schedule_deferred_import_scan(bufnr, state, candidate)
-end
-
-finalize_buffer_project_transition = function(bufnr, state, candidate, opts)
+local function finalize_attached_buffer(bufnr, state, candidate, opts)
     opts = opts or {}
     if opts.reapply_features == true and vim.api.nvim_buf_is_valid(bufnr) then
         core_lifecycle.apply_buffer_features_all_windows(bufnr, {
             force = true,
         })
     end
-    finalize_attach(bufnr, state, candidate)
+    require("typst.integrations.tinymist").ensure(bufnr, state)
+    if opts.schedule_deferred ~= false then
+        schedule_deferred_import_scan(bufnr, state, candidate)
+    end
 end
+
+local function stop_messages(opts)
+    opts = opts or {}
+    return opts.stop_log_message or ("stopping compiler after %s"):format(
+        opts.reason or "buffer project transition"
+    ),
+        opts.stop_prune_reason or ("compiler stopped after %s"):format(
+            opts.reason or "buffer project transition"
+        )
+end
+
+local function stop_previous_project(previous, opts)
+    if not previous then
+        return
+    end
+    local log_message, prune_reason = stop_messages(opts)
+    lifecycle_events.stop_previous(previous, log_message, prune_reason)
+end
+
+-- Single post-commit transition boundary for buffer/project ownership changes.
+-- Project modules own identity; this helper owns lifecycle side effects around
+-- that identity change: stale buffer-local state, events, feature finalization,
+-- Tinymist ensure, deferred-scan scheduling, and old-resource stop/prune.
+transition_buffer = function(bufnr, previous, state, opts)
+    opts = opts or {}
+    local previous_key = previous and previous.key or nil
+    local state_key = state and state.key or nil
+    local changed = previous_key ~= state_key
+
+    if changed and previous_key and opts.forget_previous ~= false then
+        attachments.forget(bufnr, previous_key)
+    end
+
+    if opts.clear_buffer == true then
+        core_lifecycle.clear_buffer(bufnr)
+    end
+
+    local finalization_error = nil
+    if state then
+        local finalize_ok, finalize_err = xpcall(function()
+            finalize_attached_buffer(bufnr, state, opts.candidate, opts)
+        end, debug.traceback)
+        if not finalize_ok then
+            finalization_error = tostring(finalize_err)
+            log.add("warn", "buffer project finalization failed", {
+                bufnr = bufnr,
+                project_key = state.key,
+                reason = opts.reason,
+                error = finalization_error,
+            })
+        end
+    end
+
+    if opts.emit_events ~= false then
+        if state then
+            local attach_extra = {
+                finalization_ok = finalization_error == nil,
+                finalization_error = finalization_error,
+            }
+            lifecycle_events.emit_reassign(
+                previous,
+                state,
+                bufnr,
+                opts.reason or "buffer project transition",
+                opts.previous_resolution,
+                attach_extra
+            )
+        elseif previous then
+            lifecycle_events.emit_buffer_detach(
+                previous,
+                bufnr,
+                opts.reason or "buffer detached",
+                opts.previous_resolution
+            )
+            lifecycle_events.emit_project_pruned(
+                previous,
+                opts.reason or "buffer detached"
+            )
+        end
+    end
+
+    if
+        opts.stop_previous ~= false
+        and previous
+        and (changed or state == nil or opts.stop_even_if_same == true)
+    then
+        stop_previous_project(previous, opts)
+    end
+    return finalization_error == nil, finalization_error
+end
+
+M.transition_buffer = transition_buffer
 
 --- Reapply setup-sensitive editor state for already attached Typst buffers.
 ---@return table summary Counts of reapplied and skipped buffers.
@@ -287,21 +366,13 @@ local function attach_impl(api, bufnr)
             return nil
         end
 
-        -- If resolution moved this buffer to another project, the old project
-        -- may now have no buffers but still own a watcher/preview.
-        lifecycle_events.emit_reassign(
-            previous,
-            state,
-            bufnr,
-            "buffer attached",
-            previous_resolution
-        )
-        lifecycle_events.stop_previous(
-            previous,
-            "stopping compiler after buffer moved to another project",
-            "compiler stopped after buffer moved"
-        )
-        finalize_buffer_project_transition(bufnr, state, candidate)
+        transition_buffer(bufnr, previous, state, {
+            reason = "buffer attached",
+            previous_resolution = previous_resolution,
+            candidate = candidate,
+            stop_log_message = "stopping compiler after buffer moved to another project",
+            stop_prune_reason = "compiler stopped after buffer moved",
+        })
         return state
     end
 
@@ -337,30 +408,21 @@ function M.detach(bufnr)
     bufnr = normalize_bufnr(bufnr)
     deferred_import_scan_tokens[bufnr] = nil
     local previous = project.get(bufnr)
-    local previous_key = previous and previous.key or nil
     local resolution = previous
             and previous.resolutions
             and vim.deepcopy(previous.resolutions[bufnr])
         or nil
-    attachments.forget(bufnr, previous_key)
     local state = project.detach(bufnr)
-    core_lifecycle.clear_buffer(bufnr)
+    transition_buffer(bufnr, state or previous, nil, {
+        reason = "buffer detached",
+        previous_resolution = resolution,
+        clear_buffer = true,
+        forget_previous = true,
+        stop_log_message = "stopping compiler after last buffer detached",
+        stop_prune_reason = "compiler stopped after detach",
+    })
     if vim.api.nvim_buf_is_valid(bufnr) then
         util.del_buf_var(bufnr, "did_typst_nvim_ftplugin")
-    end
-    if state then
-        lifecycle_events.emit_buffer_detach(
-            state,
-            bufnr,
-            "buffer detached",
-            resolution
-        )
-        lifecycle_events.emit_project_pruned(state, "buffer detached")
-        lifecycle_events.stop_previous(
-            state,
-            "stopping compiler after last buffer detached",
-            "compiler stopped after detach"
-        )
     end
     return state
 end
@@ -392,21 +454,14 @@ function M.get_project(bufnr)
         bufnr,
         previous and { ignore_project_key = previous.key } or nil
     )
-    if previous and previous.key ~= state.key then
-        attachments.forget(bufnr, previous.key)
-    end
-    lifecycle_events.emit_reassign(
-        previous,
-        state,
-        bufnr,
-        "buffer re-resolved",
-        previous_resolution
-    )
-    lifecycle_events.stop_previous(
-        previous,
-        "stopping compiler after buffer main changed",
-        "compiler stopped after buffer main changed"
-    )
+    transition_buffer(bufnr, previous, state, {
+        reason = "buffer re-resolved",
+        previous_resolution = previous_resolution,
+        reapply_features = true,
+        schedule_deferred = false,
+        stop_log_message = "stopping compiler after buffer main changed",
+        stop_prune_reason = "compiler stopped after buffer main changed",
+    })
     return state
 end
 
@@ -425,22 +480,14 @@ function M.set_main(path, bufnr, set_opts, notify)
             and vim.deepcopy(previous.resolutions[bufnr])
         or nil
     local state = project.set_main(bufnr, path, set_opts)
-    if previous and previous.key ~= state.key then
-        attachments.forget(bufnr, previous.key)
-        lifecycle_events.emit_buffer_detach(
-            previous,
-            bufnr,
-            "main changed",
-            previous_resolution
-        )
-        lifecycle_events.emit_project_pruned(previous, "main changed")
-        lifecycle_events.emit_project_attach(state, bufnr, "main changed")
-    end
-    lifecycle_events.stop_previous(
-        previous,
-        "stopping compiler after main changed",
-        "compiler stopped after main changed"
-    )
+    transition_buffer(bufnr, previous, state, {
+        reason = "main changed",
+        previous_resolution = previous_resolution,
+        reapply_features = true,
+        schedule_deferred = false,
+        stop_log_message = "stopping compiler after main changed",
+        stop_prune_reason = "compiler stopped after main changed",
+    })
     if notify then
         notify(("Typst main: %s"):format(state.main))
     end
@@ -473,26 +520,14 @@ function M.toggle_main(toggle_opts, notify)
 
     if local_main then
         state = project.clear_main(bufnr, { clear_persisted = false })
-        if previous and previous.key ~= state.key then
-            attachments.forget(bufnr, previous.key)
-            lifecycle_events.emit_buffer_detach(
-                previous,
-                bufnr,
-                "local main cleared",
-                previous_resolution
-            )
-            lifecycle_events.emit_project_pruned(previous, "local main cleared")
-            lifecycle_events.emit_project_attach(
-                state,
-                bufnr,
-                "local main cleared"
-            )
-        end
-        lifecycle_events.stop_previous(
-            previous,
-            "stopping compiler after local main cleared",
-            "compiler stopped after local main cleared"
-        )
+        transition_buffer(bufnr, previous, state, {
+            reason = "local main cleared",
+            previous_resolution = previous_resolution,
+            reapply_features = true,
+            schedule_deferred = false,
+            stop_log_message = "stopping compiler after local main cleared",
+            stop_prune_reason = "compiler stopped after local main cleared",
+        })
         if toggle_opts.notify ~= false and notify then
             notify(("Typst project main: %s"):format(state.main))
         end
@@ -503,22 +538,14 @@ function M.toggle_main(toggle_opts, notify)
     end
 
     state = project.set_main(bufnr, path)
-    if previous and previous.key ~= state.key then
-        attachments.forget(bufnr, previous.key)
-        lifecycle_events.emit_buffer_detach(
-            previous,
-            bufnr,
-            "local main enabled",
-            previous_resolution
-        )
-        lifecycle_events.emit_project_pruned(previous, "local main enabled")
-        lifecycle_events.emit_project_attach(state, bufnr, "local main enabled")
-    end
-    lifecycle_events.stop_previous(
-        previous,
-        "stopping compiler after local main enabled",
-        "compiler stopped after local main enabled"
-    )
+    transition_buffer(bufnr, previous, state, {
+        reason = "local main enabled",
+        previous_resolution = previous_resolution,
+        reapply_features = true,
+        schedule_deferred = false,
+        stop_log_message = "stopping compiler after local main enabled",
+        stop_prune_reason = "compiler stopped after local main enabled",
+    })
     if toggle_opts.notify ~= false and notify then
         notify(("Typst local main: %s"):format(state.main))
     end
@@ -543,14 +570,11 @@ function M.reload_state(api, reload_opts, notify)
         or nil
     local previous = project.detach(bufnr)
     if previous then
-        attachments.forget(bufnr, previous.key)
-        lifecycle_events.emit_buffer_detach(
-            previous,
-            bufnr,
-            "state reload",
-            previous_resolution
-        )
-        lifecycle_events.emit_project_pruned(previous, "state reload")
+        transition_buffer(bufnr, previous, nil, {
+            reason = "state reload",
+            previous_resolution = previous_resolution,
+            stop_previous = false,
+        })
     end
 
     require("typst.core.cache_registry").reload({ bufnr = bufnr })
@@ -560,11 +584,11 @@ function M.reload_state(api, reload_opts, notify)
         error("typst.nvim: failed to reload Typst state for current buffer")
     end
     if previous and previous.key ~= state.key then
-        lifecycle_events.stop_previous(
-            previous,
-            "stopping compiler after state reload",
-            "compiler stopped after state reload"
-        )
+        stop_previous_project(previous, {
+            reason = "state reload",
+            stop_log_message = "stopping compiler after state reload",
+            stop_prune_reason = "compiler stopped after state reload",
+        })
     end
 
     log.add(

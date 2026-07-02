@@ -1,5 +1,9 @@
 local M = {}
 
+-- Delegated typst-preview.nvim and callback preview liveness enters here.
+-- Native preview details stay under preview/native; resource cleanup still goes
+-- through resources.supervisor.
+
 local config = require("typst.config")
 local events = require("typst.core.events")
 local log = require("typst.core.log")

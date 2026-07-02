@@ -149,6 +149,7 @@ local public_commands = {
     "TypstCreateFunction",
     "TypstSmartClose",
     "TypstConvertRaw",
+    "TypstDoctor",
     "TypstLog",
 }
 
@@ -159,6 +160,7 @@ for _, name in ipairs(public_commands) do
     )
 end
 
+local registered_user_commands = vim.api.nvim_get_commands({ builtin = false })
 for _, name in ipairs({
     "TypstDoc",
     "TypstDocSymbol",
@@ -168,7 +170,7 @@ for _, name in ipairs({
     "TypstDocOnline",
 }) do
     assert(
-        vim.fn.exists(":" .. name) == 0,
+        registered_user_commands[name] == nil,
         ("removed TypstDoc command should stay absent: %s"):format(name)
     )
 end
@@ -242,6 +244,7 @@ local ok, err = xpcall(function()
     vim.cmd("TypstLocks")
     vim.cmd("TypstCleanLocks")
     vim.cmd("TypstCheckInvariants")
+    vim.cmd("TypstDoctor")
     vim.cmd("TypstTelemetry")
 end, debug.traceback)
 

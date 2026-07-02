@@ -7,4 +7,11 @@ end
 
 vim.g.loaded_typst_nvim = 1
 
+if
+    vim.g.typst_nvim_no_auto_setup == 1
+    or vim.g.typst_nvim_no_auto_setup == true
+then
+    return
+end
+
 require("typst").setup()

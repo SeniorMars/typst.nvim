@@ -6,6 +6,14 @@ local M = {}
 local projects = {}
 local buffer_projects = {}
 
+local function copy_map(tbl)
+    local copy = {}
+    for key, value in pairs(tbl) do
+        copy[key] = value
+    end
+    return copy
+end
+
 local function encode_byte(char)
     return ("%%%02X"):format(char:byte())
 end
@@ -29,10 +37,22 @@ function M.decode_key(key)
 end
 
 function M.all()
-    return projects
+    return copy_map(projects)
 end
 
 function M.buffers()
+    return copy_map(buffer_projects)
+end
+
+-- Internal escape hatch for project.store and invariant/debug tooling only.
+-- Feature modules should use project/store snapshots or facade helpers.
+function M.live_all()
+    return projects
+end
+
+-- Internal escape hatch for project.store and invariant/debug tooling only.
+-- Feature modules should use project/store snapshots or facade helpers.
+function M.live_buffers()
     return buffer_projects
 end
 
@@ -78,6 +98,11 @@ end
 function M.remove(key)
     local project = projects[key]
     projects[key] = nil
+    for bufnr, mapped_key in pairs(buffer_projects) do
+        if mapped_key == key then
+            buffer_projects[bufnr] = nil
+        end
+    end
     return project
 end
 

@@ -33,23 +33,34 @@ function M.emit_buffer_detach(previous, bufnr, reason, resolution)
     )
 end
 
-function M.emit_project_attach(state, bufnr, reason)
+function M.emit_project_attach(state, bufnr, reason, extra)
     if not state then
         return
     end
     local resolution = state.resolutions and state.resolutions[bufnr] or nil
-    events.emit("TypstProjectAttach", state, {
-        event_kind = "project_attach",
-        bufnr = bufnr,
-        buffer = resolution and resolution.buffer or nil,
-        resolution_pending = resolution and resolution.resolution_pending
-            or state.resolution_pending,
-        reason = reason,
-        remaining_buffers = #vim.tbl_keys(state.bufs or {}),
-    })
+    events.emit(
+        "TypstProjectAttach",
+        state,
+        vim.tbl_extend("force", {
+            event_kind = "project_attach",
+            bufnr = bufnr,
+            buffer = resolution and resolution.buffer or nil,
+            resolution_pending = resolution and resolution.resolution_pending
+                or state.resolution_pending,
+            reason = reason,
+            remaining_buffers = #vim.tbl_keys(state.bufs or {}),
+        }, extra or {})
+    )
 end
 
-function M.emit_reassign(previous, state, bufnr, reason, previous_resolution)
+function M.emit_reassign(
+    previous,
+    state,
+    bufnr,
+    reason,
+    previous_resolution,
+    attach_extra
+)
     local previous_key = previous and previous.key or nil
     local state_key = state and state.key or nil
     if previous_key == state_key then
@@ -68,7 +79,12 @@ function M.emit_reassign(previous, state, bufnr, reason, previous_resolution)
         M.emit_project_pruned(previous, reason or "buffer reassigned")
     end
     if state then
-        M.emit_project_attach(state, bufnr, reason or "buffer attached")
+        M.emit_project_attach(
+            state,
+            bufnr,
+            reason or "buffer attached",
+            attach_extra
+        )
     end
 end
 

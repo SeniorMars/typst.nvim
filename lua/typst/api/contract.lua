@@ -36,6 +36,7 @@ local event_aliases = {
 local global_events = {
     "TypstEventInitPre",
     "TypstEventInitPost",
+    "TypstEventConfigChanged",
     "TypstEventQuit",
 }
 
@@ -66,6 +67,8 @@ local attach_payload = {
     "resolution_pending",
     "reason",
     "remaining_buffers",
+    "finalization_ok",
+    "finalization_error",
 }
 
 local buffer_lifecycle_payload = {
@@ -128,11 +131,20 @@ local compile_payload = vim.list_extend(vim.deepcopy(common_project_payload), {
     "forced",
 })
 
-local setup_payload = { "provider", "did_setup", "first_setup", "reconfigure" }
+local setup_payload =
+    { "provider", "did_setup", "first_setup", "reconfigure", "setup_once" }
+local config_changed_payload = {
+    "provider",
+    "did_setup",
+    "first_setup",
+    "reconfigure",
+    "reapply",
+}
 
 local event_payloads = {
     TypstEventInitPre = vim.deepcopy(setup_payload),
     TypstEventInitPost = vim.deepcopy(setup_payload),
+    TypstEventConfigChanged = vim.deepcopy(config_changed_payload),
     TypstEventQuit = { "provider", "projects" },
     TypstEventProjectAttach = vim.list_extend(
         vim.deepcopy(common_project_payload),
