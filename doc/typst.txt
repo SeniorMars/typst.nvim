@@ -572,7 +572,8 @@ Command groups:
     structural edit commands documented below.
 
   Debug and maintenance:
-    |:TypstCheckInvariants|, |:TypstTelemetry|, |:TypstTelemetryReset|
+    |:TypstDoctor|, |:TypstCheckInvariants|, |:TypstTelemetry|,
+    |:TypstTelemetryReset|
 
                                                         *:TypstInfo*
 :TypstInfo[!]
@@ -1618,13 +1619,18 @@ Implement `render(project, opts, callback)` to replace rendering.
     because collapsing them would change literal content. Without an argument,
     `toggle` is used.
 
+                                                        *:TypstDoctor*
+:TypstDoctor
+    Run typst.nvim's runtime invariant checker. This diagnostic command checks
+    project attachment, buffer/project registry maps, active operations, path
+    leases, diagnostics namespaces, follow-buffer autocmd state, and other
+    ownership invariants. A passing result reports the number of projects,
+    buffers, operations, and leases inspected; a failing result writes details
+    to |:TypstLog|.
+
                                                         *:TypstCheckInvariants*
 :TypstCheckInvariants
-    Run typst.nvim's runtime invariant checker. This is a maintainer-facing
-    diagnostic command that checks project attachment, active operations, path
-    leases, diagnostics namespaces, and other ownership invariants. A passing
-    result reports the number of projects, operations, and leases inspected; a
-    failing result writes details to |:TypstLog|.
+    Compatibility alias for |:TypstDoctor|.
 
                                                         *:TypstTelemetry*
 :TypstTelemetry
@@ -2148,6 +2154,13 @@ for integrations that only need to inspect settings. `get()` returns a
 read-only view for direct indexed reads. Use `snapshot()` when you need to
 traverse or mutate a copy. `unsafe_get()` is for typst.nvim internals that
 intentionally need the live table.
+
+The runtime plugin calls `setup()` with defaults when `plugin/typst.lua` is
+sourced. Later `require("typst").setup({...})` calls are reconfiguration:
+commands, global autocmds, and plug mappings remain one-time runtime state,
+while configuration is validated again and attached buffers are reapplied. Set
+`vim.g.typst_nvim_no_auto_setup = 1` before plugin loading to opt out of the
+default runtime setup and call `setup()` explicitly.
 
 The complete generated default-key reference is in `docs/config-reference.md`
 and the machine-readable schema is `data/config-schema.json`. Run
@@ -3621,6 +3634,33 @@ context. A non-current buffer needs an explicit `pos` or a `winid` that displays
 that buffer; otherwise APIs that need a cursor position return no action or a
 `position_required` result instead of reading the active window by accident.
 
+Project-scoped public Lua wrappers use a shared no-project policy. Passive
+inspection APIs such as `compiler.status()`, `compiler.current_output()`,
+`viewer.preview_status()`, `project.services()`, and report helpers reuse an
+attached project, an explicit `project`, or an explicit key (`key` or
+`project_key`, with `key_encoded = true` for command-safe encoded keys); they
+do not create scratch projects from dashboards, timers, statuslines, or other
+non-Typst buffers, and they do not notify by default when no project exists.
+Cleanup APIs such as `viewer.clean()` and `viewer.clean_preview()` also use
+no-create resolution, but remain action APIs. When no project is available,
+wrappers return `nil, { reason = "no_project", ... }` or a result table with
+`ok = false` and `reason = "no_project"`. If an explicit key cannot be
+resolved, wrappers return `unknown_project_key` or `ambiguous_project_key`
+instead of `no_project`.
+
+Action APIs such as compile, watch, preview, render, export, eval, navigation,
+and semantic calls may resolve or create project state only for Typst source
+buffers. Calls from a non-Typst buffer fail closed with the same `no_project`
+reason instead of compiling an unintended main. Integrations should pass
+`{ bufnr = typst_bufnr }`, `{ project = project }`, or an explicit project key
+when the current buffer is not the Typst source. `viewer.capabilities()` is
+project-free; preview capabilities are project-scoped. Viewer and preview
+inverse-search wrappers also try `opts.path`/`opts.source_path` against loaded
+buffers and existing project graphs. When an explicit source path is supplied
+but is not associated with any loaded buffer or existing project graph, they
+return `source_path_not_in_project` instead of falling back to the focused
+project.
+
 Opening and jumping use a separate destination-window option. File-target
 navigation, context actions, package/source actions, and viewer or preview
 inverse jumps open in the current window by default. Pass `open_winid` to make a
@@ -3672,6 +3712,7 @@ The plugin emits these public `User` events:
 
 - `TypstEventInitPre`
 - `TypstEventInitPost`
+- `TypstEventConfigChanged`
 - `TypstEventProjectAttach`
 - `TypstEventBufferDetach`
 - `TypstEventProjectDetach`
@@ -3698,7 +3739,11 @@ The plugin emits these public `User` events:
 the first setup call and `reconfigure = true` on later setup calls. Plugin
 managers that call `require("typst").setup()` after the runtime plugin loaded
 should treat the later event as reconfiguration, not a second independent
-startup.
+startup. Reconfiguration also emits `TypstEventConfigChanged` after the new
+configuration is installed and attached buffers are reapplied. Event order is
+`TypstEventInitPre` -> `TypstEventInitPost` on first setup, and
+`TypstEventInitPre` -> `TypstEventConfigChanged` -> `TypstEventInitPost` on
+reconfiguration.
 
 Project reassignments through public APIs such as |:TypstSetMain|,
 |:TypstToggleMain|, lazy `project.get()`, or buffer reattachment emit
@@ -3707,8 +3752,12 @@ the new project when the project key changes. `TypstEventProjectDetach` remains
 emitted as a compatibility alias for the same buffer-detach moment; it does not
 mean the project registry entry was removed. `TypstEventProjectPruned` fires
 only when an empty project is removed from typst.nvim's registry.
-Reassignments that keep the same project key do not emit duplicate project
-events.
+`TypstEventProjectAttach` fires after project registry state is committed and
+buffer project finalization has run, so handlers may inspect finalized project
+state. If a non-critical finalizer fails, the attach event still fires with
+`finalization_ok = false` and `finalization_error`; successful attach events
+include `finalization_ok = true`. Reassignments that keep the same project key do not emit
+duplicate project events.
 
 The older event names remain emitted for compatibility:
 
@@ -3739,9 +3788,9 @@ The event `data` table contains `key`, `root`, `main`, `output`, `status`,
 `provider`, `profile`, `cwd`, and `command`. `profile` and `command` are `nil`
 before any profiled compile or background command has been run.
 Project attach events add `event_kind`, `bufnr`, `buffer`, `reason`, and
-`remaining_buffers`. Buffer detach events add those same fields plus
-`project_pruned`. `TypstEventProjectPruned` includes `event_kind`, `reason`,
-`remaining_buffers`, and `project_pruned`.
+`remaining_buffers`. Buffer detach events add `event_kind`, `bufnr`, `buffer`,
+`reason`, `remaining_buffers`, and `project_pruned`. `TypstEventProjectPruned`
+includes `event_kind`, `reason`, `remaining_buffers`, and `project_pruned`.
 Project attach events may also include `resolution_pending = "import_scan"`.
 Handlers that start watchers, previews, or external tools should either skip
 pending attaches or call the public project API to force resolution before
@@ -3766,7 +3815,8 @@ metadata such as `id`, `path`, `canonical_path`, `format`, `signature`,
 events include `deleted`, `skipped`, `failed`, and `producer`.
 `TypstRenderCreated` includes `kind`, `path`, `source`, `format`, and may
 include `page`. TOC events include `items`. Initialization events include
-`provider` and `did_setup`; quit events include `provider` and `projects`.
+`provider`, `did_setup`, `first_setup`, `reconfigure`, and `setup_once`; quit
+events include `provider` and `projects`.
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:

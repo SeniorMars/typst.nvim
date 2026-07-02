@@ -16,7 +16,26 @@ local project_store = require("typst.project.store")
 local resource_session = require("typst.resources.session")
 local resource_supervisor = require("typst.resources.supervisor")
 local preview_service = require("typst.project.services.preview")
+local compiler_api = require("typst.compiler")
 local compiler_fanout = require("typst.compiler.fanout")
+local compiler_typst_compile = require("typst.compiler.typst_compile")
+local compiler_typst_process = require("typst.compiler.typst_process")
+local compiler_typst_watcher = require("typst.compiler.typst_watcher")
+local compiler_watch_output = require("typst.compiler.output")
+local edit_api = require("typst.edit.api")
+local edit_treesitter = require("typst.edit.treesitter")
+local navigation_follow = require("typst.navigation.follow")
+local navigation_follow_context = require("typst.navigation.follow_context")
+local navigation_picker_backends = require("typst.navigation.picker_backends")
+local navigation_toc = require("typst.navigation.toc")
+local navigation_toc_collect = require("typst.navigation.toc_collect")
+local typst_preview = require("typst.integrations.typst_preview")
+local typst_preview_runtime =
+    require("typst.integrations.typst_preview.runtime")
+local typst_preview_state = require("typst.integrations.typst_preview.state")
+local viewer_api = require("typst.viewer.api")
+local viewer_generic = require("typst.viewer.generic")
+local viewer_generic_helpers = require("typst.viewer.generic_helpers")
 
 typst.reset({ force = true })
 typst.setup({
@@ -28,6 +47,8 @@ local architecture_doc =
     table.concat(vim.fn.readfile(root .. "/docs/architecture.md"), "\n")
 for _, phrase in ipairs({
     "Workflow-First Target Layout",
+    "Stable-Core Implementation Layout",
+    "Post-Stable Target Boundaries",
     "Top-Level Mental Model",
     "What Not To Do",
     "Hard Ownership Boundaries",
@@ -38,9 +59,11 @@ for _, phrase in ipairs({
     "core.windows",
     "resources.supervisor",
     "compiler.fanout",
-    "compiler.controller",
-    "preview.controller",
-    "viewer.controller",
+    "No Controller Extraction Before Stable",
+    "typst.compiler decides stop/timeout semantics",
+    "typst.integrations.typst_preview decides delegated preview stop semantics",
+    "typst.viewer.api decides viewer/source-sync command semantics",
+    "Do not move files or extract new controller modules",
     "diagnostics.publisher",
     "Command-to-module intent",
 }) do
@@ -50,6 +73,25 @@ for _, phrase in ipairs({
             phrase
         )
     )
+end
+
+local live_registry_allowlist = {
+    ["lua/typst/project/registry.lua"] = true,
+    ["lua/typst/project/store.lua"] = true,
+    ["lua/typst/internal/debug.lua"] = true,
+}
+for _, file in ipairs(vim.fn.globpath(root .. "/lua", "**/*.lua", false, true)) do
+    local rel = file:sub(#root + 2)
+    if not live_registry_allowlist[rel] then
+        local text = table.concat(vim.fn.readfile(file), "\n")
+        assert(
+            not text:find("%.live_all%(", 1)
+                and not text:find("%.live_buffers%(", 1),
+            ("feature modules should not use live project registry tables: %s"):format(
+                rel
+            )
+        )
+    end
 end
 
 assert(
@@ -140,9 +182,10 @@ assert(
         and type(resource_supervisor.stop_for_exit_all) == "function",
     "resources.supervisor should expose ResourceSupervisor cleanup hooks"
 )
-local saved_core_lifecycle = package.loaded["typst.core.lifecycle"]
+local core_lifecycle = require("typst.core.lifecycle")
+local saved_resource_supervisor = package.loaded["typst.resources.supervisor"]
 local stop_before_prune_args = nil
-package.loaded["typst.core.lifecycle"] = {
+package.loaded["typst.resources.supervisor"] = {
     stop_before_prune = function(...)
         stop_before_prune_args = { ... }
         return true
@@ -150,25 +193,103 @@ package.loaded["typst.core.lifecycle"] = {
 }
 local prune_state = { key = "resource-supervisor-test" }
 assert(
-    resource_supervisor.stop_before_prune(
-        prune_state,
-        "log message",
-        "prune reason"
-    ) == true,
-    "resources.supervisor should delegate stop-before-prune work"
+    core_lifecycle.stop_before_prune(prune_state, "log message", "prune reason")
+        == true,
+    "core.lifecycle should delegate stop-before-prune work to resources.supervisor"
 )
-package.loaded["typst.core.lifecycle"] = saved_core_lifecycle
+package.loaded["typst.resources.supervisor"] = saved_resource_supervisor
 assert(
     stop_before_prune_args
         and stop_before_prune_args[1] == prune_state
         and stop_before_prune_args[2] == "log message"
         and stop_before_prune_args[3] == "prune reason",
-    "resources.supervisor should preserve log-message/prune-reason argument order"
+    "core.lifecycle should preserve log-message/prune-reason argument order"
 )
 assert(
     type(compiler_fanout.compile_succeeded) == "function"
         and type(compiler_fanout.watch_cycle_failed) == "function",
     "compiler.fanout should expose compiler result consumer hooks"
+)
+assert(
+    require("typst.compiler") == compiler_api,
+    "typst.compiler should remain the compiler lifecycle entry point"
+)
+assert(
+    require("typst.integrations.typst_preview") == typst_preview,
+    "typst-preview integration should remain the delegated preview entry point"
+)
+assert(
+    require("typst.viewer.api") == viewer_api,
+    "viewer.api should remain the viewer command entry point"
+)
+assert(
+    type(compiler_api.compile) == "function"
+        and type(compiler_api.stop_for_exit) == "function",
+    "typst.compiler should own compile/watch/stop lifecycle entrypoints"
+)
+assert(
+    type(typst_preview.open) == "function"
+        and type(typst_preview.stop_for_exit) == "function",
+    "typst-preview integration should expose preview liveness entrypoints"
+)
+assert(
+    type(viewer_api.view) == "function"
+        and type(viewer_api.preview_inverse) == "function",
+    "viewer.api should own viewer/preview command orchestration"
+)
+assert(
+    require("typst.compiler.typst_compile") == compiler_typst_compile,
+    "compiler typst_compile path should remain available"
+)
+assert(
+    require("typst.compiler.typst_process") == compiler_typst_process,
+    "compiler typst_process path should remain available"
+)
+assert(
+    require("typst.compiler.typst_watcher") == compiler_typst_watcher,
+    "compiler typst_watcher path should remain available"
+)
+assert(
+    require("typst.compiler.output") == compiler_watch_output,
+    "compiler output helper path should remain available"
+)
+assert(
+    require("typst.integrations.typst_preview.runtime") == typst_preview_runtime,
+    "typst-preview runtime path should remain available"
+)
+assert(
+    require("typst.integrations.typst_preview.state") == typst_preview_state,
+    "typst-preview state path should remain available"
+)
+assert(
+    require("typst.viewer") == viewer_generic
+        and require("typst.viewer.generic") == viewer_generic,
+    "viewer generic backend should remain available at flat paths"
+)
+assert(
+    require("typst.viewer.generic_helpers") == viewer_generic_helpers,
+    "viewer generic helpers should remain available at flat paths"
+)
+assert(
+    require("typst.edit.api") == edit_api
+        and require("typst.edit.treesitter") == edit_treesitter,
+    "edit implementation should remain available at flat paths"
+)
+assert(
+    require("typst.navigation.follow") == navigation_follow
+        and require("typst.navigation.follow_context")
+            == navigation_follow_context,
+    "navigation follow implementation should remain available at flat paths"
+)
+assert(
+    require("typst.navigation.toc") == navigation_toc
+        and require("typst.navigation.toc_collect")
+            == navigation_toc_collect,
+    "navigation TOC implementation should remain available at flat paths"
+)
+assert(
+    require("typst.navigation.picker_backends") == navigation_picker_backends,
+    "navigation picker implementation should remain available at flat paths"
 )
 for _, raw_key in ipairs({
     "/tmp/a%2Fb main.typ",

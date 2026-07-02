@@ -111,11 +111,43 @@ the underlying process/provider really exits. Retained orphans stay visible for
 diagnostics and keep owned resources guarded until that later real exit or an
 explicit cleanup/reset path.
 
+Project-scoped public Lua wrappers use a shared no-project policy. Passive
+inspection APIs such as `compiler.status()`, `compiler.current_output()`,
+`viewer.preview_status()`, `project.services()`, and report helpers reuse an
+attached project, an explicit `project`, or an explicit key (`key` or
+`project_key`, with `key_encoded = true` for command-safe encoded keys); they
+do not create scratch projects from dashboards, timers, statuslines, or other
+non-Typst buffers, and they do not notify by default when no project exists.
+Cleanup APIs such as `viewer.clean()` and `viewer.clean_preview()` also use
+no-create resolution, but remain action APIs. When no project is available,
+wrappers return `nil, { reason = "no_project", ... }` or a result table with
+`ok = false` and `reason = "no_project"`. If an explicit key cannot be
+resolved, wrappers return `unknown_project_key` or `ambiguous_project_key`
+instead of `no_project`.
+
+Action APIs such as compile, watch, preview, render, export, eval, navigation,
+and semantic calls may resolve or create project state only for Typst source
+buffers. Calls from a non-Typst buffer fail closed with the same `no_project`
+reason instead of compiling an unintended main. Integrations should pass
+`{ bufnr = typst_bufnr }`, `{ project = project }`, or an explicit project key
+when the current buffer is not the Typst source. `viewer.capabilities()` is
+project-free; preview capabilities are project-scoped. Viewer and preview
+inverse-search wrappers also try `opts.path`/`opts.source_path` against loaded
+buffers and existing project graphs. When an explicit source path is supplied
+but is not associated with any loaded buffer or existing project graph, they
+return `source_path_not_in_project` instead of falling back to the focused
+project.
+
 External compiler provider compile/watch/stop timeouts retain typst.nvim's
 output lease because timeout is not proof of process exit. Use
 `typst.compiler.force_clear({ key = project_key })` to discard that retained
 state for attached or bufferless projects; its result sets `stopped = false`
 because the provider process was not confirmed stopped.
+
+Setup events have a fixed order. First setup emits `TypstEventInitPre` and then
+`TypstEventInitPost`. Reconfiguration emits `TypstEventInitPre`,
+`TypstEventConfigChanged`, and then `TypstEventInitPost`; the config-changed
+event fires after configuration is installed and attached buffers are reapplied.
 The Lua symbol is experimental for now; the supported user-facing recovery path
 is `:TypstCompilerForceClear[!] [project-key]`.
 

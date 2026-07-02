@@ -104,6 +104,35 @@ in the current window by default. Pass `open_winid` to make a specific window
 receive the opened file or jump. `jump_winid` and `target_winid` are accepted as
 aliases for integration code, but `winid` remains the source-window option.
 
+## Project Context Resolution
+
+Project-scoped public Lua wrappers use one shared context policy. Passive
+inspection APIs, such as `compiler.status()`, `compiler.current_output()`,
+`viewer.preview_status()`, `project.services()`, and detailed report helpers,
+reuse an attached project, an explicit `project`, or an explicit project key
+(`key` or `project_key`, with `key_encoded = true` for command-safe encoded
+keys). They do not create scratch projects from dashboards, statuslines,
+timers, or other non-Typst buffers, and they do not notify by default when no
+project exists. Cleanup APIs such as `viewer.clean()` and
+`viewer.clean_preview()` also use no-create resolution, but remain action APIs.
+Without a project they return `nil, { reason = "no_project", ... }` or a
+result table whose `ok` is false and `reason` is `"no_project"`, depending on
+the namespace. If an explicit key cannot be resolved, wrappers return
+`unknown_project_key` or `ambiguous_project_key` instead of `no_project`.
+
+Action APIs, such as compile, watch, preview, render, export, eval, navigation,
+and semantic actions, may resolve or create project state only for Typst source
+buffers. Calls from a non-Typst buffer fail closed with the same `no_project`
+reason instead of silently compiling an unintended main. Integrations that call
+typst.nvim from a dashboard, timer, statusline, or unrelated buffer should pass
+`{ bufnr = typst_bufnr }`, `{ project = project }`, or an explicit project key.
+`viewer.capabilities()` is project-free; preview capabilities are
+project-scoped. Viewer and preview inverse-search wrappers also try
+`opts.path`/`opts.source_path` against loaded buffers and existing project
+graphs. When an explicit source path is supplied but is not associated with any
+loaded buffer or existing project graph, they return
+`source_path_not_in_project` instead of falling back to the focused project.
+
 ## Stable Entry Points
 
 The supported setup entry point is:
@@ -777,8 +806,10 @@ methods for richer package or workspace integrations.
 Rendered-preview helpers are explicit, cached actions. `render_fragment(opts)`
 renders selected or supplied Typst source, `render_equation(opts)` wraps an
 expression in an auto-sized math document, `render.image(opts)` resolves an
-image path under the cursor or from `opts.path`, and `render.page(opts)` renders
-one page from the current main file. `render.output_dir`, `render.output_format`,
+image path under the cursor or from `opts.path` in the current Typst project,
+and `render.page(opts)` renders one page from the current main file.
+`render.image()` is project-backed for cache/output ownership; it is not a
+project-free image display helper. `render.output_dir`, `render.output_format`,
 `render.source_dir`, `render.cache`, and `render.open` control defaults.
 Equation and fragment renders write generated wrapper sources under the
 XDG-backed `render.source_dir` and pass them through stdin by default. Rendered
@@ -891,8 +922,11 @@ String/list executable inverse commands run only when the selected viewer
 declares `capabilities.inverse` or `capabilities.source_maps`. When no callback
 or command is configured, `view_inverse()` opens the reported source location
 directly only if the selected viewer declares `capabilities.inverse` or
-`capabilities.source_maps`. Built-in PDF viewer presets open or reuse output but
-do not claim forward or inverse
+`capabilities.source_maps`. If the current buffer is unrelated,
+`view_inverse({ path = ... })` resolves the project from a loaded source buffer
+or existing project graph before returning `source_path_not_in_project`; it does
+not create a scratch project from the current buffer. Built-in PDF viewer presets open or
+reuse output but do not claim forward or inverse
 synchronization by default.
 
 `viewer.reload` is an optional watch-cycle notification callback for output
@@ -904,9 +938,10 @@ when top-level `viewer.reload` is unset.
 `preview.forward` and `preview.inverse` are source-sync extension points for
 configured callback previews. `preview.capabilities` declares source-map,
 forward, and inverse support. `preview_inverse()` opens the requested source
-location when inverse support is available, and `preview_capabilities()` reports
-the effective preview source-sync surface. When no callback is configured,
-preview open/stop/toggle use typst.nvim's native provider. `preview.native =
+location when inverse support is available, resolving `opts.path` through
+loaded buffers or existing project graphs when the current buffer is unrelated.
+`preview_capabilities()` reports the effective preview source-sync surface.
+When no callback is configured, preview open/stop/toggle use typst.nvim's native provider. `preview.native =
 "viewer"` opens the configured output viewer, `"browser"` opens typst.nvim's
 local browser preview shell, and `"auto"` tries browser preview with viewer
 fallback. Set `preview.provider = "typst-preview.nvim"` only when explicit
@@ -1461,6 +1496,7 @@ The public command surface is:
 - `:TypstCreateFunction {name}`
 - `:TypstSmartClose`
 - `:TypstConvertRaw [toggle|inline|block]`
+- `:TypstDoctor`
 - `:TypstCheckInvariants`
 - `:TypstTelemetry`
 - `:TypstTelemetryReset`
@@ -1472,6 +1508,7 @@ The plugin emits these public `User` events:
 
 - `TypstEventInitPre`
 - `TypstEventInitPost`
+- `TypstEventConfigChanged`
 - `TypstEventProjectAttach`
 - `TypstEventBufferDetach`
 - `TypstEventProjectDetach`
@@ -1522,12 +1559,17 @@ For compatibility, the plugin also emits the older event names:
 Event `data` contains `key`, `root`, `main`, `output`, `status`, `provider`,
 `profile`, `cwd`, and `command`. `profile` and `command` are `nil` before any
 profiled compile or background command has been run. Project attach events add
-`event_kind`, `bufnr`, `buffer`, `reason`, and `remaining_buffers`. Buffer
-detach events add those same fields plus `project_pruned`. `TypstEventBufferDetach`
-is the precise event for a buffer leaving a project. `TypstEventProjectDetach`
-remains a compatibility alias for that buffer-detach moment. `TypstEventProjectPruned`
-fires only when an empty project is removed from typst.nvim's registry and
-includes `event_kind`, `reason`, `remaining_buffers`, and `project_pruned`.
+`event_kind`, `bufnr`, `buffer`, `reason`, and `remaining_buffers`.
+`TypstEventProjectAttach` fires after project registry state is committed and
+buffer project finalization has run; if a non-critical finalizer fails, the
+event includes `finalization_ok = false` and `finalization_error`; successful
+attach events include `finalization_ok = true`. Buffer detach events add
+`event_kind`, `bufnr`, `buffer`, `reason`, `remaining_buffers`, and
+`project_pruned`. `TypstEventBufferDetach` is the precise event for a buffer
+leaving a project. `TypstEventProjectDetach` remains a compatibility alias for
+that buffer-detach moment. `TypstEventProjectPruned` fires only when an empty
+project is removed from typst.nvim's registry and includes `event_kind`,
+`reason`, `remaining_buffers`, and `project_pruned`.
 `TypstEventCompilerForceCleared` includes `key_display`, `output`,
 `released_lease`, `stopped`, `forced`, `discarded`, `reason`, and
 `lease_owner`. `forced` is true only when bang/`force = true` bypassed the
@@ -1544,8 +1586,11 @@ Artifact-created events include artifact metadata such as `id`, `path`,
 `preview_export`. Artifact-cleaned events include `deleted`, `skipped`,
 `failed`, and `producer`. Render events include `kind`, `path`, `source`,
 `format`, and may include `page`. TOC events include `items`. Initialization
-events include `provider` and `did_setup`; quit events include `provider` and
-`projects`.
+events include `provider`, `did_setup`, `first_setup`, and `reconfigure`; quit
+events include `provider` and `projects`. First setup emits
+`TypstEventInitPre` -> `TypstEventInitPost`. Reconfiguration emits
+`TypstEventInitPre` -> `TypstEventConfigChanged` -> `TypstEventInitPost` after
+configuration is installed and attached buffers are reapplied.
 
 ## Stable Mappings
 

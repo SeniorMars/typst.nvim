@@ -139,23 +139,20 @@ lua/typst/
   compiler/
     init.lua
     api.lua
-    controller.lua
     result.lua
     provider.lua
     provider_binding.lua
-    cli/
-      init.lua
-      command.lua
-      compile.lua
-      watch.lua
-      process.lua
-      dependencies.lua
-      output_path.lua
+    command.lua
+    typst_compile.lua
+    typst_watcher.lua
+    typst_process.lua
+    dependencies.lua
+    output_path.lua
+    output.lua
     watch/
       runner.lua
       state.lua
       parser.lua
-      output.lua
       fixtures.lua
     generic.lua
     lifecycle.lua
@@ -171,7 +168,6 @@ lua/typst/
 
   preview/
     init.lua
-    controller.lua
     native/
       init.lua
       browser.lua
@@ -179,54 +175,40 @@ lua/typst/
       session.lua
       transport.lua
     provider.lua
-    typst_preview_nvim.lua
+    follow_buffer.lua
     source_sync.lua
     events.lua
     capabilities.lua
 
   viewer/
     init.lua
-    controller.lua
+    api.lua
     provider.lua
-    commands.lua
+    generic.lua
+    generic_helpers.lua
     source_sync.lua
     capabilities.lua
-    backends/
-      generic.lua
-      zathura.lua
-      sioyek.lua
-      skim.lua
-      sumatra.lua
 
   navigation/
-    init.lua
-    toc/
-      init.lua
-      collect.lua
-      state.lua
-      window.lua
-      quickfix.lua
-      layers.lua
-    follow/
-      init.lua
-      import.lua
-      path.lua
-      package.lua
-      label.lua
-      citation.lua
-      definition.lua
-      url.lua
-    picker/
-      init.lua
-      providers.lua
-      items.lua
+    toc.lua
+    toc_collect.lua
+    toc_state.lua
+    toc_window.lua
+    toc_quickfix.lua
+    follow.lua
+    follow_context.lua
+    follow_lsp.lua
+    follow_patterns.lua
+    picker.lua
+    picker_backends.lua
+    picker_items.lua
     symbols.lua
     labels.lua
     citations.lua
     references.lua
     links.lua
 
-  editor/
+  edit/
     init.lua
     treesitter.lua
     context.lua
@@ -443,8 +425,9 @@ outputs facade owns leases
 resources.supervisor is the reset/prune/exit cleanup entry point
 diagnostics publisher is the only diagnostic writer
 compiler.fanout routes compiler-state post-result consumers
-compiler controller decides stop/timeout semantics
-preview controller decides preview stop semantics
+typst.compiler decides stop/timeout semantics
+typst.integrations.typst_preview decides delegated preview stop semantics
+typst.viewer.api decides viewer/source-sync command semantics
 ```
 
 ## Hard Ownership Boundaries
@@ -470,24 +453,27 @@ diagnostics, or output details. This is still a facade over some older lifecycle
 code; ownership is being migrated behind it.
 
 Compiler modules own compile/watch state, provider policy, Typst CLI behavior,
-watch output parsing, and compiler events. The compiler controller should decide
-when a timeout is an unconfirmed writer and when leases may be released. The
-built-in Typst CLI backend should live under `compiler/cli/` over time so it is
-clearly separate from custom-provider dispatch. Post-result side effects such
-as artifact ownership, diagnostics, dependency refresh, logging, and events
-route through `compiler.fanout` today. Viewer and preview refresh route through
-`compiler.consumers` from the existing API/controller paths rather than being
-duplicated by each backend.
+watch output parsing, and compiler events. `typst.compiler` decides when a
+timeout is an unconfirmed writer and when leases may be released. Do not extract
+a full compiler controller before the stable-core boundary is pinned; keep the
+current module as the compatibility and lifecycle entry point while tests harden
+the behavior. Post-result side effects such as artifact ownership, diagnostics,
+dependency refresh, logging, and events route through `compiler.fanout` today.
+Viewer and preview refresh route through `compiler.consumers` from the existing
+API paths rather than being duplicated by each backend.
 
 Diagnostics modules own diagnostic publication. Only `diagnostics.publisher`
 should call `vim.diagnostic.set` for compiler/lint/grammar diagnostics. Parser,
 policy, quickfix, and count helpers should feed that publisher or clearly
 document an exception.
 
-Viewer and preview are separate workflows. A viewer opens or controls existing
-artifacts. Preview owns long-lived preview sessions, including native browser
-preview and delegated `typst-preview.nvim` compatibility. Source-sync capability
-reporting should make this distinction explicit.
+Viewer and preview are separate workflows. `typst.viewer.api` owns viewer
+commands and preview-facing public command orchestration. A viewer opens or
+controls existing artifacts. `typst.integrations.typst_preview` owns delegated
+`typst-preview.nvim` compatibility, while `preview/native/*` owns native browser
+preview details. Do not extract full preview/viewer controllers before the
+stable-core boundary is pinned. Source-sync capability reporting should make
+this distinction explicit.
 
 Navigation modules return item lists and jump actions. UI modules decide how to
 show them, and integrations supply optional semantic data. Navigation should not
@@ -609,10 +595,10 @@ Events should be emitted after the corresponding service state is visible to
 event handlers. For example, compile-start events must fire after the active
 process or watcher handle is stored.
 
-Shared LuaLS shapes for projects, compiler results, watcher state, and service
-tables live in `lua/typst/types.lua`. Extend that file when a field becomes a
-stable internal boundary; keep local annotations for temporary locals or helper
-return shapes that should not be reused across modules.
+Shared Lua annotations live in `lua/typst/types.lua`, but this stabilization
+patch should avoid a broad type-shape overhaul. Add reusable shapes only when a
+field becomes a stable internal boundary; keep local annotations for temporary
+locals or helper return shapes that should not be reused across modules.
 
 ## Watch Lifecycle
 
@@ -723,7 +709,18 @@ The current architecture is intentionally migration-friendly rather than a
 rewrite target. Refactors should land behind compatibility facades and preserve
 the existing public API.
 
-Do not move files before tests pin ownership. The migration order is:
+### Stable-Core Implementation Layout
+
+The stable-core implementation layout is the current flat module layout. No
+large file moves, controller extractions, or namespace migrations should happen
+inside this stabilization patch. The stable-core boundary is behavior-first:
+project identity, lifecycle ordering, no-project behavior, output ownership,
+and reset/recovery semantics must be pinned before implementation files move.
+
+### No Controller Extraction Before Stable
+
+Do not move files or extract new controller modules before tests pin ownership.
+This stabilization patch hardens behavior in the existing modules:
 
 1. Stabilize boundaries without big moves.
    - `core.result` is the only generic stopped/pending/orphan predicate layer.
@@ -743,45 +740,53 @@ Do not move files before tests pin ownership. The migration order is:
      entry point while ownership migrates behind it.
    - `diagnostics.publisher` is the compiler diagnostic writer.
    - `compiler.fanout` routes compiler-state result consumers.
-2. Move compiler internals behind `compiler.controller`.
-   - Keep `require("typst.compiler").compile/watch/stop` compatible.
-   - Split provider dispatch from Typst CLI backend code.
-   - Move the built-in CLI implementation toward `compiler/cli/`.
-   - Keep watch parser/state under `compiler/watch/`.
-3. Move preview and viewer out of integration-owned lifecycle code.
-   - `preview.controller` should own open/stop/refresh/toggle/status.
-   - `preview/native/*` should own native browser/server/session details.
-   - `preview/typst_preview_nvim.lua` should own delegated compatibility.
-   - `viewer.controller` should own artifact opening and viewer source sync.
-4. Split navigation and editor after lifecycle is stable.
-   - TOC, follow, labels, citations, references, symbols, and pickers belong
-     under `navigation/`.
-   - Motions, text objects, transforms, folds, indent, insert mappings, and
-     formatexpr belong under `editor/`.
-5. Harden the public API once workflows have stable homes.
-   - Keep implementation paths movable.
+2. Keep compiler lifecycle in `typst.compiler`.
+   - New compile/watch/stop behavior should land in the existing compiler
+     lifecycle module or narrower helper modules, not in a new full controller.
+   - Keep built-in Typst helpers at their historical paths until tests require a
+     real file split.
+3. Keep preview and viewer lifecycle in existing entry points.
+   - `typst.viewer.api` owns artifact opening and viewer source sync for now.
+   - `typst.integrations.typst_preview` owns delegated preview compatibility for
+     now.
+   - `preview/native/*` may keep native browser/server/session details.
+4. Keep navigation and editor implementation files in their existing layout.
+   - The current flat navigation/edit modules remain the implementation paths
+     for this stabilization patch.
+5. Harden the public API before any future layout migration.
+   - Keep implementation paths movable later, but do not move them in this
+     patch.
+
+### Post-Stable Target Boundaries
+
+After the stable-core contract is pinned, narrower controller modules remain
+valid long-term extraction targets when tests show the ownership boundary is
+stable. `compiler.controller` can become the compile/watch/stop/output owner,
+`preview.controller` can own native/delegated preview lifecycle, and
+`viewer.controller` can own viewer open/forward/inverse behavior. Those are
+post-stable targets, not prerequisites for this stabilization patch.
    - Expose workflow namespaces deliberately: project, compiler, viewer,
-     preview, diagnostics, navigation, editor, completion, conceal,
-     bibliography, metadata, providers.
+     preview, diagnostics, navigation, edit, completion, conceal, bibliography,
+     metadata, providers.
 
 Command-to-module intent should stay simple for users:
 
 ```text
 :TypstInfo                  ui.reports -> project/resources/compiler/preview
 :TypstSetMain               project.lifecycle
-:TypstCompile               compiler.controller
-:TypstWatch                 compiler.controller
-:TypstStop                  compiler.controller
-:TypstStopAll               compiler.controller + resources.supervisor
-:TypstCompilerForceClear    compiler.controller + resources.outputs
+:TypstCompile               typst.compiler
+:TypstWatch                 typst.compiler
+:TypstStop                  typst.compiler
+:TypstStopAll               typst.compiler + resources.supervisor
+:TypstCompilerForceClear    typst.compiler + resources.outputs
 :TypstErrors                diagnostics.quickfix
-:TypstView                  viewer.controller
-:TypstPreview               preview.controller
-:TypstPreviewStop           preview.controller
+:TypstView                  viewer.api
+:TypstPreview               integrations.typst_preview / preview.native
+:TypstPreviewStop           integrations.typst_preview / preview.native
 :TypstToc                   navigation.toc
 :TypstPick                  navigation.picker
 gf                          navigation.follow
-motions/textobjects         editor.*
+motions/textobjects         edit.*
 completion                  completion.*
 conceal                     conceal.*
 ```

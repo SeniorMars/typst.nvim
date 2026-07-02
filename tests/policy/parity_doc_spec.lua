@@ -12,7 +12,6 @@ assert(
 )
 
 for _, text in ipairs({
-    ":TypstDoc",
     "TypstDocSymbol",
     "TypstDocSearch",
     "TypstDocPackage",
@@ -25,6 +24,10 @@ for _, text in ipairs({
         "public docs should not advertise removed TypstDoc surface: " .. text
     )
 end
+assert(
+    not public_docs:find(":TypstDoc%f[%A]"),
+    "public docs should not advertise removed TypstDoc surface: :TypstDoc"
+)
 
 for _, text in ipairs({
     "Project Documentation",

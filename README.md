@@ -363,6 +363,25 @@ development APIs remain installed but experimental unless promoted in `API.md`;
 Use `contract()` to inspect the versioned API/event contract, including
 documented `TypstEvent*` names and payload fields.
 
+Project-scoped public Lua APIs use one no-project policy. Passive inspection
+helpers such as `compiler.status()`, `compiler.current_output()`,
+`viewer.preview_status()`, `project.services()`, and detailed reports reuse an
+attached project, an explicit `project`, or an explicit project key (`key` or
+`project_key`, with `key_encoded = true` for command-safe encoded keys); they
+do not create scratch projects from dashboards, statuslines, timers, or other
+non-Typst buffers, and they do not notify by default when no project exists.
+Cleanup helpers such as `viewer.clean()` also use no-create resolution, but
+remain action APIs. Action helpers such as compile, watch, preview, render,
+export, eval, navigation, and semantic calls may resolve or create project
+state only for Typst source buffers. From a non-Typst buffer they return
+`no_project` instead of silently compiling an unintended main. Integrations
+should pass `{ bufnr = typst_bufnr }`, `{ project = project }`, or an explicit
+project key when the current buffer is not the Typst source. Viewer and preview
+inverse-search helpers also resolve `opts.path` through loaded buffers or
+existing project graphs before returning `source_path_not_in_project`.
+`viewer.capabilities()` is project-free; preview capabilities are
+project-scoped.
+
 Default Typst buffer mappings:
 
 | Mapping | Mode | Action |
@@ -456,6 +475,13 @@ Minimal setup:
 ```lua
 require("typst").setup()
 ```
+
+The runtime plugin calls `setup()` with defaults when Neovim sources
+`plugin/typst.lua`. Later calls to `require("typst").setup({...})` are treated
+as reconfiguration: one-time commands/autocmds stay installed, configuration is
+validated again, and attached buffers are reapplied. Set
+`vim.g.typst_nvim_no_auto_setup = 1` before plugin loading to opt out of the
+default runtime setup and call `setup()` yourself.
 
 Common setup snippets:
 
@@ -1871,6 +1897,10 @@ backend details. `:TypstInfo` and health report status through the active
 compiler provider's `status(project)` method. If an external provider
 compile/watch/stop timeout leaves an active output lease visible,
 `:TypstCompilerForceClear[!] [project-key]` provides the explicit discard path.
+Commands and Lua wrappers run from a dashboard, statusline, timer, or unrelated
+buffer now fail closed with `no_project` unless the call passes a Typst
+`bufnr`, direct `project`, or project key. This prevents status/preview/compile
+helpers from accidentally creating or compiling the wrong project.
 
 ## Reset and recovery
 
@@ -1908,15 +1938,16 @@ documents may need tighter caps.
 | Tinymist and async providers | `integrations.tinymist.lsp`, provider `timeout_ms` fields, `diagnostics.source` | Use `"detect"` if another plugin owns Tinymist startup. Prefer bounded provider timeouts and inspect stale callbacks or retained leases through `:TypstInfo!` and `:TypstLog`. |
 | Native browser preview | `preview.browser.server`, `preview.browser.refresh_ms`, `preview.browser.max_artifact_bytes` | The local server caps headers and artifact size, then streams under-cap artifacts. Keep the cap enabled unless previewing trusted local artifacts in a controlled session. |
 
-Use `:TypstInfo!`, `:TypstStatusAll!`, `:TypstLog`, `:checkhealth typst`, and
-`:TypstTelemetry` to decide which path is actually slow before lowering caps.
+Use `:TypstInfo!`, `:TypstStatusAll!`, `:TypstDoctor`, `:TypstLog`,
+`:checkhealth typst`, and `:TypstTelemetry` to decide which path is actually
+slow before lowering caps.
 
 ## Troubleshooting
 
-Start with `:checkhealth typst`, `:TypstInfo!`, `:TypstCompileOutput`, and
-`:TypstLog`. They show the resolved root/main/output, Tinymist ownership,
-active compiler/preview state, last command output, and lifecycle/provider
-errors.
+Start with `:checkhealth typst`, `:TypstInfo!`, `:TypstDoctor`,
+`:TypstCompileOutput`, and `:TypstLog`. They show the resolved
+root/main/output, Tinymist ownership, active compiler/preview state, last
+command output, lifecycle/provider errors, and runtime ownership invariants.
 
 - Wrong file compiles: inspect `root_source` and `main_source` in
   `:TypstInfo!`; use `:TypstSetMain`, `.typstmain`, or a setup `main` policy.
