@@ -1,5 +1,7 @@
 local compile_config = require("typst.config.compile")
 local defaults_provider = require("typst.config.defaults")
+local tables = require("typst.core.tables")
+local util = require("typst.core.util")
 local validation = require("typst.config.validate")
 
 local M = {}
@@ -10,6 +12,129 @@ local generation = 0
 local readonly_cache = nil
 local readonly_generation = -1
 local readonly_backing = setmetatable({}, { __mode = "k" })
+local last_unknown_keys = {}
+
+local dynamic_config_paths = {
+    api = true,
+    ["conceal.custom"] = true,
+    ["conceal.reveal_by_category"] = true,
+    main = true,
+    ["compile.profiles"] = true,
+    ["compile.fragments.templates"] = true,
+    ["exports.profiles"] = true,
+    ["imaps.mappings"] = true,
+    ["integrations.tinymist.capabilities"] = true,
+    ["integrations.tinymist.init_options"] = true,
+    ["integrations.tinymist.settings"] = true,
+    ["preview.browser.style.variables"] = true,
+    ["syntax.packages"] = true,
+    ["viewer.providers"] = true,
+}
+
+local known_optional_paths = {
+    main = true,
+    metadata_version = true,
+    output_name = true,
+    root = true,
+    ["compile.fragments.source_dir"] = true,
+    ["compile.generic.compile"] = true,
+    ["compile.generic.cwd"] = true,
+    ["compile.generic.output"] = true,
+    ["compile.generic.watch"] = true,
+    ["compile.provider"] = true,
+    ["compile.task.compile"] = true,
+    ["compile.task.cwd"] = true,
+    ["compile.task.output"] = true,
+    ["compile.task.watch"] = true,
+    ["conceal.reveal_insert"] = true,
+    ["exports.default"] = true,
+    ["exports.provider"] = true,
+    ["folds.text"] = true,
+    ["grammar.command"] = true,
+    ["grammar.file_arg"] = true,
+    ["grammar.stdin"] = true,
+    ["integrations.tinymist.capabilities"] = true,
+    ["integrations.tinymist.cmd"] = true,
+    ["integrations.tinymist.on_attach"] = true,
+    ["lint.command"] = true,
+    ["picker.custom"] = true,
+    ["preview.browser.app"] = true,
+    ["preview.browser.commands"] = true,
+    ["preview.browser.export.output_dir"] = true,
+    ["preview.browser.export.output_format"] = true,
+    ["preview.browser.export.output_name"] = true,
+    ["preview.browser.export.profile"] = true,
+    ["preview.browser.export.provider"] = true,
+    ["preview.browser.open"] = true,
+    ["preview.browser.style.css"] = true,
+    ["preview.browser.style.css_path"] = true,
+    ["preview.export.output_dir"] = true,
+    ["preview.export.output_format"] = true,
+    ["preview.export.output_name"] = true,
+    ["preview.export.profile"] = true,
+    ["preview.export.provider"] = true,
+    ["preview.forward"] = true,
+    ["preview.inverse"] = true,
+    ["preview.open"] = true,
+    ["preview.refresh"] = true,
+    ["preview.source_maps.forward"] = true,
+    ["preview.source_maps.inverse"] = true,
+    ["preview.stop"] = true,
+    ["render.display_provider"] = true,
+    ["render.provider"] = true,
+    ["viewer.forward"] = true,
+    ["viewer.inverse"] = true,
+    ["viewer.open"] = true,
+    ["viewer.reload"] = true,
+}
+
+local export_profile_fields = {
+    "command",
+    "compile_format",
+    "creation_timestamp",
+    "cwd",
+    "diagnostic_format",
+    "extra_args",
+    "features",
+    "font_path",
+    "font_paths",
+    "format",
+    "ignore_embedded_fonts",
+    "ignore_system_fonts",
+    "input",
+    "inputs",
+    "jobs",
+    "name",
+    "no_pdf_tags",
+    "output_dir",
+    "output_format",
+    "output_name",
+    "package_cache_path",
+    "package_path",
+    "pages",
+    "pdf_standard",
+    "pdf_standards",
+    "ppi",
+    "pretty",
+    "provider",
+    "stdout",
+    "timings",
+    "typst_format",
+}
+
+local export_profile_allowed = {}
+for _, field in ipairs(export_profile_fields) do
+    export_profile_allowed[field] = true
+end
+
+local function key_path(parent, key)
+    key = tostring(key)
+    return parent ~= "" and (parent .. "." .. key) or key
+end
+
+local function indexed_path(parent, index)
+    return ("%s[%d]"):format(parent, index)
+end
 
 local function readonly_error(_, key)
     error(
@@ -71,6 +196,155 @@ local function materialize(value, seen)
     return copy
 end
 
+local function normalize_main_mapping(user_opts)
+    if type(user_opts) ~= "table" or type(user_opts.main) ~= "table" then
+        return
+    end
+
+    local base = util.normalize(vim.fn.getcwd())
+    local normalized = {}
+    local seen = {}
+    for root, main in pairs(user_opts.main) do
+        local normalized_root
+        if type(root) == "string" and root ~= "" then
+            local resolved = util.resolve_path(root, base)
+            normalized_root = resolved or root
+        else
+            normalized_root = root
+        end
+
+        local seen_key = ("%s:%s"):format(
+            type(normalized_root),
+            tostring(normalized_root)
+        )
+        if seen[seen_key] then
+            error(
+                ("typst.nvim: duplicate main table key after normalization: %s"):format(
+                    tostring(normalized_root)
+                )
+            )
+        end
+        seen[seen_key] = true
+        normalized[normalized_root] = main
+    end
+    user_opts.main = normalized
+end
+
+local function unknown_key_mode(user_opts)
+    local mode = type(user_opts) == "table" and user_opts.validation or nil
+    if mode == "strict" then
+        return "strict"
+    end
+    if mode == "off" or mode == false then
+        return "off"
+    end
+    return "warn"
+end
+
+local function set_from_list(values)
+    local out = {}
+    for _, value in ipairs(values or {}) do
+        out[value] = true
+    end
+    return out
+end
+
+local function collect_table_unknowns(value, allowed_keys, prefix, out)
+    if type(value) ~= "table" then
+        return
+    end
+    for key in pairs(value) do
+        if allowed_keys[key] ~= true then
+            out[#out + 1] = key_path(prefix, key)
+        end
+    end
+end
+
+local function collect_export_profile_unknowns(value, prefix, out)
+    if type(value) ~= "table" then
+        return
+    end
+    if tables.is_list(value) then
+        for index, item in ipairs(value) do
+            collect_export_profile_unknowns(
+                item,
+                indexed_path(prefix, index),
+                out
+            )
+        end
+        return
+    end
+    collect_table_unknowns(value, export_profile_allowed, prefix, out)
+end
+
+local function collect_dynamic_value_unknowns(user_opts, prefix, out)
+    if prefix == "compile.profiles" then
+        local allowed = set_from_list(compile_config.profile_override_keys())
+        for name, profile in pairs(user_opts) do
+            collect_table_unknowns(
+                profile,
+                allowed,
+                key_path(prefix, name),
+                out
+            )
+        end
+        return true
+    end
+
+    if prefix == "exports.profiles" then
+        for name, profile in pairs(user_opts) do
+            collect_export_profile_unknowns(
+                profile,
+                key_path(prefix, name),
+                out
+            )
+        end
+        return true
+    end
+
+    return false
+end
+
+local function collect_unknown_keys(user_opts, allowed, prefix, out)
+    if type(user_opts) ~= "table" or type(allowed) ~= "table" then
+        return
+    end
+
+    prefix = prefix or ""
+    out = out or {}
+    if collect_dynamic_value_unknowns(user_opts, prefix, out) then
+        table.sort(out)
+        return out
+    end
+    if dynamic_config_paths[prefix] then
+        return out
+    end
+
+    for key, value in pairs(user_opts) do
+        local child_path = key_path(prefix, key)
+        local allowed_value = allowed[key]
+        if allowed_value == nil and not known_optional_paths[child_path] then
+            out[#out + 1] = child_path
+        elseif
+            type(value) == "table"
+            and type(allowed_value) == "table"
+            and not tables.is_list(value)
+        then
+            collect_unknown_keys(value, allowed_value, child_path, out)
+        end
+    end
+
+    table.sort(out)
+    return out
+end
+
+local function log_unknown_keys(keys)
+    local ok, log = pcall(require, "typst.core.log")
+    if ok and log and type(log.add) == "function" then
+        log.add("warn", "unknown Typst config keys", { keys = keys })
+    end
+end
+
 --- Validate and install the active plugin configuration.
 ---@param opts? table Plugin configuration partial to validate and apply.
 ---@return table config Active configuration table after validation.
@@ -83,6 +357,19 @@ function M.setup(opts)
 
     defaults = defaults_provider.values()
     local user_opts = materialize(opts or {})
+    normalize_main_mapping(user_opts)
+    last_unknown_keys = collect_unknown_keys(user_opts, defaults, "", {}) or {}
+    local unknown_mode = unknown_key_mode(user_opts)
+    if #last_unknown_keys > 0 then
+        local message = "typst.nvim: unknown configuration keys: "
+            .. table.concat(last_unknown_keys, ", ")
+        if unknown_mode == "strict" then
+            error(message)
+        elseif unknown_mode == "warn" then
+            log_unknown_keys(last_unknown_keys)
+        end
+    end
+
     local next_config =
         vim.tbl_deep_extend("force", vim.deepcopy(defaults), user_opts)
     -- Validate before swapping the active config so a failed setup cannot leave
@@ -128,6 +415,12 @@ end
 ---@return integer generation Monotonic counter incremented after successful setup.
 function M.generation()
     return generation
+end
+
+--- Return the unknown user config keys seen during the most recent setup.
+---@return string[] keys Fully qualified unknown config keys.
+function M.last_unknown_keys()
+    return vim.deepcopy(last_unknown_keys)
 end
 
 --- Return known compile profile names in sorted order.

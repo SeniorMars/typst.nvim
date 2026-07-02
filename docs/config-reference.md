@@ -153,6 +153,7 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `indent.formatexpr` | `boolean` | `true` |
 | `integrations.semantic.provider` | `nil\|string\|function\|table` | `"tinymist"` |
 | `integrations.tinymist.capabilities` | `nil\|table` | `nil` |
+| `integrations.tinymist.client_names` | `list` | `{ "tinymist" }` |
 | `integrations.tinymist.cmd` | `nil\|string` | `nil` |
 | `integrations.tinymist.init_options` | `list` | `{}` |
 | `integrations.tinymist.lsp` | `string` | `"auto"` |
@@ -302,6 +303,7 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `project.index.large_file_policy` | `string` | `"skip"` |
 | `project.index.max_file_bytes` | `number` | `1048576` |
 | `project.persist_main` | `boolean` | `true` |
+| `project.warn_on_low_confidence_main` | `boolean` | `true` |
 | `render.cache.enabled` | `boolean` | `true` |
 | `render.cache.max_bytes` | `number` | `67108864` |
 | `render.cache.max_entries` | `number` | `128` |
@@ -360,6 +362,7 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `toc.visible_layers.table` | `boolean` | `true` |
 | `toc.visible_layers.todo` | `boolean` | `true` |
 | `toc.width` | `number` | `32` |
+| `validation` | `false\|string` | `"warn"` |
 | `viewer.args` | `list` | `{}` |
 | `viewer.forward` | `nil\|string\|function` | `nil` |
 | `viewer.forward_args` | `list` | `{}` |

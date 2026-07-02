@@ -93,6 +93,7 @@ local optional_types = {
 local type_overrides = {
     ["integrations.semantic.provider"] = "nil|string|function|table",
     ["preview.browser.style.variables"] = "table",
+    validation = "false|string",
 }
 
 local function sorted_keys(tbl)

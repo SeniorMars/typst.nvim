@@ -57,6 +57,12 @@ function M.project(project)
         error("typst.nvim: project.persist_main must be a boolean")
     end
 
+    if type(project.warn_on_low_confidence_main) ~= "boolean" then
+        error(
+            "typst.nvim: project.warn_on_low_confidence_main must be a boolean"
+        )
+    end
+
     if
         type(project.import_scan_max_files) ~= "number"
         or project.import_scan_max_files < 1

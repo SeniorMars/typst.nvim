@@ -22,6 +22,7 @@ end
 
 function M.values()
     return {
+        validation = "warn",
         executable = "typst",
         metadata_version = nil,
         output_format = "pdf",
@@ -37,6 +38,7 @@ function M.values()
             import_scan_max_depth = 3,
             import_scan_max_entries = 2000,
             persist_main = true,
+            warn_on_low_confidence_main = true,
             index = {
                 fs_watchers = "auto",
                 max_file_bytes = 1024 * 1024,
@@ -49,6 +51,7 @@ function M.values()
             },
             tinymist = {
                 lsp = "auto",
+                client_names = { "tinymist" },
                 path = "tinymist",
                 cmd = nil,
                 settings = {},

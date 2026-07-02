@@ -272,6 +272,11 @@ local function validate_integrations(integrations)
         )
     end
 
+    validate_string_list(
+        tinymist.client_names or { "tinymist" },
+        "integrations.tinymist.client_names"
+    )
+
     if tinymist.cmd ~= nil then
         validate_command_prefix(tinymist.cmd, "integrations.tinymist.cmd")
     end
@@ -392,6 +397,18 @@ end
 --- Validate the fully merged typst.nvim configuration table.
 ---@param config table Configuration table after defaults/user options merge.
 function M.validate(config)
+    if
+        config.validation ~= nil
+        and config.validation ~= "warn"
+        and config.validation ~= "strict"
+        and config.validation ~= "off"
+        and config.validation ~= false
+    then
+        error(
+            'typst.nvim: validation must be "warn", "strict", "off", false, or nil'
+        )
+    end
+
     validate_command_prefix(config.executable, "executable")
 
     if config.metadata_version ~= nil then
