@@ -89,8 +89,10 @@ end
 function M.terminate_handle(handle, label, fields)
     fields = fields or {}
     -- Try graceful termination first so Typst can flush diagnostics/deps, but
-    -- keep a SIGKILL timer so restarts are not blocked by a stuck child.
-    local ok, err, mode, fallback = process.kill(handle, 15)
+    -- keep a SIGKILL timer so restarts are not blocked by a stuck child. On
+    -- Windows this routes through taskkill /T so wrapper children are targeted
+    -- during ordinary stop/restart, not only during reset/exit shutdown.
+    local ok, err, mode, fallback = process.terminate_tree_signal(handle, 15)
 
     if not ok then
         return false, err
@@ -119,7 +121,7 @@ function M.terminate_handle(handle, label, fields)
             M.close_timer(timer)
             if active_handle(handle) then
                 local killed, kill_err, kill_mode, kill_fallback =
-                    process.kill(handle, 9)
+                    process.terminate_tree_signal(handle, 9)
                 if killed then
                     log.add(
                         "warn",

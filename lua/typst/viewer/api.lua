@@ -132,6 +132,9 @@ function M.view_inverse(state, opts, notify)
 end
 
 --- Return capabilities advertised by the configured PDF viewer backend.
+---
+--- Capability lookup is intentionally project-free so statusline/config UIs can
+--- call it from scratch or non-Typst buffers without attaching a project.
 ---@return table capabilities Viewer backend capability flags.
 function M.viewer_capabilities()
     return viewer.capabilities()
@@ -291,9 +294,9 @@ end
 
 --- Stop Typst preview for a project.
 ---@param state table Project state passed to the preview integration.
----@param opts? table Preview stop options.
+---@param opts? table Preview stop options. Pending handles must eventually report `stopped=true` or `ok=false`.
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
----@return table|boolean result Preview backend result.
+---@return table|boolean|nil result Preview backend result.
 function M.preview_stop(state, opts, notify)
     opts = opts or {}
     local result = typst_preview.stop(state, opts)

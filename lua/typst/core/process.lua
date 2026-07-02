@@ -416,6 +416,60 @@ local function windows_taskkill(handle, force)
             or "taskkill failed"
 end
 
+local function windows_taskkill_async(handle, signal)
+    if not handle or type(handle.pid) ~= "number" then
+        return false, "process id is unavailable"
+    end
+
+    local force = signal == 9
+    local command = { "taskkill", "/PID", tostring(handle.pid), "/T" }
+    if force then
+        command[#command + 1] = "/F"
+    end
+
+    local ok, err = pcall(
+        vim.system,
+        command,
+        { text = true, detach = false },
+        function(result)
+            if is_closing(handle) then
+                return
+            end
+            if type(result) == "table" and result.code ~= 0 then
+                local process_ok, process_err = kill_process(handle, signal)
+                if process_ok then
+                    log.add(
+                        "warn",
+                        "taskkill failed; fell back to direct process signal",
+                        {
+                            pid = handle.pid,
+                            force = force == true,
+                            taskkill_code = result.code,
+                            taskkill_stderr = result.stderr,
+                            taskkill_stdout = result.stdout,
+                        }
+                    )
+                    return
+                end
+
+                log.add("warn", "taskkill and direct process signal failed", {
+                    pid = handle.pid,
+                    force = force == true,
+                    taskkill_stderr = result.stderr,
+                    taskkill_stdout = result.stdout,
+                    taskkill_code = result.code,
+                    process_error = process_err,
+                })
+            end
+        end
+    )
+    if ok then
+        return true, nil, force and "windows-tree-forced" or "windows-tree"
+    end
+
+    return false, err
+end
+
 local function terminate_tree(handle, signal)
     if is_windows() then
         local ok, err = windows_taskkill(handle, signal == 9)
@@ -423,6 +477,36 @@ local function terminate_tree(handle, signal)
             return true,
                 nil,
                 signal == 9 and "windows-tree-forced" or "windows-tree"
+        end
+
+        local process_ok, process_err = kill_process(handle, signal)
+        if process_ok then
+            return true, nil, "process", err
+        end
+
+        return false, process_err or err
+    end
+
+    return M.kill(handle, signal)
+end
+
+--- Signal a process tree without waiting for exit confirmation.
+---
+--- Normal stop paths use this asynchronous variant so `:TypstStop` and watcher
+--- restarts get the same tree-aware Windows behavior as exit/reset shutdown
+--- without blocking for the full shutdown timeout.
+---@param handle table Process handle returned by `spawn`/`vim.system`.
+---@param signal? integer Signal number to send.
+---@return boolean ok True when a process/tree was targeted successfully.
+---@return string|nil error Error message when no signal path succeeded.
+---@return string|nil mode Signal target mode such as `group` or `windows-tree`.
+---@return string|nil fallback_error Fallback error when direct process signaling was used.
+function M.terminate_tree_signal(handle, signal)
+    signal = signal or 15
+    if is_windows() then
+        local ok, err, mode = windows_taskkill_async(handle, signal)
+        if ok then
+            return true, nil, mode
         end
 
         local process_ok, process_err = kill_process(handle, signal)

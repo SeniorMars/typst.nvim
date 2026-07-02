@@ -162,8 +162,6 @@ function M.install(api, notify, normalize_bufnr)
     end
 
     local function viewer_capabilities(opts)
-        opts = opts or {}
-        api.project.get(opts.bufnr)
         return require("typst.viewer.api").viewer_capabilities()
     end
 

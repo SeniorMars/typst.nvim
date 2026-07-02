@@ -240,6 +240,13 @@ function M.detach(bufnr)
     return true
 end
 
+function M.forget(bufnr)
+    bufnr = normalize_bufnr(bufnr)
+    matches.forget(bufnr)
+    render.forget(bufnr)
+    return true
+end
+
 function M.toggle(bufnr)
     bufnr = normalize_bufnr(bufnr)
     if buffer_enabled(bufnr) then

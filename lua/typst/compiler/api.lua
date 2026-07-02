@@ -204,10 +204,10 @@ function M.watch(state, opts, callback, notify)
 end
 
 --- Stop the active compiler or watcher for one project.
----@param state TypstProject Project state whose compiler resources should be stopped.
+---@param state TypstProject Project whose compiler resources should stop. On Windows, built-in process stops target the whole process tree.
 ---@param callback? fun(result:TypstCompilerResult, state:TypstProject) Callback invoked with stop status.
 ---@param notify? fun(message:string, level?:integer) Notification sink used by commands/API calls.
----@return any result Stop result or pending cancellation handle.
+---@return table|boolean|nil result Stop result or pending cancellation handle; `stopped=true` means no writer remains.
 function M.stop(state, callback, notify)
     return compiler.stop(state, function(result)
         if result.idle then

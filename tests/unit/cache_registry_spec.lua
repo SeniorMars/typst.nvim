@@ -52,6 +52,10 @@ assert(
     "conceal should register buffer detach cleanup"
 )
 assert(
+    by_name.conceal.forget == true,
+    "conceal should register buffer forget cleanup"
+)
+assert(
     by_name.conceal.forget_window == true,
     "conceal should register window cleanup"
 )
@@ -143,6 +147,7 @@ assert(
     forgot.treesitter == true,
     "registry buffer forget should clear treesitter"
 )
+assert(forgot.conceal == true, "registry buffer forget should clear conceal")
 local detached = registry.detach_buffer(bufnr)
 assert(detached.syntax == true, "registry buffer detach should clear syntax")
 local window_forgot = registry.forget_window(vim.api.nvim_get_current_win())

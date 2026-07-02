@@ -128,9 +128,11 @@ local compile_payload = vim.list_extend(vim.deepcopy(common_project_payload), {
     "forced",
 })
 
+local setup_payload = { "provider", "did_setup", "first_setup", "reconfigure" }
+
 local event_payloads = {
-    TypstEventInitPre = { "provider", "did_setup" },
-    TypstEventInitPost = { "provider", "did_setup" },
+    TypstEventInitPre = vim.deepcopy(setup_payload),
+    TypstEventInitPost = vim.deepcopy(setup_payload),
     TypstEventQuit = { "provider", "projects" },
     TypstEventProjectAttach = vim.list_extend(
         vim.deepcopy(common_project_payload),

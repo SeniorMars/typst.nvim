@@ -11,6 +11,7 @@ local cache = {}
 local generation = 0
 local MATCH_CHUNK_LINES = 128
 local parser_callbacks = {}
+local parser_registrations = {}
 
 -- Conceal queries are expensive on large documents. Parser-backed buffers use
 -- changed-tree callbacks to invalidate affected line chunks; buffers without a
@@ -125,10 +126,18 @@ local function ensure_parser_callbacks(bufnr)
         return false
     end
 
+    if parser_registrations[bufnr] == parser then
+        parser_callbacks[bufnr] = true
+        return true
+    end
+
     parser:register_cbs({
         on_changedtree = function(ranges)
             if not vim.api.nvim_buf_is_valid(bufnr) then
                 parser_callbacks[bufnr] = nil
+                if parser_registrations[bufnr] == parser then
+                    parser_registrations[bufnr] = nil
+                end
                 return
             end
             M.invalidate_ranges(bufnr, ranges)
@@ -146,6 +155,9 @@ local function ensure_parser_callbacks(bufnr)
         )
             if not vim.api.nvim_buf_is_valid(bufnr) then
                 parser_callbacks[bufnr] = nil
+                if parser_registrations[bufnr] == parser then
+                    parser_registrations[bufnr] = nil
+                end
                 return
             end
             if old_end_row ~= new_end_row then
@@ -158,10 +170,14 @@ local function ensure_parser_callbacks(bufnr)
             local target = detached_bufnr or bufnr
             cache[target] = nil
             parser_callbacks[target] = nil
+            if parser_registrations[target] == parser then
+                parser_registrations[target] = nil
+            end
             shadows.forget(target)
         end,
     })
     parser_callbacks[bufnr] = true
+    parser_registrations[bufnr] = parser
     return true
 end
 
@@ -308,9 +324,20 @@ function M.refresh(bufnr)
     end
 end
 
-function M.forget(bufnr)
+---Forget cached matches and active parser callback tracking for one buffer.
+---
+--- Neovim's parser callback API does not provide an unregister handle. Keep the
+--- stable parser registration guard during ordinary cache cleanup so a later
+--- lookup does not register duplicate callbacks on the same live parser.
+---@param bufnr integer Buffer whose conceal cache should be dropped.
+---@param opts? {parser_detached?:boolean}
+function M.forget(bufnr, opts)
+    opts = opts or {}
     cache[bufnr] = nil
     parser_callbacks[bufnr] = nil
+    if opts.parser_detached == true or not vim.api.nvim_buf_is_valid(bufnr) then
+        parser_registrations[bufnr] = nil
+    end
     shadows.forget(bufnr)
 end
 
@@ -319,6 +346,10 @@ function M.reset()
     generation = 0
     cache = {}
     parser_callbacks = {}
+    -- Do not clear parser_registrations on global reset. Neovim LanguageTree
+    -- callback registration is not an unregister API, so keeping the parser
+    -- identity table prevents reset/re-enable cycles from stacking duplicate
+    -- callbacks. Parser on_detach and invalid-buffer cleanup clear stale entries.
     lookup.reset()
     match_query.reset()
     shadows.reset()
@@ -332,6 +363,12 @@ end
 ---@return integer count Number of tracked parser callback states.
 function M._parser_callback_count()
     return vim.tbl_count(parser_callbacks)
+end
+
+---Return stable parser registration count for lifecycle tests.
+---@return integer count Number of parser identities with registered callbacks.
+function M._parser_registration_count()
+    return vim.tbl_count(parser_registrations)
 end
 
 return M

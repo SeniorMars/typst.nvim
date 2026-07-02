@@ -236,6 +236,123 @@ local ok, err = xpcall(function()
     )
 
     taskkill_calls = {}
+    local normal_stop_windows = {
+        pid = 42003,
+        closed = false,
+    }
+    vim.system = function(command)
+        taskkill_calls[#taskkill_calls + 1] = command
+        normal_stop_windows.closed = true
+        return {
+            wait = function()
+                return { code = 0 }
+            end,
+        }
+    end
+    local tree_ok, tree_err, tree_mode =
+        process.terminate_tree_signal(normal_stop_windows, 15)
+    assert(tree_ok, tree_err or "normal Windows stop should target tree")
+    assert(
+        tree_mode == "windows-tree",
+        "normal Windows stop should report tree signal mode"
+    )
+    assert(
+        table.concat(taskkill_calls[1], " ") == "taskkill /PID 42003 /T",
+        "normal Windows stop should use taskkill /T"
+    )
+
+    taskkill_calls = {}
+    local taskkill_nonzero_kills = {}
+    local taskkill_nonzero_windows = {
+        pid = 42004,
+        closed = false,
+        kill = function(_, signal)
+            taskkill_nonzero_kills[#taskkill_nonzero_kills + 1] = signal
+            return true
+        end,
+    }
+    vim.system = function(command, _, callback)
+        taskkill_calls[#taskkill_calls + 1] = command
+        callback({ code = 1, stderr = "denied" })
+        return {
+            wait = function()
+                return { code = 1 }
+            end,
+        }
+    end
+    tree_ok, tree_err, tree_mode =
+        process.terminate_tree_signal(taskkill_nonzero_windows, 15)
+    assert(tree_ok, tree_err or "taskkill launch should still be targeted")
+    assert(
+        tree_mode == "windows-tree",
+        "taskkill launch should report the tree signal path"
+    )
+    assert(
+        #taskkill_nonzero_kills == 1 and taskkill_nonzero_kills[1] == 15,
+        "nonzero async taskkill should fall back to direct process signaling"
+    )
+
+    taskkill_calls = {}
+    local taskkill_after_exit_kills = {}
+    local taskkill_after_exit_windows = {
+        pid = 42006,
+        kill = function(_, signal)
+            taskkill_after_exit_kills[#taskkill_after_exit_kills + 1] = signal
+            return true
+        end,
+        is_closing = function()
+            return true
+        end,
+    }
+    vim.system = function(command, _, callback)
+        taskkill_calls[#taskkill_calls + 1] = command
+        callback({ code = 1, stderr = "not found" })
+        return {
+            wait = function()
+                return { code = 1 }
+            end,
+        }
+    end
+    tree_ok, tree_err, tree_mode =
+        process.terminate_tree_signal(taskkill_after_exit_windows, 15)
+    assert(tree_ok, tree_err or "taskkill launch should still be targeted")
+    assert(
+        tree_mode == "windows-tree",
+        "taskkill launch should report the tree signal path after exit"
+    )
+    assert(
+        #taskkill_after_exit_kills == 0,
+        "nonzero taskkill after handle exit should not signal the process again"
+    )
+
+    taskkill_calls = {}
+    local taskkill_spawn_kills = {}
+    local taskkill_spawn_failure = {
+        pid = 42005,
+        kill = function(_, signal)
+            taskkill_spawn_kills[#taskkill_spawn_kills + 1] = signal
+            return true
+        end,
+    }
+    vim.system = function()
+        error("taskkill missing")
+    end
+    tree_ok, tree_err, tree_mode =
+        process.terminate_tree_signal(taskkill_spawn_failure, 9)
+    assert(
+        tree_ok,
+        tree_err or "spawn failure should fall back to process kill"
+    )
+    assert(
+        tree_mode == "process",
+        "spawn failure fallback should report direct process mode"
+    )
+    assert(
+        #taskkill_spawn_kills == 1 and taskkill_spawn_kills[1] == 9,
+        "taskkill spawn failure should fall back to direct process signal"
+    )
+
+    taskkill_calls = {}
     local forced_windows = {
         pid = 42002,
         closed = false,
