@@ -38,16 +38,21 @@ function M.route_count()
     return vim.tbl_count(routes)
 end
 
+local function item_matches_project(item, project)
+    return item
+        and (
+            item.project_key == project.key
+            or (item.main == project.main and item.root == project.root)
+        )
+end
+
 function M.route_for_project(project)
     local direct = routes[M.project_id(project)]
-    if direct then
+    if item_matches_project(direct, project) then
         return direct
     end
     for _, route in pairs(routes) do
-        if
-            route.project_key == project.key
-            or (route.main == project.main and route.root == project.root)
-        then
+        if item_matches_project(route, project) then
             return route
         end
     end
@@ -57,20 +62,17 @@ end
 function M.clear_route(project)
     local id = M.project_id(project)
     local route = routes[id]
-    routes[id] = nil
-    if route then
+    if item_matches_project(route, project) then
+        routes[id] = nil
         return route
     end
     for route_id, item in pairs(routes) do
-        if
-            item.project_key == project.key
-            or (item.main == project.main and item.root == project.root)
-        then
+        if item_matches_project(item, project) then
             routes[route_id] = nil
             return item
         end
     end
-    return route
+    return nil
 end
 
 function M.set_file(project, fields)
@@ -91,14 +93,11 @@ end
 
 function M.file_for_project(project)
     local direct = files[M.project_id(project)]
-    if direct then
+    if item_matches_project(direct, project) then
         return direct
     end
     for _, file in pairs(files) do
-        if
-            file.project_key == project.key
-            or (file.main == project.main and file.root == project.root)
-        then
+        if item_matches_project(file, project) then
             return file
         end
     end
@@ -108,20 +107,17 @@ end
 function M.clear_file(project)
     local id = M.project_id(project)
     local item = files[id]
-    files[id] = nil
-    if item then
+    if item_matches_project(item, project) then
+        files[id] = nil
         return item
     end
     for file_id, file in pairs(files) do
-        if
-            file.project_key == project.key
-            or (file.main == project.main and file.root == project.root)
-        then
+        if item_matches_project(file, project) then
             files[file_id] = nil
             return file
         end
     end
-    return item
+    return nil
 end
 
 function M.clear(project)
