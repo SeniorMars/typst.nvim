@@ -51,6 +51,9 @@ local function clear_dirty_ticks_for_buffer(bufnr)
 end
 
 --- Forget text-change debounce state for a buffer or one project/buffer pair.
+---
+--- Callers that detach, re-resolve, or move a buffer to another project must
+--- call this before the old project key becomes unreachable.
 ---@param bufnr integer Buffer whose local debounce entries should be removed.
 ---@param project_key? string Project key to narrow cleanup.
 function M.forget(bufnr, project_key)

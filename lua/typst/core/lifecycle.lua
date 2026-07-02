@@ -542,14 +542,17 @@ end
 function M.apply_buffer_features(bufnr, opts)
     opts = opts or {}
     local signature = buffer_feature_signature(bufnr)
-    local apply_buffer = opts.force == true
-        or not feature_signatures[bufnr]
-        or feature_signatures[bufnr] ~= signature
+    local apply_buffer = opts.skip_buffer ~= true
+        and (
+            opts.force == true
+            or not feature_signatures[bufnr]
+            or feature_signatures[bufnr] ~= signature
+        )
     local winid = vim.api.nvim_get_current_win()
     local apply_window = should_apply_window_features(
         bufnr,
         winid,
-        opts.force == true or apply_buffer
+        opts.force == true or opts.force_window == true or apply_buffer
     )
 
     if apply_window then
@@ -570,6 +573,60 @@ function M.apply_buffer_features(bufnr, opts)
         buffer = apply_buffer,
         window = apply_window,
     }
+end
+
+--- Apply typst.nvim editor features in every visible window for a buffer.
+---@param bufnr integer Typst buffer receiving buffer/window-local features.
+---@param opts? table Apply controls; `force=true` reapplies features.
+---@return table summary Applied feature groups and window count.
+function M.apply_buffer_features_all_windows(bufnr, opts)
+    opts = opts or {}
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+        return {
+            buffer = false,
+            window = false,
+            windows = 0,
+        }
+    end
+
+    local windows = require("typst.core.windows").all_for_buffer(bufnr)
+    if #windows == 0 then
+        local summary = M.apply_buffer_features(bufnr, opts)
+        summary.windows = summary.window and 1 or 0
+        return summary
+    end
+
+    local applied = {
+        buffer = false,
+        window = false,
+        windows = 0,
+    }
+    for _, winid in ipairs(windows) do
+        if vim.api.nvim_win_is_valid(winid) then
+            vim.api.nvim_win_call(winid, function()
+                local summary = M.apply_buffer_features(
+                    bufnr,
+                    vim.tbl_extend("force", opts, {
+                        skip_buffer = applied.buffer == true,
+                        force_window = opts.force_window == true
+                            or opts.force == true
+                            or applied.buffer == true,
+                    })
+                )
+                applied.buffer = applied.buffer or summary.buffer == true
+                if summary.window == true then
+                    applied.window = true
+                    applied.windows = applied.windows + 1
+                end
+            end)
+        end
+    end
+    if applied.windows == 0 then
+        local summary = M.apply_buffer_features(bufnr, opts)
+        summary.windows = summary.window and 1 or 0
+        return summary
+    end
+    return applied
 end
 
 --- Register global lifecycle autocmds for cleanup and stale window state.

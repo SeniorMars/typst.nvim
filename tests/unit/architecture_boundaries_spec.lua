@@ -135,6 +135,8 @@ assert(
 assert(
     type(resource_supervisor.reset) == "function"
         and type(resource_supervisor.stop_before_prune) == "function"
+        and type(resource_supervisor.has_active_resources) == "function"
+        and type(resource_supervisor.snapshot) == "function"
         and type(resource_supervisor.stop_for_exit_all) == "function",
     "resources.supervisor should expose ResourceSupervisor cleanup hooks"
 )
@@ -215,32 +217,60 @@ assert(
     resource_session.has_active(project) == false,
     "resources.session should report no active resources initially"
 )
+assert(
+    resource_supervisor.has_active_resources(project) == false,
+    "resources.supervisor should be the project liveness boundary"
+)
 
+local prune_root =
+    typst_test_cache_path("architecture-boundaries-output/prune-root")
+local prune_project =
+    project_store.create(prune_root, vim.fs.joinpath(prune_root, "main.typ"))
+assert(
+    next(prune_project.bufs or {}) == nil,
+    "active-resource prune test should use an otherwise empty project"
+)
 local lease = assert(
     output_ownership.acquire(
         typst_test_cache_path("architecture-boundaries-output/main.pdf"),
-        output_ownership.owner("unit-test", project)
+        output_ownership.owner("unit-test", prune_project)
     )
 )
 assert(
-    output_ownership.active_for_project(project)[lease.key] == lease,
+    output_ownership.active_for_project(prune_project)[lease.key] == lease,
     "resources.outputs should expose project-owned leases"
 )
 assert(
-    output_ownership.snapshot(project)[1].path == lease.path,
+    output_ownership.snapshot(prune_project)[1].path == lease.path,
     "resources.outputs should expose summary-safe lease snapshots"
 )
 assert(
-    resource_session.has_active(project) == true,
+    resource_session.has_active(prune_project) == true,
     "resources.session should treat active output leases as resources"
+)
+assert(
+    resource_supervisor.has_active_resources(prune_project) == true,
+    "resources.supervisor should retain projects with output leases"
+)
+assert(
+    project_store.prune(prune_project, "active lease boundary test") == false,
+    "project.store pruning should ask resources.supervisor before removal"
 )
 assert(
     output_ownership.release(lease) == true,
     "resources.outputs should release project-owned leases"
 )
 assert(
-    resource_session.has_active(project) == false,
+    resource_session.has_active(prune_project) == false,
     "resources.session should clear output lease activity after release"
+)
+assert(
+    resource_supervisor.has_active_resources(prune_project) == false,
+    "resources.supervisor should clear liveness after lease release"
+)
+assert(
+    project_store.prune(prune_project, "released lease boundary test") == true,
+    "project.store should prune an empty project once resource liveness clears"
 )
 
 preview_service.set(project, {
@@ -251,6 +281,10 @@ assert(
     resource_session.has_active(project) == true,
     "resources.session should report active preview resources"
 )
+assert(
+    resource_supervisor.has_active_resources(project) == true,
+    "resources.supervisor should report active preview resources"
+)
 
 preview_service.set(project, {
     clear = { "active_backend" },
@@ -259,6 +293,10 @@ preview_service.set(project, {
 assert(
     resource_session.has_active(project) == false,
     "resources.session should clear active state after preview stops"
+)
+assert(
+    resource_supervisor.has_active_resources(project) == false,
+    "resources.supervisor should clear preview liveness after stop"
 )
 
 typst.reset({ force = true })

@@ -15,7 +15,6 @@ local index = require("typst.project.services.index")
 local invalidation = require("typst.project.services.invalidation")
 local operations = require("typst.project.services.operation_state")
 local preview = require("typst.project.services.preview")
-local resource_session = require("typst.resources.session")
 local viewer = require("typst.project.services.viewer")
 
 local service_modules = {
@@ -181,7 +180,7 @@ end
 ---@return boolean active True when pruning should keep the project alive.
 function M.has_active_resources(project)
     M.ensure(project)
-    return resource_session.has_active(project)
+    return require("typst.resources.supervisor").has_active_resources(project)
 end
 
 --- Return a summary-safe snapshot of project service state.

@@ -11,6 +11,7 @@ local imaps = require("typst.edit.imaps")
 local match_highlight = require("typst.edit.match_highlight")
 local conceal = require("typst.conceal")
 local syntax = require("typst.syntax")
+local core_windows = require("typst.core.windows")
 
 local originals = {
     folds = folds.apply,
@@ -20,6 +21,7 @@ local originals = {
     conceal = conceal.apply,
     syntax = syntax.apply,
     project_get = project.get,
+    all_for_buffer = core_windows.all_for_buffer,
 }
 
 local counts = {
@@ -195,6 +197,72 @@ local ok, err = xpcall(function()
             and counts.conceal == sibling_stable_counts.conceal,
         "stable sibling window should not reapply window-local features"
     )
+
+    local other_bufnr = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(other_bufnr, 0, -1, false, { "other" })
+    local other_win = vim.api.nvim_open_win(other_bufnr, true, {
+        relative = "editor",
+        row = 4,
+        col = 0,
+        width = 30,
+        height = 3,
+        style = "minimal",
+    })
+    local all_window_counts = {
+        folds = counts.folds,
+        conceal = counts.conceal,
+        indent = counts.indent,
+        imaps = counts.imaps,
+        match_highlight = counts.match_highlight,
+        syntax = counts.syntax,
+    }
+    local all_windows =
+        lifecycle.apply_buffer_features_all_windows(bufnr, { force = true })
+    assert(
+        all_windows.buffer == true,
+        "all-window apply should still run buffer-local features once"
+    )
+    assert(
+        all_windows.windows >= 2,
+        "all-window apply should refresh every visible window for the buffer"
+    )
+    assert(
+        counts.folds >= all_window_counts.folds + 2
+            and counts.conceal >= all_window_counts.conceal + 2,
+        "all-window apply should run window-local features in noncurrent windows"
+    )
+    assert(
+        counts.indent == all_window_counts.indent + 1
+            and counts.imaps == all_window_counts.imaps + 1
+            and counts.match_highlight == all_window_counts.match_highlight + 1
+            and counts.syntax == all_window_counts.syntax + 1,
+        "all-window apply should run buffer-local features exactly once"
+    )
+
+    local stale_window_counts = {
+        indent = counts.indent,
+        imaps = counts.imaps,
+        match_highlight = counts.match_highlight,
+        syntax = counts.syntax,
+    }
+    core_windows.all_for_buffer = function()
+        return { 999999 }
+    end
+    local stale_window_apply =
+        lifecycle.apply_buffer_features_all_windows(bufnr, { force = true })
+    core_windows.all_for_buffer = originals.all_for_buffer
+    assert(
+        stale_window_apply.buffer == true and stale_window_apply.windows == 0,
+        "all-window apply should fall back to buffer-local setup when window list is stale"
+    )
+    assert(
+        counts.indent == stale_window_counts.indent + 1
+            and counts.imaps == stale_window_counts.imaps + 1
+            and counts.match_highlight == stale_window_counts.match_highlight + 1
+            and counts.syntax == stale_window_counts.syntax + 1,
+        "stale window fallback should run buffer-local features once"
+    )
+    vim.api.nvim_win_close(other_win, true)
     vim.api.nvim_set_current_win(original_win)
     vim.api.nvim_win_close(sibling_win, true)
 
@@ -320,6 +388,7 @@ match_highlight.apply = originals.match_highlight
 conceal.apply = originals.conceal
 syntax.apply = originals.syntax
 project.get = originals.project_get
+core_windows.all_for_buffer = originals.all_for_buffer
 
 if not ok then
     error(err)

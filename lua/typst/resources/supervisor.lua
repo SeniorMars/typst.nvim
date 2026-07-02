@@ -2,6 +2,7 @@ local events = require("typst.core.events")
 local log = require("typst.core.log")
 local project_operations = require("typst.project.services.operations")
 local preview_service = require("typst.project.services.preview")
+local resource_session = require("typst.resources.session")
 
 local M = {}
 
@@ -24,6 +25,20 @@ function M.stop_before_prune(state, log_message, prune_reason)
         log_message,
         prune_reason
     )
+end
+
+---Return whether a project still owns live resources that block pruning.
+---@param state TypstProject? Project state to inspect.
+---@return boolean active True when project identity must be retained.
+function M.has_active_resources(state)
+    return resource_session.has_active(state)
+end
+
+---Return a summary-safe liveness snapshot for reports and tests.
+---@param state TypstProject? Project state to inspect.
+---@return table? snapshot Resource-session snapshot, or nil for invalid input.
+function M.snapshot(state)
+    return resource_session.snapshot(state)
 end
 
 function M.reset(opts)

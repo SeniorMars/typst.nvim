@@ -26,7 +26,8 @@ function M.resolve_candidate(bufnr, resolve_opts)
     local opts = config.unsafe_get()
     local root, root_source_label =
         root_source.initial(path, bufnr, scratch, opts)
-    local main, main_source_label = main_source.buffer(bufnr, path, root)
+    local main, main_source_label =
+        main_source.buffer(bufnr, path, root, resolve_opts)
 
     if not scratch and not main then
         main, main_source_label = main_source.persisted(bufnr, path, opts)
@@ -110,6 +111,10 @@ function M.resolve_candidate(bufnr, resolve_opts)
             resolution_pending = deferred_import_scan and "import_scan" or nil,
             import_scan_pending = deferred_import_scan ~= nil,
             import_scan_request = deferred_import_scan,
+            allow_unreadable_explicit_main = resolve_opts.allow_unreadable_explicit_main
+                        == true
+                    and main_source_label == "buffer variable vim.b.typst_main"
+                or nil,
             scratch = scratch,
         },
     }

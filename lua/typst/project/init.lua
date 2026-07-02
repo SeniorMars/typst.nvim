@@ -171,6 +171,13 @@ function M.main_stale(state, bufnr)
     if resolution and resolution.scratch then
         return false
     end
+    if
+        resolution
+        and resolution.allow_unreadable_explicit_main == true
+        and resolution.main_source == "buffer variable vim.b.typst_main"
+    then
+        return false
+    end
 
     local path = current_buffer_path(bufnr)
     if path and util.same_path(state.main, path) then
@@ -208,8 +215,8 @@ end
 
 --- Set a buffer-local explicit main file and re-resolve its project.
 ---@param bufnr integer Buffer receiving the explicit main.
----@param main string Main path or empty string to use the current buffer.
----@param opts? table Persistence and resolution options.
+---@param main string Main file path. Empty string uses the current buffer.
+---@param opts? {persist?:boolean, force?:boolean} Persistence and validation controls. Main must be readable unless `force` is true.
 ---@return TypstProject state Project state after re-resolution.
 function M.set_main(bufnr, main, opts)
     opts = opts or {}
@@ -222,12 +229,28 @@ function M.set_main(bufnr, main, opts)
     local root = root_discovery.detect(path, bufnr, config.unsafe_get())
     local target = type(main) == "string" and main ~= "" and main or path
     local resolved = util.resolve_path(target, root)
+    if type(resolved) ~= "string" or resolved == "" then
+        error(
+            ("typst.nvim: could not resolve Typst main path %q"):format(
+                tostring(target)
+            )
+        )
+    end
+    if opts.force ~= true and not util.readable(resolved) then
+        error(
+            ("typst.nvim: Typst main file is not readable: %s; use force=true or :TypstSetMain! to set it anyway"):format(
+                resolved
+            )
+        )
+    end
     util.set_buf_var(bufnr, "typst_main", resolved)
     if opts.persist and config.unsafe_get().project.persist_main then
         state_store.set_explicit_main(path, resolved)
     end
     log.add("info", "set buffer main", { buffer = path, main = resolved })
-    return M.resolve(bufnr)
+    return M.resolve(bufnr, {
+        allow_unreadable_explicit_main = opts.force == true,
+    })
 end
 
 --- Clear a buffer-local explicit main file and re-resolve its project.

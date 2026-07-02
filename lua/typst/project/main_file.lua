@@ -78,14 +78,23 @@ end
 ---@param path string Current buffer path.
 ---@param main? string Main candidate path.
 ---@param source? string Source label for the main candidate.
+---@param opts? {allow_unreadable_explicit_main?:boolean}
 ---@return string|nil main Readable main path, or nil when discarded.
 ---@return string|nil source Source label preserved for readable candidates.
-function M.discard_unreadable(bufnr, path, main, source)
+function M.discard_unreadable(bufnr, path, main, source, opts)
     if not main then
         return nil
     end
 
     if main_readable_for_buffer(main, path) then
+        return main, source
+    end
+
+    if
+        opts
+        and opts.allow_unreadable_explicit_main == true
+        and source == "buffer variable vim.b.typst_main"
+    then
         return main, source
     end
 

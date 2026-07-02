@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local typst = require("typst")
 local log = require("typst.core.log")
+local state_store = require("typst.core.state")
 local project_services = require("typst.project.services")
 local util = require("typst.core.util")
 typst.reset()
@@ -19,6 +20,8 @@ typst.setup({
 local main = root .. "/tests/fixtures/basic/main.typ"
 local chapter = root .. "/tests/fixtures/basic/chapter.typ"
 local appendix = root .. "/tests/fixtures/basic/appendix.typ"
+state_store.clear_explicit_main(chapter)
+state_store.clear_explicit_main(appendix)
 
 vim.cmd.edit(chapter)
 local configured = typst.project.get(0)

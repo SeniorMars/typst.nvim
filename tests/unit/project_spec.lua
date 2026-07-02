@@ -14,6 +14,8 @@ typst.setup({
 
 local main = root .. "/tests/fixtures/basic/main.typ"
 local chapter = root .. "/tests/fixtures/basic/chapter.typ"
+local state_store = require("typst.core.state")
+state_store.clear_explicit_main(chapter)
 
 vim.cmd.edit(chapter)
 local bufnr = vim.api.nvim_get_current_buf()
@@ -25,6 +27,24 @@ assert(
 assert(
     standalone.bufs[bufnr],
     "standalone project should own the current buffer"
+)
+
+local missing_main = root .. "/tests/fixtures/basic/missing-main.typ"
+local missing_ok, missing_err = pcall(function()
+    typst.project.set_main(missing_main, nil, { persist = true })
+end)
+assert(not missing_ok, "set_main should reject unreadable main paths")
+assert(
+    tostring(missing_err):find("Typst main file is not readable", 1, true),
+    "set_main should report unreadable main paths clearly"
+)
+assert(
+    vim.b.typst_main == nil,
+    "set_main should not write buffer state for unreadable main paths"
+)
+assert(
+    state_store.explicit_main(chapter) == nil,
+    "set_main should not persist unreadable main paths"
 )
 
 local project = typst.project.set_main(main)
@@ -57,6 +77,78 @@ assert(
 
 local same = typst.project.get(0)
 assert(same.key == project.key, "buffer should keep the same project key")
+
+local nil_opts_ok, nil_opts_project = pcall(function()
+    return registry.resolve(bufnr)
+end)
+assert(
+    nil_opts_ok and nil_opts_project and nil_opts_project.key == project.key,
+    "project.resolve should accept nil resolution options"
+)
+
+project = typst.project.set_main(main, nil, { persist = true })
+local failed_ok = pcall(function()
+    typst.project.set_main(missing_main, nil, { persist = true })
+end)
+assert(
+    not failed_ok,
+    "failed set_main should reject unreadable paths after a valid main"
+)
+assert(
+    vim.b.typst_main == main,
+    "failed set_main should preserve previous buffer-local main"
+)
+assert(
+    state_store.explicit_main(chapter) == main,
+    "failed set_main should preserve previous persisted main"
+)
+assert(
+    typst.project.get(bufnr).key == project.key,
+    "failed set_main should keep the existing project attached"
+)
+
+local forced_missing = root .. "/tests/fixtures/basic/generated-later.typ"
+vim.fn.delete(forced_missing)
+local forced_project =
+    typst.project.set_main(forced_missing, nil, { force = true })
+assert(
+    forced_project.main == forced_missing,
+    "force=true should allow an unreadable explicit main for this resolution"
+)
+assert(
+    vim.b.typst_main == forced_missing,
+    "force=true should keep the unreadable explicit main in buffer state"
+)
+assert(
+    forced_project.resolutions[bufnr]
+        and forced_project.resolutions[bufnr].allow_unreadable_explicit_main
+            == true,
+    "forced unreadable main should be recorded in resolution metadata"
+)
+assert(
+    not registry.main_stale(forced_project, bufnr),
+    "forced unreadable main should not be immediately considered stale"
+)
+local persisted_dir = vim.fn.tempname()
+vim.fn.mkdir(persisted_dir, "p")
+local persisted_chapter = persisted_dir .. "/chapter.typ"
+local persisted_forced_missing = persisted_dir .. "/generated-later.typ"
+vim.fn.writefile({ "= Chapter" }, persisted_chapter)
+state_store.set_explicit_main(persisted_chapter, persisted_forced_missing)
+vim.cmd.edit(vim.fn.fnameescape(persisted_chapter))
+vim.b.typst_main = nil
+local persisted_missing = registry.resolve(0)
+assert(
+    persisted_missing.main ~= persisted_forced_missing,
+    "unreadable persisted explicit mains should not reuse force semantics"
+)
+assert(
+    state_store.explicit_main(persisted_chapter) == nil,
+    "unreadable persisted explicit mains should be cleared until readable"
+)
+vim.cmd.edit(chapter)
+bufnr = vim.api.nvim_get_current_buf()
+project = typst.project.set_main(main, nil, { persist = true })
 
 vim.cmd.edit(chapter)
 vim.b.typst_main = main

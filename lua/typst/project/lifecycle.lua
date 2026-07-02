@@ -16,6 +16,11 @@ local normalize_bufnr = require("typst.core.buffer").normalize_bufnr
 
 local deferred_import_scan_tokens = {}
 local next_deferred_import_scan_token = 0
+local finalize_buffer_project_transition
+
+-- Deferred import-scan reassignment must share the same post-commit feature and
+-- Tinymist finalization as normal attach so buffer/window feature signatures and
+-- semantic-provider state follow the final project key.
 
 local function buffer_path(bufnr)
     if not vim.api.nvim_buf_is_valid(bufnr) then
@@ -183,13 +188,25 @@ local function schedule_deferred_import_scan(bufnr, state, candidate)
             "stopping compiler after deferred import scan reassigned buffer",
             "compiler stopped after deferred import scan"
         )
-        require("typst.integrations.tinymist").ensure(bufnr, next_state)
+        finalize_buffer_project_transition(bufnr, next_state, nil, {
+            reapply_features = true,
+        })
     end, 20)
 end
 
 local function finalize_attach(bufnr, state, candidate)
     require("typst.integrations.tinymist").ensure(bufnr, state)
     schedule_deferred_import_scan(bufnr, state, candidate)
+end
+
+finalize_buffer_project_transition = function(bufnr, state, candidate, opts)
+    opts = opts or {}
+    if opts.reapply_features == true and vim.api.nvim_buf_is_valid(bufnr) then
+        core_lifecycle.apply_buffer_features_all_windows(bufnr, {
+            force = true,
+        })
+    end
+    finalize_attach(bufnr, state, candidate)
 end
 
 --- Reapply setup-sensitive editor state for already attached Typst buffers.
@@ -284,7 +301,7 @@ local function attach_impl(api, bufnr)
             "stopping compiler after buffer moved to another project",
             "compiler stopped after buffer moved"
         )
-        finalize_attach(bufnr, state, candidate)
+        finalize_buffer_project_transition(bufnr, state, candidate)
         return state
     end
 
@@ -320,10 +337,12 @@ function M.detach(bufnr)
     bufnr = normalize_bufnr(bufnr)
     deferred_import_scan_tokens[bufnr] = nil
     local previous = project.get(bufnr)
+    local previous_key = previous and previous.key or nil
     local resolution = previous
             and previous.resolutions
             and vim.deepcopy(previous.resolutions[bufnr])
         or nil
+    attachments.forget(bufnr, previous_key)
     local state = project.detach(bufnr)
     core_lifecycle.clear_buffer(bufnr)
     if vim.api.nvim_buf_is_valid(bufnr) then
@@ -373,6 +392,9 @@ function M.get_project(bufnr)
         bufnr,
         previous and { ignore_project_key = previous.key } or nil
     )
+    if previous and previous.key ~= state.key then
+        attachments.forget(bufnr, previous.key)
+    end
     lifecycle_events.emit_reassign(
         previous,
         state,
@@ -404,6 +426,7 @@ function M.set_main(path, bufnr, set_opts, notify)
         or nil
     local state = project.set_main(bufnr, path, set_opts)
     if previous and previous.key ~= state.key then
+        attachments.forget(bufnr, previous.key)
         lifecycle_events.emit_buffer_detach(
             previous,
             bufnr,
@@ -451,6 +474,7 @@ function M.toggle_main(toggle_opts, notify)
     if local_main then
         state = project.clear_main(bufnr, { clear_persisted = false })
         if previous and previous.key ~= state.key then
+            attachments.forget(bufnr, previous.key)
             lifecycle_events.emit_buffer_detach(
                 previous,
                 bufnr,
@@ -480,6 +504,7 @@ function M.toggle_main(toggle_opts, notify)
 
     state = project.set_main(bufnr, path)
     if previous and previous.key ~= state.key then
+        attachments.forget(bufnr, previous.key)
         lifecycle_events.emit_buffer_detach(
             previous,
             bufnr,
@@ -518,6 +543,7 @@ function M.reload_state(api, reload_opts, notify)
         or nil
     local previous = project.detach(bufnr)
     if previous then
+        attachments.forget(bufnr, previous.key)
         lifecycle_events.emit_buffer_detach(
             previous,
             bufnr,

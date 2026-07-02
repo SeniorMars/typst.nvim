@@ -2,12 +2,13 @@ local main_file = require("typst.project.main_file")
 
 local M = {}
 
-local function readable(bufnr, path, main, source)
-    return main_file.discard_unreadable(bufnr, path, main, source)
+local function readable(bufnr, path, main, source, opts)
+    return main_file.discard_unreadable(bufnr, path, main, source, opts)
 end
 
-function M.buffer(bufnr, path, root)
-    return readable(bufnr, path, main_file.buffer_main(bufnr, root))
+function M.buffer(bufnr, path, root, resolve_opts)
+    local main, source = main_file.buffer_main(bufnr, root)
+    return readable(bufnr, path, main, source, resolve_opts)
 end
 
 function M.persisted(bufnr, path, opts)

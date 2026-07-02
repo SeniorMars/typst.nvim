@@ -56,9 +56,20 @@ function M.register(ctx)
         )
     )
 
-    create("TypstSetMain", function(args)
-        api.project.set_main(args.args, nil, { persist = true })
-    end, opts("Set the current buffer's Typst main file", "?", "file"))
+    create(
+        "TypstSetMain",
+        function(args)
+            api.project.set_main(args.args, nil, {
+                persist = true,
+                force = args.bang,
+            })
+        end,
+        vim.tbl_extend(
+            "force",
+            opts("Set the current buffer's Typst main file", "?", "file"),
+            { bang = true }
+        )
+    )
 
     create("TypstToggleMain", function()
         api.project.toggle_main()
