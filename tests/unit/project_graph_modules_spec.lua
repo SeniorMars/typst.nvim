@@ -5,7 +5,21 @@ local project_dependencies = require("typst.project.dependencies")
 local graph_dependencies = require("typst.project.graph.dependencies")
 local graph_sources = require("typst.project.graph.sources")
 local index_files = require("typst.project.index_files")
+local index_files_facade = require("typst.project.index.files")
 local index_traversal = require("typst.project.index_traversal")
+local index_traversal_facade = require("typst.project.index.traversal")
+local index_facades = {
+    aggregate = require("typst.project.index.aggregate"),
+    cache = require("typst.project.index.cache"),
+    files = index_files_facade,
+    path_calls = require("typst.project.index.path_calls"),
+    paths = require("typst.project.index.paths"),
+    providers = require("typst.project.index.providers"),
+    scanner = require("typst.project.index.scanner"),
+    scanner_glossary = require("typst.project.index.scanner_glossary"),
+    scanner_helpers = require("typst.project.index.scanner_helpers"),
+    traversal = index_traversal_facade,
+}
 local project_model = require("typst.project.model")
 local project_services = require("typst.project.services")
 local util = require("typst.core.util")
@@ -30,6 +44,17 @@ local ok, err = xpcall(function()
             == graph_sources.source_priority("compiler"),
         "project model source-priority compatibility should delegate"
     )
+    assert(
+        index_files_facade == index_files
+            and index_traversal_facade == index_traversal,
+        "project.index facades should preserve old index module identities"
+    )
+    for name, module in pairs(index_facades) do
+        assert(
+            type(module) == "table",
+            ("project.index.%s facade should require cleanly"):format(name)
+        )
+    end
 
     local changed =
         graph_dependencies.replace(project, { main, chapter, asset })

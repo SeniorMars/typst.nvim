@@ -1,9 +1,9 @@
 local bibliography_index = require("typst.bibliography.index")
-local aggregate = require("typst.project.aggregate")
-local index_cache = require("typst.project.index_cache")
-local index_files = require("typst.project.index_files")
+local aggregate = require("typst.project.index.aggregate")
+local index_cache = require("typst.project.index.cache")
+local index_files = require("typst.project.index.files")
 local log = require("typst.core.log")
-local scanner = require("typst.project.scanner")
+local scanner = require("typst.project.index.scanner")
 local util = require("typst.core.util")
 
 local M = {}

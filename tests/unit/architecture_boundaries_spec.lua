@@ -2,8 +2,11 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local typst = require("typst")
+local cache_registry = require("typst.core.cache_registry")
 local compiler_service = require("typst.project.services.compiler")
 local core_result = require("typst.core.result")
+local core_windows = require("typst.core.windows")
+local index_files_facade = require("typst.project.index.files")
 local output_ownership = require("typst.resources.outputs")
 local project_attachments = require("typst.project.attachments")
 local project_facade = require("typst.project")
@@ -31,6 +34,8 @@ for _, phrase in ipairs({
     "resources.cleanup",
     "project.store",
     "project.attachments",
+    "project.index.*",
+    "core.windows",
     "resources.supervisor",
     "compiler.fanout",
     "compiler.controller",
@@ -80,6 +85,20 @@ assert(
 assert(
     core_result.stop_allows_restart({ ok = false, stopped = false }) == false,
     "core.result should block restart after failed stop"
+)
+assert(
+    type(core_windows.for_buffer) == "function",
+    "core.windows should expose shared visible-window lookup"
+)
+assert(
+    type(cache_registry.forget_buffer) == "function"
+        and type(cache_registry.detach_buffer) == "function"
+        and type(cache_registry.forget_window) == "function",
+    "cache registry should expose buffer/window lifecycle cleanup hooks"
+)
+assert(
+    index_files_facade == require("typst.project.index_files"),
+    "project.index facades should preserve old index require paths"
 )
 
 local main = root .. "/tests/fixtures/basic/main.typ"

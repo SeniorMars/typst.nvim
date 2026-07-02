@@ -1,4 +1,4 @@
-local aggregate = require("typst.project.aggregate")
+local aggregate = require("typst.project.index.aggregate")
 local log = require("typst.core.log")
 local provider_adapter = require("typst.integrations.provider_adapter")
 local providers = require("typst.integrations.providers")

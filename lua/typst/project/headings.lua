@@ -1,4 +1,4 @@
-local index_files = require("typst.project.index_files")
+local index_files = require("typst.project.index.files")
 
 local M = {}
 

@@ -1,4 +1,4 @@
-local index_cache = require("typst.project.index_cache")
+local index_cache = require("typst.project.index.cache")
 local log = require("typst.core.log")
 local project_model = require("typst.project.model")
 local project_registry = require("typst.project.registry")

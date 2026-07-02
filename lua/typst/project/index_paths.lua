@@ -1,5 +1,5 @@
 local util = require("typst.core.util")
-local path_calls = require("typst.project.index_path_calls")
+local path_calls = require("typst.project.index.path_calls")
 
 local M = {}
 
