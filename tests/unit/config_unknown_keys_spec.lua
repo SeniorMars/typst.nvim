@@ -89,6 +89,33 @@ assert(
     "duplicate normalized main mapping roots should report a clear error"
 )
 
+local mutation_root = typst_test_cache_path("config-main-mutation")
+vim.fn.mkdir(mutation_root .. "/docs", "p")
+vim.cmd.cd(vim.fn.fnameescape(mutation_root))
+local callback = function() end
+local user_opts = {
+    main = {
+        ["./docs"] = "main.typ",
+    },
+    preview = {
+        open = callback,
+    },
+}
+typst.setup(user_opts)
+vim.cmd.cd(vim.fn.fnameescape(previous_cwd))
+assert(
+    user_opts.main["./docs"] == "main.typ",
+    "setup should not mutate caller-owned main mapping keys"
+)
+assert(
+    vim.tbl_count(user_opts.main) == 1,
+    "setup should not add normalized keys to caller-owned main mappings"
+)
+assert(
+    user_opts.preview.open == callback,
+    "setup copy should preserve callback references in user opts"
+)
+
 local compile_profile_ok, compile_profile_err = pcall(function()
     typst.setup({
         validation = "strict",

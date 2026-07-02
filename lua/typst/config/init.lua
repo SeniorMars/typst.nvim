@@ -356,7 +356,10 @@ function M.setup(opts)
     end
 
     defaults = defaults_provider.values()
-    local user_opts = materialize(opts or {})
+    -- Normalization rewrites config tables for runtime lookup. Work on an
+    -- isolated copy so setup never mutates a plugin-manager/user-owned opts
+    -- table that may be reused for later reconfiguration.
+    local user_opts = vim.deepcopy(materialize(opts or {}))
     normalize_main_mapping(user_opts)
     last_unknown_keys = collect_unknown_keys(user_opts, defaults, "", {}) or {}
     local unknown_mode = unknown_key_mode(user_opts)
