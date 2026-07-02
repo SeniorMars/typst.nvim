@@ -13,6 +13,16 @@ Typst's own crates, such as generating bundled metadata artifacts.
 
 This repository is in an early reset phase.
 
+Feature stability is intentionally tiered:
+
+- Stable workflow core: project attachment, explicit mains, compile/watch/stop,
+  diagnostics, status/info, output leases, and public API/event compatibility.
+- Stabilizing editor UI: completion frontends, navigation/pickers, conceal,
+  structural editing, native preview, and Tinymist semantic helpers.
+- Experimental/provider surface: custom providers, export/eval/profile/test
+  workflows, render fragments, and compatibility shims for external preview
+  plugins.
+
 Implemented:
 
 - Lua plugin skeleton loaded from `plugin/typst.lua`
@@ -445,6 +455,44 @@ Minimal setup:
 
 ```lua
 require("typst").setup()
+```
+
+Common setup snippets:
+
+```lua
+require("typst").setup({
+  integrations = {
+    tinymist = { lsp = "detect" },
+  },
+  diagnostics = {
+    source = "fallback",
+    use_quickfix = true,
+  },
+})
+```
+
+```lua
+require("typst").setup({
+  preview = {
+    provider = "native",
+    native = "browser",
+  },
+})
+```
+
+```lua
+require("typst").setup({
+  project = {
+    index = {
+      large_file_policy = "headings-only",
+      max_file_bytes = 512 * 1024,
+    },
+  },
+  completion = {
+    path_scan_cache_ms = 1000,
+    path_scan_entry_max = 500,
+  },
+})
 ```
 
 `require("typst.config").snapshot()` returns an isolated copy of the active
@@ -1280,6 +1328,12 @@ buffer between local-main mode and the resolved project main. Set
 `project.persist_main = false` to disable saved `:TypstSetMain` choices.
 When a buffer is renamed with `:saveas`, its saved explicit-main choice follows
 the new buffer path.
+`:TypstSetMain` rejects unreadable targets before writing buffer or persisted
+state. Use `:TypstSetMain!` or Lua `set_main(..., { force = true })` only for a
+not-yet-created main that another tool will create during this session, or for a
+path that will be readable before the next resolution relies on persisted state.
+If a later resolution sees an unreadable saved explicit main, typst.nvim treats
+it as stale and clears the saved entry.
 Unreadable explicit main paths are ignored during resolution; stale
 `vim.b.typst_main` values are cleared so import scanning and current-buffer
 fallbacks can recover after a main file is deleted or moved. Root-level files in
@@ -1612,6 +1666,11 @@ Retained orphans remain visible in reports/logs and keep leases guarded until a
 real late exit releases them, `typst.reset({ force = true })` clears retained
 state, or the user explicitly discards external compiler state with
 `:TypstCompilerForceClear[!]`.
+Runtime reset also clears global follow-buffer autocmds, deferred project
+resolver tokens, buffer attachment debounce state, and loaded completion,
+active conceal, and diagnostic caches through the runtime/cache hook registries.
+Stable Tree-sitter parser callback guards are retained when needed to avoid
+duplicate callback registration on live parsers.
 Provider `on_finish()`-style callbacks are reserved for that real terminal exit;
 stop callbacks are the settlement point for unconfirmed retention.
 If an external compiler provider compile, watch, or stop request times out,
@@ -1625,6 +1684,9 @@ may pass raw `project.key`, encoded `key_display` with `key_encoded = true`, or 
 direct project object; command users should copy the encoded key from
 `:TypstStatusAll!`. Lua code that already has a project object should pass
 `project = project`, which is authoritative even when `key` is also present.
+On Windows, normal compile/watch stop and restart paths target the process tree
+with `taskkill /T` before falling back to direct process signaling, matching the
+tree-aware reset/exit cleanup path used for wrapper scripts.
 
 `:TypstClean` removes temporary Typst artifacts for the current project.
 `:TypstClean!` also requests deletion of the resolved generated output file,
@@ -1810,6 +1872,26 @@ compiler provider's `status(project)` method. If an external provider
 compile/watch/stop timeout leaves an active output lease visible,
 `:TypstCompilerForceClear[!] [project-key]` provides the explicit discard path.
 
+## Reset and recovery
+
+`typst.reset({ force = true })` is the strongest in-process recovery path. It
+stops compiler/preview resources, clears project state when resources are no
+longer retained, removes follow-buffer autocmds, clears deferred resolver
+tokens, forgets buffer debounce state, resets loaded completion/conceal/
+diagnostic caches, and then allows setup to run again. Conceal keeps stable
+Tree-sitter parser callback guards for live parsers so reset/re-enable cycles do
+not stack duplicate callbacks. Without `force`, reset may retain projects whose
+external providers or preview callbacks could not confirm a terminal stop; that
+protects late callbacks from writing into discarded state.
+
+Use `:TypstStop` or `:TypstStopAll` before cleaning outputs. `:TypstLocks`
+shows file-backed output locks, including owner metadata when available.
+`:TypstCleanLocks` removes stale locks only; `:TypstCleanLocks!` is for explicit
+recovery when you have verified that the external writer is gone. If an
+unconfirmed custom provider still owns an output lease,
+`:TypstCompilerForceClear[!]` discards typst.nvim's retained handle, but it does
+not kill or prove termination of the external process.
+
 ## Performance tuning
 
 The expensive paths are project discovery, project indexing, completion scans,
@@ -1863,6 +1945,10 @@ errors.
 - Tree-sitter-backed features are missing or stale: run `:checkhealth typst`
   and verify the Typst parser plus shipped queries load. Parser/query mismatch
   affects rich conceal, folds, motions, text objects, and package syntax.
+- No Tree-sitter parser installed: project resolution, compile/watch, viewer,
+  native preview, diagnostics, quickfix, output locks, and most completion
+  sources still work. Syntax-aware conceal, folds, motions, text objects, and
+  structural editing fall back or stay disabled until the parser is available.
 - External provider timed out: typst.nvim keeps the provider state and output
   lease because timeout is not proof that the process stopped. Clear it only
   through `typst.reset({ force = true })` or

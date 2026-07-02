@@ -153,6 +153,20 @@ Useful small setups: >
     output_dir = "",
     viewer = { provider = "zathura" },
   })
+
+  -- Tune large-project indexing and path completion caps.
+  require("typst").setup({
+    project = {
+      index = {
+        large_file_policy = "headings-only",
+        max_file_bytes = 512 * 1024,
+      },
+    },
+    completion = {
+      path_scan_cache_ms = 1000,
+      path_scan_entry_max = 500,
+    },
+  })
 <
 
 Run `:checkhealth typst` to inspect executable availability, parser/query
@@ -604,14 +618,19 @@ Command groups:
     filter may be removed; active locks owned by this Neovim process are kept.
 
                                                         *:TypstSetMain*
-:TypstSetMain [file]
+:TypstSetMain[!] [file]
     Set the current buffer's main Typst document. Without an argument, the
     current buffer becomes the main document. The explicit choice is saved for
     the current buffer path unless `project.persist_main = false`; if the
     buffer is renamed with `:saveas`, the saved choice follows the new path. If
     this moves the last buffer out of a project with an active compile or
     watcher, the old compiler process is stopped before the old project is
-    pruned.
+    pruned. The target must be readable before typst.nvim writes buffer-local or
+    persisted main state. Use bang only for a not-yet-created main that another
+    tool will create during this session, or for a path that will be readable
+    before the next resolution relies on persisted state. If a later resolution
+    sees an unreadable saved explicit main, typst.nvim treats it as stale and
+    clears the saved entry.
 
                                                         *:TypstToggleMain*
 :TypstToggleMain
@@ -3203,6 +3222,10 @@ after handling the external process yourself.
 If motions, text objects, folds, indentation, package syntax, or conceal are
 missing, check that the Typst Tree-sitter parser and shipped queries load in
 `:checkhealth typst`.
+Without the parser, project resolution, compile/watch, viewer/native preview,
+diagnostics, quickfix, output locks, and most completion sources still work.
+Syntax-aware conceal, folds, motions, text objects, and structural editing fall
+back or remain disabled until the parser is available.
 
 If Tree-sitter-backed features are stale after parser/query changes, run
 |:TypstReloadState| or |:TypstClearCache| after confirming health. Rich conceal,
@@ -3569,6 +3592,29 @@ synthesizing `stopped = true`.
 Compiler/watch runs are cancelled with `stop()` and `stop_all()`. Reset and
 clear-cache paths cancel pending background probes such as Tinymist completion,
 package info, font scans, and metadata version detection.
+On Windows, normal compile/watch stop and restart paths target the process tree
+with `taskkill /T` before falling back to direct process signaling. This matches
+the reset/exit cleanup path and prevents wrapper-script children from surviving
+ordinary |:TypstStop| calls.
+Runtime reset clears global follow-buffer autocmds, deferred resolver tokens,
+buffer attachment debounce state, and loaded completion/active conceal/
+diagnostic caches through explicit runtime/cache lifecycle hooks. Stable
+Tree-sitter parser callback guards are retained when needed to avoid duplicate
+callback registration on live parsers. If active resources cannot be confirmed
+stopped and `force` is not set, projects may be retained so late exits cannot
+update discarded state.
+Use `typst.reset({ force = true })` as the strongest in-process recovery path
+after a stuck watch, preview, or provider callback. Without `force`, reset may
+retain projects whose external resources could not prove terminal shutdown.
+Inspect retained resources with |:TypstInfo!|, |:TypstStatusAll!|, and
+|:TypstLog| before discarding them.
+
+Output locks are file-backed guards for generated artifacts. |:TypstLocks|
+lists locks and owner metadata when available. |:TypstCleanLocks| removes stale
+locks only; |:TypstCleanLocks!| is for explicit recovery after verifying the
+external writer is gone. |:TypstCompilerForceClear| discards typst.nvim's
+retained provider handle and output lease for an unconfirmed provider, but it
+does not kill or prove termination of the external process.
 
 Cursor-sensitive Lua APIs use `bufnr`, `winid`, and `pos` to resolve the source
 context. A non-current buffer needs an explicit `pos` or a `winid` that displays
@@ -3647,6 +3693,12 @@ The plugin emits these public `User` events:
 - `TypstEventTocCreated`
 - `TypstEventTocActivated`
 - `TypstEventQuit`
+
+`TypstEventInitPre` and `TypstEventInitPost` include `first_setup = true` on
+the first setup call and `reconfigure = true` on later setup calls. Plugin
+managers that call `require("typst").setup()` after the runtime plugin loaded
+should treat the later event as reconfiguration, not a second independent
+startup.
 
 Project reassignments through public APIs such as |:TypstSetMain|,
 |:TypstToggleMain|, lazy `project.get()`, or buffer reattachment emit
