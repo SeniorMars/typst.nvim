@@ -101,8 +101,17 @@ function M.result_like(value)
         or value.orphaned ~= nil
 end
 
-local function explicit_result_like(value)
-    return M.result_like(value) and type(value) == "table"
+local function explicit_terminal_result(value)
+    return type(value) == "table"
+        and (
+            value.ok ~= nil
+            or value.code ~= nil
+            or value.reason ~= nil
+            or value.message ~= nil
+            or value.stopped ~= nil
+            or value.forced ~= nil
+            or value.orphaned ~= nil
+        )
 end
 
 local function allowed_result_field(control, value)
@@ -126,6 +135,64 @@ local function allowed_result_field(control, value)
     return false
 end
 
+local ambiguous_structural_fields = {
+    artifacts = true,
+    by_buffer = true,
+    diagnostics = true,
+    files = true,
+    opened = true,
+    output = true,
+    outputs = true,
+    path = true,
+    report = true,
+    text = true,
+    value = true,
+}
+
+local function has_cancel_api(value)
+    return type(value) == "table"
+        and (
+            type(value.cancel) == "function"
+            or type(value.stop) == "function"
+            or type(value.kill) == "function"
+        )
+end
+
+local function structural_field(value)
+    if type(value) ~= "table" then
+        return nil
+    end
+    for key in pairs(ambiguous_structural_fields) do
+        if value[key] ~= nil then
+            return key
+        end
+    end
+end
+
+local function ambiguous_handle_like(control, value, kind, name)
+    if
+        type(value) ~= "table"
+        or value.pending == true
+        or not has_cancel_api(value)
+        or explicit_terminal_result(value)
+    then
+        return false
+    end
+
+    local field = structural_field(value)
+    if not field and not allowed_result_field(control, value) then
+        return false
+    end
+
+    log.add("warn", "provider returned ambiguous handle/result table", {
+        kind = kind,
+        provider = name,
+        field = field,
+        message = "set pending=true for async handles or return an explicit result marker",
+    })
+    return true
+end
+
 local function returned_result_like(control, value, handle_mode)
     if value == nil then
         return false
@@ -134,7 +201,7 @@ local function returned_result_like(control, value, handle_mode)
         return true
     end
     if handle_mode then
-        return explicit_result_like(value)
+        return explicit_terminal_result(value)
     end
     if type(control.normalize) == "function" then
         return true
@@ -489,8 +556,11 @@ function M.invoke(provider, method, context, opts, control)
         and (type(control.on_result) == "function" or timeout_configured)
     local returned_pending = type(returned) == "table"
         and returned.pending == true
+    local returned_ambiguous_handle =
+        ambiguous_handle_like(control, returned, kind, name)
     local returned_handle = type(control.is_handle) == "function"
-        and control.is_handle(returned)
+            and control.is_handle(returned)
+        or returned_ambiguous_handle
     local handle_mode = control.return_mode == "handle"
     local returned_result = returned ~= nil
         and not returned_pending

@@ -114,6 +114,11 @@ as `ok`, `code`, `reason`, `message`, `stopped`, `forced`, or `orphaned`.
 Use `{ pending = true }` for pending handles that should expose adapter-managed
 timeout/cancel behavior. If a custom handle looks result-shaped, either include
 `pending = true` or ensure the call site supplies an explicit handle predicate.
+Cancelable tables with structural result fields such as `path`, `output`,
+`diagnostics`, or `by_buffer` but no explicit terminal marker are treated as
+active handles and logged as ambiguous. Add `pending = true` for async handles,
+or add an explicit terminal field such as `ok`, `code`, or `reason` for real
+results.
 
 Structural-only results are accepted only by provider kinds whose adapters
 declare those fields or normalize the table before classification:

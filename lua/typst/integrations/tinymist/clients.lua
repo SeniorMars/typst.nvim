@@ -14,6 +14,40 @@ local function tinymist_config()
     return integrations.tinymist or {}
 end
 
+local function configured_client_names()
+    local out = {}
+    local seen = {}
+    local function add(name)
+        if type(name) ~= "string" or name == "" or seen[name] then
+            return
+        end
+        seen[name] = true
+        out[#out + 1] = name
+    end
+
+    add("tinymist")
+    local names = tinymist_config().client_names
+    if type(names) == "table" then
+        for _, name in ipairs(names) do
+            add(name)
+        end
+    end
+    return out
+end
+
+local function matches_client_name(client)
+    local name = client and client.name
+    if type(name) ~= "string" then
+        return false
+    end
+    for _, expected in ipairs(configured_client_names()) do
+        if name == expected then
+            return true
+        end
+    end
+    return false
+end
+
 --- Return the configured Tinymist LSP startup mode.
 ---@return '"off"'|'"detect"'|'"start"'|'"auto"' mode Normalized startup mode.
 function M.lsp_mode()
@@ -84,7 +118,7 @@ function M.clients(bufnr)
     end
 
     return vim.tbl_filter(function(client)
-        return client.name == "tinymist"
+        return matches_client_name(client)
     end, vim.lsp.get_clients({ bufnr = bufnr }))
 end
 
@@ -136,7 +170,7 @@ local function start_config(bufnr, project)
         {
             bufnr = bufnr,
             reuse_client = function(client, config)
-                if client.name ~= "tinymist" then
+                if not matches_client_name(client) then
                     return false
                 end
 

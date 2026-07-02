@@ -3,6 +3,7 @@ local async_state = require("typst.core.async_state")
 local lsp_request = require("typst.core.lsp_request")
 local clients = require("typst.integrations.tinymist.clients")
 local log = require("typst.core.log")
+local windows = require("typst.core.windows")
 
 local M = {}
 local uv = vim.uv or vim.loop
@@ -17,24 +18,12 @@ local generations = {}
 local schedule = async.schedule
 local close_timer = async.close_timer
 
-local function window_for_buffer(bufnr)
-    local current = vim.api.nvim_get_current_win()
-    if vim.api.nvim_win_get_buf(current) == bufnr then
-        return current
-    end
-
-    for _, winid in ipairs(vim.api.nvim_list_wins()) do
-        if
-            vim.api.nvim_win_is_valid(winid)
-            and vim.api.nvim_win_get_buf(winid) == bufnr
-        then
-            return winid
-        end
-    end
+function M.reset()
+    generations = {}
 end
 
 local function current_cursor(bufnr)
-    local winid = window_for_buffer(bufnr)
+    local winid = windows.for_buffer(bufnr)
     if not winid then
         return nil
     end
