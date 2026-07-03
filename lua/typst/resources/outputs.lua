@@ -5,7 +5,6 @@ local util = require("typst.core.util")
 
 local M = {}
 local uv = vim.uv or vim.loop
-local STALE_LOCK_TTL_SECONDS = 7 * 24 * 60 * 60
 local INCOMPLETE_LOCK_GRACE_SECONDS = 30
 local last_release_failure = nil
 
@@ -499,10 +498,6 @@ end
 
 function M._read_lock(path)
     return read_lock(lock_path_for(path))
-end
-
-function M._stale_lock_ttl_seconds()
-    return STALE_LOCK_TTL_SECONDS
 end
 
 function M._incomplete_lock_grace_seconds()

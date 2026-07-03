@@ -113,6 +113,12 @@ local function non_negative_number(value, path)
     end
 end
 
+local function non_negative_integer(value, path)
+    if type(value) ~= "number" or value < 0 or value % 1 ~= 0 then
+        error(("typst.nvim: %s must be a non-negative integer"):format(path))
+    end
+end
+
 --- Validate diagnostics configuration.
 ---@param diagnostics table `diagnostics` configuration section.
 function M.diagnostics(diagnostics)
@@ -150,6 +156,11 @@ function M.diagnostics(diagnostics)
             "typst.nvim: diagnostics.font_scan_timeout_ms must be a non-negative number"
         )
     end
+
+    non_negative_integer(
+        diagnostics.max_buffers_per_publish,
+        "diagnostics.max_buffers_per_publish"
+    )
 
     if
         diagnostics.source ~= "fallback"

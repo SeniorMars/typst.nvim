@@ -1,3 +1,4 @@
+local log = require("typst.core.log")
 local util = require("typst.core.util")
 
 local M = {}
@@ -20,6 +21,15 @@ local severity = {
 
 local function cache_key(path)
     return util.path_key and util.path_key(path) or path
+end
+
+local function default_max_buffers_per_publish()
+    local ok, config = pcall(require, "typst.config")
+    if not ok then
+        return 256
+    end
+    local diagnostics = (config.unsafe_get().diagnostics or {})
+    return tonumber(diagnostics.max_buffers_per_publish) or 256
 end
 
 local function update_line_limit(line_cache, path, lnum)
@@ -188,9 +198,28 @@ function M.parse(project, text, opts)
     precompute_line_limits(project, text, parse_opts.line_cache)
     local by_buffer = {}
     local pending_pretty = nil
+    local max_buffers = tonumber(parse_opts.max_buffers_per_publish)
+        or default_max_buffers_per_publish()
+    local new_buffer_count = 0
+    local skipped_buffer_count = 0
+    local first_skipped_path = nil
 
     local function add(path, diagnostic)
+        local existing = vim.fn.bufnr(path)
+        if
+            existing <= 0
+            and max_buffers > 0
+            and new_buffer_count >= max_buffers
+        then
+            skipped_buffer_count = skipped_buffer_count + 1
+            first_skipped_path = first_skipped_path or path
+            return
+        end
+
         local bufnr = vim.fn.bufadd(path)
+        if existing <= 0 and by_buffer[bufnr] == nil then
+            new_buffer_count = new_buffer_count + 1
+        end
         by_buffer[bufnr] = by_buffer[bufnr] or {}
         table.insert(by_buffer[bufnr], diagnostic)
     end
@@ -228,6 +257,15 @@ function M.parse(project, text, opts)
                 end
             end
         end
+    end
+
+    if skipped_buffer_count > 0 then
+        log.add("warn", "diagnostic buffer limit reached", {
+            main = project and project.main,
+            max_buffers_per_publish = max_buffers,
+            skipped_buffers = skipped_buffer_count,
+            first_skipped_path = first_skipped_path,
+        })
     end
 
     return by_buffer

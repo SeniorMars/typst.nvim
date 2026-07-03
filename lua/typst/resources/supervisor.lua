@@ -32,6 +32,10 @@ local function project_module()
     return require("typst.project")
 end
 
+local function project_store()
+    return require("typst.project.store")
+end
+
 local function record_preview_stop_failure(state, prune_reason, result)
     preview_service.set(state, {
         active = true,
@@ -307,8 +311,7 @@ end
 ---@return table summary Reset status with failed project details.
 function M.reset(opts)
     opts = opts or {}
-    local project = project_module()
-    local states = vim.tbl_values(project.all())
+    local states = vim.tbl_values(project_store().all())
     local summary = {
         ok = true,
         projects = #states,
@@ -425,11 +428,11 @@ function M.reset(opts)
 end
 
 function M.stop_for_exit_all()
-    local project = project_module()
+    local states = project_store().all()
     events.emit_global("TypstEventQuit", {
-        projects = vim.tbl_count(project.all()),
+        projects = vim.tbl_count(states),
     })
-    for _, state in pairs(project.all()) do
+    for _, state in pairs(states) do
         if (preview_service.get(state) or {}).active then
             local ok = pcall(preview_module().stop_for_exit, state, {
                 lifecycle = true,

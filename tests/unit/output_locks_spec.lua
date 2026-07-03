@@ -148,7 +148,9 @@ if live_pid and live_pid > 0 then
         vim.json.encode({
             pid = live_pid,
             path = reused_pid_output,
-            created_at = os.time() - outputs._stale_lock_ttl_seconds() - 10,
+            created_at = os.time()
+                - outputs._incomplete_lock_grace_seconds()
+                - 10,
             owner = { kind = "old-live-pid" },
         }),
     }, outputs._owner_path(reused_pid_output))

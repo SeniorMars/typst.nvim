@@ -489,6 +489,14 @@ local invalid_configs = {
         message = "diagnostics.font_scan_timeout_ms",
     },
     {
+        opts = { diagnostics = { max_buffers_per_publish = -1 } },
+        message = "diagnostics.max_buffers_per_publish",
+    },
+    {
+        opts = { diagnostics = { max_buffers_per_publish = 1.5 } },
+        message = "diagnostics.max_buffers_per_publish",
+    },
+    {
         opts = { bibliography = false },
         message = "bibliography must be a table",
     },
@@ -1333,6 +1341,7 @@ local ok, err = pcall(function()
             list = "loclist",
             fonts = false,
             font_scan_timeout_ms = 25,
+            max_buffers_per_publish = 32,
         },
         conceal = {
             categories = {
@@ -1690,6 +1699,10 @@ assert(
 assert(
     config.get().diagnostics.font_scan_timeout_ms == 25,
     "font diagnostics scan timeout should be configurable"
+)
+assert(
+    config.get().diagnostics.max_buffers_per_publish == 32,
+    "diagnostic buffer cap should be configurable"
 )
 assert(config.get().docs == nil, "legacy docs config should not be retained")
 assert(

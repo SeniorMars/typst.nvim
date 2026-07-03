@@ -362,6 +362,10 @@ function M.invoke(provider, method, context, opts, control)
     local returned_value = nil
     local returned_proxy = nil
 
+    -- In handle return mode, callers may install the returned value as active
+    -- lifecycle state. Never expose invalid scalar handles when `expect_handle`
+    -- is set; finish them as terminal invalid results instead.
+
     local pending
     pending = pending_handle.new({
         kind = kind,
@@ -591,7 +595,7 @@ function M.invoke(provider, method, context, opts, control)
         if control.expect_handle and pending.result == nil then
             local handle_type = type(returned)
             if handle_type ~= "table" and handle_type ~= "userdata" then
-                finish(
+                return finish(
                     invalid_result(
                         kind,
                         name,

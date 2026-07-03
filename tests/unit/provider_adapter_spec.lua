@@ -201,6 +201,36 @@ assert(
     "pending provider handles with terminal-looking metadata should remain handles"
 )
 
+local invalid_handle_callback = nil
+local invalid_handle = adapter.invoke(
+    function()
+        return "bad-handle"
+    end,
+    nil,
+    {},
+    {},
+    {
+        kind = "compiler",
+        provider_name = "invalid-handle",
+        return_mode = "handle",
+        expect_handle = true,
+        async = false,
+        on_result = function(result)
+            invalid_handle_callback = result
+        end,
+    }
+)
+assert(
+    type(invalid_handle) == "table"
+        and invalid_handle.reason == "invalid_result"
+        and invalid_handle.provider == "invalid-handle",
+    "invalid handle-mode provider returns should become terminal invalid results"
+)
+assert(
+    invalid_handle_callback == invalid_handle,
+    "invalid handle-mode provider returns should notify through the adapter"
+)
+
 local cancelled_result = nil
 local cancel_reason = nil
 local cancellable = adapter.invoke(

@@ -91,6 +91,7 @@ local optional_types = {
 }
 
 local type_overrides = {
+    ["diagnostics.max_buffers_per_publish"] = "integer",
     ["integrations.semantic.provider"] = "nil|string|function|table",
     ["preview.browser.style.variables"] = "table",
     validation = "false|string",

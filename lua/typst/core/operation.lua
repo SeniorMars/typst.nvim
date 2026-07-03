@@ -428,9 +428,9 @@ function Operation:_cancel(opts, callback)
         return false, result
     end
 
-    -- Cancellation is cooperative first and destructive second: TERM, optional
-    -- KILL after a timeout, then orphan if the process still cannot be observed
-    -- as stopped.
+    -- Cancellation is cooperative first and destructive second: process-tree
+    -- TERM, optional tree KILL after a timeout, then orphan if the process still
+    -- cannot be observed as stopped.
     self.cancelled = true
     self.reason = opts.reason
     self.state = "stopping"
@@ -487,7 +487,7 @@ function Operation:_cancel(opts, callback)
         return stopped, payload
     end
 
-    local ok, err = process.kill(self.handle, opts.term_signal)
+    local ok, err = process.terminate_tree_signal(self.handle, opts.term_signal)
     if not ok then
         self:_retain_orphan({
             code = 1,
@@ -497,7 +497,7 @@ function Operation:_cancel(opts, callback)
             orphaned = true,
             error = err,
             reason = self.reason or "cancelled",
-            message = "operation SIGTERM failed",
+            message = "operation process-tree SIGTERM failed",
         })
         if type(callback) == "function" then
             callback(false, { stopped = false, orphaned = true, error = err })
@@ -523,7 +523,8 @@ function Operation:_cancel(opts, callback)
         if self.state == "finished" then
             return
         end
-        local killed, kill_err = process.kill(self.handle, opts.kill_signal)
+        local killed, kill_err =
+            process.terminate_tree_signal(self.handle, opts.kill_signal)
         if not killed then
             self:_retain_orphan({
                 code = 1,
@@ -534,7 +535,7 @@ function Operation:_cancel(opts, callback)
                 orphaned = true,
                 error = kill_err,
                 reason = self.reason or "cancelled",
-                message = "operation force kill failed",
+                message = "operation process-tree force kill failed",
             })
             return
         end
