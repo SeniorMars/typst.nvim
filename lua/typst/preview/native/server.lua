@@ -12,6 +12,33 @@ local HEADER_LIMIT_BYTES = 64 * 1024
 local READ_TIMEOUT_MS = 5000
 local STREAM_CHUNK_BYTES = 64 * 1024
 
+local function loopback_host(host)
+    return host == "127.0.0.1"
+        or host == "localhost"
+        or host == "::1"
+        or host == "[::1]"
+end
+
+local function remote_allowed(browser, host)
+    return loopback_host(host) or browser.allow_remote == true
+end
+
+local function remote_error()
+    return "typst.nvim: preview.browser.host must be loopback unless preview.browser.allow_remote = true"
+end
+
+local function is_running(current)
+    return current and current.handle and not current.handle:is_closing()
+end
+
+local function stop_server(current)
+    if current and current.handle and not current.handle:is_closing() then
+        current.handle:close()
+        return true
+    end
+    return false
+end
+
 local content_types = {
     html = "text/html; charset=utf-8",
     json = "application/json; charset=utf-8",
@@ -184,6 +211,14 @@ local function query_params(query)
     return params
 end
 
+local function route_authorized(route, params)
+    local token = route and route.token
+    if type(token) ~= "string" or token == "" then
+        return true
+    end
+    return params and params.token == token
+end
+
 local function handle_route(client, method, path, query)
     local id, leaf = path:match("^/preview/([%w_%-]+)/?(.*)$")
     if not id then
@@ -199,6 +234,16 @@ local function handle_route(client, method, path, query)
         send_json(client, "410 Gone", {
             ok = false,
             error = "preview stopped",
+        })
+        return
+    end
+
+    local params = query_params(query)
+    if not route_authorized(route, params) then
+        send_json(client, "403 Forbidden", {
+            ok = false,
+            error = "preview route token is required",
+            reason = "invalid_preview_token",
         })
         return
     end
@@ -224,7 +269,7 @@ local function handle_route(client, method, path, query)
             })
             return
         end
-        local result = source_maps.browser_inverse(route, query_params(query))
+        local result = source_maps.browser_inverse(route, params)
         local status = result.ok == false and "400 Bad Request"
             or result.pending and "202 Accepted"
             or "200 OK"
@@ -332,12 +377,22 @@ local function handle_client(client)
 end
 
 function M.start(browser)
-    if server and server.handle and not server.handle:is_closing() then
-        return server
-    end
-
+    browser = browser or {}
     local host = browser.host or "127.0.0.1"
     local port = tonumber(browser.port) or 0
+
+    if not remote_allowed(browser, host) then
+        error(remote_error())
+    end
+
+    if is_running(server) then
+        if server.host == host and (port == 0 or server.port == port) then
+            return server
+        end
+    end
+
+    local previous = server
+
     local handle, new_err = uv.new_tcp()
     if not handle then
         error(
@@ -383,17 +438,14 @@ function M.start(browser)
         host = host,
         port = sockname.port or port,
     }
+    stop_server(previous)
     return server
 end
 
 function M.stop()
     local current = server
     server = nil
-    if current and current.handle and not current.handle:is_closing() then
-        current.handle:close()
-        return true
-    end
-    return false
+    return stop_server(current)
 end
 
 function M.reset()

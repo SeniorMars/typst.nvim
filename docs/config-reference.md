@@ -244,6 +244,7 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `picker.provider` | `string` | `"auto"` |
 | `picker.snacks` | `list` | `{}` |
 | `picker.telescope` | `list` | `{}` |
+| `preview.browser.allow_remote` | `boolean` | `false` |
 | `preview.browser.app` | `nil\|string` | `nil` |
 | `preview.browser.commands` | `nil\|list` | `nil` |
 | `preview.browser.export.extra_args` | `list` | `{}` |
@@ -265,6 +266,7 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `preview.browser.style.css` | `nil\|string` | `nil` |
 | `preview.browser.style.css_path` | `nil\|string` | `nil` |
 | `preview.browser.style.variables` | `table` | `{}` |
+| `preview.browser.token` | `string` | `"auto"` |
 | `preview.cache.enabled` | `boolean` | `true` |
 | `preview.cache.max_bytes` | `number` | `268435456` |
 | `preview.cache.max_entries` | `number` | `32` |
@@ -299,6 +301,7 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `project.import_scan_max_depth` | `number` | `3` |
 | `project.import_scan_max_entries` | `number` | `2000` |
 | `project.import_scan_max_files` | `number` | `200` |
+| `project.import_scan_skip_dirs` | `list` | `{ ".git", "node_modules", ".direnv", ".cache", "target", "build", "dist", "vendor", ".venv", "__pycache__" }` |
 | `project.index.fs_watchers` | `string` | `"auto"` |
 | `project.index.large_file_policy` | `string` | `"skip"` |
 | `project.index.max_file_bytes` | `number` | `1048576` |
@@ -315,6 +318,7 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `render.output_format` | `string` | `"svg"` |
 | `render.provider` | `nil\|string\|function\|table` | `nil` |
 | `render.source_dir` | `string` | `vim.fs.joinpath(vim.fn.stdpath("cache"), "typst.nvim", "render-sources")` |
+| `render.source_mode` | `string` | `"stdin"` |
 | `render.timeout_ms` | `number` | `10000` |
 | `root` | `nil\|string` | `nil` |
 | `root_markers` | `list` | `{ ".typstmain", "typst.toml", ".git" }` |

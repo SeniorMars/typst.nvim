@@ -124,6 +124,26 @@ local function style_for(route)
     return base_style .. style_overrides(route.style, route.root)
 end
 
+local function encode_component(value)
+    value = tostring(value or "")
+    return (
+        value:gsub("([^%w%-_%.~])", function(char)
+            return ("%%%02X"):format(char:byte())
+        end)
+    )
+end
+
+local function resource_path(route, leaf)
+    local path = leaf or ""
+    if path == "" or path == "index" then
+        path = "."
+    end
+    if type(route.token) == "string" and route.token ~= "" then
+        path = path .. "?token=" .. encode_component(route.token)
+    end
+    return path
+end
+
 local shell_template = [[
 <!doctype html>
 <html>
@@ -372,7 +392,8 @@ __STYLE__
         return;
       }
       try {
-        const response = await fetch(state.sync_url + "?" + syncParams(event).toString(), {
+        const separator = state.sync_url.includes("?") ? "&" : "?";
+        const response = await fetch(state.sync_url + separator + syncParams(event).toString(), {
           cache: "no-store"
         });
         const result = await response.json();
@@ -548,8 +569,9 @@ local function shell(route, opts)
         TITLE = M.escape(title_for(route)),
         STYLE = style_for(route),
         STATUS = M.escape(opts.status or "Connecting..."),
-        STATE_URL = opts.state_url or json("state"),
-        ARTIFACT_URL = opts.artifact_url or json("artifact"),
+        STATE_URL = opts.state_url or json(resource_path(route, "state")),
+        ARTIFACT_URL = opts.artifact_url
+            or json(resource_path(route, "artifact")),
         REFRESH_MS = tostring(route.refresh_ms or 1000),
         LOAD_STATE = opts.load_state or "fetchJson(stateUrl)",
     })

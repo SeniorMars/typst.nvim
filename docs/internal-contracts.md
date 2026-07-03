@@ -41,6 +41,45 @@ Cleanup code should return structured refusal reasons such as
 `unsafe_cache_dir`, `unsafe_fragment_source_dir`, `outside_root`, or
 `root_refused` instead of silently skipping or deleting.
 
+## Output Locks
+
+`typst.resources.outputs` owns generated-output leases and file-backed lock
+recovery. Callers must not bypass it with `core.path_leases` unless they are
+low-level lease tests.
+
+Recovery policy:
+
+| Lock state | Acquire behavior | Cleanup behavior |
+| --- | --- | --- |
+| Active in-memory lease in this process | Blocked by the in-process lease | Never removed, even with bang |
+| Lock owned by a live foreign PID | Blocked with `active_output` / `old_live_pid` | Removed only by bang plus explicit filter |
+| Lock owned by a dead PID | Recovered before acquire | Removed by default cleanup |
+| Missing, empty, unreadable, or corrupt owner inside grace period | Blocked as active/unknown | Kept unless bang plus explicit filter |
+| Missing, empty, unreadable, or corrupt owner after grace period | Recovered before acquire | Removed by default cleanup |
+| Same-PID lock without an in-memory lease | Recovered before acquire | Removed by default cleanup |
+
+The stale-lock TTL is not permission to steal a live PID lock. It only keeps
+owner age visible for reporting; liveness wins over age. Force cleanup must have
+an explicit output path, lock directory, or owner-file filter so a broad bang
+cannot delete unrelated external locks.
+
+## Operation Cancellation
+
+`typst.project.services.operations.cancel_project()` returns both counters and
+per-record `outcomes`. The outcome names are stable internal policy:
+
+| Outcome | Active record | Retained record | Meaning |
+| --- | --- | --- | --- |
+| `cancelled` | cleared | no | Cancellation was confirmed. |
+| `retained` | cleared | yes | A cancellable handle became an orphan-retained operation. |
+| `uncancellable` | cleared | yes | A live handle had no cancellation API. |
+| `failed` | kept | no | Cancellation failed and liveness is still unresolved. |
+| `stale` | cleared | no | The record had no live handle and was only bookkeeping. |
+
+Reset and exit cleanup may report retained or failed outcomes, but they must not
+silently prune a project while retained operations or active leases still keep
+the project discoverable.
+
 ## Conceal
 
 Typst conceal uses Tree-sitter only to locate candidate syntax. Lua rules decide

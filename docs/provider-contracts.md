@@ -322,6 +322,17 @@ and owner kind. Use `:TypstCleanLocks` for dead-owner or expired incomplete
 records, and `:TypstCleanLocks! [output-or-lockdir]` only after confirming a
 live or unknown external owner is safe to discard.
 
+Output lock recovery matrix:
+
+| Lock state | Startup behavior | Cleanup behavior |
+| --- | --- | --- |
+| Current process has an active in-memory lease | blocked by the lease | never removed by cleanup |
+| Live foreign PID owns the file-backed lock | `active_output`, `old_live_pid` | bang plus explicit filter only |
+| Dead PID owns the file-backed lock | recovered before startup | removed by normal cleanup |
+| Owner metadata is missing/empty/corrupt within grace | blocked as active/unknown | kept unless forced with a filter |
+| Owner metadata is missing/empty/corrupt after grace | recovered before startup | removed by normal cleanup |
+| Same PID lock exists without an in-memory lease | recovered before startup | removed by normal cleanup |
+
 Compile/watch providers must not write outside the output path they reported
 unless their own provider contract documents extra artifacts and ownership.
 
@@ -471,6 +482,10 @@ artifact responses larger than `preview.browser.max_artifact_bytes` return
 The listener stops when the last browser preview route is cleared, on reset, and
 on force-reset cleanup. Set `preview.browser.max_artifact_bytes = 0` only for
 trusted local use; it disables the artifact size cap.
+Non-loopback browser routes require `preview.browser.allow_remote = true` and
+are tokenized by default with `preview.browser.token = "auto"`. Providers and
+open callbacks should treat the full URL as opaque and preserve its query
+string.
 
 ```lua
 preview = {

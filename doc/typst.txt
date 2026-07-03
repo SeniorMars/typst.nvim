@@ -365,7 +365,11 @@ Browser opener failures keep the attempted URL in preview state, in
 `g:typst_nvim_last_preview_url`, and in |:TypstPreviewStatus| with bang. For
 WSL, SSH, containers, and remote Neovim sessions, configure
 `preview.browser.commands` with command lists such as
-`{ "wslview", "{url}" }` or open the reported URL manually. With
+`{ "wslview", "{url}" }` or open the reported URL manually. Binding
+`preview.browser.host` to a non-loopback interface requires
+`preview.browser.allow_remote = true`; only enable it on trusted networks.
+Remote browser routes include a token by default through
+`preview.browser.token = "auto"`, or you can set a fixed non-empty token. With
 `preview.browser.app = nil` and `preview.browser.commands = nil`, typst.nvim
 uses `vim.ui.open()` when available, then the OS default URL opener such as
 `open`, `xdg-open`, or Windows shell openers. Set `preview.browser.app` to
@@ -1081,10 +1085,12 @@ Rendered previews are explicit actions, not automatic inline rendering on every
 edit. The default renderer uses `typst compile` to SVG or PNG, stores outputs
 in the render cache by source, project context, format, page, and executable,
 then opens a scratch buffer that points at the rendered artifact. Equation and
-fragment previews write generated wrapper sources under the XDG-backed
-`render.source_dir` and pass the source to `typst compile -` over stdin, so
-typst.nvim does not create project-local wrapper files. Rendered artifacts live
-under the XDG-backed `render.output_dir`. Register a
+fragment previews default to `render.source_mode = "stdin"`, pass source to
+`typst compile -`, and do not write generated wrapper sources. Set
+`render.source_mode = "file"` when a renderer/provider needs a real source
+file; typst.nvim writes it under `render.source_dir` and removes unremembered
+source/output files after success, stale completion, cancellation, or failure.
+Rendered artifacts live under the XDG-backed `render.output_dir`. Register a
 render provider with `display(result, opts)` to replace display, or set
 `display_provider` to `terminal`, `kitty`, `wezterm`, or `iterm` for built-in
 terminal image display. Kitty uses its graphics file-transfer protocol.
@@ -2182,6 +2188,18 @@ Defaults: >
       import_scan_max_files = 200,
       import_scan_max_depth = 3,
       import_scan_max_entries = 2000,
+      import_scan_skip_dirs = {
+        ".git",
+        "node_modules",
+        ".direnv",
+        ".cache",
+        "target",
+        "build",
+        "dist",
+        "vendor",
+        ".venv",
+        "__pycache__",
+      },
       persist_main = true,
       warn_on_low_confidence_main = true,
       index = {
@@ -2631,8 +2649,10 @@ Defaults: >
 Project and main-file resolution are explained in |typst-projects|. The
 configuration keys that affect that model are `root_markers`, `main`,
 `project.import_scan`, `project.import_scan_max_files`,
-`project.import_scan_max_depth`, `project.import_scan_max_entries`, and
-`project.persist_main`.
+`project.import_scan_max_depth`, `project.import_scan_max_entries`,
+`project.import_scan_skip_dirs`, and `project.persist_main`.
+`project.import_scan_skip_dirs` entries are directory basenames, not paths or
+glob patterns. Use "build" rather than "build/" or "foo/build".
 
 Set any mapping to `false` to leave it unbound, or set `mappings.enabled` to
 `false` to disable all default Typst buffer mappings.
@@ -3318,13 +3338,15 @@ completion sources, Tinymist requests, and preview refresh. The defaults favor
 a useful out-of-box workflow, but large repositories may need tighter settings.
 
 Project import scanning is bounded by `project.import_scan_max_files`,
-`project.import_scan_max_depth`, and `project.import_scan_max_entries`. It is
-kept in a short-lived cache keyed by path, root, config generation, and root
-metadata, and |:TypstClearCache| clears it immediately. Buffer attach defers
-the scan so opening a leaf file can use a fast fallback first; command paths
-force any pending scan before they operate. When a scan root exceeds the entry
-cap, typst.nvim abandons that import-scan attempt and falls back to later
-main-file heuristics before candidate files are read.
+`project.import_scan_max_depth`, and `project.import_scan_max_entries`. It skips
+directory basenames listed in `project.import_scan_skip_dirs` before spending
+filesystem-entry budget, is kept in a short-lived cache keyed by path, root,
+config generation, and root metadata, and |:TypstClearCache| clears it
+immediately. Buffer attach defers the scan so opening a leaf file can use a
+fast fallback first; command paths force any pending scan before they operate.
+When a scan root exceeds the entry cap, typst.nvim abandons that import-scan
+attempt and falls back to later main-file heuristics before candidate files are
+read.
 If deferred import scanning is still too expensive, inspect |:TypstInfo|, lower
 `project.import_scan_max_entries`, disable `project.import_scan`, or set a
 `.typstmain`/`:TypstSetMain` decision.

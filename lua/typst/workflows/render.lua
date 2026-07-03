@@ -193,8 +193,11 @@ local function output_path(project, kind, opts)
     local source_path = project.main
     local stdin_source = false
     if kind ~= "page" then
-        if type(cfg.source_dir) == "string" and cfg.source_dir ~= "" then
-            local source_dir = util.resolve_path(cfg.source_dir, project.root)
+        if cfg.source_mode == "file" then
+            local source_dir = util.resolve_path(
+                cfg.source_dir or config.default_render_source_dir(),
+                project.root
+            )
             source_path = util.join(source_dir, ("%s.typ"):format(key))
         else
             stdin_source = true
@@ -250,10 +253,11 @@ end
 
 local function command_for(project, source_path, output, opts)
     local cfg = config.unsafe_get()
+    local compile_root = opts.compile_root or project.root
     local command = vim.list_extend(util.command_prefix(cfg.executable), {
         "compile",
         "--root",
-        project.root,
+        compile_root,
         "--format",
         opts.format or render_config(opts).output_format or "svg",
     })
@@ -279,12 +283,25 @@ local function write_source(path, source)
     )
 end
 
+local function virtual_source_path(path)
+    return type(path) == "string"
+        and path:match("^<typst%.nvim%-render:") ~= nil
+end
+
 local function generated_source_mode(project, source_path, stdin_source)
     if stdin_source then
         return "stdin"
     end
 
     local dir = util.dirname(source_path)
+    local xdg_source_dir = config.default_render_source_dir()
+    if
+        util.path_within(dir, xdg_source_dir)
+        or util.same_path(dir, xdg_source_dir)
+    then
+        return "file"
+    end
+
     if util.path_within(dir, project.root) then
         if util.same_path(dir, project.root) then
             return nil,
@@ -294,17 +311,9 @@ local function generated_source_mode(project, source_path, stdin_source)
         return "file"
     end
 
-    local xdg_source_dir = config.default_render_source_dir()
-    if
-        util.path_within(dir, xdg_source_dir)
-        or util.same_path(dir, xdg_source_dir)
-    then
-        return "stdin"
-    end
-
     return nil,
         "source_outside_root",
-        ("Typst render source directory must be inside the project root: %s"):format(
+        ("Typst render file source directory must be inside the project root or default render source cache: %s"):format(
             dir
         )
 end
@@ -312,6 +321,7 @@ end
 local function cleanup_generated_source(project, source_path, reason)
     if
         not source_path
+        or virtual_source_path(source_path)
         or util.same_path(source_path, project.main)
         or vim.fn.filereadable(source_path) ~= 1
     then
@@ -334,12 +344,25 @@ local function delete_cache_source(dir, source_path)
     if
         type(source_path) == "string"
         and source_path ~= ""
+        and not virtual_source_path(source_path)
         and util.path_within(source_path, dir)
         and not util.same_path(source_path, dir)
     then
         return output_policy.delete_render_cache_file(dir, source_path)
     end
     return true
+end
+
+local function compile_root_for_source(project, source_path, source_mode)
+    if source_mode ~= "file" then
+        return project.root
+    end
+
+    local dir = util.dirname(source_path)
+    if util.path_within(dir, project.root) then
+        return project.root
+    end
+    return config.default_render_source_dir()
 end
 
 local function cached_result(project, kind, opts)
@@ -424,7 +447,7 @@ local function cleanup_unremembered(result, project, reason)
         log.add("debug", "removed unremembered render files", {
             kind = result.kind,
             path = result.path,
-            source_path = source_path,
+            source_path = result.source_path,
             reason = reason,
         })
     end
@@ -575,7 +598,7 @@ local function render_source(project, kind, source, opts, callback, notify)
         }
     end
 
-    if source_mode ~= "stdin" or not stdin_source then
+    if source_mode == "file" then
         local ok, err = write_source(source_path, source)
         if not ok then
             output_ownership.release(lease)
@@ -590,6 +613,8 @@ local function render_source(project, kind, source, opts, callback, notify)
     end
 
     opts.stdin_source = source_mode == "stdin"
+    opts.compile_root =
+        compile_root_for_source(project, source_path, source_mode)
     local command = command_for(project, source_path, path, opts)
     local result = {
         ok = true,

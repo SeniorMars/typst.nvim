@@ -345,6 +345,10 @@ local function validate_render(render)
         error("typst.nvim: render.source_dir must be a string or nil")
     end
 
+    if render.source_mode ~= "stdin" and render.source_mode ~= "file" then
+        error('typst.nvim: render.source_mode must be "stdin" or "file"')
+    end
+
     if type(render.timeout_ms) ~= "number" or render.timeout_ms < 0 then
         error("typst.nvim: render.timeout_ms must be a non-negative number")
     end

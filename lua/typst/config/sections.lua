@@ -90,6 +90,26 @@ function M.project(project)
         )
     end
 
+    if type(project.import_scan_skip_dirs) ~= "table" then
+        error("typst.nvim: project.import_scan_skip_dirs must be a list")
+    end
+    for index, value in ipairs(project.import_scan_skip_dirs) do
+        if type(value) ~= "string" or value == "" then
+            error(
+                ("typst.nvim: project.import_scan_skip_dirs[%d] must be a non-empty string"):format(
+                    index
+                )
+            )
+        end
+        if value:find("[/\\]") then
+            error(
+                ("typst.nvim: project.import_scan_skip_dirs[%d] must be a directory name, not a path"):format(
+                    index
+                )
+            )
+        end
+    end
+
     if project.index ~= nil and type(project.index) ~= "table" then
         error("typst.nvim: project.index must be a table or nil")
     end

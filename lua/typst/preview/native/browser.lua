@@ -197,6 +197,7 @@ function M.open_output(project, opts, resolved)
             host = preview_server.host,
             port = preview_server.port,
             project_key = project.key,
+            token = session.remote_token(browser, preview_server.host),
             output = path,
             export = export,
             generation = tostring(
@@ -368,6 +369,7 @@ function M.refresh_output(project, result, resolved, refresh_generation)
     end
 
     preview_service.set(project, {
+        clear = { "last_error" },
         last_backend = "native-browser-refresh",
         last_output = active_output,
         active_output = active_output,

@@ -37,6 +37,18 @@ function M.values()
             import_scan_max_files = 200,
             import_scan_max_depth = 3,
             import_scan_max_entries = 2000,
+            import_scan_skip_dirs = {
+                ".git",
+                "node_modules",
+                ".direnv",
+                ".cache",
+                "target",
+                "build",
+                "dist",
+                "vendor",
+                ".venv",
+                "__pycache__",
+            },
             persist_main = true,
             warn_on_low_confidence_main = true,
             index = {
@@ -88,6 +100,7 @@ function M.values()
             display_provider = nil,
             output_format = "svg",
             output_dir = M.render_output_dir(),
+            source_mode = "stdin",
             source_dir = M.render_source_dir(),
             timeout_ms = 10000,
             cache = {

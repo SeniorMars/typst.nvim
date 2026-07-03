@@ -545,6 +545,18 @@ require("typst").setup({
     import_scan_max_files = 200,
     import_scan_max_depth = 3,
     import_scan_max_entries = 2000,
+    import_scan_skip_dirs = {
+      ".git",
+      "node_modules",
+      ".direnv",
+      ".cache",
+      "target",
+      "build",
+      "dist",
+      "vendor",
+      ".venv",
+      "__pycache__",
+    },
     persist_main = true,
     warn_on_low_confidence_main = true,
     index = {
@@ -958,6 +970,9 @@ require("typst").setup({
 })
 ```
 
+`project.import_scan_skip_dirs` entries are directory basenames, not paths or
+glob patterns. Use `"build"` rather than `"build/"` or `"foo/build"`.
+
 `:TypstPreview` uses `preview.open` when configured. Otherwise it uses the native
 typst.nvim preview provider. The default native target is `preview.native =
 "viewer"`, which opens the current compiler output through the configured PDF
@@ -1039,8 +1054,11 @@ shell path, and last error. By default, leave `preview.browser.app = nil` and
 only when you want a specific browser. The URL is also available as
 `g:typst_nvim_last_preview_url` so it can be copied with
 `:let @+ = g:typst_nvim_last_preview_url`. For SSH, WSL, containers, or remote
-Neovim sessions, either set `preview.browser.host` to a reachable interface and
-open the reported URL manually, or configure explicit opener commands:
+Neovim sessions, prefer keeping the server on loopback and configure explicit
+opener commands. Binding to a reachable interface requires
+`preview.browser.allow_remote = true`; only enable it on trusted networks.
+Remote browser routes include a token by default through
+`preview.browser.token = "auto"`, or you can set a fixed non-empty token.
 
 ```lua
 require("typst").setup({
@@ -1048,6 +1066,8 @@ require("typst").setup({
     native = "browser",
     browser = {
       host = "127.0.0.1",
+      -- Set allow_remote = true only with a non-loopback host on trusted networks.
+      -- token = "auto" protects remote routes with a per-route token.
       -- Optional local browser picker:
       -- app = "chrome",
       -- Lower-level opener override for remote environments:
@@ -1172,10 +1192,12 @@ renders an equation expression or selection, `:TypstPreviewImage [path]`
 previews an image path under the cursor, and `:TypstPreviewPage [page]` renders
 one document page. Outputs are cached under `render.output_dir`, keyed by
 source, project context, format, page, and executable. Equation and fragment
-previews write generated wrapper sources under the XDG-backed
-`render.source_dir` and pass the source to `typst compile -` over stdin, so
-typst.nvim does not create project-local wrapper files. Rendered artifacts live
-under the XDG-backed `render.output_dir`.
+previews default to `render.source_mode = "stdin"`, pass source to
+`typst compile -`, and do not write generated wrapper sources. Set
+`render.source_mode = "file"` when a renderer/provider needs a real source
+file; typst.nvim writes it under `render.source_dir` and removes unremembered
+source/output files after success, stale completion, cancellation, or failure.
+Rendered artifacts live under the XDG-backed `render.output_dir`.
 `:TypstRenderCacheClear`
 clears manifest-owned render cache entries, while `:TypstRenderCacheClear!`
 forcibly removes the configured render cache directory only when typst.nvim can
@@ -1931,7 +1953,7 @@ documents may need tighter caps.
 
 | Area | Settings | Guidance |
 | --- | --- | --- |
-| Main-file discovery | `project.import_scan`, `project.import_scan_max_files`, `project.import_scan_max_depth`, `project.import_scan_max_entries` | Import scanning is deferred from attach and uses a short-lived cache keyed by path/root/config/root metadata. Set `.typstmain` or `:TypstSetMain` for deterministic large projects; disable import scan on slow remote trees. |
+| Main-file discovery | `project.import_scan`, `project.import_scan_max_files`, `project.import_scan_max_depth`, `project.import_scan_max_entries`, `project.import_scan_skip_dirs` | Import scanning is deferred from attach and uses a short-lived cache keyed by path/root/config/root metadata. It skips common generated/cache directories by default. Set `.typstmain` or `:TypstSetMain` for deterministic large projects; disable import scan on slow remote trees. |
 | Project index | `project.index.max_file_bytes`, `project.index.large_file_policy`, `project.index.fs_watchers` | Keep `"skip"` for the cheapest unloaded-file behavior. Use `"headings-only"` when headings/imports matter, but it still reads oversized files. Use `"scan"` only for trusted projects where full oversized-file indexing is worth the cost. |
 | Completion scans | `completion.path_scan_entry_max`, `completion.path_scan_max`, `completion.path_scan_cache_ms`, `completion.package_scan_max`, `completion.csl_scan_max`, `completion.font_scan_timeout_ms` | Lower caps when path/package completion is noisy. Set `path_scan_cache_ms = 0` to disable the brief directory cache; set `font_scan_timeout_ms = 0` to skip the `typst fonts` scan. |
 | Conceal/rendering | `conceal.enabled`, `conceal.viewport_margin`, `conceal.categories`, `conceal.renderer.mode`, `conceal.renderer.image.enabled` | Disable categories you do not use before disabling conceal entirely. Reduce `viewport_margin` for very large buffers; image conceal is opt-in and should stay off unless terminal image rendering is part of the workflow. |

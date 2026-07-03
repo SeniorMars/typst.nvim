@@ -591,6 +591,13 @@ Callers may read service snapshots. They should not add arbitrary fields to a
 service table unless they own that service. New persistent fields need a clear
 owner, reset path, and test coverage for attach/detach/reset behavior.
 
+Compiler lifecycle fields should move through named transition helpers in
+`typst.project.services.compiler`: compile start/finish, watch start/cycle/exit,
+confirmed stop, unconfirmed stop, and force-clear. The generic `set()` helper
+remains for compatibility and tests, but new compiler lifecycle code should use
+the transition helpers so generation, active handle, output lease, and status
+semantics stay together.
+
 Events should be emitted after the corresponding service state is visible to
 event handlers. For example, compile-start events must fire after the active
 process or watcher handle is stored.

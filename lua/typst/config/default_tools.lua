@@ -232,6 +232,8 @@ function M.preview()
         fallback = "view",
         browser = {
             host = "127.0.0.1",
+            allow_remote = false,
+            token = "auto",
             port = 0,
             server = true,
             output_dir = xdg.preview_output_dir(),

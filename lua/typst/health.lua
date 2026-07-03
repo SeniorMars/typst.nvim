@@ -13,6 +13,7 @@ local artifacts_service = require("typst.project.services.artifacts")
 local compiler_service = require("typst.project.services.compiler")
 local index_service = require("typst.project.services.index")
 local preview_service = require("typst.project.services.preview")
+local resource_session = require("typst.resources.session")
 local output_ownership = require("typst.resources.outputs")
 local util = require("typst.core.util")
 local viewer = require("typst.viewer")
@@ -34,6 +35,13 @@ end
 local function warn(message)
     local h = health()
     return (h.warn or h.report_warn)(message)
+end
+
+local function loopback_host(host)
+    return host == "127.0.0.1"
+        or host == "localhost"
+        or host == "::1"
+        or host == "[::1]"
 end
 
 local function info(message)
@@ -374,11 +382,31 @@ local function preview_export_count_label(state)
     return table.concat(labels, ",")
 end
 
+local function blocker_count_label(blockers)
+    if type(blockers) ~= "table" or #blockers == 0 then
+        return nil
+    end
+
+    local counts = {}
+    for _, blocker in ipairs(blockers) do
+        local kind = blocker.kind or "unknown"
+        counts[kind] = (counts[kind] or 0) + 1
+    end
+    local keys = vim.tbl_keys(counts)
+    table.sort(keys)
+    local labels = {}
+    for _, key in ipairs(keys) do
+        labels[#labels + 1] = ("%s:%d"):format(key, counts[key])
+    end
+    return table.concat(labels, ",")
+end
+
 local function project_status_line(state)
     local resolution = state.last_resolution or {}
     local compiler_state = compiler_service.get(state) or {}
     local index_state = index_service.get(state) or {}
     local preview_state = preview_service.get(state) or {}
+    local resource_state = resource_session.snapshot(state) or {}
     local native_preview = native_preview_session.project_state(state)
     local index_stats = index_state.stats or {}
     local fields = {
@@ -546,6 +574,11 @@ local function project_status_line(state)
         fields[#fields + 1] = ("watcher_command=%s"):format(
             table.concat(compiler_state.watcher.command, " ")
         )
+    end
+
+    local blocker_counts = blocker_count_label(resource_state.blockers)
+    if blocker_counts then
+        fields[#fields + 1] = ("blockers=%s"):format(blocker_counts)
     end
 
     return table.concat(fields, " ")
@@ -871,6 +904,21 @@ function M.check()
         ok("Preview: native browser with viewer fallback")
     else
         ok("Preview: native viewer")
+    end
+    if
+        opts.preview.browser
+        and opts.preview.browser.server ~= false
+        and not loopback_host(opts.preview.browser.host or "127.0.0.1")
+    then
+        if opts.preview.browser.allow_remote == true then
+            warn(
+                "Preview browser server is configured for a non-loopback host; only enable this on trusted networks"
+            )
+        else
+            warn(
+                "Preview browser server non-loopback hosts are refused unless preview.browser.allow_remote = true"
+            )
+        end
     end
 
     start("typst.nvim projects")

@@ -111,8 +111,16 @@ function M.detect(path, bufnr, opts)
     return util.dirname(path), "buffer directory"
 end
 
-local function skip_scan_dir(name)
-    return name == ".git" or name == "node_modules" or name == ".direnv"
+local function skip_dir_set(project_opts)
+    local set = {}
+    for _, name in ipairs(project_opts.import_scan_skip_dirs or {}) do
+        set[name] = true
+    end
+    return set
+end
+
+local function skip_scan_dir(name, skip_dirs)
+    return skip_dirs[name] == true
 end
 
 local REMAINING_SCAN_DIR_BUDGET = 64
@@ -121,7 +129,8 @@ local function scan_has_remaining_candidates(
     handle,
     current_dir,
     queue,
-    count_entry
+    count_entry,
+    skip_dirs
 )
     local pending = vim.deepcopy(queue or {})
     while handle do
@@ -135,7 +144,7 @@ local function scan_has_remaining_candidates(
         if kind == "file" and name:match("%.typ$") then
             return true, false
         end
-        if kind == "directory" and not skip_scan_dir(name) then
+        if kind == "directory" and not skip_scan_dir(name, skip_dirs) then
             pending[#pending + 1] = util.join(current_dir, name)
         end
     end
@@ -159,7 +168,9 @@ local function scan_has_remaining_candidates(
                 if kind == "file" and name:match("%.typ$") then
                     return true, false
                 end
-                if kind == "directory" and not skip_scan_dir(name) then
+                if
+                    kind == "directory" and not skip_scan_dir(name, skip_dirs)
+                then
                     pending[#pending + 1] = util.join(dir, name)
                 end
             end
@@ -169,7 +180,7 @@ local function scan_has_remaining_candidates(
     return false, false
 end
 
-local function collect_typst_files(root, limit, entry_limit)
+local function collect_typst_files(root, limit, entry_limit, skip_dirs)
     local files = {}
     local queue = { root }
     local seen_dirs = {}
@@ -210,7 +221,8 @@ local function collect_typst_files(root, limit, entry_limit)
                                 handle,
                                 dir,
                                 queue,
-                                count_entry
+                                count_entry,
+                                skip_dirs
                             )
                         hit_limit = has_remaining == true
                         if helper_hit_entry_limit then
@@ -218,7 +230,9 @@ local function collect_typst_files(root, limit, entry_limit)
                         end
                         break
                     end
-                elseif kind == "directory" and not skip_scan_dir(name) then
+                elseif
+                    kind == "directory" and not skip_scan_dir(name, skip_dirs)
+                then
                     queue[#queue + 1] = full
                 end
             end
@@ -316,6 +330,8 @@ local function import_scan_key(path, root, root_source, project_opts)
     end
     local root_stat = uv.fs_stat(root) or {}
     local root_mtime = root_stat.mtime or {}
+    local skip_dirs = vim.deepcopy(project_opts.import_scan_skip_dirs or {})
+    table.sort(skip_dirs)
 
     return table.concat({
         util.path_key(path),
@@ -324,6 +340,7 @@ local function import_scan_key(path, root, root_source, project_opts)
         tostring(project_opts.import_scan_max_files or 200),
         tostring(project_opts.import_scan_max_depth or 0),
         tostring(project_opts.import_scan_max_entries or 2000),
+        table.concat(skip_dirs, "\0"),
         tostring(config_generation),
         tostring(root_stat.size or 0),
         tostring(root_mtime.sec or 0),
@@ -426,6 +443,7 @@ function M.import_scan_main(path, root, root_source, opts)
     -- unbounded recursive search.
     local max_files = project_opts.import_scan_max_files or 200
     local max_entries = project_opts.import_scan_max_entries or 2000
+    local skip_dirs = skip_dir_set(project_opts)
     local started_at = uv.hrtime()
     local result = telemetry.time("project.import_scan", function()
         import_scan_stats.scans = import_scan_stats.scans + 1
@@ -433,8 +451,12 @@ function M.import_scan_main(path, root, root_source, opts)
             ipairs(import_scan_roots(root, root_source, project_opts))
         do
             local matches = {}
-            local candidates, hit_limit, scan_info =
-                collect_typst_files(scan_root, max_files, max_entries)
+            local candidates, hit_limit, scan_info = collect_typst_files(
+                scan_root,
+                max_files,
+                max_entries,
+                skip_dirs
+            )
             scan_info = scan_info or {}
             import_scan_stats.entries = import_scan_stats.entries
                 + (scan_info.entries or 0)

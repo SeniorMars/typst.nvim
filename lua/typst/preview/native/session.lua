@@ -10,12 +10,93 @@ local files = {}
 local refresh_generations = {}
 local forward_generations = {}
 
+local function encode_component(value)
+    value = tostring(value or "")
+    return (
+        value:gsub("([^%w%-_%.~])", function(char)
+            return ("%%%02X"):format(char:byte())
+        end)
+    )
+end
+
+local function hex(bytes)
+    local out = {}
+    for index = 1, #bytes do
+        out[#out + 1] = ("%02x"):format(bytes:byte(index))
+    end
+    return table.concat(out)
+end
+
+local function random_token()
+    if uv and type(uv.random) == "function" then
+        local ok, bytes = pcall(uv.random, 16)
+        if ok and type(bytes) == "string" and #bytes > 0 then
+            return hex(bytes)
+        end
+    end
+    return vim.fn
+        .sha256(
+            ("%s:%s:%s:%s"):format(
+                uv and uv.hrtime() or os.clock(),
+                uv and uv.os_getpid() or 0,
+                math.random(),
+                tostring({})
+            )
+        )
+        :sub(1, 32)
+end
+
+local function loopback_host(host)
+    return host == "127.0.0.1"
+        or host == "localhost"
+        or host == "::1"
+        or host == "[::1]"
+end
+
+function M.remote_token(browser, host)
+    if loopback_host(host or "127.0.0.1") then
+        return nil
+    end
+
+    local token = browser and browser.token or "auto"
+    if type(token) == "string" and token ~= "" and token ~= "auto" then
+        return token
+    end
+    return random_token()
+end
+
 function M.project_id(project)
     return project_id.project_id(project)
 end
 
+function M.resource_path(route, leaf)
+    local path = ("/preview/%s/"):format(route.id)
+    if type(leaf) == "string" and leaf ~= "" and leaf ~= "index" then
+        path = path .. leaf
+    end
+    if type(route.token) == "string" and route.token ~= "" then
+        path = path .. "?token=" .. encode_component(route.token)
+    end
+    return path
+end
+
+function M.relative_resource_path(route, leaf)
+    local path = leaf or ""
+    if path == "" or path == "index" then
+        path = "."
+    end
+    if type(route.token) == "string" and route.token ~= "" then
+        path = path .. "?token=" .. encode_component(route.token)
+    end
+    return path
+end
+
 function M.route_url(route)
-    return ("http://%s:%d/preview/%s/"):format(route.host, route.port, route.id)
+    return ("http://%s:%d%s"):format(
+        route.host,
+        route.port,
+        M.resource_path(route, "index")
+    )
 end
 
 function M.set_route(project, fields)
@@ -270,6 +351,7 @@ function M.state_payload(route)
         ok = true,
         id = route.id,
         output = route.output,
+        output_url = M.relative_resource_path(route, "artifact"),
         output_name = route.output and util.basename(route.output) or nil,
         output_format = metadata.output_format,
         output_kind = metadata.output_kind,
@@ -279,7 +361,8 @@ function M.state_payload(route)
         generation = route.generation,
         mtime = metadata.mtime,
         source_sync = vim.deepcopy(route.source_sync or {}),
-        sync_url = "source-sync",
+        sync_url = M.relative_resource_path(route, "source-sync"),
+        token_required = type(route.token) == "string" and route.token ~= "",
         forward_target = vim.deepcopy(route.forward_target),
     }
 end

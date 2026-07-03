@@ -285,6 +285,22 @@ function M.preview(preview)
         error("typst.nvim: preview.browser.server must be a boolean")
     end
 
+    if type(preview.browser.allow_remote) ~= "boolean" then
+        error("typst.nvim: preview.browser.allow_remote must be a boolean")
+    end
+
+    if
+        preview.browser.token ~= "auto"
+        and (
+            type(preview.browser.token) ~= "string"
+            or preview.browser.token == ""
+        )
+    then
+        error(
+            'typst.nvim: preview.browser.token must be "auto" or a non-empty string'
+        )
+    end
+
     if
         type(preview.browser.output_dir) ~= "string"
         or preview.browser.output_dir == ""
