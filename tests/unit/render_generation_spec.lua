@@ -16,6 +16,7 @@ typst.setup({
     root = generation_root,
     render = {
         output_dir = typst_test_cache_path("render-generation-output"),
+        source_mode = "file",
         source_dir = generation_root .. "/render-generation-sources",
         provider = function(_, _, callback)
             provider_callbacks[#provider_callbacks + 1] = callback
@@ -64,6 +65,7 @@ typst.setup({
     output_dir = typst_test_cache_path("render-cancel-output"),
     render = {
         output_dir = typst_test_cache_path("render-cancel-cache"),
+        source_mode = "file",
         source_dir = cancel_root .. "/render-cancel-sources",
         output_format = "svg",
     },
@@ -120,6 +122,7 @@ typst.setup({
     output_dir = typst_test_cache_path("render-failure-output"),
     render = {
         output_dir = typst_test_cache_path("render-failure-cache"),
+        source_mode = "file",
         source_dir = failure_root .. "/render-failure-sources",
         output_format = "svg",
     },

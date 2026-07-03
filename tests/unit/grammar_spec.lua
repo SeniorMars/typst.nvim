@@ -72,6 +72,8 @@ assert(
     grammar_calls == 2,
     ":TypstGrammar! should call the configured grammar provider"
 )
+vim.cmd("cclose")
+vim.api.nvim_set_current_buf(bufnr)
 
 local textidote_result = typst.tools.grammar({
     bufnr = bufnr,

@@ -258,12 +258,17 @@ if not ok then
 end
 
 local compile_calls = {}
+local compile_selected_calls = {}
 local force_clear_calls = {}
 require("typst.ui.commands.compiler").register({
     api = {
         compiler = {
             compile = function(call_opts)
                 compile_calls[#compile_calls + 1] = vim.deepcopy(call_opts)
+            end,
+            compile_selected = function(call_opts)
+                compile_selected_calls[#compile_selected_calls + 1] =
+                    vim.deepcopy(call_opts)
             end,
             force_clear = function(call_opts)
                 force_clear_calls[#force_clear_calls + 1] =
@@ -280,11 +285,39 @@ assert(
         and compile_ss_command.desc:find("Alias for :TypstCompile", 1, true),
     "TypstCompileSS description should document alias semantics"
 )
+local commands = vim.api.nvim_get_commands({})
+assert(
+    commands.TypstCompile and commands.TypstCompile.nargs == "?",
+    "TypstCompile should accept an optional profile"
+)
+assert(
+    commands.TypstCompile and commands.TypstCompile.bang == true,
+    "TypstCompile should accept bang"
+)
+assert(
+    commands.TypstCompileSelected and commands.TypstCompileSelected.nargs == "?",
+    "TypstCompileSelected should accept an optional template"
+)
+assert(
+    commands.TypstCompileSelected and commands.TypstCompileSelected.range ~= nil,
+    "TypstCompileSelected should accept a range"
+)
+assert(
+    commands.TypstCompilerForceClear
+        and commands.TypstCompilerForceClear.nargs == "?",
+    "TypstCompilerForceClear should accept an optional project key"
+)
+assert(
+    commands.TypstCompilerForceClear
+        and commands.TypstCompilerForceClear.bang == true,
+    "TypstCompilerForceClear should accept bang"
+)
 
 vim.cmd("TypstCompile")
 vim.cmd("TypstCompileSS")
 vim.cmd("TypstCompile! draft")
 vim.cmd("TypstCompileSS! draft")
+vim.cmd("1,1TypstCompileSelected article")
 vim.cmd("TypstCompilerForceClear")
 vim.cmd("TypstCompilerForceClear!")
 vim.cmd("TypstCompilerForceClear retained-project-key")
@@ -304,6 +337,13 @@ assert(
 assert(
     compile_calls[3].open == true and compile_calls[3].profile == "draft",
     "bang/profile compile commands should pass open/profile"
+)
+assert(
+    compile_selected_calls[1]
+        and compile_selected_calls[1].template == "article"
+        and compile_selected_calls[1].line1 == 1
+        and compile_selected_calls[1].line2 == 1,
+    "TypstCompileSelected should accept and forward an optional template"
 )
 assert(
     force_clear_calls[1] and force_clear_calls[1].force == false,

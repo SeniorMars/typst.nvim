@@ -198,6 +198,106 @@ local ok, err = xpcall(function()
         capped_stats.reads == 0,
         "entry-capped attach should not read candidate Typst files"
     )
+
+    cleanup()
+    root_discovery._clear_import_scan_cache()
+    local skipped_root = typst_test_cache_path("large-import-scan-skips")
+    vim.fn.delete(skipped_root, "rf")
+    vim.fn.mkdir(skipped_root .. "/chapters", "p")
+    vim.fn.mkdir(skipped_root .. "/heavy", "p")
+    local skipped_main = util.normalize(skipped_root .. "/main.typ")
+    local skipped_leaf = util.normalize(skipped_root .. "/chapters/leaf.typ")
+    vim.fn.writefile({
+        "= Skipped Import Scan",
+        '#include "chapters/leaf.typ"',
+    }, skipped_main)
+    vim.fn.writefile({ "= Leaf", "Leaf body." }, skipped_leaf)
+    for index = 1, 80 do
+        vim.fn.writefile(
+            { ("= Heavy %03d"):format(index) },
+            ("%s/heavy/generated-%03d.typ"):format(skipped_root, index)
+        )
+    end
+
+    typst.setup({
+        root_markers = {},
+        output_dir = typst_test_cache_path("large-import-scan-skips-output"),
+        project = {
+            import_scan = true,
+            import_scan_max_depth = 1,
+            import_scan_max_files = 260,
+            import_scan_max_entries = 16,
+            import_scan_skip_dirs = { "heavy" },
+        },
+    })
+
+    vim.cmd.edit(vim.fn.fnameescape(skipped_leaf))
+    vim.bo.filetype = "typst"
+    bufnr = vim.api.nvim_get_current_buf()
+    typst.project.detach(bufnr)
+    local skipped_project = assert(
+        typst.project.attach(bufnr),
+        "leaf buffer should attach before skip-dir import scan"
+    )
+    assert(
+        util.same_path(skipped_project.main, skipped_leaf),
+        "skip-dir attach should start with the leaf fallback"
+    )
+    local skipped_resolved = vim.wait(1000, function()
+        local current = registry.get(bufnr)
+        return current and util.same_path(current.main, skipped_main)
+    end, 10)
+    assert(
+        skipped_resolved,
+        "configured import-scan skip dirs should preserve entry budget for the real main"
+    )
+    local skipped_stats = root_discovery._import_scan_stats()
+    assert(
+        skipped_stats.last_hit_entry_limit == false,
+        "skip-dir import scan should not hit the entry cap"
+    )
+
+    root_discovery._clear_import_scan_cache()
+    local direct_scan_opts = {
+        project = {
+            import_scan = true,
+            import_scan_max_depth = 1,
+            import_scan_max_files = 260,
+            import_scan_max_entries = 16,
+            import_scan_skip_dirs = { "heavy", "generated" },
+        },
+    }
+    local direct_main = root_discovery.import_scan_main(
+        skipped_leaf,
+        util.dirname(skipped_leaf),
+        "buffer directory",
+        direct_scan_opts
+    )
+    assert(
+        util.same_path(direct_main, skipped_main),
+        "direct import scan should resolve the skipped-dir fixture"
+    )
+    local direct_stats = root_discovery._import_scan_stats()
+    direct_scan_opts.project.import_scan_skip_dirs = { "generated", "heavy" }
+    local cached_main = root_discovery.import_scan_main(
+        skipped_leaf,
+        util.dirname(skipped_leaf),
+        "buffer directory",
+        direct_scan_opts
+    )
+    local cached_stats = root_discovery._import_scan_stats()
+    assert(
+        util.same_path(cached_main, skipped_main),
+        "reordered skip dirs should preserve the same import-scan result"
+    )
+    assert(
+        cached_stats.cache_hits == direct_stats.cache_hits + 1,
+        "import-scan cache keys should not depend on skip-dir order"
+    )
+    assert(
+        cached_stats.scans == direct_stats.scans,
+        "reordered skip dirs should reuse the cached import-scan result"
+    )
 end, debug.traceback)
 
 cleanup()

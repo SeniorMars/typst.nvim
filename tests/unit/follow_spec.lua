@@ -11,6 +11,21 @@ typst.setup({
     output_dir = typst_test_cache_path("follow-output"),
 })
 
+vim.cmd.enew()
+local dashboard_bufnr = vim.api.nvim_get_current_buf()
+vim.bo[dashboard_bufnr].filetype = ""
+vim.api.nvim_buf_set_lines(dashboard_bufnr, 0, -1, false, { "@missing" })
+vim.api.nvim_win_set_cursor(0, { 1, 1 })
+local before_dashboard_follow = vim.tbl_count(project_registry.all())
+assert(
+    typst.navigation.follow({ open = false }) == nil,
+    "follow from a dashboard buffer should not resolve project targets"
+)
+assert(
+    vim.tbl_count(project_registry.all()) == before_dashboard_follow,
+    "follow from a dashboard buffer should not create a project"
+)
+
 local main = root .. "/tests/fixtures/basic/index-main.typ"
 vim.cmd.edit(main)
 vim.bo.filetype = "typst"

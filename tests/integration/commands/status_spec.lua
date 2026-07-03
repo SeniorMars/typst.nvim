@@ -2,6 +2,8 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local typst = require("typst")
+local operations = require("typst.project.services.operations")
+local output_ownership = require("typst.resources.outputs")
 typst.reset()
 typst.setup({
     root = root,
@@ -76,6 +78,45 @@ for _, line in ipairs(status_lines) do
     end
 end
 assert(saw_index_stats, "status_report should include index cache statistics")
+
+local retained = assert(operations.begin(project, "status-retained"))
+operations.retain(project, retained, {
+    ok = false,
+    reason = "status_fixture",
+})
+local blocker_lease = assert(
+    output_ownership.acquire(
+        typst_test_cache_path("status-output/blocker.pdf"),
+        output_ownership.owner("status-blocker", project)
+    )
+)
+snapshot = typst.ui.status()
+assert(
+    (snapshot.blocker_count or 0) >= 2,
+    "Typst status should expose resource blocker count"
+)
+local blocker_kinds = {}
+for _, blocker in ipairs(snapshot.blockers or {}) do
+    blocker_kinds[blocker.kind] = true
+end
+assert(
+    blocker_kinds.operation_retained and blocker_kinds.output_lease,
+    "Typst status should expose retained-operation and output-lease blockers"
+)
+_, status_lines = typst.ui.status_report({ echo = false })
+local status_text = table.concat(status_lines, "\n")
+assert(
+    status_text:find("blockers:", 1, true)
+        and status_text:find("operation_retained", 1, true)
+        and status_text:find("output_lease", 1, true),
+    "status_report should list resource blockers"
+)
+output_ownership.release(blocker_lease)
+operations.finish(project, retained, {
+    ok = false,
+    reason = "status_fixture_cleared",
+})
+
 require("typst.core.telemetry").time("status.spec", function() end)
 local telemetry_snapshot = typst.ui.status({ telemetry = true })
 assert(

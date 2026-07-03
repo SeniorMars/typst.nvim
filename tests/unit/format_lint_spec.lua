@@ -153,6 +153,8 @@ assert(
     "quickfix should contain lint diagnostic"
 )
 assert(lint_calls == 2, ":TypstLint! should call the configured linter")
+vim.cmd("cclose")
+vim.api.nvim_set_current_buf(bufnr)
 
 local original_get_clients = vim.lsp.get_clients
 local tinymist_namespace = vim.lsp.diagnostic.get_namespace(91001)

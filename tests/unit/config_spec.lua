@@ -88,6 +88,10 @@ assert(
     default_config.render.source_dir == util.render_source_dir(),
     "default render source_dir should use the XDG/Neovim cache path"
 )
+assert(
+    default_config.render.source_mode == "stdin",
+    "default render source_mode should avoid wrapper source files"
+)
 assert(type(default_config.api) == "table", "api config should be a table")
 assert(
     default_config.integrations.tinymist.lsp == "auto",
@@ -122,6 +126,10 @@ assert(
     "project import scan entry cap should default to 2000"
 )
 assert(
+    vim.tbl_contains(default_config.project.import_scan_skip_dirs, "build"),
+    "project import scan should skip common generated directories by default"
+)
+assert(
     default_config.project.index.max_file_bytes == 1024 * 1024,
     "project index static file cap should default to 1MiB"
 )
@@ -132,6 +140,14 @@ assert(
 assert(
     default_config.preview.browser.max_artifact_bytes == 32 * 1024 * 1024,
     "native browser artifact cap should default to 32MiB"
+)
+assert(
+    default_config.preview.browser.allow_remote == false,
+    "native browser preview should refuse remote binds by default"
+)
+assert(
+    default_config.preview.browser.token == "auto",
+    "native browser remote route tokens should default to auto"
 )
 assert(
     vim.tbl_contains(default_config.bibliography.attachment_fields, "pdf"),
@@ -198,6 +214,22 @@ local invalid_configs = {
     {
         opts = { project = { import_scan_max_entries = 0 } },
         message = "project.import_scan_max_entries",
+    },
+    {
+        opts = { project = { import_scan_skip_dirs = false } },
+        message = "project.import_scan_skip_dirs",
+    },
+    {
+        opts = { project = { import_scan_skip_dirs = { "build", "" } } },
+        message = "project.import_scan_skip_dirs%[2%]",
+    },
+    {
+        opts = { project = { import_scan_skip_dirs = { "build/" } } },
+        message = "directory name, not a path",
+    },
+    {
+        opts = { project = { import_scan_skip_dirs = { "foo\\build" } } },
+        message = "directory name, not a path",
     },
     {
         opts = { project = { index = false } },
@@ -407,6 +439,10 @@ local invalid_configs = {
     {
         opts = { render = { source_dir = false } },
         message = "render.source_dir",
+    },
+    {
+        opts = { render = { source_mode = "buffer" } },
+        message = "render.source_mode",
     },
     {
         opts = { render = { timeout_ms = -1 } },
@@ -675,6 +711,14 @@ local invalid_configs = {
     {
         opts = { preview = { browser = { server = "yes" } } },
         message = "preview.browser.server",
+    },
+    {
+        opts = { preview = { browser = { allow_remote = "yes" } } },
+        message = "preview.browser.allow_remote",
+    },
+    {
+        opts = { preview = { browser = { token = "" } } },
+        message = "preview.browser.token",
     },
     {
         opts = { preview = { browser = { output_dir = "" } } },
@@ -1239,6 +1283,7 @@ local ok, err = pcall(function()
             import_scan_max_files = 25,
             import_scan_max_depth = 1,
             import_scan_max_entries = 100,
+            import_scan_skip_dirs = { "heavy", "generated" },
             persist_main = false,
             index = {
                 fs_watchers = 64,
@@ -1353,6 +1398,7 @@ local ok, err = pcall(function()
             },
         },
         render = {
+            source_mode = "file",
             source_dir = typst_test_cache_path("custom-render-sources"),
             cache = {
                 enabled = true,
@@ -1400,6 +1446,8 @@ local ok, err = pcall(function()
             },
             browser = {
                 host = "127.0.0.1",
+                allow_remote = true,
+                token = "test-preview-token",
                 port = 12345,
                 server = false,
                 output_dir = typst_test_cache_path("browser-preview"),
@@ -1613,6 +1661,13 @@ assert(
     "project import scan entry cap should be configurable"
 )
 assert(
+    vim.deep_equal(
+        config.get().project.import_scan_skip_dirs,
+        { "heavy", "generated" }
+    ),
+    "project import scan skip dirs should be configurable"
+)
+assert(
     config.get().project.index.max_file_bytes == 512,
     "project index static file cap should be configurable"
 )
@@ -1712,6 +1767,14 @@ assert(
 assert(
     config.get().preview.browser.server == false,
     "preview browser server mode should be configurable"
+)
+assert(
+    config.get().preview.browser.allow_remote == true,
+    "preview browser remote bind opt-in should be configurable"
+)
+assert(
+    config.get().preview.browser.token == "test-preview-token",
+    "preview browser remote token should be configurable"
 )
 assert(
     config.get().preview.browser.output_dir
@@ -2026,6 +2089,10 @@ assert(
     config.get().render.source_dir
         == typst_test_cache_path("custom-render-sources"),
     "render source directory should be configurable"
+)
+assert(
+    config.get().render.source_mode == "file",
+    "render source mode should be configurable"
 )
 assert(
     config.get().compile.fragments.default == "custom",

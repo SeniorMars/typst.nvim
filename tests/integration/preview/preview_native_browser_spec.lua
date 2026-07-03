@@ -4,6 +4,8 @@ vim.opt.runtimepath:prepend(root)
 local helpers = dofile(root .. "/tests/helpers.lua")
 local html = require("typst.preview.native.html")
 local native = require("typst.preview.native")
+local preview_service = require("typst.project.services.preview")
+local resource_session = require("typst.resources.session")
 local typst = require("typst")
 local util = require("typst.core.util")
 
@@ -197,6 +199,12 @@ assert(
 
 local preview_backend = require("typst.integrations.typst_preview")
 local refresh_callbacks_before_native = refresh_callbacks
+preview_service.set(project, {
+    last_error = {
+        reason = "stale_refresh_error",
+        message = "synthetic stale refresh failure",
+    },
+})
 local refreshed = preview_backend.refresh(project, {
     code = 0,
     generation = 42,
@@ -215,6 +223,16 @@ assert(
     typst_test_preview(project).last_backend == "native-browser-refresh",
     "native browser refresh should update preview state"
 )
+assert(
+    typst_test_preview(project).last_error == nil,
+    "successful native browser refresh should clear stale refresh errors"
+)
+for _, blocker in ipairs(resource_session.blockers(project)) do
+    assert(
+        blocker.kind ~= "preview_failed",
+        "successful native browser refresh should clear preview_failed blockers"
+    )
+end
 refreshes = refreshes + 1
 
 local shell_path = typst_test_preview(project).active_shell

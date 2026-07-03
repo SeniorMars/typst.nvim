@@ -410,6 +410,9 @@ run_case("compiler provider state", function()
             and item.message:find("command=health-provider watch", 1, true)
             and item.message:find("watcher_pid=4242", 1, true)
             and item.message:find("active_leases=1", 1, true)
+            and item.message:find("blockers=", 1, true)
+            and item.message:find("compiler_watcher", 1, true)
+            and item.message:find("output_lease", 1, true)
             and item.message:find(
                 "last_output_lock_failure=foreign_lock_owner",
                 1,
@@ -590,6 +593,25 @@ run_case("tinymist ownership report", function()
     if not ok then
         error(err)
     end
+end)
+
+run_case("remote browser preview host warns", function()
+    typst.setup({
+        root = root,
+        preview = {
+            native = "browser",
+            browser = {
+                host = "0.0.0.0",
+                allow_remote = true,
+            },
+        },
+    })
+
+    local messages = capture_health()
+    assert(
+        has_message(messages, "warn", "non-loopback host"),
+        "health should warn when browser preview binds beyond loopback"
+    )
 end)
 
 vim.cmd("qa!")

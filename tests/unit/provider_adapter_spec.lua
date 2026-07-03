@@ -118,6 +118,10 @@ assert(
     "returned pending provider should return its pending handle"
 )
 assert(
+    adapter.result_like({ pending = true, reason = "starting" }) == false,
+    "pending provider handles with reason metadata should not be result-like"
+)
+assert(
     vim.wait(1000, function()
         return returned_pending_timeout ~= nil
     end, 5),
@@ -164,6 +168,37 @@ assert(
 assert(
     normalized_without_callback.reason == "timeout",
     "returned pending provider without callback should still time out"
+)
+
+local metadata_pending = adapter.invoke(
+    function()
+        return {
+            pending = true,
+            reason = "starting",
+            message = "provider is starting",
+            code = 102,
+            cancel = function()
+                return true, { stopped = true }
+            end,
+        }
+    end,
+    nil,
+    {},
+    {},
+    {
+        kind = "compiler",
+        provider_name = "metadata-pending",
+        return_mode = "handle",
+        expect_handle = true,
+        async = false,
+    }
+)
+assert(
+    metadata_pending
+        and metadata_pending.pending == true
+        and metadata_pending.reason == "starting"
+        and metadata_pending.message == "provider is starting",
+    "pending provider handles with terminal-looking metadata should remain handles"
 )
 
 local cancelled_result = nil

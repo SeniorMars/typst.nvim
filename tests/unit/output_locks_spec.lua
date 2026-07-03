@@ -1,6 +1,7 @@
 local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
+local lock_helper = require("tests.helpers.output_locks")
 local outputs = require("typst.resources.outputs")
 local log = require("typst.core.log")
 local typst = require("typst")
@@ -8,12 +9,11 @@ local uv = vim.uv or vim.loop
 
 typst.reset()
 outputs.reset()
+lock_helper.reset_lock_dir()
 
-local base = typst_test_cache_path("output-locks")
-vim.fn.delete(base, "rf")
-vim.fn.mkdir(base, "p")
+local base = lock_helper.base_dir("output-locks")
 
-local output = base .. "/main.pdf"
+local output = lock_helper.path(base, "main.pdf")
 vim.fn.mkdir(vim.fn.fnamemodify(output, ":h"), "p")
 
 local lease = assert(outputs.acquire(output, { kind = "lock-test" }))
@@ -34,16 +34,12 @@ assert(
     "output lock directory should be removed on release"
 )
 
-local stale_output = base .. "/stale.pdf"
-local stale_lock_path = outputs._lock_path(stale_output)
-vim.fn.mkdir(stale_lock_path, "p")
-vim.fn.writefile({
-    vim.json.encode({
-        pid = 999999999,
-        path = stale_output,
-        owner = { kind = "stale-lock" },
-    }),
-}, outputs._owner_path(stale_output))
+local stale_output = lock_helper.path(base, "stale.pdf")
+lock_helper.write_owner(stale_output, {
+    pid = 999999999,
+    path = stale_output,
+    owner = { kind = "stale-lock" },
+})
 local stale_lease =
     assert(outputs.acquire(stale_output, { kind = "stale-lock-recovered" }))
 local stale_lock = outputs._read_lock(stale_output)
@@ -53,10 +49,8 @@ assert(
 )
 outputs.release(stale_lease)
 
-local corrupt_output = base .. "/corrupt.pdf"
-local corrupt_lock_path = outputs._lock_path(corrupt_output)
-vim.fn.mkdir(corrupt_lock_path, "p")
-vim.fn.writefile({ "{" }, outputs._owner_path(corrupt_output))
+local corrupt_output = lock_helper.path(base, "corrupt.pdf")
+local corrupt_lock_path = lock_helper.write_raw_owner(corrupt_output, { "{" })
 local corrupt_lease, corrupt_err =
     outputs.acquire(corrupt_output, { kind = "corrupt-lock-contender" })
 assert(not corrupt_lease, "corrupt active lock should block acquisition")
@@ -68,10 +62,8 @@ assert(
 )
 vim.fn.delete(corrupt_lock_path, "rf")
 
-local empty_output = base .. "/empty-owner.pdf"
-local empty_lock_path = outputs._lock_path(empty_output)
-vim.fn.mkdir(empty_lock_path, "p")
-vim.fn.writefile({}, outputs._owner_path(empty_output))
+local empty_output = lock_helper.path(base, "empty-owner.pdf")
+local empty_lock_path = lock_helper.write_raw_owner(empty_output, {})
 local empty_lease, empty_err =
     outputs.acquire(empty_output, { kind = "empty-lock-contender" })
 assert(not empty_lease, "fresh empty owner record should block acquisition")
@@ -104,6 +96,48 @@ assert(
     "old incomplete owner record should be recovered after the short grace"
 )
 outputs.release(old_empty_lease)
+
+local old_corrupt_output = base .. "/old-corrupt-owner.pdf"
+local old_corrupt_lock_path = outputs._lock_path(old_corrupt_output)
+vim.fn.mkdir(old_corrupt_lock_path, "p")
+local old_corrupt_owner_path = outputs._owner_path(old_corrupt_output)
+vim.fn.writefile({ "{" }, old_corrupt_owner_path)
+local corrupt_utime_ok, corrupt_utime_result, corrupt_utime_err =
+    pcall(uv.fs_utime, old_corrupt_owner_path, old_time, old_time)
+assert(
+    corrupt_utime_ok and corrupt_utime_result ~= nil,
+    "test fixture should be able to age a corrupt owner record"
+        .. tostring(corrupt_utime_err and (": " .. corrupt_utime_err) or "")
+)
+local old_corrupt_lease = assert(
+    outputs.acquire(old_corrupt_output, { kind = "old-corrupt-recovered" })
+)
+local old_corrupt_lock = outputs._read_lock(old_corrupt_output)
+assert(
+    old_corrupt_lock.owner.kind == "old-corrupt-recovered",
+    "old corrupt owner record should be recovered after the short grace"
+)
+outputs.release(old_corrupt_lease)
+
+local same_pid_output = base .. "/same-pid-without-lease.pdf"
+local same_pid_lock_path = outputs._lock_path(same_pid_output)
+vim.fn.mkdir(same_pid_lock_path, "p")
+vim.fn.writefile({
+    vim.json.encode({
+        pid = uv.os_getpid(),
+        path = same_pid_output,
+        created_at = os.time(),
+        owner = { kind = "same-pid-orphan" },
+    }),
+}, outputs._owner_path(same_pid_output))
+local same_pid_lease =
+    assert(outputs.acquire(same_pid_output, { kind = "same-pid-recovered" }))
+local same_pid_lock = outputs._read_lock(same_pid_output)
+assert(
+    same_pid_lock.owner.kind == "same-pid-recovered",
+    "same-PID lock files without an in-memory lease should be recovered"
+)
+outputs.release(same_pid_lease)
 
 local live_pid = uv.os_getppid and uv.os_getppid() or nil
 if live_pid and live_pid > 0 then

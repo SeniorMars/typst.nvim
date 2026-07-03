@@ -102,6 +102,90 @@ typst.setup({
     },
 })
 
+local remote_ok, remote_err = pcall(server.start, {
+    host = "0.0.0.0",
+    port = 0,
+    allow_remote = false,
+})
+assert(
+    not remote_ok
+        and tostring(remote_err):find("preview.browser.allow_remote", 1, true),
+    "native preview server should refuse non-loopback hosts without opt-in"
+)
+assert(
+    not server.is_running(),
+    "refused remote preview bind should not leave the server running"
+)
+
+local remote_server = server.start({
+    host = "0.0.0.0",
+    port = 0,
+    allow_remote = true,
+})
+assert(
+    remote_server and server.is_running(),
+    "explicit remote preview opt-in should start the native server"
+)
+assert(
+    type(session.remote_token({ token = "auto" }, remote_server.host))
+        == "string",
+    "remote preview routes should receive an automatic token"
+)
+assert(
+    session.remote_token({ token = "fixed-token" }, remote_server.host)
+        == "fixed-token",
+    "remote preview routes should honor a configured token"
+)
+server.stop()
+
+local safe_server = server.start(config.get().preview.browser)
+assert(
+    safe_server and server.is_running(),
+    "loopback preview server should start before invalid reconfiguration"
+)
+remote_ok, remote_err = pcall(server.start, {
+    host = "0.0.0.0",
+    port = 0,
+    allow_remote = false,
+})
+assert(
+    not remote_ok
+        and tostring(remote_err):find("preview.browser.allow_remote", 1, true),
+    "native preview server should refuse non-loopback reconfiguration without opt-in"
+)
+assert(
+    server.is_running(),
+    "refused remote preview reconfiguration should keep the existing server running"
+)
+
+local original_new_tcp = uv.new_tcp
+local fake_closed = false
+uv.new_tcp = function()
+    return {
+        bind = function()
+            return nil, "synthetic bind failure"
+        end,
+        close = function()
+            fake_closed = true
+        end,
+    }
+end
+local bind_ok, bind_err = pcall(server.start, {
+    host = "127.0.0.1",
+    port = safe_server.port + 1,
+})
+uv.new_tcp = original_new_tcp
+assert(
+    not bind_ok
+        and tostring(bind_err):find("failed to bind preview server", 1, true),
+    "accepted preview reconfiguration should report bind failures"
+)
+assert(fake_closed, "failed replacement preview handle should be closed")
+assert(
+    server.is_running(),
+    "failed accepted preview reconfiguration should keep the existing server running"
+)
+
 local output_dir = typst_test_cache_path("native-server-limits")
 vim.fn.mkdir(output_dir, "p")
 local output = output_dir .. "/large.pdf"
@@ -113,6 +197,10 @@ local project = {
     main = root .. "/tests/fixtures/basic/main.typ",
 }
 local preview_server = server.start(config.get().preview.browser)
+assert(
+    preview_server.port == safe_server.port,
+    "accepted loopback configuration should reuse the existing safe server"
+)
 local route = session.set_route(project, {
     host = preview_server.host,
     port = preview_server.port,
@@ -214,6 +302,112 @@ assert(
     state_response:find("HTTP/1.1 200 OK", 1, true),
     "native preview server should handle requests after an EOF client"
 )
+
+local protected_route = session.set_route(project, {
+    host = preview_server.host,
+    port = preview_server.port,
+    output = output,
+    token = "secret-token",
+})
+assert(
+    session.route_url(protected_route):find("token=secret-token", 1, true),
+    "token-protected browser preview route URLs should include the token"
+)
+local denied_response = http_raw(
+    host,
+    port,
+    ("GET /preview/%s/state HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n"):format(
+        protected_route.id,
+        host
+    )
+)
+assert(
+    denied_response:find("HTTP/1.1 403 Forbidden", 1, true)
+        and denied_response:find("invalid_preview_token", 1, true),
+    "token-protected browser preview routes should reject missing tokens"
+)
+local wrong_state_response = http_raw(
+    host,
+    port,
+    ("GET /preview/%s/state?token=wrong HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n"):format(
+        protected_route.id,
+        host
+    )
+)
+assert(
+    wrong_state_response:find("HTTP/1.1 403 Forbidden", 1, true)
+        and wrong_state_response:find("invalid_preview_token", 1, true),
+    "token-protected browser preview state should reject wrong tokens"
+)
+local protected_state_response = http_raw(
+    host,
+    port,
+    ("GET %s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n"):format(
+        session.resource_path(protected_route, "state"),
+        host
+    )
+)
+assert(
+    protected_state_response:find("HTTP/1.1 200 OK", 1, true)
+        and protected_state_response:find("token_required", 1, true),
+    "token-protected browser preview routes should accept matching tokens"
+)
+local denied_artifact_response = http_raw(
+    host,
+    port,
+    ("GET /preview/%s/artifact HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n"):format(
+        protected_route.id,
+        host
+    )
+)
+assert(
+    denied_artifact_response:find("HTTP/1.1 403 Forbidden", 1, true)
+        and denied_artifact_response:find("invalid_preview_token", 1, true),
+    "token-protected browser preview artifacts should reject missing tokens"
+)
+local protected_artifact_response = http_raw(
+    host,
+    port,
+    ("GET %s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n"):format(
+        session.resource_path(protected_route, "artifact"),
+        host
+    )
+)
+assert(
+    protected_artifact_response:find("HTTP/1.1 200 OK", 1, true),
+    "token-protected browser preview artifacts should accept matching tokens"
+)
+local denied_source_sync_response = http_raw(
+    host,
+    port,
+    ("GET /preview/%s/source-sync HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n"):format(
+        protected_route.id,
+        host
+    )
+)
+assert(
+    denied_source_sync_response:find("HTTP/1.1 403 Forbidden", 1, true)
+        and denied_source_sync_response:find("invalid_preview_token", 1, true),
+    "token-protected browser preview source sync should reject missing tokens"
+)
+local wrong_source_sync_response = http_raw(
+    host,
+    port,
+    ("GET /preview/%s/source-sync?token=wrong HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n"):format(
+        protected_route.id,
+        host
+    )
+)
+assert(
+    wrong_source_sync_response:find("HTTP/1.1 403 Forbidden", 1, true)
+        and wrong_source_sync_response:find("invalid_preview_token", 1, true),
+    "token-protected browser preview source sync should reject wrong tokens"
+)
+session.set_route(project, {
+    host = preview_server.host,
+    port = preview_server.port,
+    output = output,
+})
 
 local second_project = {
     key = "native-server-limits-second",

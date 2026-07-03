@@ -118,6 +118,25 @@ local ok, err = xpcall(function()
         }),
         "older formatter result should not replace newer output"
     )
+
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "Keep me" })
+    local empty_result = nil
+    formatting.format({ notify = false }, function(result)
+        empty_result = result
+    end)
+    spawned[4]:finish({ code = 0, stdout = "", stderr = "" })
+    flush_scheduled()
+
+    assert(
+        empty_result and empty_result.reason == "empty_output",
+        "empty stdout from command formatters should be rejected"
+    )
+    assert(
+        vim.deep_equal(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), {
+            "Keep me",
+        }),
+        "empty stdout from command formatters should not wipe the buffer"
+    )
 end, debug.traceback)
 
 process.spawn = original_spawn

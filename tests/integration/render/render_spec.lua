@@ -59,19 +59,47 @@ assert(
 )
 assert(
     vim.tbl_contains(run.command or {}, "-"),
-    "XDG-backed equation render should compile generated source through stdin"
+    "default equation render should compile through stdin"
 )
 assert(
-    run.source_path
-        and util.path_within(
-            run.source_path,
-            config.default_render_source_dir()
-        ),
-    "default equation render source should live under the XDG render source cache"
+    run.source_path and run.source_path:find("<typst.nvim%-render:", 1) ~= nil,
+    "default equation render should use a virtual source path"
 )
 assert(
     vim.fn.filereadable(run.source_path) == 0,
-    "finished equation render should remove its XDG wrapper source"
+    "stdin equation render should not write a wrapper source"
+)
+
+local file_mode_result = nil
+local file_mode_run = typst.render.equation({
+    expression = "gamma",
+    open = false,
+    source_mode = "file",
+}, function(result)
+    file_mode_result = result
+end)
+assert(
+    file_mode_run.ok and file_mode_run.pending,
+    "file-mode equation render should start an async render"
+)
+assert(
+    file_mode_run.source_path
+        and util.path_within(
+            file_mode_run.source_path,
+            config.default_render_source_dir()
+        ),
+    "file-mode equation render source should live under the render source cache"
+)
+assert(
+    vim.wait(10000, function()
+        return file_mode_result ~= nil
+    end, 20),
+    "file-mode equation render did not finish"
+)
+assert(file_mode_result.ok, "file-mode equation render should succeed")
+assert(
+    vim.fn.filereadable(file_mode_run.source_path) == 0,
+    "finished file-mode equation render should remove its wrapper source"
 )
 
 local cached =
