@@ -18,6 +18,7 @@ specs=(
   tests/unit/path_spec.lua
   tests/unit/unicode_paths_spec.lua
   tests/unit/process_spec.lua
+  tests/unit/operation_process_tree_cancel_spec.lua
   tests/integration/watch/process_spec.lua
   tests/unit/lifecycle_matrix_spec.lua
   tests/integration/project/lifecycle_spec.lua

@@ -43,6 +43,7 @@ for _, required in ipairs({
     "completion.package_cache_ttl_ms",
     "completion.package_cache_prewarm",
     "diagnostics.font_scan_timeout_ms",
+    "diagnostics.max_buffers_per_publish",
     "format.timeout_ms",
     "preview.browser.export.mode",
     "preview.browser.refresh_ms",

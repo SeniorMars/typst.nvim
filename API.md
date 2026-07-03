@@ -24,8 +24,8 @@ namespaces with explicit stable entry points, while editing, completion,
 artifacts, metadata, providers, navigation, preview helpers, and development
 workflows are pre-1.0 experimental unless a dotted symbol is listed in the
 stable block. Internal modules under `typst.core`, `typst.resources`,
-`typst.project.services`, `typst.runtime`, and `typst.internal` can still
-change unless promoted here.
+`typst.project.store`, `typst.project.registry`, `typst.project.services`,
+`typst.runtime`, and `typst.internal` can still change unless promoted here.
 
 ### Pre-1.0 Tier Narrowing
 
@@ -477,6 +477,28 @@ for the current buffer path; `:TypstSetMain` uses this persistent mode. When a
 buffer is renamed with `:saveas`, the saved choice follows the new buffer path.
 Unreadable explicit main paths are ignored, and stale `vim.b.typst_main`
 values are cleared when project state is re-resolved.
+Stable project methods that return project state return copied public snapshots:
+`project.attach`, `project.detach`, `project.get`, `project.projects`,
+`project.reload_state`, `project.set_main`, `project.snapshot`, and
+`project.toggle_main().state`. Mutating these snapshots never mutates the live
+project registry.
+
+### Migration: public project methods now return snapshots
+
+Before this hardening release, some public project methods returned live project
+tables. They now return copied public snapshots. Code that only reads identity,
+root, main, output, status, files, dependencies, diagnostics, and artifacts
+should continue to work. Code that mutates services, buffers, resolutions, or
+compiler state must move behind a provider, a public command/API call, or an
+internal typst.nvim module. User configs and external integrations should not
+require `typst.project.store` or `typst.project.registry`; tests and internal
+runtime modules may use those live-state modules deliberately.
+
+Project-scoped public APIs resolve a snapshot back to live state by project key
+and a session-local project instance token. If the backing project has been
+pruned, or if the same root/main key has been recreated as a new project
+instance, explicit snapshot inputs fail with `unknown_project_key` instead of
+operating on copied or unrelated service tables.
 Attached project tables expose `dependency_sources` and `file_sources` with
 `explicit`, `compiler`, or `heuristic` values; existing project graph
 attachment prefers explicit associations, then compiler-discovered edges, then

@@ -4,6 +4,29 @@ typst.nvim keeps the broad unit suite separate from a few release-specific gates
 These gates target areas where correctness depends on external frontends,
 operating systems, or large-project latency.
 
+## Stable Core
+
+`tests/run_stability_gate.sh` is the feature-freeze gate for lifecycle-critical
+contracts. It runs a focused set of API, command, cache, output-lock, provider,
+process-tree, project lifecycle, compiler lifecycle, watch, resource-supervisor,
+and native-preview fast-event specs. This gate should stay short enough for
+every pull request and strict enough to block new feature work when core
+stability regresses.
+
+`tests/run_lifecycle_matrix.sh` is the broader lifecycle matrix. It covers
+attach/detach, compiler, watch, preview, process, and resource-supervisor
+combinations that are too broad for the short stability gate but still need a
+named CI lane before stable-core release.
+
+`tests/run_docs_contract.sh` is the docs and public-contract gate. It keeps
+runtime API symbols, command registration, mappings, API docs, generated config
+docs/schema, provider contracts, parity docs, and architecture ownership
+contracts aligned.
+
+The release checklist lives in `docs/stable-core-checklist.md`. Stable-core
+release candidates should complete that checklist before broad feature work
+resumes.
+
 ## Performance
 
 `tests/run_performance_gate.sh` runs the normal runtime performance spec plus a
@@ -87,9 +110,10 @@ compatibility.
 
 Flat workflow aliases are intentionally not exported. CI checks command and API
 documentation against the runtime registry to avoid unintentional public surface
-drift. `tests/run_api_stability.sh` is the dedicated release gate for this
+drift. `tests/run_docs_contract.sh` is the dedicated release gate for this
 policy and runs the runtime API contract, docs contract, generated config
-schema/doc contract, alias policy, provider contract, and parity-doc checks
-together. Config reference output is generated with `just config-docs`, which
-refreshes `docs/config-reference.md` and `data/config-schema.json` from the
-runtime defaults.
+schema/doc contract, alias policy, provider contract, parity-doc checks, and
+architecture ownership policy together. `tests/run_api_stability.sh` remains a
+compatibility wrapper around the same gate. Config reference output is generated
+with `just config-docs`, which refreshes `docs/config-reference.md` and
+`data/config-schema.json` from the runtime defaults.

@@ -8,6 +8,7 @@ export TYPST_NVIM_PERF_REPORT_DIR="${TYPST_NVIM_PERF_REPORT_DIR:-${XDG_CACHE_HOM
 mkdir -p "${TYPST_NVIM_PERF_REPORT_DIR}"
 
 specs=(
+  tests/performance/startup_spec.lua
   tests/performance/performance_spec.lua
   tests/performance/large_project_performance_spec.lua
 )

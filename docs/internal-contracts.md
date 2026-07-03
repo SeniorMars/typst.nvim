@@ -18,6 +18,27 @@ sync, and user-facing APIs should normalize into `row` plus `byte_col` before
 publishing or storing results. Boundary code must clamp malformed positions to
 the target line before passing them to Neovim APIs.
 
+Diagnostic parsing may `bufadd()` unloaded files so Neovim can own diagnostics
+for files outside the current window. To avoid unbounded hidden-buffer growth
+from malformed provider output, new diagnostic buffers are capped by
+`diagnostics.max_buffers_per_publish`; diagnostics for already accepted buffers
+continue to publish within the same batch. Set the cap to `0` to disable it.
+The cap applies to parser-created hidden buffers. Providers that return native
+`by_buffer` diagnostics are expected to supply valid existing buffer numbers and
+are not path-expanded by the parser.
+
+## Public Project Snapshots
+
+`typst.project.get()`, `typst.project.all()`, `typst.project.snapshot()`, and
+stable workflow methods that return project state (`attach`, `detach`,
+`set_main`, `reload_state`, and `toggle_main().state`) return public snapshots.
+They must not expose live project, service, buffer, resolution, or compiler
+tables. Snapshots include a session-local project instance token so stale
+snapshots cannot silently target a recreated project with the same key.
+Internal code that needs mutation must use `typst.project.store`; the raw
+`typst.project.registry` map is lower-level internal state and must not be
+recommended in README/help examples.
+
 ## Configuration
 
 `typst.config.get()` returns a read-only view. Use it for direct indexed reads.
@@ -58,10 +79,9 @@ Recovery policy:
 | Missing, empty, unreadable, or corrupt owner after grace period | Recovered before acquire | Removed by default cleanup |
 | Same-PID lock without an in-memory lease | Recovered before acquire | Removed by default cleanup |
 
-The stale-lock TTL is not permission to steal a live PID lock. It only keeps
-owner age visible for reporting; liveness wins over age. Force cleanup must have
-an explicit output path, lock directory, or owner-file filter so a broad bang
-cannot delete unrelated external locks.
+There is no age-only stale TTL for live PID locks: liveness wins over age.
+Force cleanup must have an explicit output path, lock directory, or owner-file
+filter so a broad bang cannot delete unrelated external locks.
 
 ## Operation Cancellation
 

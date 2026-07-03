@@ -374,6 +374,12 @@ function M._unregister_for_tests(name)
     rebuild_index()
 end
 
+---Return a copy of registered cache entries for policy tests.
+---@return table[] entries_snapshot Cache registry entry metadata.
+function M._entries_for_tests()
+    return vim.deepcopy(entries)
+end
+
 --- Return loaded/reset status for registered cache entries.
 ---@return table status Cache registry status summary.
 function M.status()

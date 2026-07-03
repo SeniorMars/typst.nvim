@@ -112,6 +112,25 @@ for _, doc in ipairs({
     )
 end
 
+for _, doc in ipairs({
+    { path = "README.md", content = readme_doc },
+    { path = "doc/typst.txt", content = help_doc },
+}) do
+    for _, internal_require in ipairs({
+        'require("typst.project.store")',
+        "require('typst.project.store')",
+        'require("typst.project.registry")',
+        "require('typst.project.registry')",
+    }) do
+        assert(
+            not doc.content:find(internal_require, 1, true),
+            doc.path
+                .. " must not recommend live project internals: "
+                .. internal_require
+        )
+    end
+end
+
 local function documented_api_examples(content)
     local examples = {}
     for symbol in content:gmatch('require%(%"typst%"%)%.([%w_%.]+)%s*%(') do

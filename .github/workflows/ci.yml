@@ -162,6 +162,70 @@ jobs:
       - name: Run fake Typst lifecycle gate
         run: bash tests/run_fake_typst_lifecycle.sh
 
+  stability-gate:
+    name: ubuntu-latest / stable-core lifecycle gate
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      XDG_STATE_HOME: ${{ runner.temp }}/typst-nvim-xdg/state
+      XDG_DATA_HOME: ${{ runner.temp }}/typst-nvim-xdg/data
+      XDG_CACHE_HOME: ${{ runner.temp }}/typst-nvim-xdg/cache
+      XDG_CONFIG_HOME: ${{ runner.temp }}/typst-nvim-xdg/config
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: 0.15.x
+
+      - name: Prepare state directories
+        run: mkdir -p "${XDG_STATE_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}" "${XDG_CONFIG_HOME}"
+
+      - name: Run stable-core lifecycle gate
+        run: bash tests/run_stability_gate.sh
+
+  lifecycle-matrix:
+    name: ubuntu-latest / lifecycle matrix gate
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      XDG_STATE_HOME: ${{ runner.temp }}/typst-nvim-xdg/state
+      XDG_DATA_HOME: ${{ runner.temp }}/typst-nvim-xdg/data
+      XDG_CACHE_HOME: ${{ runner.temp }}/typst-nvim-xdg/cache
+      XDG_CONFIG_HOME: ${{ runner.temp }}/typst-nvim-xdg/config
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - uses: typst-community/setup-typst@v5
+        with:
+          typst-version: 0.15.x
+
+      - name: Prepare state directories
+        run: mkdir -p "${XDG_STATE_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}" "${XDG_CONFIG_HOME}"
+
+      - name: Run lifecycle matrix gate
+        run: bash tests/run_lifecycle_matrix.sh
+
   docs-consistency:
     name: ubuntu-latest / generated docs consistency
     runs-on: ubuntu-latest
@@ -387,8 +451,8 @@ jobs:
       - name: Prepare state directories
         run: mkdir -p "${XDG_STATE_HOME}" "${XDG_DATA_HOME}" "${XDG_CACHE_HOME}" "${XDG_CONFIG_HOME}"
 
-      - name: Run public API stability gate
-        run: bash tests/run_api_stability.sh
+      - name: Run docs and public API contract gate
+        run: bash tests/run_docs_contract.sh
 
   frontend-smoke:
     name: ubuntu-latest / cmp and blink frontend smoke

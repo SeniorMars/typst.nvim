@@ -128,7 +128,7 @@ availability, parser/query loading, Tinymist and preview integration state,
 configuration, and attached project state.
 
 ==============================================================================
-SETUP                                                              *typst-setup*
+SETUP                                               *typst-setup* *typst-start*
 
 Minimal setup: >
 
@@ -214,7 +214,7 @@ the default motions, text objects, dot-repeat-aware structural transforms, and
 insert helpers are documented under |typst-mappings| and |typst-editing|.
 
 ==============================================================================
-PROJECT MODEL                                                   *typst-projects*
+PROJECT MODEL                         *typst-projects* *typst-main-resolution*
 
 typst.nvim keeps project state per resolved `(root, main)` pair, not globally
 per Neovim session and not simply per buffer. This allows multiple unrelated
@@ -271,7 +271,9 @@ project, typst.nvim stops any active one-shot compile or watcher before
 removing that project from the registry.
 
 ==============================================================================
-COMPILATION AND DIAGNOSTICS                                      *typst-compile*
+COMPILATION AND DIAGNOSTICS
+                                      *typst-compile* *typst-compile-lifecycle*
+                                      *typst-watch* *typst-output-locks*
 
 The built-in compiler provider runs the Typst CLI without a shell. The global
 `executable` may be a string such as `"typst"` or a list prefix such as
@@ -306,7 +308,9 @@ Use these commands when a build behaves unexpectedly:
 - |:TypstStatusAll| for all registered projects.
 
 ==============================================================================
-VIEWERS AND PREVIEW                                                  *typst-view*
+VIEWERS AND PREVIEW
+                                      *typst-view* *typst-preview-native*
+                                      *typst-source-sync*
 
 `:TypstView` opens the resolved generated output. By default this uses
 `vim.ui.open`; named viewer presets and custom `viewer.open` callbacks or
@@ -494,7 +498,7 @@ completion, signatures, symbols, emojis, and conceal data; Tinymist remains the
 semantic hover and language-documentation source.
 
 ==============================================================================
-EDITING MODEL                                                     *typst-editing*
+EDITING MODEL                                  *typst-editing* *typst-conceal*
 
 Editing helpers are buffer-local and conservative. They prefer parser-backed
 ranges, refuse incomplete syntax when preserving source would be uncertain, and
@@ -2702,6 +2706,8 @@ compiler diagnostics by default.
 window's location list, which is better when multiple Typst projects are open
 in different windows.
 
+Tinymist integration                                      *typst-tinymist*
+
 `integrations.tinymist.lsp` controls typst.nvim's Tinymist Neovim LSP
 integration. The default `"auto"` starts or reuses a Neovim built-in LSP client
 named `tinymist` when the executable is available, unless coc.nvim appears
@@ -3092,7 +3098,8 @@ Completion frontends can consume the same fallback service through
 declarations or compact generated stdlib signatures, while Tinymist remains the
 semantic hover/signature source.
 
-Provider registration is the public extension registry. >
+Provider registration is the public extension registry. *typst-provider-contracts*
+>
 
   require("typst").providers.register(kind, name, provider)
   require("typst").providers.unregister(kind, name)
@@ -3102,10 +3109,10 @@ Provider registration is the public extension registry. >
 <
 
 Supported provider kinds are `compiler`, `format`, `lint`, `grammar`,
-`viewer`, `picker`, `toc`, `index`, `export`, `eval`, `init`, `profile`,
-`test`, `bench`, `coverage`, `semantic`, and `render`. Aliases such as
-`compile`, `formatter`, `linter`, `view`, `exports`, `template`, `benchmark`,
-and `terminal_image` are
+`viewer`, `preview`, `source_map`, `picker`, `toc`, `index`, `export`, `eval`,
+`init`, `profile`, `test`, `bench`, `coverage`, `semantic`, and `render`.
+Aliases such as `compile`, `formatter`, `linter`, `view`, `exports`,
+`template`, `source_maps`, `sourcemap`, `benchmark`, and `terminal_image` are
 accepted. Registered provider names are valid string values in the
 matching config fields and per-call `opts.provider` where applicable.
 `unregister_provider()` removes and returns the provider, `get_provider()`
@@ -3506,6 +3513,7 @@ workflow functions:
   require("typst").edit.previous_heading_end()
   require("typst").edit.next_block()
   require("typst").edit.previous_block()
+
   require("typst").edit.next_block_end()
   require("typst").edit.previous_block_end()
   require("typst").edit.next_equation()
@@ -3595,6 +3603,24 @@ workflow functions:
   require("typst").conceal.custom("math")
   require("typst").providers.register(kind, name, provider)
 <
+
+Project APIs that return project state return copied public snapshots, not live
+service tables. This includes `project.attach()`, `project.detach()`,
+`project.get()`, `project.projects()`, `project.reload_state()`,
+`project.set_main()`, `project.snapshot()`, and `project.toggle_main().state`.
+Mutating those tables never mutates typst.nvim's live project registry.
+Before this hardening release, some public project methods returned live project
+tables. They now return copied public snapshots. Code that only reads identity,
+root, main, output, status, files, dependencies, diagnostics, and artifacts
+should continue to work. Code that mutates services, buffers, resolutions, or
+compiler state must move behind a provider, a public command/API call, or an
+internal typst.nvim module.
+Snapshots can be passed back into project-scoped public APIs while the backing
+project instance is still live. Snapshot resolution checks both the project key
+and a session-local instance token. If the project has been pruned, or if the
+same root/main key has been recreated as a new project instance, that explicit
+snapshot fails with `unknown_project_key` rather than operating on copied or
+unrelated state.
 
 The public Lua API is versioned. `api_version()` returns the current API level,
 currently `1`; `version()` returns a table with the same level as `api` and

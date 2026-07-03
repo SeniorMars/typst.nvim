@@ -15,6 +15,15 @@ integration:
 policy:
   bash tests/run_policy.sh
 
+stability-gate:
+  bash tests/run_stability_gate.sh
+
+lifecycle-matrix:
+  bash tests/run_lifecycle_matrix.sh
+
+docs-contract:
+  bash tests/run_docs_contract.sh
+
 performance-gate:
   bash tests/run_performance_gate.sh
 

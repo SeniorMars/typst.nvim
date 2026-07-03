@@ -5,6 +5,10 @@ local report_dir = vim.env.TYPST_NVIM_PERF_REPORT_DIR
     or typst_test_cache_path("performance-reports")
 
 local required = {
+    startup_spec = {
+        "setup.default",
+        "setup.optional_features",
+    },
     performance_spec = {
         "project index collect",
         "project index cached collect",
@@ -47,7 +51,7 @@ for spec, metrics in pairs(required) do
         assert(
             type(value) == "number"
                 and type(metric.budget_ms) == "number"
-                and value <= metric.budget_ms,
+                and (metric.budget_ms <= 0 or value <= metric.budget_ms),
             "performance report contains failed metric: " .. vim.inspect(metric)
         )
         seen[metric.name] = true

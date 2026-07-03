@@ -23,142 +23,27 @@ Feature stability is intentionally tiered:
   workflows, render fragments, and compatibility shims for external preview
   plugins.
 
-Implemented:
+Implemented workflow groups:
 
-- Lua plugin skeleton loaded from `plugin/typst.lua`
-- Typst buffer attachment from `ftplugin/typst.lua`
-- Project state keyed by `(root, main)`
-- `:TypstInfo`
-- `:TypstReloadState`
-- `:TypstClearCache`
-- `:TypstSetMain`
-- `:TypstToggleMain`
-- `:TypstEditMain`
-- `:TypstFiles`
-- `:TypstCd`
-- `:TypstCompile`
-- `:TypstCompileSS`
-- `:TypstCompileSelected`
-- `:TypstCompileOutput`
-- `:TypstWatch`
-- `:TypstStop`
-- `:TypstStopAll`
-- `:TypstStatus`
-- `:TypstCount`
-- `:TypstFormat`
-- `:TypstLint`
-- `:TypstGrammar`
-- `:TypstFontDiagnostics`
-- `:TypstView`
-- `:TypstViewForward`
-- `:TypstViewInverse`
-- `:TypstClean`
-- `:TypstExport`
-- `:TypstArtifacts`
-- `:TypstArtifactOpen`
-- `:TypstArtifactClean`
-- `:TypstEval`
-- `:TypstEvalSelection`
-- `:TypstInspect`
-- `:TypstInit`
-- `:TypstTemplates`
-- `:TypstProfile`
-- `:TypstTest`
-- `:TypstBench`
-- `:TypstCoverage`
-- `:TypstInlayHintsToggle`
-- `:TypstCodeAction`
-- `:TypstColorInfo`
-- `:TypstColorPresentation`
-- `:TypstLinks`
-- `:TypstCodeLens`
-- `:TypstWorkspaceSymbols`
-- `:TypstReferences`
-- `:TypstRenamePreview`
-- `:TypstSelectionExpand`
-- `:TypstOnEnter`
-- `:TypstHtmlPreview`
-- `:TypstPresentation`
-- `:TypstPreview`
-- `:TypstPreviewOpenBrowser`
-- `:TypstPreviewReload`
-- `:TypstPreviewStatus`
-- `:TypstCleanPreview`
-- `:TypstPreviewStop`
-- `:TypstPreviewToggle`
-- `:TypstPreviewFragment`
-- `:TypstPreviewEquation`
-- `:TypstPreviewImage`
-- `:TypstPreviewPage`
-- `:TypstRenderCacheClear`
-- `:TypstToc`
-- `:TypstTocOpen`
-- `:TypstTocRefresh`
-- `:TypstTocToggle`
-- `:TypstLabels`
-- `:TypstCitations`
-- `:TypstBibliographyDiagnostics`
-- `:TypstSymbols`
-- `:TypstPick`
-- `:TypstFollow`
-- `:TypstContextMenu`
-- `:TypstDiagnostics`
-- `:TypstErrors`
-- `:TypstConcealToggle`
-- `:TypstConcealEnable`
-- `:TypstConcealDisable`
-- `:TypstConcealRefresh`
-- `:TypstConcealInspect`
-- `:TypstPackageInfo`
-- `:TypstPackageOpen`
-- `:TypstPackageReadme`
-- `:TypstPackageSource`
-- `:TypstSymbolInfo`
-- `:TypstSymbolVariants`
-- `:TypstPromoteHeading`
-- `:TypstDemoteHeading`
-- `:TypstUnwrapFunction`
-- `:TypstChangeFunction`
-- `:TypstChangeDelimiter`
-- `:TypstSplitArguments`
-- `:TypstJoinArguments`
-- `:TypstToggleArguments`
-- `:TypstNameArguments`
-- `:TypstToggleTrailingComma`
-- `:TypstAddTrailingComma`
-- `:TypstRemoveTrailingComma`
-- `:TypstToggleLabel`
-- `:TypstToggleReference`
-- `:TypstToggleLabelReference`
-- `:TypstSurround`
-- `:TypstSurroundFunction`
-- `:TypstSurroundContent`
-- `:TypstSurroundEquation`
-- `:TypstSurroundFigure`
-- `:TypstSurroundBlock`
-- `:TypstSurroundStrong`
-- `:TypstSurroundEmph`
-- `:TypstInsert`
-- `:TypstToggleStrong`
-- `:TypstToggleEmph`
-- `:TypstToggleFigure`
-- `:TypstToggleList`
-- `:TypstToggleBulletList`
-- `:TypstToggleNumberedList`
-- `:TypstConvertEquation`
-- `:TypstToggleEquationNumbering`
-- `:TypstConvertRaw`
-- `:TypstLog`
-- VimTeX-style `TypstEvent*` user events for setup, project attach, buffer detach, project prune, compile, preview, artifact, render, TOC, and quit lifecycle hooks
-- Compatibility user events such as `TypstDiagnosticsPublished`, `TypstDiagnosticsCleared`, `TypstPreviewOpened`, `TypstPreviewForwarded`, `TypstPreviewInverse`, `TypstPreviewStopped`, `TypstViewForwarded`, `TypstViewInverse`, `TypstArtifactCreated`, `TypstArtifactsCleaned`, and `TypstRenderCreated`
-- `:checkhealth typst`
-- Output profiles, multi-artifact exports, artifact registry/open/clean commands, `typst eval` integration, CLI-backed template initialization and gallery metadata, Tinymist/crityp-backed profile/test/bench/coverage workflows, semantic Tinymist UX wrappers with color swatches and code-lens listing, explicit rendered previews with render caching and built-in terminal image display, compiler output logs, generated-output cleanup, project file quickfix listing, diagnostics quickfix opening, external grammar checker providers, layered TOC, metadata-backed math symbol and emoji info/conceal, project-index fallback completion with completion frontend adapters, bibliography diagnostics and picker entries, heading/block/equation/raw/comment motions, heading/section/equation/delimiter/content/block/structural-block/code/raw/list-item/label/import/call/argument text objects, insert-mode paired markup helpers, local heading/function/argument-list/stdlib-aware argument-naming/trailing-comma/label-reference/markup/delimiter/equation/equation-numbering/raw/figure/list/surround structural transforms, Tree-sitter query extensions for highlights, text objects, folds, indentation, conceal, and raw-code injections, package-aware syntax extensions for configured Typst package imports, Tinymist-backed structural actions, statusline data, font diagnostics, and public provider registration
-- Public API contract docs, migration notes, and an OS CI matrix
-- Public API versioning through `api_version()`/`version()` and cancellable
-  async result tables with `cancel()` for process-backed background workflows
-- Stable structured Lua API namespaces documented in `docs/api.md`; flat Lua
-  workflow aliases are not exported
-- Headless smoke tests for shared project state, independent documents, spaces and Unicode in paths, compilation, diagnostics, project-decision and command/cwd inspectability, watcher lifecycle and detach cleanup, viewer dispatch, preview delegation, health reporting, TOC extraction, folds, conceal, motions, text objects, broad parser-backed query fixtures, mocked Tinymist/LSP action dispatch, statusline data, font diagnostics, provider registration, startup benchmarking, and runtime performance budgets for indexing, TOC, conceal, completion, and cleanup
+- Project state keyed by `(root, main)`, explicit main control, reload/reset,
+  cache clearing, health, status, logs, resource blockers, and stable public
+  API symbol reporting.
+- Built-in Typst compile/watch/stop, generated-output leases, file-backed
+  output locks, diagnostics publication, quickfix, viewer open/reload, and
+  native preview.
+- Tinymist-aware semantic helpers, completion frontend adapters, TOC/pickers,
+  navigation/follow, folds, conceal, motions, text objects, structural editing,
+  bibliography diagnostics, package resources, symbols, and metadata.
+- Provider-backed compile/view/preview/source-map/export/render/eval/format/
+  lint/grammar/profile/test/bench/coverage workflows with documented timeout,
+  cancellation, and retained-resource behavior.
+- CI gates for unit, integration, policy, stable-core lifecycle, docs/API
+  contracts, provider matrix, Windows edges, no Tree-sitter, fake Typst,
+  frontend smoke, startup profiling, and large-project performance.
+
+The full command inventory is in `:help typst-commands`; public Lua
+compatibility is in [API.md](API.md), and workflow configuration examples live
+under [docs/examples](docs/examples).
 
 ## Requirements
 
@@ -246,97 +131,52 @@ Known limitations:
 
 ## Usage
 
-With a Typst buffer open:
+Start with the core loop:
 
 ```vim
+:checkhealth typst
 :TypstInfo
-:TypstInfo!
-:TypstReloadState
-:TypstClearCache
-:TypstLocks
-:TypstCleanLocks
+:TypstCompile
+:TypstView
+```
+
+For continuous editing, use watch mode:
+
+```vim
+:TypstWatch
+:TypstStatus
+:TypstStop
+```
+
+For multi-file projects, make the main file explicit when automatic resolution
+is not enough:
+
+```vim
 :TypstSetMain path/to/main.typ
-:TypstToggleMain
 :TypstEditMain
 :TypstFiles
-:TypstCd
-:TypstCompile
-:TypstCompile draft
-:TypstCompileSS
-:TypstCompileSelected [template]
-:TypstCompileOutput
-:TypstWatch
-:TypstStop
-:TypstStopAll
-:TypstCompilerForceClear[!] [project-key]
-:TypstStatus
-:TypstStatusAll
-:TypstCount
-:TypstFormat
-:TypstLint
-:TypstLint!
-:TypstGrammar
-:TypstGrammar!
-:TypstFontDiagnostics
-:TypstFontDiagnostics!
-:TypstView
-:TypstViewForward
-:TypstViewInverse
-:TypstClean
+```
+
+For browser preview and source-sync-capable integrations:
+
+```vim
 :TypstPreview
 :TypstPreviewOpenBrowser
-:TypstPreviewReload
-:TypstPreviewStatus
-:TypstCleanPreview
 :TypstPreviewStop
-:TypstPreviewToggle
-:TypstToc
-:TypstLabels
-:TypstCitations
-:TypstSymbols
-:TypstPick labels
-:TypstFollow
-:TypstContextMenu
+```
+
+For diagnostics and support:
+
+```vim
 :TypstDiagnostics
-:TypstErrors
-:TypstConcealToggle
-:TypstConcealInspect
-:TypstPackageInfo @preview/cetz:0.3.4
-:TypstPackageOpen @preview/cetz:0.3.4
-:TypstPackageReadme @preview/cetz:0.3.4
-:TypstPackageSource @preview/cetz:0.3.4
-:TypstSymbolInfo arrow.r
-:TypstSymbolVariants arrow.r
-:TypstPromoteHeading
-:TypstDemoteHeading
-:TypstUnwrapFunction
-:TypstChangeFunction emph
-:TypstChangeDelimiter block
-:TypstSplitArguments
-:TypstJoinArguments
-:TypstToggleArguments
-:TypstNameArguments
-:TypstToggleTrailingComma
-:TypstAddTrailingComma
-:TypstRemoveTrailingComma
-:TypstToggleLabel
-:TypstToggleReference
-:TypstToggleLabelReference
-:TypstSurround function quote
-:TypstSurroundEquation
-:TypstSurroundStrong
-:TypstInsert math
-:TypstToggleStrong
-:TypstToggleEmph
-:TypstToggleFigure
-:TypstToggleList
-:TypstToggleBulletList
-:TypstToggleNumberedList
-:TypstConvertEquation inline
-:TypstToggleEquationNumbering
-:TypstConvertRaw block
+:TypstLocks
+:TypstInfo!
 :TypstLog
 ```
+
+Use `:help typst-commands` for the full command reference, `:help
+typst-start` for the minimal path, `:help typst-tinymist` for Tinymist
+ownership, and `:help typst-preview-native` for native preview behavior.
 
 Default output goes to `stdpath("cache")/typst.nvim/output/<main>.pdf`.
 Set `output_dir = ""` to write next to the main Typst file, or set an explicit

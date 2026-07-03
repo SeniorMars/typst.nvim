@@ -10,6 +10,8 @@ compiler_specs=(
   tests/unit/provider_contract_spec.lua
   tests/unit/provider_sdk_matrix_spec.lua
   tests/unit/provider_adapter_spec.lua
+  tests/unit/provider_adapter_late_duplicate_spec.lua
+  tests/unit/provider_adapter_invalid_handle_spec.lua
   tests/integration/compiler/provider_spec.lua
   tests/unit/provider_api_spec.lua
   tests/integration/compiler/generic_provider_spec.lua

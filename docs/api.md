@@ -65,8 +65,9 @@ event, provider-kind, or documented result-field changes need a migration note;
 removals need a compatibility alias for one minor release or an API-level bump.
 Experimental symbols are explicitly reported by `typst.experimental_symbols()`
 until they are promoted or removed with a migration note. Internal modules
-under `typst.core.*`, `typst.resources.*`, `typst.project.services.*`,
-`typst.runtime.*`, and `typst.internal.*` are not API even when loadable.
+under `typst.core.*`, `typst.resources.*`, `typst.project.store`,
+`typst.project.registry`, `typst.project.services.*`, `typst.runtime.*`, and
+`typst.internal.*` are not API even when loadable.
 
 Earlier reset-phase docs treated several whole namespaces as stable. Before
 1.0, that promise has been narrowed to exact dotted symbols without bumping the
@@ -178,18 +179,37 @@ provider helper functions. Use the public namespaced API instead, and check
 
 ## Project State
 
-`typst.project.get()` returns the live project object for integrations that
-need direct project access. New integrations should prefer copied project
-contexts:
+Stable project methods that return project state return copied public project
+snapshots. This includes `typst.project.get()`, `snapshot()`, `projects()`,
+`attach()`, `detach()`, `set_main()`, `reload_state()`, and
+`toggle_main().state`:
 
 ```lua
-local project = typst.project.snapshot()
+local project = typst.project.get()
 local projects = typst.project.projects()
 ```
 
 Snapshots are plain Lua tables containing project identity, root/main/output
 paths, status, files, dependencies, artifacts, and invalidation generations.
 Mutating a snapshot never mutates typst.nvim's live project registry.
+
+### Migration: public project methods now return snapshots
+
+Before this hardening release, some public project methods returned live project
+tables. They now return copied public snapshots. Code that only reads identity,
+root, main, output, status, files, dependencies, diagnostics, and artifacts
+should continue to work. Code that mutates services, buffers, resolutions, or
+compiler state must move behind a provider, a public command/API call, or an
+internal typst.nvim module. User configs and external integrations should not
+require `typst.project.store` or `typst.project.registry`; tests and internal
+runtime modules may use those live-state modules deliberately.
+
+Snapshots can be passed back into project-scoped public APIs while the backing
+project instance is still live. Snapshot resolution checks both the project key
+and a session-local instance token. If the project has been pruned, or if the
+same root/main key has been recreated as a new project instance, that explicit
+snapshot fails with `unknown_project_key` rather than operating on copied or
+unrelated state.
 
 Registered external providers receive these copied project contexts by default.
 This includes compiler, viewer, export, render, eval, development, semantic,
