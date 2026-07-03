@@ -36,6 +36,11 @@ function M.decode_key(key)
     )
 end
 
+---Return a shallow copy of the live registry map.
+---
+---The table itself is copied, but values are live project objects. Public APIs
+---must expose snapshots from `typst.project`, not this internal registry shape.
+---@return table<string, TypstProject> projects_by_key Live project objects keyed by project key.
 function M.all()
     return copy_map(projects)
 end

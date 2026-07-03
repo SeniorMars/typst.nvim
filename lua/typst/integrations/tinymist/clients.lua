@@ -35,6 +35,12 @@ local function configured_client_names()
     return out
 end
 
+--- Return configured Tinymist client names, including the default `tinymist`.
+---@return string[] names Client names recognized by typst.nvim.
+function M.client_names()
+    return configured_client_names()
+end
+
 local function matches_client_name(client)
     local name = client and client.name
     if type(name) ~= "string" then
@@ -46,6 +52,13 @@ local function matches_client_name(client)
         end
     end
     return false
+end
+
+--- Check whether a Neovim LSP client matches configured Tinymist names.
+---@param client table? Client-like LSP object.
+---@return boolean matches True when the client is considered Tinymist-owned.
+function M.matches_client_name(client)
+    return matches_client_name(client)
 end
 
 --- Return the configured Tinymist LSP startup mode.

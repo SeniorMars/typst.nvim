@@ -256,13 +256,17 @@ local old_follow = nav_toc.follow
 local open = false
 local calls = 0
 local followed_bufnr = nil
+local expected_project_key = project.key
 
 nav_toc.is_open = function(attached)
-    return open and attached == project
+    return open and attached and attached.key == expected_project_key
 end
 
 nav_toc.follow = function(attached, follow_bufnr)
-    assert(attached == project, "debounced follow should keep project context")
+    assert(
+        attached and attached.key == expected_project_key,
+        "debounced follow should keep project context"
+    )
     calls = calls + 1
     followed_bufnr = follow_bufnr
     return true

@@ -6,6 +6,7 @@ local compiler_service = require("typst.project.services.compiler")
 local project_facade = require("typst.project")
 local project_registry = require("typst.project.registry")
 local project_services = require("typst.project.services")
+local project_store = require("typst.project.store")
 
 local uv = vim.uv or vim.loop
 
@@ -769,7 +770,8 @@ assert(
 local retained_bufnr = vim.api.nvim_get_current_buf()
 typst.project.detach(retained_bufnr)
 assert(
-    project_facade.all()[retained_key] == project,
+    project_store.all()[retained_key]
+        and project_store.all()[retained_key].key == retained_key,
     "retained output lease should keep bufferless project registered"
 )
 local force_cleared = typst.compiler.force_clear({

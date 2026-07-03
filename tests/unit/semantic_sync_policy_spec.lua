@@ -64,6 +64,7 @@ assert(
 )
 
 local typst = require("typst")
+local project_store = require("typst.project.store")
 local services = require("typst.project.services")
 local tinymist_symbols = require("typst.integrations.tinymist.symbols")
 
@@ -77,6 +78,7 @@ local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local bufnr = vim.api.nvim_get_current_buf()
 local project = typst.project.set_main(main)
+local live_project = assert(project_store.get(project.key), "live project")
 
 local old_document_symbols = tinymist_symbols.document_symbols
 local old_workspace_symbols = tinymist_symbols.workspace_symbols
@@ -94,7 +96,7 @@ typst.index.collect({
 })
 
 local cleared = vim.wait(1000, function()
-    local semantic = (services.index(project) or {}).semantic or {}
+    local semantic = (services.index(live_project) or {}).semantic or {}
     local document_cache = semantic.document and semantic.document[bufnr] or nil
     local workspace_cache = semantic.workspace or nil
     return document_cache
@@ -108,7 +110,7 @@ tinymist_symbols.workspace_symbols = old_workspace_symbols
 
 assert(cleared, "Tinymist semantic startup failures should clear pending state")
 
-local semantic = services.index(project).semantic
+local semantic = services.index(live_project).semantic
 assert(
     semantic.document[bufnr].error
         and semantic.document[bufnr].error.reason == "request_failed",

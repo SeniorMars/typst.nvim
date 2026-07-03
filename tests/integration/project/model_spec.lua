@@ -2,7 +2,9 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local project_registry = require("typst.project")
+local project_store = require("typst.project.store")
 local project_services = require("typst.project.services")
+local state_store = require("typst.core.state")
 local typst = require("typst")
 typst.reset()
 typst.setup({
@@ -22,8 +24,14 @@ local chapter = root .. "/tests/fixtures/basic/chapter.typ"
 local appendix = root .. "/tests/fixtures/basic/appendix.typ"
 local other = root .. "/tests/fixtures/basic/other.typ"
 
+for _, path in ipairs({ main, chapter, appendix, other }) do
+    state_store.clear_explicit_main(path)
+end
+
 vim.cmd.edit(main)
 local main_project = typst.project.set_main(main)
+local main_snapshot = main_project
+main_project = assert(project_store.get(main_project.key), "live main project")
 
 local compiled = false
 typst.compiler.compile({}, function(result)
@@ -40,28 +48,30 @@ assert(
 
 vim.cmd.edit(chapter)
 local chapter_bufnr = vim.api.nvim_get_current_buf()
-local chapter_project = typst.project.get(0)
+local chapter_project = typst.project.attach(0)
 assert(
-    chapter_project.key == main_project.key,
+    chapter_project.key == main_snapshot.key,
     "chapter should attach to main project through dependencies"
 )
 assert(
     chapter_project.resolutions[chapter_bufnr].main_source
         == "existing project graph",
-    "chapter resolution should record dependency graph attachment"
+    "chapter resolution should record dependency graph attachment, got "
+        .. tostring(chapter_project.resolutions[chapter_bufnr].main_source)
 )
 
 vim.cmd.edit(appendix)
 local appendix_bufnr = vim.api.nvim_get_current_buf()
-local appendix_project = typst.project.get(0)
+local appendix_project = typst.project.attach(0)
 assert(
-    appendix_project.key == main_project.key,
+    appendix_project.key == main_snapshot.key,
     "appendix should attach to main project through dependencies"
 )
 assert(
     appendix_project.resolutions[appendix_bufnr].main_source
         == "existing project graph",
-    "appendix resolution should record dependency graph attachment"
+    "appendix resolution should record dependency graph attachment, got "
+        .. tostring(appendix_project.resolutions[appendix_bufnr].main_source)
 )
 
 vim.cmd.edit(main)
@@ -125,7 +135,7 @@ assert(
 vim.cmd.edit(other)
 local other_project = typst.project.set_main(other)
 assert(
-    other_project.key ~= main_project.key,
+    other_project.key ~= main_snapshot.key,
     "independent document should have a separate project"
 )
 

@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local helpers = dofile(root .. "/tests/helpers.lua")
 local registry = require("typst.project")
+local project_store = require("typst.project.store")
 local typst = require("typst")
 typst.reset()
 
@@ -19,7 +20,8 @@ typst.setup({
 
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
-local project = typst.project.set_main(main)
+local project_snapshot = typst.project.set_main(main)
+local project = assert(project_store.get(project_snapshot.key), "live project")
 local bufnr = vim.api.nvim_get_current_buf()
 
 vim.cmd("hide enew")
@@ -28,19 +30,22 @@ assert(
     "plain BufHidden should keep retained hidden buffers attached"
 )
 assert(
-    registry.all()[project.key] == project,
+    project_store.all()[project.key]
+        and project_store.all()[project.key].key == project.key,
     "plain BufHidden should keep retained hidden projects registered"
 )
 
 vim.cmd("buffer " .. bufnr)
 typst.project.detach(bufnr)
 assert(
-    registry.all()[project.key] == nil,
+    project_store.all()[project.key] == nil,
     "manual detach should prune the retained hidden project"
 )
 
 vim.cmd.edit(main)
-local unload_project = typst.project.set_main(main)
+local unload_snapshot = typst.project.set_main(main)
+local unload_project =
+    assert(project_store.get(unload_snapshot.key), "live unload project")
 local unload_bufnr = vim.api.nvim_get_current_buf()
 vim.bo[unload_bufnr].bufhidden = "unload"
 
@@ -68,7 +73,7 @@ assert(
 assert(
     vim.wait(10000, function()
         return typst_test_compiler(unload_project).process == nil
-            and registry.all()[unload_project.key] == nil
+            and project_store.all()[unload_project.key] == nil
             and handle:is_closing()
     end, 20),
     "BufHidden unload should stop active compiles and prune the empty project"

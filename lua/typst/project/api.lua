@@ -17,30 +17,43 @@ function M.create(opts)
     local notify = opts.notify or function(_, _) end
     local api = {}
 
+    local function live_project(bufnr)
+        return project_lifecycle.get_project(bufnr)
+    end
+
+    local function public_snapshot(state, snapshot_opts)
+        local clean_opts = vim.tbl_extend(
+            "force",
+            type(snapshot_opts) == "table" and snapshot_opts or {},
+            { runtime = false }
+        )
+        return project.snapshot(state, clean_opts)
+    end
+
     --- Attach one Typst buffer to its resolved project and install buffer hooks.
     ---@param bufnr? integer Buffer to attach; nil and 0 mean the current buffer.
-    ---@return table|nil state Attached project state, or nil when resolution/attach fails.
+    ---@return table|nil snapshot Attached project snapshot, or nil when resolution/attach fails.
     function api.attach(bufnr)
-        return project_lifecycle.attach(api, bufnr)
+        return public_snapshot(project_lifecycle.attach(api, bufnr))
     end
 
     --- Detach one buffer from its project and prune resources when it was last.
     ---@param bufnr? integer Buffer to detach; nil and 0 mean the current buffer.
-    ---@return table|nil state Project state the buffer belonged to before detach.
+    ---@return table|nil snapshot Project snapshot the buffer belonged to before detach.
     function api.detach(bufnr)
-        return project_lifecycle.detach(bufnr)
+        return public_snapshot(project_lifecycle.detach(bufnr))
     end
 
-    --- Return a fresh project state for a buffer, re-resolving stale main choices.
+    --- Return a fresh public project snapshot for a buffer.
     ---@param bufnr? integer Buffer whose Typst project should be resolved.
-    ---@return table state Project state associated with the buffer.
+    ---@return table|nil snapshot Project snapshot associated with the buffer.
     function api.get_project(bufnr)
-        return project_lifecycle.get_project(bufnr)
+        return public_snapshot(live_project(bufnr))
     end
 
     function api.snapshot(bufnr, snapshot_opts)
-        local state = api.get_project(bufnr)
-        return project.snapshot(state, snapshot_opts)
+        local state = live_project(bufnr)
+        return public_snapshot(state, snapshot_opts)
     end
 
     function api.projects(opts)
@@ -51,21 +64,30 @@ function M.create(opts)
     ---@param path string Main Typst file path selected by the user.
     ---@param bufnr? integer Buffer receiving the explicit main setting.
     ---@param set_opts? table Main-file persistence and resolution options.
-    ---@return table state Project state after the main-file change.
+    ---@return table snapshot Project snapshot after the main-file change.
     function api.set_main(path, bufnr, set_opts)
-        return project_lifecycle.set_main(path, bufnr, set_opts, notify)
+        return public_snapshot(
+            project_lifecycle.set_main(path, bufnr, set_opts, notify)
+        )
     end
 
     --- Toggle the current buffer between local-main and project-main behavior.
     ---@param toggle_opts? table Toggle controls, including `bufnr` and `notify`.
-    ---@return table result Toggle result with `local_main` and project `state`.
+    ---@return table result Toggle result with `local_main` and project snapshot `state`.
     function api.toggle_main(toggle_opts)
-        return project_lifecycle.toggle_main(toggle_opts, notify)
+        local result = project_lifecycle.toggle_main(toggle_opts, notify)
+        if type(result) ~= "table" then
+            return result
+        end
+        return {
+            local_main = result.local_main,
+            state = public_snapshot(result.state),
+        }
     end
 
     function api.edit_main(edit_opts)
         edit_opts = edit_opts or {}
-        local state = api.get_project(edit_opts.bufnr)
+        local state = live_project(edit_opts.bufnr)
         util.edit_existing_or_path(state.main)
         notify(
             ("Editing Typst main: %s"):format(
@@ -77,7 +99,7 @@ function M.create(opts)
 
     function api.cd(cd_opts)
         cd_opts = cd_opts or {}
-        local state = api.get_project(cd_opts.bufnr)
+        local state = live_project(cd_opts.bufnr)
         local command = cd_opts.global and "cd" or "lcd"
         vim.cmd(command .. " " .. vim.fn.fnameescape(state.root))
         log.add("info", "changed directory to project root", {
@@ -90,9 +112,11 @@ function M.create(opts)
 
     --- Rebuild project attachment and metadata caches for a buffer.
     ---@param reload_opts? table Reload controls, including `bufnr` and `notify`.
-    ---@return table state Reattached project state.
+    ---@return table snapshot Reattached project snapshot.
     function api.reload_state(reload_opts)
-        return project_lifecycle.reload_state(api, reload_opts, notify)
+        return public_snapshot(
+            project_lifecycle.reload_state(api, reload_opts, notify)
+        )
     end
 
     --- Clear derived metadata, completion, package, import-scan, index, and conceal caches.

@@ -229,6 +229,17 @@ assert(
     vim.tbl_contains(api_contract.internal_module_prefixes, "typst.core."),
     "contract should expose internal module prefix guidance"
 )
+assert(
+    vim.tbl_contains(
+        api_contract.internal_module_prefixes,
+        "typst.project.store"
+    )
+        and vim.tbl_contains(
+            api_contract.internal_module_prefixes,
+            "typst.project.registry"
+        ),
+    "contract should mark live project store and registry modules as internal"
+)
 
 local function assert_namespace(namespace, names)
     assert(type(namespace) == "table", "missing public Lua namespace")

@@ -115,7 +115,82 @@ vim.fn.writefile({ "= Chapter" }, chapter)
 vim.cmd.edit(vim.fn.fnameescape(main))
 vim.bo.filetype = "typst"
 local attached = typst.project.set_main(main)
-project.update_dependencies(attached, { main, chapter })
+local attached_live = assert(store.get(attached.key))
+assert(
+    attached.instance_id == attached_live.instance_id,
+    "public project snapshots should expose the live project instance token"
+)
+project.update_dependencies(attached_live, { main, chapter })
+
+local operations = require("typst.project.services.operations")
+local original_compile = operations.compile
+local original_watch = operations.watch
+local original_stop = operations.stop
+local captured_stable = {}
+operations.compile = function(state, opts)
+    captured_stable.compile = { state = state, opts = opts }
+    return { ok = true, operation = "compile" }
+end
+operations.watch = function(state, opts)
+    captured_stable.watch = { state = state, opts = opts }
+    return { ok = true, operation = "watch" }
+end
+operations.stop = function(state)
+    captured_stable.stop = { state = state }
+    return { stopped = true, idle = true }
+end
+
+local compile_snapshot_result =
+    typst.compiler.compile({ project = attached, notify = false })
+local watch_snapshot_result =
+    typst.compiler.watch({ project = attached, notify = false })
+local stop_snapshot_result =
+    typst.compiler.stop({ project = attached, notify = false })
+operations.compile = original_compile
+operations.watch = original_watch
+operations.stop = original_stop
+
+assert(
+    compile_snapshot_result and compile_snapshot_result.operation == "compile",
+    "compiler.compile should accept public project snapshots"
+)
+assert(
+    watch_snapshot_result and watch_snapshot_result.operation == "watch",
+    "compiler.watch should accept public project snapshots"
+)
+assert(
+    stop_snapshot_result and stop_snapshot_result.stopped == true,
+    "compiler.stop should accept public project snapshots"
+)
+assert(
+    captured_stable.compile and captured_stable.compile.state == attached_live,
+    "compiler.compile should resolve snapshots to live state"
+)
+assert(
+    captured_stable.watch and captured_stable.watch.state == attached_live,
+    "compiler.watch should resolve snapshots to live state"
+)
+assert(
+    captured_stable.stop and captured_stable.stop.state == attached_live,
+    "compiler.stop should resolve snapshots to live state"
+)
+
+local status_by_snapshot = typst.compiler.status({ project = attached })
+assert(
+    status_by_snapshot == "idle",
+    "compiler.status should accept public project snapshots"
+)
+local output_by_snapshot = typst.compiler.current_output({ project = attached })
+assert(
+    type(output_by_snapshot) == "string" and output_by_snapshot ~= "",
+    "compiler.current_output should accept public project snapshots"
+)
+local service_snapshot, service_snapshot_err =
+    typst.project.services({ project = attached })
+assert(
+    type(service_snapshot) == "table" and service_snapshot_err == nil,
+    "project.services should accept public project snapshots"
+)
 
 vim.cmd.enew()
 vim.bo.filetype = ""
@@ -164,8 +239,8 @@ require("typst.project.services.operations").compile_selected =
     original_compile_selected
 assert(selected_ok and selected_ok.ok == true, selected_err)
 assert(
-    captured_selected and captured_selected.state == attached,
-    "compile_selected should respect explicit project options"
+    captured_selected and captured_selected.state == attached_live,
+    "compile_selected should resolve public project snapshots to live state"
 )
 assert(
     captured_selected.opts.notify == false
@@ -176,8 +251,20 @@ assert(
 local viewer_api = require("typst.viewer.api")
 local original_view_inverse = viewer_api.view_inverse
 local original_preview_inverse = viewer_api.preview_inverse
+local original_view = viewer_api.view
+local original_view_forward = viewer_api.view_forward
+local view_state = nil
+local forward_state = nil
 local inverse_state = nil
 local preview_inverse_state = nil
+viewer_api.view = function(state)
+    view_state = state
+    return { ok = true, opened = true }
+end
+viewer_api.view_forward = function(state)
+    forward_state = state
+    return { ok = true, forwarded = true }
+end
 viewer_api.view_inverse = function(state)
     inverse_state = state
     return { ok = true, path = chapter }
@@ -186,14 +273,36 @@ viewer_api.preview_inverse = function(state)
     preview_inverse_state = state
     return { ok = true, path = chapter }
 end
+local view = typst.viewer.view({ project = attached, notify = false })
+local forward = typst.viewer.view_forward({
+    project = attached,
+    notify = false,
+    line = 1,
+    column = 1,
+})
 local inverse = typst.viewer.view_inverse({ path = chapter, notify = false })
 local preview_inverse =
     typst.viewer.preview_inverse({ path = chapter, notify = false })
+viewer_api.view = original_view
+viewer_api.view_forward = original_view_forward
 viewer_api.view_inverse = original_view_inverse
 viewer_api.preview_inverse = original_preview_inverse
+assert(view and view.ok == true, "viewer.view should return result")
+assert(
+    view_state == attached_live,
+    "viewer.view should resolve public project snapshots to live state"
+)
+assert(
+    forward and forward.ok == true,
+    "viewer.view_forward should return result"
+)
+assert(
+    forward_state == attached_live,
+    "viewer.view_forward should resolve public project snapshots to live state"
+)
 assert(inverse and inverse.ok == true, "view_inverse should return result")
 assert(
-    inverse_state == attached,
+    inverse_state == attached_live,
     "view_inverse should resolve projects from source paths"
 )
 assert(
@@ -201,7 +310,7 @@ assert(
     "preview_inverse should return result"
 )
 assert(
-    preview_inverse_state == attached,
+    preview_inverse_state == attached_live,
     "preview_inverse should resolve projects from source paths"
 )
 
@@ -219,6 +328,55 @@ assert(
 assert(
     vim.tbl_count(project.all()) == count_before_unknown_path,
     "unknown source paths should not grow the project registry"
+)
+
+vim.cmd.edit(vim.fn.fnameescape(main))
+vim.bo.filetype = "typst"
+local stale_snapshot = typst.project.get(0)
+local stale_key = stale_snapshot.key
+local stale_instance = stale_snapshot.instance_id
+local detached_snapshot = typst.project.detach(0)
+assert(detached_snapshot.key == stale_key, "detach should return old snapshot")
+assert(
+    store.get(stale_key) == nil,
+    "detaching the last buffer should prune the old project"
+)
+local recreated_snapshot = typst.project.attach(0)
+local recreated_live = assert(store.get(stale_key), "project should recreate")
+assert(
+    recreated_snapshot.key == stale_key
+        and recreated_snapshot.instance_id == recreated_live.instance_id
+        and recreated_snapshot.instance_id ~= stale_instance,
+    "same key recreation should create a new project instance"
+)
+
+local stale_status, stale_status_err =
+    typst.compiler.status({ project = stale_snapshot, notify = false })
+assert(
+    stale_status == nil
+        and type(stale_status_err) == "table"
+        and stale_status_err.reason == "unknown_project_key",
+    "compiler.status should reject stale public project snapshots"
+)
+local stale_view, stale_view_err =
+    typst.viewer.view({ project = stale_snapshot, notify = false })
+assert(
+    stale_view == nil
+        and type(stale_view_err) == "table"
+        and stale_view_err.reason == "unknown_project_key",
+    "viewer.view should reject stale public project snapshots"
+)
+local stale_services, stale_services_err =
+    typst.project.services({ project = stale_snapshot })
+assert(
+    stale_services == nil
+        and type(stale_services_err) == "table"
+        and stale_services_err.reason == "unknown_project_key",
+    "passive project reports should reject stale public project snapshots"
+)
+assert(
+    typst.project.invalidate(stale_snapshot, "manual") == nil,
+    "project invalidation should not operate on stale public snapshots"
 )
 
 local readable_untracked = fixture_root .. "/untracked.typ"

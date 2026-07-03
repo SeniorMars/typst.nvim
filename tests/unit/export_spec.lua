@@ -527,6 +527,8 @@ typst.setup({
 local artifact_main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(artifact_main)
 local artifact_project = typst.project.set_main(artifact_main)
+local artifact_live_project =
+    assert(require("typst.project.store").get(artifact_project.key))
 
 local artifact_services = require("typst.project.services")
 local artifact_dir = typst_test_cache_path("artifact-selection")
@@ -535,7 +537,7 @@ local pdf = artifact_dir .. "/main.pdf"
 local svg = artifact_dir .. "/main.svg"
 vim.fn.writefile({ "pdf" }, pdf)
 vim.fn.writefile({ "svg" }, svg)
-artifact_services.set_artifacts(artifact_project, {
+artifact_services.set_artifacts(artifact_live_project, {
     items = {
         {
             id = "pdf",

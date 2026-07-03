@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local helpers = dofile(root .. "/tests/helpers.lua")
 local registry = require("typst.project")
+local project_store = require("typst.project.store")
 local typst = require("typst")
 
 local case_id = 0
@@ -669,13 +670,14 @@ run_case("detach stops active compile", function()
     local handle = typst.compiler.compile({}, function()
         compile_callback_called = true
     end)
+    local live_project = assert(project_store.get(project.key))
 
     assert(
         typst_test_compiler(project).process == handle,
         "project should track the running one-shot compile before detach"
     )
     assert(
-        registry.all()[project.key] == project,
+        project_store.all()[project.key] == live_project,
         "project should be registered before detach"
     )
 
@@ -685,7 +687,7 @@ run_case("detach stops active compile", function()
         vim.wait(10000, function()
             return typst_test_compiler(project).process == nil
                 and typst_test_compiler(project).status == "idle"
-                and registry.all()[project.key] == nil
+                and project_store.all()[project.key] == nil
                 and handle:is_closing()
         end, 20),
         "last buffer detach should stop the active one-shot compile and prune the project"

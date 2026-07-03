@@ -11,6 +11,7 @@ local scalar_types = {
 
 local public_fields = {
     "key",
+    "instance_id",
     "root",
     "main",
     "root_source",
@@ -100,6 +101,9 @@ function M.resolve(opts, resolve_opts)
     end
 
     if type(opts.project) == "table" then
+        if opts.project.mutable == false then
+            return M.live(opts.project)
+        end
         return opts.project
     end
 
@@ -121,6 +125,24 @@ function M.resolve(opts, resolve_opts)
 
     local ok, resolved = pcall(registry.resolve, bufnr)
     return ok and resolved or nil
+end
+
+--- Resolve a public project snapshot back to its live project state.
+---@param project table? Public snapshot or live project table.
+---@return TypstProject|nil project Live project state when the input is a public snapshot.
+function M.live(project)
+    if
+        type(project) ~= "table"
+        or project.mutable ~= false
+        or type(project.key) ~= "string"
+    then
+        return nil
+    end
+    local live = require("typst.project.store").get(project.key)
+    if not live or live.instance_id ~= project.instance_id then
+        return nil
+    end
+    return live
 end
 
 function M.snapshot(project, opts)

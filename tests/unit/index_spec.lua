@@ -14,6 +14,7 @@ typst.setup({
 local main = root .. "/tests/fixtures/basic/index-main.typ"
 vim.cmd.edit(main)
 local project = assert(typst.project.attach(0), "index fixture should attach")
+local live_project = assert(require("typst.project.store").get(project.key))
 
 local function has_item_named(items, name)
     for _, item in ipairs(items or {}) do
@@ -668,7 +669,7 @@ for _, item in ipairs(collected.todos or {}) do
     )
 end
 
-local project_index = project_services.index(project)
+local project_index = project_services.index(live_project)
 local stats = project_index and project_index.stats
 assert(
     stats and stats.file_misses > 0,
@@ -884,7 +885,7 @@ assert(
 local mutable_unchanged =
     typst.index.collect({ project = project, mutable = true })
 assert(
-    mutable_unchanged ~= unchanged and mutable_unchanged.project == project,
+    mutable_unchanged ~= unchanged and mutable_unchanged.project == live_project,
     "aggregate cache callers should be able to request an owned mutable copy"
 )
 assert(
@@ -1141,6 +1142,8 @@ local disk_project = assert(
     typst.project.set_main(disk_main),
     "disk-signature fixture should attach"
 )
+local live_disk_project =
+    assert(require("typst.project.store").get(disk_project.key))
 local disk_collected = typst.index.collect({ project = disk_project })
 assert(
     has_label(disk_collected.labels, "sec:disk-old"),
@@ -1151,7 +1154,7 @@ assert(
     "disk-signature imported file should remain unloaded"
 )
 
-local disk_index = project_services.index(disk_project)
+local disk_index = project_services.index(live_disk_project)
 local disk_collect_misses = disk_index.stats.collect_misses
 vim.fn.writefile({ "= New changed content <sec:disk-new>" }, disk_lib)
 local disk_updated = typst.index.collect({ project = disk_project })

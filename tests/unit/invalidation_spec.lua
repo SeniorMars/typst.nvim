@@ -12,6 +12,7 @@ typst.setup({
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
+local live_project = assert(require("typst.project.store").get(project.key))
 
 local seen = {}
 local unsubscribe = typst.invalidation.subscribe(project, "*", function(event)
@@ -31,7 +32,7 @@ assert(
     "manual dirty should emit a manual invalidation event"
 )
 assert(
-    seen[1].index_generation == project_services.index(project).generation,
+    seen[1].index_generation == project_services.index(live_project).generation,
     "event should include index generation"
 )
 

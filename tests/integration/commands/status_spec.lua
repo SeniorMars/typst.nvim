@@ -4,6 +4,7 @@ vim.opt.runtimepath:prepend(root)
 local typst = require("typst")
 local operations = require("typst.project.services.operations")
 local output_ownership = require("typst.resources.outputs")
+local project_store = require("typst.project.store")
 typst.reset()
 typst.setup({
     root = root,
@@ -20,6 +21,7 @@ assert(typst.ui.statusline() == "", "detached statusline should be empty")
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
+local live_project = assert(project_store.get(project.key), "live project")
 
 local snapshot = typst.ui.status()
 assert(snapshot.attached, "Typst status should report attached project")
@@ -79,15 +81,15 @@ for _, line in ipairs(status_lines) do
 end
 assert(saw_index_stats, "status_report should include index cache statistics")
 
-local retained = assert(operations.begin(project, "status-retained"))
-operations.retain(project, retained, {
+local retained = assert(operations.begin(live_project, "status-retained"))
+operations.retain(live_project, retained, {
     ok = false,
     reason = "status_fixture",
 })
 local blocker_lease = assert(
     output_ownership.acquire(
         typst_test_cache_path("status-output/blocker.pdf"),
-        output_ownership.owner("status-blocker", project)
+        output_ownership.owner("status-blocker", live_project)
     )
 )
 snapshot = typst.ui.status()
@@ -112,7 +114,7 @@ assert(
     "status_report should list resource blockers"
 )
 output_ownership.release(blocker_lease)
-operations.finish(project, retained, {
+operations.finish(live_project, retained, {
     ok = false,
     reason = "status_fixture_cleared",
 })

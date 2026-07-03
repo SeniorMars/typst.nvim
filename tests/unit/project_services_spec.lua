@@ -59,6 +59,9 @@ vim.cmd.edit(main)
 telemetry.reset()
 local project =
     assert(typst.project.attach(0), "project service fixture attaches")
+local project_snapshot = project
+local live_project = assert(require("typst.project.store").get(project.key))
+project = live_project
 local telemetry_snapshot = telemetry.snapshot()
 assert(
     telemetry_snapshot["project.resolve"],
@@ -83,15 +86,15 @@ assert(
 local project_context = require("typst.project.context")
 local project_registry = require("typst.project")
 assert(
-    project_context.resolve({ project = project }) == project,
-    "project context should prefer an explicit project"
+    project_context.resolve({ project = project_snapshot }) == live_project,
+    "project context should resolve explicit public project snapshots to live state"
 )
 assert(
-    project_registry.resolve_opts({ project = project }) == project,
+    project_registry.resolve_opts({ project = project }) == live_project,
     "project registry should expose the shared option resolver"
 )
 assert(
-    project_context.resolve({ bufnr = 0 }) == project,
+    project_context.resolve({ bufnr = 0 }) == live_project,
     "project context should resolve the current attached buffer"
 )
 assert(

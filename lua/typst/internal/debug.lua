@@ -209,7 +209,7 @@ end
 
 function M.check_invariants()
     local findings = {}
-    local projects = project_registry.all()
+    local projects = project_store.all()
 
     check_buffer_mappings(findings, projects)
     check_project_buffers(findings, projects)

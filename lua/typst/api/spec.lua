@@ -51,6 +51,8 @@ M.namespace_tiers = {
 
 M.internal_module_prefixes = {
     "typst.core.",
+    "typst.project.registry",
+    "typst.project.store",
     "typst.project.services.",
     "typst.resources.",
     "typst.runtime.",

@@ -329,10 +329,15 @@ function M.update_dependencies(project, paths, opts)
     return dependencies.update(project, paths, opts)
 end
 
---- Return the live project registry.
----@return table<string, TypstProject> registry Project registry keyed by project key.
-function M.all()
-    return project_store.all()
+--- Return public snapshots for all registered projects keyed by project key.
+---@param opts? table Snapshot options.
+---@return table<string, table> registry Public project snapshots keyed by project key.
+function M.all(opts)
+    local snapshots = {}
+    for key, state in pairs(project_store.all()) do
+        snapshots[key] = context.snapshot(state, opts)
+    end
+    return snapshots
 end
 
 --- Return a public snapshot for one project or buffer.

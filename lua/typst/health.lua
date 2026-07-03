@@ -9,6 +9,7 @@ local semantic_provider = require("typst.integrations.semantic_provider")
 local tinymist = require("typst.integrations.tinymist")
 local preview = require("typst.integrations.typst_preview")
 local project = require("typst.project")
+local project_store = require("typst.project.store")
 local artifacts_service = require("typst.project.services.artifacts")
 local compiler_service = require("typst.project.services.compiler")
 local index_service = require("typst.project.services.index")
@@ -223,8 +224,13 @@ local function tinymist_raw_clients()
         return {}
     end
 
+    local ok, clients = pcall(require, "typst.integrations.tinymist.clients")
+    if not ok then
+        return {}
+    end
+
     return vim.tbl_filter(function(client)
-        return client.name == "tinymist"
+        return clients.matches_client_name(client)
     end, vim.lsp.get_clients())
 end
 
@@ -922,7 +928,7 @@ function M.check()
     end
 
     start("typst.nvim projects")
-    local projects = project.all()
+    local projects = project_store.all()
     if next(projects) == nil then
         warn("No Typst projects are attached yet")
     else

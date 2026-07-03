@@ -1,5 +1,15 @@
 local M = {}
 
+local function live_project(project)
+    if type(project) ~= "table" then
+        return nil
+    end
+    if project.mutable == false then
+        return require("typst.project.context").live(project)
+    end
+    return project
+end
+
 -- Runtime API adapters that need initialized project state.
 --
 -- These wrappers normalize buffer/project lookup before delegating to services,
@@ -120,8 +130,30 @@ function M.install(api, notify, normalize_bufnr)
 
     local function force_clear(opts)
         opts = opts or {}
-        local state = opts.project
+        local state = live_project(opts.project)
+        local project_snapshot_key = type(opts.project) == "table"
+                and opts.project.mutable == false
+                and opts.project.key
+            or nil
         local key_given = type(opts.key) == "string" and opts.key ~= ""
+        if not state and type(project_snapshot_key) == "string" then
+            local result = {
+                ok = false,
+                code = 1,
+                stale = false,
+                stopped = false,
+                reason = "unknown_project_key",
+                message = ("Unknown Typst project key: %s"):format(
+                    project_snapshot_key
+                ),
+                key = project_snapshot_key,
+                key_display = project_snapshot_key,
+            }
+            if opts.notify ~= false and type(notify) == "function" then
+                notify(result.message, vim.log.levels.ERROR)
+            end
+            return result
+        end
         if not state and key_given then
             local registry = require("typst.project.store")
             local key_error = nil

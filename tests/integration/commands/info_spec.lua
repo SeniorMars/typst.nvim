@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local output_ownership = require("typst.resources.outputs")
 local operations = require("typst.project.services.operations")
+local project_store = require("typst.project.store")
 local typst = require("typst")
 typst.reset()
 typst.setup({
@@ -13,6 +14,7 @@ typst.setup({
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
+local live_project = assert(project_store.get(project.key), "live project")
 
 local done = false
 typst.compiler.compile({}, function(result)
@@ -105,11 +107,11 @@ assert(
 local lease = assert(
     output_ownership.acquire(
         typst_test_cache_path("info-output/held.pdf"),
-        output_ownership.owner("info-test", project)
+        output_ownership.owner("info-test", live_project)
     )
 )
-local record = assert(operations.begin(project, "export"))
-operations.retain(project, record, { orphaned = true, reason = "test" })
+local record = assert(operations.begin(live_project, "export"))
+operations.retain(live_project, record, { orphaned = true, reason = "test" })
 
 captured = {}
 vim.api.nvim_echo = function(chunks)
@@ -136,12 +138,12 @@ assert(
 )
 
 output_ownership.release(lease)
-operations.clear(project, record)
+operations.clear(live_project, record)
 
 local release_failure_lease = assert(
     output_ownership.acquire(
         typst_test_cache_path("info-output/release-failure.pdf"),
-        output_ownership.owner("info-release-failure", project)
+        output_ownership.owner("info-release-failure", live_project)
     )
 )
 vim.fn.writefile({

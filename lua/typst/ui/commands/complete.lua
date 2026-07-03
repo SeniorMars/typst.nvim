@@ -19,7 +19,7 @@ end
 function M.project_key(arglead)
     local store = require("typst.project.store")
     local names = {}
-    for key in pairs(require("typst.project").all()) do
+    for key in pairs(store.all()) do
         names[#names + 1] = store.encode_key(key)
     end
     table.sort(names)
@@ -31,7 +31,7 @@ function M.retained_project_key(arglead)
     local compiler_service = require("typst.project.services.compiler")
     local retained = {}
     local other = {}
-    for key, project in pairs(require("typst.project").all()) do
+    for key, project in pairs(store.all()) do
         local compiler = compiler_service.get(project) or {}
         local encoded = store.encode_key(key)
         if compiler.status == "stopping_failed" then

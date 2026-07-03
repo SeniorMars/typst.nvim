@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local registry = require("typst.project")
+local project_store = require("typst.project.store")
 local typst = require("typst")
 typst.reset()
 typst.setup({
@@ -19,7 +20,8 @@ state_store.clear_explicit_main(chapter)
 
 vim.cmd.edit(chapter)
 local bufnr = vim.api.nvim_get_current_buf()
-local standalone = typst.project.get(bufnr)
+local standalone_snapshot = typst.project.get(bufnr)
+local standalone = assert(project_store.get(standalone_snapshot.key))
 assert(
     standalone.main == chapter,
     "chapter should start as a standalone project"
@@ -48,6 +50,7 @@ assert(
 )
 
 local project = typst.project.set_main(main)
+local live_project = assert(project_store.get(project.key))
 
 assert(
     project.root == root,
@@ -71,7 +74,7 @@ assert(
     "old project should release buffer resolution after TypstSetMain"
 )
 assert(
-    registry.all()[standalone.key] == nil,
+    project_store.all()[standalone.key] == nil,
     "empty old project should be removed after TypstSetMain"
 )
 
@@ -90,7 +93,7 @@ local raw_registry = require("typst.project.registry")
 local registry_copy = raw_registry.all()
 registry_copy[project.key] = nil
 assert(
-    raw_registry.get(project.key) == project,
+    raw_registry.get(project.key) == live_project,
     "project registry all() should not expose the mutable project map"
 )
 local buffer_registry_copy = raw_registry.buffers()
@@ -312,7 +315,7 @@ local transaction_ok, transaction_err = xpcall(function()
     local failed = typst.project.attach(transaction_bufnr)
     assert(failed == nil, "failed buffer feature setup should abort attach")
     assert(
-        vim.tbl_count(registry.all()) == 0,
+        vim.tbl_count(project_store.all()) == 0,
         "failed attach should not commit project registry state"
     )
     assert(
@@ -344,7 +347,7 @@ local transaction_ok, transaction_err = xpcall(function()
         "buffer features should see committed project state during attach"
     )
     assert(
-        vim.tbl_count(registry.all()) == 1,
+        vim.tbl_count(project_store.all()) == 1,
         "successful attach should commit one project"
     )
     assert(
@@ -399,9 +402,10 @@ vim.api.nvim_create_autocmd("User", {
 })
 
 local detach_project = typst.project.set_main(detach_main)
+local live_detach_project = assert(project_store.get(detach_project.key))
 local detach_bufnr = vim.api.nvim_get_current_buf()
 assert(
-    detach_project.bufs[detach_bufnr],
+    live_detach_project.bufs[detach_bufnr],
     "buffer should be attached before detach"
 )
 assert(
@@ -415,11 +419,11 @@ assert(
     "detach should return detached project"
 )
 assert(
-    not detach_project.bufs[detach_bufnr],
+    not live_detach_project.bufs[detach_bufnr],
     "detach should remove buffer from project membership"
 )
 assert(
-    registry.all()[detach_project.key] == nil,
+    project_store.all()[detach_project.key] == nil,
     "empty detached project should be removed from registry"
 )
 assert(
@@ -433,47 +437,50 @@ assert(
 assert(typst.project.detach(detach_bufnr) == nil, "detach should be idempotent")
 
 local reattached = typst.project.attach(detach_bufnr)
+local live_reattached = assert(project_store.get(reattached.key))
 assert(
     reattached and reattached.key == detach_project.key,
     "buffer should reattach after explicit attach"
 )
 assert(
-    reattached.bufs[detach_bufnr],
+    live_reattached.bufs[detach_bufnr],
     "reattached project should own the buffer"
 )
 vim.cmd("bdelete")
 assert(
-    not reattached.bufs[detach_bufnr],
+    not live_reattached.bufs[detach_bufnr],
     "BufDelete should detach buffer from project membership"
 )
 assert(
-    registry.all()[reattached.key] == nil,
+    project_store.all()[reattached.key] == nil,
     "BufDelete should remove empty project from registry"
 )
 
 vim.cmd.edit(detach_main)
 local unload_project = typst.project.set_main(detach_main)
+local live_unload_project = assert(project_store.get(unload_project.key))
 local unload_bufnr = vim.api.nvim_get_current_buf()
 vim.cmd("bunload")
 assert(
-    not unload_project.bufs[unload_bufnr],
+    not live_unload_project.bufs[unload_bufnr],
     "BufUnload should detach buffer from project membership"
 )
 assert(
-    registry.all()[unload_project.key] == nil,
+    project_store.all()[unload_project.key] == nil,
     "BufUnload should remove empty project from registry"
 )
 
 vim.cmd.edit(detach_main)
 local wipe_project = typst.project.set_main(detach_main)
+local live_wipe_project = assert(project_store.get(wipe_project.key))
 local wipe_bufnr = vim.api.nvim_get_current_buf()
 vim.cmd("bwipeout")
 assert(
-    not wipe_project.bufs[wipe_bufnr],
+    not live_wipe_project.bufs[wipe_bufnr],
     "BufWipeout should detach buffer from project membership"
 )
 assert(
-    registry.all()[wipe_project.key] == nil,
+    project_store.all()[wipe_project.key] == nil,
     "BufWipeout should remove empty project from registry"
 )
 

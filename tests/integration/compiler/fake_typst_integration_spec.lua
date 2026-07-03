@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local helpers = dofile(root .. "/tests/helpers.lua")
 local project_services = require("typst.project.services")
+local project_store = require("typst.project.store")
 local util = require("typst.core.util")
 local typst = require("typst")
 
@@ -53,7 +54,9 @@ local ok, err = xpcall(function()
     })
 
     vim.cmd.edit(main)
-    local project = typst.project.set_main(main)
+    local project_snapshot = typst.project.set_main(main)
+    local project =
+        assert(project_store.get(project_snapshot.key), "live project")
     vim.fn.delete(typst_test_compiler(project).output)
 
     local compile_result = nil

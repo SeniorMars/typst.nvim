@@ -62,7 +62,8 @@ function M.open_typst_project(opts)
 
     vim.cmd.edit(vim.fn.fnameescape(main))
     vim.bo.filetype = "typst"
-    local state = typst.project.set_main(main)
+    local snapshot = typst.project.set_main(main)
+    local state = require("typst.project.store").get(snapshot.key) or snapshot
     return {
         typst = typst,
         root = project_root,

@@ -13,7 +13,18 @@ local reason_events = {
     manual = "manual",
 }
 
+local function live_project(project)
+    if type(project) == "table" and project.mutable == false then
+        return require("typst.project.context").live(project)
+    end
+    return project
+end
+
 local function ensure_bus(project)
+    project = live_project(project)
+    if type(project) ~= "table" then
+        return nil
+    end
     local bus = services.invalidation(project) or {}
     bus.generation = bus.generation or 0
     bus.counters = bus.counters or {}
@@ -59,6 +70,7 @@ end
 ---@param payload? table Event payload merged with project metadata.
 ---@return table? payload Emitted payload, or nil for invalid projects.
 function M.emit(project, event, payload)
+    project = live_project(project)
     if type(project) ~= "table" then
         return nil
     end
@@ -107,6 +119,7 @@ end
 ---@param callback fun(payload:table, project:table) Subscriber callback.
 ---@return fun() unsubscribe Function that removes the subscriber.
 function M.subscribe(project, event, callback)
+    project = live_project(project)
     if type(project) ~= "table" then
         error("typst.nvim: project is required for invalidation subscription")
     end
@@ -133,6 +146,7 @@ end
 ---@param event? string Event-specific counter to read.
 ---@return integer generation Current generation count.
 function M.generation(project, event)
+    project = live_project(project)
     if type(project) ~= "table" then
         return 0
     end
@@ -148,6 +162,7 @@ end
 ---@param project table Project state whose invalidation bus is inspected.
 ---@return table snapshot Invalidation generation, counters, and last payload.
 function M.snapshot(project)
+    project = live_project(project)
     if type(project) ~= "table" then
         return {
             generation = 0,
@@ -167,6 +182,7 @@ end
 --- Reset invalidation counters and subscribers for a project.
 ---@param project table Project state whose invalidation bus should reset.
 function M.reset(project)
+    project = live_project(project)
     if type(project) ~= "table" then
         return
     end

@@ -21,7 +21,8 @@ function M.setup()
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local main_bufnr = vim.api.nvim_get_current_buf()
-    local project = typst.project.set_main(main)
+    local snapshot = typst.project.set_main(main)
+    local project = require("typst.project.store").get(snapshot.key) or snapshot
 
     return {
         root = root,

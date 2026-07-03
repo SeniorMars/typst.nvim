@@ -20,14 +20,20 @@ local compiler_provider = {
     name = "registered-compiler",
     compile = function(project, callback)
         calls.compile = calls.compile + 1
-        vim.fn.mkdir(
-            vim.fn.fnamemodify(typst_test_compiler(project).output, ":h"),
-            "p"
-        )
-        vim.fn.writefile({ "%PDF-1.4" }, typst_test_compiler(project).output)
+        local output = project.output
+            or (
+                project.services
+                and project.services.compiler
+                and project.services.compiler.output
+            )
+        vim.fn.mkdir(vim.fn.fnamemodify(output, ":h"), "p")
+        vim.fn.writefile({ "%PDF-1.4" }, output)
         project.provider_api_compiled = true
-        typst_test_compiler(project).output =
+        project.output =
             typst_test_cache_path("provider-api-output/mutated.pdf")
+        if project.services and project.services.compiler then
+            project.services.compiler.output = project.output
+        end
         callback({ code = 0, stale = false })
         return { provider = "registered-compiler" }
     end,
@@ -40,7 +46,7 @@ local compiler_provider = {
         end
     end,
     status = function(project)
-        return "registered-" .. typst_test_compiler(project).status
+        return "registered-" .. (project.status or "idle")
     end,
     output = function(project)
         return typst_test_cache_path("provider-api-output/")
@@ -187,6 +193,7 @@ typst.setup({
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
+local live_project = assert(require("typst.project.store").get(project.key))
 vim.api.nvim_buf_set_lines(0, 0, -1, false, { "= Unformatted" })
 
 local compile_done = false
@@ -207,7 +214,7 @@ assert(
     "registered compiler output should be used"
 )
 assert(
-    project.provider_api_compiled == nil,
+    live_project.provider_api_compiled == nil,
     "registered compiler should not mutate live project state"
 )
 assert(
@@ -218,11 +225,11 @@ assert(
 typst.viewer.view({ notify = false })
 assert(calls.view == 1, "registered viewer should be called once")
 assert(
-    project.provider_api_viewed == nil,
+    live_project.provider_api_viewed == nil,
     "registered viewer should not mutate live project state"
 )
 assert(
-    project_services.viewer(project).provider == "provider-api-viewer",
+    project_services.viewer(live_project).provider == "provider-api-viewer",
     "project should record registered viewer provider"
 )
 

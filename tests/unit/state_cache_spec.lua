@@ -5,6 +5,7 @@ local typst = require("typst")
 local conceal = require("typst.conceal")
 local metadata = require("typst.metadata")
 local registry = require("typst.project")
+local project_store = require("typst.project.store")
 local state_store = require("typst.core.state")
 local util = require("typst.core.util")
 
@@ -110,7 +111,7 @@ assert(
     "reload_state should clear old project preview state"
 )
 assert(
-    registry.all()[project.key] == nil,
+    project_store.all()[project.key] == nil,
     "reload_state should prune the old preview project"
 )
 

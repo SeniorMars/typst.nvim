@@ -147,7 +147,7 @@ local function source_files(project)
     add(project.main)
     local live_project = nil
     if project.key then
-        live_project = require("typst.project").all()[project.key]
+        live_project = require("typst.project.store").all()[project.key]
     end
     for path, value in
         pairs(

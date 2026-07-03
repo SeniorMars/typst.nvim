@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local registry = require("typst.project")
+local project_store = require("typst.project.store")
 local root_discovery = require("typst.project.root")
 local operations = require("typst.project.services.operations")
 local typst = require("typst")
@@ -111,6 +112,7 @@ vim.api.nvim_create_autocmd("User", {
 })
 
 local attached = assert(typst.project.attach(bufnr), "buffer should attach")
+local live_attached = assert(project_store.get(attached.key))
 assert(
     util.same_path(attached.main, leaf),
     "attach should use the fast fallback before import scan"
@@ -127,7 +129,7 @@ assert(
     root_discovery._import_scan_stats().scans == 0,
     "attach should not scan imports inline"
 )
-operations.begin(attached, "test-retained-operation")
+operations.begin(live_attached, "test-retained-operation")
 
 local resolved = assert(
     typst.project.get(bufnr),
@@ -142,11 +144,11 @@ assert(
     "forced import scan should clear pending state"
 )
 assert(
-    attached.resolution_pending == nil,
+    live_attached.resolution_pending == nil,
     "retained old fallback project should not keep stale pending state"
 )
 assert(
-    registry.all()[attached.key] == attached,
+    project_store.all()[attached.key] == live_attached,
     "old fallback project should be retained by the active operation fixture"
 )
 assert(
@@ -226,7 +228,8 @@ assert(
     "detaching a pending buffer should clear its registry association"
 )
 assert(
-    detach_pending.resolution_pending == nil,
+    project_store.get(detach_pending.key) == nil
+        or project_store.get(detach_pending.key).resolution_pending == nil,
     "detaching before the timer fires should clear pending project state"
 )
 

@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local helpers = dofile(root .. "/tests/helpers.lua")
+local project_store = require("typst.project.store")
 local project_services = require("typst.project.services")
 local typst = require("typst")
 
@@ -60,6 +61,10 @@ end
 
 local function read_json(path)
     return vim.json.decode(table.concat(vim.fn.readfile(path), "\n"))
+end
+
+local function live_project(snapshot)
+    return assert(project_store.get(snapshot.key), "live project")
 end
 
 local function wait_json(path, message)
@@ -131,6 +136,7 @@ run_case("open records callback viewer state", function(group)
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
+    project = live_project(project)
 
     local view_event = nil
     vim.api.nvim_create_autocmd("User", {
@@ -213,6 +219,7 @@ run_case("declined open preserves previous viewer state", function(group)
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
+    project = live_project(project)
     compile_current_project("compile failed before declined view test")
 
     project_services.set_viewer(project, {
@@ -271,6 +278,7 @@ run_case("open failures preserve previous viewer state", function(group)
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
+    project = live_project(project)
     vim.fn.delete(typst_test_compiler(project).output)
 
     local view_event = nil
@@ -354,6 +362,7 @@ run_case("viewer callback errors are isolated", function(group)
 
     vim.cmd.edit(main)
     local open_project = typst.project.set_main(main)
+    open_project = live_project(open_project)
     compile_current_project(
         "compile failed before view open callback error test"
     )
@@ -514,6 +523,7 @@ run_case("forward search callback and command", function(group)
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
+    project = live_project(project)
     compile_current_project("compile failed before view forward test")
 
     local forward_event = nil
@@ -680,6 +690,7 @@ run_case("executable source sync requires declared capability", function()
 
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
+    project = live_project(project)
     compile_current_project("compile failed before source-sync enabled test")
 
     local enabled = typst.viewer.capabilities()
@@ -870,6 +881,7 @@ run_case("inverse source-sync and executable backend", function(group)
     })
     vim.cmd.edit(main)
     local command_project = typst.project.set_main(main)
+    command_project = live_project(command_project)
     require("typst.project").update_dependencies(command_project, {
         main,
         chapter,
@@ -957,6 +969,7 @@ run_case("executable viewer args and info reporting", function(group)
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
+    project = live_project(project)
     compile_current_project("compile failed before viewer args test")
 
     local view_event = nil
@@ -1074,6 +1087,7 @@ run_case("viewer provider preset capabilities and state", function(group)
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
+    project = live_project(project)
     compile_current_project("compile failed before viewer provider test")
 
     local view_event = nil
@@ -1196,6 +1210,7 @@ run_case("compile opens viewer and notifies reload consumers", function()
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
+    project = live_project(project)
 
     local done = false
     typst.compiler.compile({}, function(result)
@@ -1253,6 +1268,7 @@ run_case("compile opens viewer and notifies reload consumers", function()
 
     vim.cmd.edit(main)
     project = typst.project.set_main(main)
+    project = live_project(project)
 
     done = false
     typst.compiler.compile({}, function(result)
@@ -1328,6 +1344,7 @@ run_case("watch opens viewer and notifies reload consumers", function()
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
+    project = live_project(project)
 
     typst.compiler.watch({}, function(result)
         callbacks[#callbacks + 1] = {

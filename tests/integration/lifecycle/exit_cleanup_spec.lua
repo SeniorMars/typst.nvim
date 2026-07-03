@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local helpers = dofile(root .. "/tests/helpers.lua")
 local registry = require("typst.project")
+local project_store = require("typst.project.store")
 local typst = require("typst")
 typst.reset()
 
@@ -88,7 +89,7 @@ assert(
     "watcher should be active before cleanup"
 )
 assert(
-    vim.tbl_count(registry.all()) >= 2,
+    vim.tbl_count(project_store.all()) >= 2,
     "exit cleanup should see both registered projects"
 )
 

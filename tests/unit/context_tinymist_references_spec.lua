@@ -24,7 +24,8 @@ vim.fn.writefile({
 vim.cmd.edit(main)
 vim.bo.filetype = "typst"
 local project = typst.project.set_main(main)
-project_services.graph(project).files["C:/Users/Charlie/Project/main.typ"] =
+local live_project = assert(require("typst.project.store").get(project.key))
+project_services.graph(live_project).files["C:/Users/Charlie/Project/main.typ"] =
     true
 
 local function action_by_id(actions, id)

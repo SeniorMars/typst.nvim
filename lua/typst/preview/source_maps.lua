@@ -4,6 +4,7 @@ local log = require("typst.core.log")
 local provider_adapter = require("typst.integrations.provider_adapter")
 local providers = require("typst.integrations.providers")
 local location = require("typst.integrations.typst_preview.location")
+local project_store = require("typst.project.store")
 local preview_service = require("typst.project.services.preview")
 
 local M = {}
@@ -347,7 +348,7 @@ function M.inverse(project, source_location, opts)
 end
 
 local function project_from_route(route)
-    local all = require("typst.project").all()
+    local all = project_store.all()
     if route.project_key and all[route.project_key] then
         return all[route.project_key]
     end

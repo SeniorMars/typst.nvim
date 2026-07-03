@@ -176,6 +176,24 @@ function M.project(opts, policy, notify)
     end
 
     if type(opts.project) == "table" then
+        if opts.project.mutable == false then
+            local state = require("typst.project.context").live(opts.project)
+            if state then
+                return { ok = true, project = state }
+            end
+            local key = opts.project.key
+            local err = {
+                ok = false,
+                reason = "unknown_project_key",
+                operation = policy.operation,
+                key = key,
+                message = ("Unknown Typst project key: %s"):format(
+                    tostring(key)
+                ),
+            }
+            maybe_notify(opts, policy, notify, err, vim.log.levels.WARN)
+            return { ok = false, error = err }
+        end
         return { ok = true, project = opts.project }
     end
 

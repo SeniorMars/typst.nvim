@@ -556,6 +556,45 @@ run_case("tinymist ownership report", function()
             "health output should explain project diagnostics suppression by Tinymist"
         )
 
+        typst.setup({
+            root = root,
+            output_dir = typst_test_cache_path("health-tinymist-output"),
+            diagnostics = {
+                source = "fallback",
+            },
+            integrations = {
+                tinymist = {
+                    client_names = { "tinymist_custom" },
+                },
+            },
+        })
+        typst.project.set_main(main)
+        vim.lsp.get_clients = function(opts)
+            if opts and opts.bufnr and opts.bufnr ~= bufnr then
+                return {}
+            end
+            local client = tinymist_client()
+            client.name = "tinymist_custom"
+            return { client }
+        end
+
+        messages = capture_health()
+        assert(
+            has_message(
+                messages,
+                "ok",
+                "Tinymist attached client: tinymist_custom id=42"
+            ),
+            "health output should use configured Tinymist client names"
+        )
+
+        vim.lsp.get_clients = function(opts)
+            if opts and opts.bufnr and opts.bufnr ~= bufnr then
+                return {}
+            end
+            return { tinymist_client() }
+        end
+
         vim.g.coc_service_initialized = 1
         typst.reset()
         typst.setup({

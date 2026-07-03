@@ -5,6 +5,7 @@ local fragments = require("typst.compiler.fragments")
 local compiler_service = require("typst.project.services.compiler")
 local log = require("typst.core.log")
 local project_registry = require("typst.project")
+local project_store = require("typst.project.store")
 local reports = require("typst.ui.reports")
 local util = require("typst.core.util")
 
@@ -286,7 +287,7 @@ end
 function M.stop_all(opts, callback, notify)
     opts = opts or {}
 
-    local states = vim.tbl_values(project_registry.all())
+    local states = vim.tbl_values(project_store.all())
     table.sort(states, function(left, right)
         return left.main < right.main
     end)

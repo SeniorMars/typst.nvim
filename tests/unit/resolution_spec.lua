@@ -4,6 +4,7 @@ vim.opt.runtimepath:prepend(root)
 local typst = require("typst")
 local log = require("typst.core.log")
 local state_store = require("typst.core.state")
+local project_store = require("typst.project.store")
 local project_services = require("typst.project.services")
 local util = require("typst.core.util")
 typst.reset()
@@ -604,8 +605,9 @@ assert(
     )] == "heuristic",
     "Unicode path dependency should keep its heuristic association"
 )
+local unicode_live_project = assert(project_store.get(unicode_project.key))
 local unicode_label_seen = false
-for _, item in ipairs(typst.index.labels(unicode_project)) do
+for _, item in ipairs(typst.index.labels(unicode_live_project)) do
     if
         item.name == "sec:über"
         and item.source.path == util.normalize(unicode_chapter)

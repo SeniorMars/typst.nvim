@@ -1,5 +1,6 @@
 local config = require("typst.config")
 local log = require("typst.core.log")
+local project_store = require("typst.project.store")
 local preview_service = require("typst.project.services.preview")
 
 local M = {}
@@ -24,7 +25,7 @@ end
 local function active_native_browser_project(current)
     local found = nil
     local count = 0
-    for _, project in pairs(require("typst.project").all()) do
+    for _, project in pairs(project_store.all()) do
         local preview = preview_service.get(project) or {}
         if
             preview.active == true

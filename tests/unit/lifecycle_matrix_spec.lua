@@ -10,6 +10,7 @@ local output_ownership = require("typst.resources.outputs")
 local preview_service = require("typst.project.services.preview")
 local project_services = require("typst.project.services")
 local project_registry = require("typst.project")
+local project_store = require("typst.project.store")
 local resource_supervisor = require("typst.resources.supervisor")
 
 local fixture_dir =
@@ -27,8 +28,9 @@ local function attach_project(name)
     vim.fn.writefile({ "= " .. name }, file)
     vim.cmd.edit(vim.fn.fnameescape(file))
     local bufnr = vim.api.nvim_get_current_buf()
-    local project =
+    local snapshot =
         assert(typst.project.set_main(file), "expected project attachment")
+    local project = assert(project_store.get(snapshot.key))
     return project, bufnr
 end
 
@@ -61,13 +63,13 @@ for _, kind in ipairs({ "export", "render_image", "format" }) do
     local record =
         assert(operations.begin(project, kind), "operation record should start")
     assert(
-        project_registry.all()[project.key] == project,
+        project_store.all()[project.key] == project,
         "project should be registered before detach"
     )
 
     typst.project.detach(bufnr)
     assert(
-        project_registry.all()[project.key] == project,
+        project_store.all()[project.key] == project,
         "last-buffer detach should retain a project with active "
             .. kind
             .. " work"
@@ -83,7 +85,7 @@ for _, kind in ipairs({ "export", "render_image", "format" }) do
 
     operations.finish(project, record, { ok = true, kind = kind })
     assert(
-        project_registry.all()[project.key] == nil,
+        project_store.all()[project.key] == nil,
         "finished detached "
             .. kind
             .. " work should allow empty project pruning"
@@ -99,7 +101,7 @@ local lease = assert(
 )
 typst.project.detach(lease_bufnr)
 assert(
-    project_registry.all()[lease_project.key] == lease_project,
+    project_store.all()[lease_project.key] == lease_project,
     "last-buffer detach should retain a project with an active output lease"
 )
 assert(
@@ -168,7 +170,7 @@ assert(
 )
 assert(cancel_calls == 1, "reset should attempt to cancel active operations")
 assert(
-    project_registry.all()[orphan_project.key] == orphan_project,
+    project_store.all()[orphan_project.key] == orphan_project,
     "reset should retain projects while orphaned operations are retained"
 )
 assert(
@@ -198,7 +200,7 @@ assert(
 
 typst.project.detach(orphan_bufnr)
 assert(
-    project_registry.all()[orphan_project.key] == nil,
+    project_store.all()[orphan_project.key] == nil,
     "retained orphan project should prune after late exit and detach"
 )
 
@@ -231,7 +233,7 @@ compiler.stop = original_compiler_stop
 
 assert(handled, "lifecycle should handle active compiler cleanup")
 assert(
-    project_registry.all()[stop_project.key] == stop_project,
+    project_store.all()[stop_project.key] == stop_project,
     "failed compiler stop should retain project ownership"
 )
 assert(
@@ -281,7 +283,7 @@ compiler.stop = original_mixed_compiler_stop
 
 assert(mixed_handled, "mixed preview/compiler prune should be handled")
 assert(
-    project_registry.all()[mixed_project.key] == mixed_project,
+    project_store.all()[mixed_project.key] == mixed_project,
     "preview stop failure should retain project ownership"
 )
 assert(
@@ -359,7 +361,7 @@ assert(
     "pending preview prune should record prune reason"
 )
 assert(
-    project_registry.all()[preview_prune_project.key] == preview_prune_project,
+    project_store.all()[preview_prune_project.key] == preview_prune_project,
     "pending preview prune should retain project ownership"
 )
 
@@ -440,7 +442,7 @@ assert(
     "native preview prune should clear active preview state"
 )
 assert(
-    project_registry.all()[native_prune_project.key] == nil,
+    project_store.all()[native_prune_project.key] == nil,
     "native preview prune should prune empty project"
 )
 
@@ -521,7 +523,7 @@ assert(
     "delegated preview prune should clear active preview state"
 )
 assert(
-    project_registry.all()[delegated_prune_project.key] == nil,
+    project_store.all()[delegated_prune_project.key] == nil,
     "delegated preview prune should prune empty project"
 )
 
@@ -585,7 +587,7 @@ local provider = {
     stop = function(_project, callback)
         stop_started = true
         vim.defer_fn(function()
-            stop_callback_registry_count = vim.tbl_count(project_registry.all())
+            stop_callback_registry_count = vim.tbl_count(project_store.all())
             callback({ code = 0, stale = false, stopped = true })
         end, 25)
         return {
@@ -628,7 +630,7 @@ assert(
     "typst.reset should wait for async stop callback before clearing registry"
 )
 assert(
-    vim.tbl_count(project_registry.all()) == 0,
+    vim.tbl_count(project_store.all()) == 0,
     "typst.reset should clear registry after active stops finish"
 )
 assert(
@@ -647,8 +649,9 @@ typst.setup({
 
 local exit_main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(exit_main)
-local exit_project = typst.project.set_main(exit_main)
-exit_project = assert(typst.project.attach(0), "project should attach")
+typst.project.set_main(exit_main)
+local exit_snapshot = assert(typst.project.attach(0), "project should attach")
+local exit_project = assert(project_store.get(exit_snapshot.key))
 
 local cancel_opts = nil
 local exit_record = operations.begin(exit_project, "render_fragment")

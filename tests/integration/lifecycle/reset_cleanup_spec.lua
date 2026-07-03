@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local helpers = dofile(root .. "/tests/helpers.lua")
 local registry = require("typst.project")
+local project_store = require("typst.project.store")
 local toc = require("typst.edit.toc")
 local typst = require("typst")
 
@@ -80,7 +81,7 @@ assert(toc.is_open(project), "reset fixture should open a project TOC window")
 typst.reset()
 
 assert(
-    vim.tbl_count(registry.all()) == 0,
+    vim.tbl_count(project_store.all()) == 0,
     "typst.reset should clear registered projects"
 )
 assert(
@@ -145,12 +146,16 @@ typst.setup({
 
 vim.cmd.edit(main)
 local unstoppable_project = typst.project.set_main(main)
+local live_unstoppable_project = assert(
+    project_store.get(unstoppable_project.key),
+    "live unstoppable project"
+)
 assert(
     typst.viewer.preview({ mode = "document" }) == true,
     "unstoppable reset fixture should open a preview"
 )
 assert(
-    typst_test_preview(unstoppable_project).active == true,
+    typst_test_preview(live_unstoppable_project).active == true,
     "unstoppable reset fixture should track active preview"
 )
 
@@ -160,11 +165,13 @@ assert(
     "typst.reset should report unconfirmed preview shutdown"
 )
 assert(
-    typst_test_preview(unstoppable_project).active == true,
+    typst_test_preview(live_unstoppable_project).active == true,
     "typst.reset should retain unstoppable preview state"
 )
 assert(
-    registry.all()[unstoppable_project.key] == unstoppable_project,
+    project_store.all()[unstoppable_project.key]
+        and project_store.all()[unstoppable_project.key].key
+            == unstoppable_project.key,
     "typst.reset should retain unstoppable preview projects"
 )
 typst.reset({ force = true })

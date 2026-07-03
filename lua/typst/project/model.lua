@@ -10,6 +10,7 @@ local util = require("typst.core.util")
 local M = {}
 local uv = vim.uv or vim.loop
 local scratch_counter = 0
+local project_instance_counter = 0
 local scratch_session = ("%s-%s"):format(
     tostring(vim.fn.getpid()),
     string.format("%d", uv.hrtime())
@@ -215,8 +216,10 @@ end
 ---@param key string Registry key for the project.
 ---@return TypstProject project New project state.
 function M.new_project(root, main, key)
+    project_instance_counter = project_instance_counter + 1
     local project = {
         key = key,
+        instance_id = project_instance_counter,
         root = root,
         main = main,
         services = services.new_state(),

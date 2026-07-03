@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local helpers = dofile(root .. "/tests/helpers.lua")
+local project_store = require("typst.project.store")
 local typst = require("typst")
 
 local case_id = 0
@@ -58,6 +59,7 @@ local function setup_project(opts, prefix, lines)
 
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
+    project = assert(project_store.get(project.key), "live project")
     vim.fn.delete(typst_test_compiler(project).output)
     return project, main
 end
@@ -1033,8 +1035,6 @@ run_case("last buffer detach stops watcher", function()
 end)
 
 run_case("main transfer stops old watcher", function()
-    local registry = require("typst.project")
-
     typst.reset()
     typst.setup({
         root = root,
@@ -1082,11 +1082,13 @@ run_case("main transfer stops old watcher", function()
         "old watcher handle did not close after main change"
     )
     assert(
-        registry.all()[chapter_project.key] == nil,
+        project_store.all()[chapter_project.key] == nil,
         "old empty project should be removed after watcher stops"
     )
     assert(
-        registry.all()[main_project.key] == main_project,
+        project_store.all()[main_project.key]
+            and project_store.all()[main_project.key].key
+                == main_project.key,
         "new project should remain registered"
     )
 end)
@@ -1095,20 +1097,62 @@ run_case("watch refreshes dependency graph", function()
     local project_services = require("typst.project.services")
 
     typst.reset()
+    local project_root = typst_test_cache_path("watch-dependencies-project")
+    vim.fn.delete(project_root, "rf")
+    vim.fn.mkdir(project_root, "p")
+    local main = project_root .. "/main.typ"
+    local chapter = project_root .. "/chapter.typ"
+    vim.fn.writefile({ '#include "chapter.typ"', "= Main" }, main)
+    vim.fn.writefile({ "= Chapter" }, chapter)
+
     typst.setup({
-        root = root,
+        root = project_root,
+        executable = helpers.python_command(
+            root .. "/tests/fixtures/fake-typst-integration.py"
+        ),
         output_dir = typst_test_cache_path("watch-dependencies-output"),
+        compile = {
+            deps = true,
+            watch_output = "human",
+        },
     })
 
-    local main = root .. "/tests/fixtures/basic/main.typ"
-    local chapter = root .. "/tests/fixtures/basic/chapter.typ"
-    local appendix = root .. "/tests/fixtures/basic/appendix.typ"
+    local state_store = require("typst.core.state")
+    state_store.clear_explicit_main(main)
+    state_store.clear_explicit_main(chapter)
 
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
+    project = assert(project_store.get(project.key), "live project")
     vim.fn.delete(typst_test_compiler(project).output)
 
     typst.compiler.watch()
+
+    local function graph_debug()
+        local compiler = typst_test_compiler(project)
+        local graph = project_services.graph(project)
+        local deps = {}
+        for path in pairs(graph.dependencies or {}) do
+            deps[#deps + 1] = path
+        end
+        table.sort(deps)
+        return vim.inspect({
+            command = compiler.last_command,
+            deps_path = compiler.watcher and compiler.watcher.deps_path,
+            deps_readable = compiler.watcher
+                    and compiler.watcher.deps_path
+                    and vim.fn.filereadable(compiler.watcher.deps_path)
+                or nil,
+            output = compiler.output,
+            output_readable = compiler.output and vim.fn.filereadable(
+                compiler.output
+            ) or nil,
+            status = compiler.status,
+            watcher = compiler.watcher ~= nil,
+            graph_dependencies = deps,
+            expected_chapter = chapter,
+        })
+    end
 
     assert(
         vim.wait(10000, function()
@@ -1116,13 +1160,13 @@ run_case("watch refreshes dependency graph", function()
                 and typst_test_compiler(project).status == "watching"
                 and vim.fn.filereadable(typst_test_compiler(project).output) == 1
                 and project_services.graph(project).dependencies[chapter]
-                and project_services.graph(project).dependencies[appendix]
         end, 20),
-        "active Typst watcher did not refresh project dependencies"
+        "active Typst watcher did not refresh project dependencies: "
+            .. graph_debug()
     )
 
     vim.cmd.edit(chapter)
-    local chapter_project = typst.project.get(0)
+    local chapter_project = typst.project.attach(0)
     assert(
         chapter_project.key == project.key,
         "chapter should attach to active watcher project through dependencies"
@@ -1130,7 +1174,10 @@ run_case("watch refreshes dependency graph", function()
     assert(
         chapter_project.resolutions[vim.api.nvim_get_current_buf()].main_source
             == "existing project graph",
-        "chapter resolution should record active watcher dependency graph attachment"
+        "chapter resolution should record active watcher dependency graph attachment, got "
+            .. tostring(
+                chapter_project.resolutions[vim.api.nvim_get_current_buf()].main_source
+            )
     )
 
     local stopped = false

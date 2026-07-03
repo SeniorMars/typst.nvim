@@ -4,6 +4,7 @@ vim.opt.runtimepath:prepend(root)
 local helpers = dofile(root .. "/tests/helpers.lua")
 local log = require("typst.core.log")
 local project_services = require("typst.project.services")
+local project_store = require("typst.project.store")
 local typst = require("typst")
 local util = require("typst.core.util")
 
@@ -45,7 +46,9 @@ local function run_schema_case(schema, assert_case)
 
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
-    local project = typst.project.set_main(main)
+    local project_snapshot = typst.project.set_main(main)
+    local project =
+        assert(project_store.get(project_snapshot.key), "live project")
     local result = nil
     typst.compiler.compile({}, function(done)
         result = done

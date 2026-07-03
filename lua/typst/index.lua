@@ -6,7 +6,7 @@ local index_providers = require("typst.project.index.providers")
 local index_traversal = require("typst.project.index.traversal")
 local import_enrichment = require("typst.project.imports")
 local project_context = require("typst.project.context")
-local project_registry = require("typst.project")
+local project_store = require("typst.project.store")
 local providers = require("typst.integrations.providers")
 local semantic = require("typst.project.semantic")
 local telemetry = require("typst.core.telemetry")
@@ -14,6 +14,13 @@ local util = require("typst.core.util")
 
 local M = {}
 local project_buffer_path = index_files.project_buffer_path
+
+local function normalize_project_opts(project_or_opts)
+    if type(project_or_opts) == "table" and project_or_opts.root then
+        return { project = project_or_opts }
+    end
+    return project_or_opts or {}
+end
 
 local function seen_from_collected(project, collected)
     local seen = aggregate.empty_seen()
@@ -91,7 +98,7 @@ local function sync_collect_generations(project, project_index)
 end
 
 local function collect_impl(opts)
-    opts = opts or {}
+    opts = normalize_project_opts(opts)
     local project = project_context.resolve(opts)
     if not project then
         return nil
@@ -249,11 +256,7 @@ function M.collect(opts)
 end
 
 local function category(project_or_opts, name)
-    local opts = type(project_or_opts) == "table"
-            and project_or_opts.root
-            and { project = project_or_opts }
-        or project_or_opts
-        or {}
+    local opts = normalize_project_opts(project_or_opts)
     local project = project_context.resolve(opts)
     if not project then
         return {}
@@ -342,10 +345,8 @@ end
 ---@param reason? string Invalidation reason stored in cache/debug state.
 ---@return boolean ok True when a project was found and marked dirty.
 function M.mark_dirty(project_or_opts, reason)
-    local project = type(project_or_opts) == "table"
-            and project_or_opts.root
-            and project_or_opts
-        or project_context.resolve(project_or_opts or {})
+    local project =
+        project_context.resolve(normalize_project_opts(project_or_opts))
     if not project then
         return false
     end
@@ -358,11 +359,14 @@ end
 ---@param project_or_opts? table Project state, options table, or nil for all projects.
 function M.reset(project_or_opts)
     if type(project_or_opts) == "table" and project_or_opts.root then
-        index_cache.reset(project_or_opts)
+        local project = project_context.resolve({ project = project_or_opts })
+        if project then
+            index_cache.reset(project)
+        end
         return
     end
 
-    for _, project in pairs(project_registry.all()) do
+    for _, project in pairs(project_store.all()) do
         index_cache.reset(project)
     end
 end

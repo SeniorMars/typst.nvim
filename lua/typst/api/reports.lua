@@ -25,6 +25,9 @@ end
 
 local function project_for_opts(_, opts)
     if type(opts.project) == "table" then
+        if opts.project.mutable == false then
+            return project_context.live(opts.project)
+        end
         return opts.project
     end
 
@@ -164,7 +167,7 @@ function M.install(api, notify)
         local status = require("typst.ui.status")
         local reports = require("typst.ui.reports")
         local snapshots = {}
-        for _, state in pairs(require("typst.project").all()) do
+        for _, state in pairs(require("typst.project.store").all()) do
             snapshots[#snapshots + 1] = status.project_snapshot(state)
         end
         table.sort(snapshots, function(left, right)

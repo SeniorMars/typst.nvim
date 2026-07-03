@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local helpers = dofile(root .. "/tests/helpers.lua")
 local registry = require("typst.project")
+local project_store = require("typst.project.store")
 local project_services = require("typst.project.services")
 local typst = require("typst")
 local util = require("typst.core.util")
@@ -67,7 +68,7 @@ assert(
     "saved project should own the saved buffer"
 )
 assert(
-    registry.all()[scratch_project.key] == nil,
+    project_store.all()[scratch_project.key] == nil,
     "empty scratch project should be pruned after saveas"
 )
 
@@ -112,7 +113,7 @@ assert(
     "renamed project should not keep the stale buffer path"
 )
 assert(
-    registry.all()[initial.key] == nil,
+    project_store.all()[initial.key] == nil,
     "empty project from the old buffer path should be pruned"
 )
 
@@ -195,15 +196,17 @@ vim.fn.writefile({ "= Compiler", '#include "shared.typ"' }, compiler_main)
 
 vim.cmd.edit(vim.fn.fnameescape(heuristic_main))
 local heuristic_project = typst.project.set_main(heuristic_main)
+local heuristic_live = assert(project_store.get(heuristic_project.key))
 registry.update_dependencies(
-    heuristic_project,
+    heuristic_live,
     { heuristic_main, source_shared },
     { source = "heuristic" }
 )
 
 vim.cmd.edit(vim.fn.fnameescape(compiler_main))
 local compiler_project = typst.project.set_main(compiler_main)
-registry.update_dependencies(compiler_project, { compiler_main, source_shared })
+local compiler_live = assert(project_store.get(compiler_project.key))
+registry.update_dependencies(compiler_live, { compiler_main, source_shared })
 
 vim.cmd.edit(vim.fn.fnameescape(source_shared))
 vim.b.typst_main = nil
@@ -219,13 +222,13 @@ assert(
     "existing project graph resolution should record graph source"
 )
 assert(
-    project_services.graph(heuristic_project).file_sources[util.normalize(
+    project_services.graph(heuristic_live).file_sources[util.normalize(
         source_shared
     )] == "heuristic",
     "heuristic project graph should preserve its association source"
 )
 assert(
-    project_services.graph(compiler_project).dependency_sources[util.normalize(
+    project_services.graph(compiler_live).dependency_sources[util.normalize(
         source_shared
     )] == "compiler",
     "compiler project graph should preserve its association source"
@@ -298,7 +301,7 @@ assert(
 )
 assert(vim.b.typst_main == nil, "deleted buffer-local main should be cleared")
 assert(
-    registry.all()[stale_project.key] == nil,
+    project_store.all()[stale_project.key] == nil,
     "stale deleted-main project should be pruned after recovery"
 )
 
@@ -340,7 +343,7 @@ assert(
     "stale moved buffer-local main should be cleared"
 )
 assert(
-    registry.all()[moved_stale_project.key] == nil,
+    project_store.all()[moved_stale_project.key] == nil,
     "stale moved-main project should be pruned after recovery"
 )
 
@@ -389,7 +392,7 @@ assert(
 )
 assert(
     vim.wait(10000, function()
-        return registry.all()[running_project_a.key] == nil
+        return project_store.all()[running_project_a.key] == nil
             and typst_test_compiler(running_project_a).process == nil
             and typst_test_compiler(running_project_a).status == "idle"
             and compile_handle:is_closing()

@@ -2,6 +2,7 @@
 
 ---@class TypstProject
 ---@field key string Stable registry key built from root and main.
+---@field instance_id integer Session-local project object identity used to reject stale public snapshots.
 ---@field root string Normalized project root path.
 ---@field main string Normalized Typst main file path.
 ---@field services TypstProjectServices Per-project service tables.

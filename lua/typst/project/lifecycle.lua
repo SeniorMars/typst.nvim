@@ -579,7 +579,7 @@ function M.reload_state(api, reload_opts, notify)
 
     require("typst.core.cache_registry").reload({ bufnr = bufnr })
 
-    local state = api.attach(bufnr)
+    local state = M.attach(api, bufnr)
     if not state then
         error("typst.nvim: failed to reload Typst state for current buffer")
     end

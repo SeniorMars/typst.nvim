@@ -32,6 +32,7 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
 
 local project =
     assert(typst.project.attach(bufnr), "scratch index fixture should attach")
+local live_project = assert(require("typst.project.store").get(project.key))
 assert(
     project.resolutions[bufnr].scratch == true,
     "scratch index fixture should use a scratch project"
@@ -74,7 +75,7 @@ assert(
 )
 
 local record = assert(
-    project_services.index(project).files[util.path_key(project.main)],
+    project_services.index(live_project).files[util.path_key(project.main)],
     "scratch main should have a persistent file index entry"
 )
 assert(
@@ -89,7 +90,7 @@ assert(
 )
 
 local stats = assert(
-    project_services.index(project).stats,
+    project_services.index(live_project).stats,
     "scratch index should expose stats"
 )
 local collect_hits = stats.collect_hits
