@@ -118,6 +118,7 @@ function _G.typst_test_root_path(...)
 end
 
 function _G.typst_test_services(project)
+    project = require("typst.project.context").live(project) or project
     return require("typst.project.services").ensure(project) or {}
 end
 

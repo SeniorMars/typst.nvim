@@ -166,8 +166,13 @@ assert(
     "project.store should own buffer-to-project lookup"
 )
 assert(
-    project_facade.all()[project.key] == project,
-    "typst.project facade should expose registry projects"
+    project_store.all()[project.key] == project,
+    "project.store should expose live registry projects"
+)
+assert(
+    project_facade.all()[project.key] ~= project
+        and project_facade.all()[project.key].key == project.key,
+    "typst.project facade should expose public project snapshots"
 )
 assert(
     type(project_attachments.install) == "function"

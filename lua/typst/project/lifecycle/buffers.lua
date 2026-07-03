@@ -1,94 +1,32 @@
 local core_lifecycle = require("typst.core.lifecycle")
-local ftplugin_state = require("typst.core.ftplugin_state")
 local log = require("typst.core.log")
 local project = require("typst.project")
+local attachment_editing = require("typst.project.attachments.editing")
+local attachment_index = require("typst.project.attachments.index")
+local attachment_toc = require("typst.project.attachments.toc")
+local project_store = require("typst.project.store")
 
 local M = {}
 
-local last_text_dirty_ticks = {}
-
-local function toc_module()
-    return require("typst.navigation.toc")
-end
-
-local function follow_open_toc(attached, bufnr)
-    local toc = toc_module()
-    if toc.is_open(attached) then
-        toc.follow(attached, bufnr)
-    end
-end
-
-local function schedule_follow_open_toc(attached, bufnr)
-    toc_module().schedule_follow(attached, bufnr)
-end
-
-local function should_mark_dirty_for_buffer(attached, args)
-    if args.event ~= "TextChanged" and args.event ~= "TextChangedI" then
-        return true
-    end
-
-    local ok, changedtick = pcall(vim.api.nvim_buf_get_changedtick, args.buf)
-    if not ok then
-        return true
-    end
-
-    local key = ("%s:%d"):format(attached.key or "", args.buf)
-    if last_text_dirty_ticks[key] == changedtick then
-        return false
-    end
-
-    last_text_dirty_ticks[key] = changedtick
-    return true
-end
-
-local function clear_dirty_ticks_for_buffer(bufnr)
-    local suffix = ":" .. tostring(bufnr)
-    for key in pairs(last_text_dirty_ticks) do
-        if key:sub(-#suffix) == suffix then
-            last_text_dirty_ticks[key] = nil
-        end
-    end
-end
-
---- Forget text-change debounce state for a buffer or one project/buffer pair.
----
---- Callers that detach, re-resolve, or move a buffer to another project must
---- call this before the old project key becomes unreachable.
----@param bufnr integer Buffer whose local debounce entries should be removed.
----@param project_key? string Project key to narrow cleanup.
 function M.forget(bufnr, project_key)
-    if project_key then
-        last_text_dirty_ticks[("%s:%d"):format(project_key, bufnr)] = nil
-        return
-    end
-    clear_dirty_ticks_for_buffer(bufnr)
+    attachment_index.forget(bufnr, project_key)
 end
 
 --- Clear all lifecycle buffer-local debounce state.
 function M.reset()
-    last_text_dirty_ticks = {}
+    attachment_index.reset()
 end
 
 --- Return tracked debounce entry count for tests and health checks.
 ---@return integer count Active debounce entries.
 function M._dirty_tick_count()
-    return vim.tbl_count(last_text_dirty_ticks)
-end
-
-local function set_omnifunc_if_empty(bufnr)
-    if vim.bo[bufnr].omnifunc == "" then
-        ftplugin_state.set_buffer_option(
-            bufnr,
-            "omnifunc",
-            "v:lua.typst_nvim_omnifunc"
-        )
-    end
+    return attachment_index.count()
 end
 
 local function attached_buffers()
     local seen = {}
     local buffers = {}
-    for _, state in pairs(project.all()) do
+    for _, state in pairs(project_store.all()) do
         for bufnr in pairs(state.bufs or {}) do
             if not seen[bufnr] then
                 seen[bufnr] = true
@@ -101,10 +39,8 @@ local function attached_buffers()
 end
 
 function M.install(api, bufnr)
-    clear_dirty_ticks_for_buffer(bufnr)
-    require("typst.edit.mappings").apply(bufnr)
-    core_lifecycle.apply_buffer_features(bufnr)
-    set_omnifunc_if_empty(bufnr)
+    attachment_index.forget(bufnr)
+    attachment_editing.apply(bufnr)
 
     local group = vim.api.nvim_create_augroup(
         core_lifecycle.buffer_augroup_name(bufnr),
@@ -119,7 +55,7 @@ function M.install(api, bufnr)
             core_lifecycle.apply_buffer_features(args.buf)
             local attached = project.get(args.buf)
             if attached then
-                follow_open_toc(attached, args.buf)
+                attachment_toc.follow_open(attached, args.buf)
             end
         end,
     })
@@ -129,7 +65,7 @@ function M.install(api, bufnr)
         callback = function(args)
             local attached = project.get(args.buf)
             if attached then
-                follow_open_toc(attached, args.buf)
+                attachment_toc.follow_open(attached, args.buf)
             end
         end,
     })
@@ -139,7 +75,7 @@ function M.install(api, bufnr)
         callback = function(args)
             local attached = project.get(args.buf)
             if attached then
-                schedule_follow_open_toc(attached, args.buf)
+                attachment_toc.schedule_follow_open(attached, args.buf)
             end
         end,
     })
@@ -151,13 +87,13 @@ function M.install(api, bufnr)
             callback = function(args)
                 local attached = project.get(args.buf)
                 if attached then
-                    if should_mark_dirty_for_buffer(attached, args) then
+                    if attachment_index.should_mark_dirty(attached, args) then
                         require("typst.index").mark_dirty(
                             attached,
                             "buffer changed"
                         )
                     end
-                    toc_module().schedule_refresh(attached)
+                    attachment_toc.schedule_refresh(attached)
                 end
             end,
         }
@@ -202,13 +138,7 @@ function M.reapply_attached_buffers()
     }
     for _, bufnr in ipairs(attached_buffers()) do
         if vim.api.nvim_buf_is_valid(bufnr) then
-            ftplugin_state.restore_buffer_mappings(bufnr)
-            require("typst.edit.mappings").apply(bufnr)
-            core_lifecycle.apply_buffer_features_all_windows(
-                bufnr,
-                { force = true }
-            )
-            set_omnifunc_if_empty(bufnr)
+            attachment_editing.reapply(bufnr)
             summary.applied = summary.applied + 1
         else
             summary.skipped = summary.skipped + 1

@@ -2,9 +2,9 @@ local lifecycle_buffers = require("typst.project.lifecycle.buffers")
 
 local M = {}
 
--- BufferAttachment boundary. The implementation still lives in the legacy
--- lifecycle buffer module, but callers should route buffer hook installation
--- and setup reapplication through this facade.
+-- BufferAttachment boundary. Callers should route buffer hook installation,
+-- setup reapplication, and buffer-local attachment cleanup through this facade
+-- while the coordinator delegates to focused attachment modules.
 
 function M.install(api, bufnr)
     return lifecycle_buffers.install(api, bufnr)
