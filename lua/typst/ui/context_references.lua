@@ -1,6 +1,6 @@
 local label_actions = require("typst.ui.label_actions")
 local lexical = require("typst.syntax.lexical")
-local project_registry = require("typst.project")
+local project_context = require("typst.project.context")
 local graph_service = require("typst.project.services.graph")
 local tinymist = require("typst.integrations.tinymist")
 local util = require("typst.core.util")
@@ -8,13 +8,7 @@ local util = require("typst.core.util")
 local M = {}
 
 local function resolve_project(bufnr)
-    local state = project_registry.get(bufnr)
-    if state then
-        return state
-    end
-
-    local ok, resolved = pcall(project_registry.resolve, bufnr)
-    return ok and resolved or nil
+    return project_context.resolve({ bufnr = bufnr }, { create = true })
 end
 
 local function read_file(path)

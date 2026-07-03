@@ -204,7 +204,10 @@ function M.reapply_attached_buffers()
         if vim.api.nvim_buf_is_valid(bufnr) then
             ftplugin_state.restore_buffer_mappings(bufnr)
             require("typst.edit.mappings").apply(bufnr)
-            core_lifecycle.apply_buffer_features(bufnr, { force = true })
+            core_lifecycle.apply_buffer_features_all_windows(
+                bufnr,
+                { force = true }
+            )
             set_omnifunc_if_empty(bufnr)
             summary.applied = summary.applied + 1
         else

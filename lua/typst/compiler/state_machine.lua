@@ -48,58 +48,25 @@ function M.apply_status(project, result, active_field)
     if M.is_watch_cycle(result, active_field) then
         if result.code == 0 then
             M.record_compile_output(project)
-            compiler_service.set(project, {
-                last_result = result,
-                status = "watching",
-                watch_cycle_status = "success",
-            })
-        else
-            compiler_service.set(project, {
-                last_result = result,
-                status = "watching",
-                watch_cycle_status = "error",
-            })
         end
+        compiler_service.finish_watch_cycle(project, result)
         return
     end
 
     if core_result.is_confirmed_stopped(result) then
-        compiler_service.set(project, {
-            clear = {
-                "process",
-                "watcher",
-                "process_operation",
-                "watcher_operation",
-            },
-            last_result = result,
-            status = "idle",
-        })
+        compiler_service.finish_stop_confirmed(project, result)
         provider_binding.clear_if_idle(project)
         return
     end
 
     if core_result.is_unconfirmed_stop(result) then
-        result.status = "stopping_failed"
-        result._typst_status_authoritative = true
-        compiler_service.set(project, {
-            last_result = result,
-            status = "stopping_failed",
-        })
+        compiler_service.finish_stop_unconfirmed(project, result)
         return
     end
 
     local clear = {}
     if result.code == 0 then
         M.record_compile_output(project)
-        compiler_service.set(project, {
-            last_result = result,
-            status = "success",
-        })
-    else
-        compiler_service.set(project, {
-            last_result = result,
-            status = "error",
-        })
     end
 
     if active_field then
@@ -110,7 +77,17 @@ function M.apply_status(project, result, active_field)
         else
             clear = { active_field }
         end
-        compiler_service.set(project, { clear = clear })
+    end
+    if active_field == "watcher" then
+        compiler_service.finish_watch_process(project, result)
+    elseif active_field == "process" then
+        compiler_service.finish_compile(project, result)
+    else
+        compiler_service.set(project, {
+            clear = clear,
+            last_result = result,
+            status = result.code == 0 and "success" or "error",
+        })
     end
     provider_binding.clear_if_idle(project)
 end

@@ -39,6 +39,171 @@ function M.set(project, fields)
     return compiler
 end
 
+local function merge(fields, defaults)
+    return vim.tbl_extend("force", defaults or {}, fields or {})
+end
+
+local function result_status(result, success_status, failure_status)
+    if type(result) == "table" and result._typst_status_authoritative then
+        return result.status
+    end
+    return type(result) == "table" and result.code == 0 and success_status
+        or failure_status
+end
+
+---Start a one-shot compile transition.
+---@param project TypstProject Project whose compiler service is mutated.
+---@param fields? TypstProjectCompilerServicePatch Additional fields to store.
+---@return TypstProjectCompilerService? compiler Compiler service table.
+function M.start_compile(project, fields)
+    local compiler = M.ensure(project)
+    local generation = fields and fields.generation
+        or ((compiler and compiler.generation) or 0) + 1
+    return M.set(
+        project,
+        merge(fields, {
+            generation = generation,
+            status = "compiling",
+        })
+    )
+end
+
+---Finish a one-shot compile transition.
+---@param project TypstProject Project whose compiler service is mutated.
+---@param result TypstCompilerResult Compile terminal result.
+---@param opts? {clear_active?:boolean} Transition controls.
+---@return TypstProjectCompilerService? compiler Compiler service table.
+function M.finish_compile(project, result, opts)
+    opts = opts or {}
+    local clear = opts.clear_active == false and nil
+        or {
+            "process",
+            "process_operation",
+            "active_compile_deps_path",
+        }
+    return M.set(project, {
+        clear = clear,
+        last_result = result,
+        status = result_status(result, "success", "error"),
+    })
+end
+
+---Start a long-running watch transition.
+---@param project TypstProject Project whose compiler service is mutated.
+---@param fields? TypstProjectCompilerServicePatch Additional fields to store.
+---@return TypstProjectCompilerService? compiler Compiler service table.
+function M.start_watch(project, fields)
+    local compiler = M.ensure(project)
+    local generation = fields and fields.watch_generation
+        or ((compiler and compiler.watch_generation) or 0) + 1
+    return M.set(
+        project,
+        merge(fields, {
+            watch_generation = generation,
+            status = "starting",
+        })
+    )
+end
+
+---Record an intermediate watch compile cycle.
+---@param project TypstProject Project whose compiler service is mutated.
+---@param result TypstCompilerResult Watch cycle result.
+---@return TypstProjectCompilerService? compiler Compiler service table.
+function M.finish_watch_cycle(project, result)
+    return M.set(project, {
+        last_result = result,
+        status = "watching",
+        watch_cycle_status = type(result) == "table"
+                and result.code == 0
+                and "success"
+            or "error",
+    })
+end
+
+---Finish a long-running watch process.
+---@param project TypstProject Project whose compiler service is mutated.
+---@param result TypstCompilerResult Watch terminal result.
+---@param opts? {status?:string, clear_active?:boolean} Transition controls.
+---@return TypstProjectCompilerService? compiler Compiler service table.
+function M.finish_watch_process(project, result, opts)
+    opts = opts or {}
+    local status = opts.status or result_status(result, "success", "error")
+    local clear = opts.clear_active == false and nil
+        or {
+            "watcher",
+            "watcher_operation",
+        }
+    return M.set(project, {
+        clear = clear,
+        last_result = result,
+        status = status,
+    })
+end
+
+---Begin a stop transition for active compiler work.
+---@param project TypstProject Project whose compiler service is mutated.
+---@param fields? TypstProjectCompilerServicePatch Additional fields to store.
+---@return TypstProjectCompilerService? compiler Compiler service table.
+function M.begin_stop(project, fields)
+    return M.set(project, merge(fields, { status = "stopping" }))
+end
+
+---Finish a confirmed stop transition.
+---
+---Output leases are intentionally not cleared here. Callers must release output
+---ownership before recording a confirmed stop, so release failures stay visible.
+---@param project TypstProject Project whose compiler service is mutated.
+---@param result TypstCompilerResult Stop result.
+---@return TypstProjectCompilerService? compiler Compiler service table.
+function M.finish_stop_confirmed(project, result)
+    return M.set(project, {
+        clear = {
+            "process",
+            "watcher",
+            "stopping_compile",
+            "process_operation",
+            "watcher_operation",
+        },
+        last_result = result,
+        status = "idle",
+    })
+end
+
+---Finish an unconfirmed stop transition.
+---@param project TypstProject Project whose compiler service is mutated.
+---@param result TypstCompilerResult Stop result.
+---@return TypstProjectCompilerService? compiler Compiler service table.
+function M.finish_stop_unconfirmed(project, result)
+    if type(result) == "table" then
+        result._typst_unconfirmed_stop = true
+        result.status = "stopping_failed"
+        result._typst_status_authoritative = true
+    end
+    return M.set(project, {
+        last_result = result,
+        status = "stopping_failed",
+    })
+end
+
+---Force-clear retained compiler state without claiming external shutdown.
+---@param project TypstProject Project whose compiler service is mutated.
+---@param result TypstCompilerResult Force-clear result.
+---@return TypstProjectCompilerService? compiler Compiler service table.
+function M.force_clear(project, result)
+    return M.set(project, {
+        clear = {
+            "process",
+            "watcher",
+            "stopping_compile",
+            "output_lease",
+            "process_operation",
+            "watcher_operation",
+        },
+        status = "idle",
+        last_result = result,
+    })
+end
+
 ---@param service TypstProjectCompilerService? Compiler service table.
 ---@return boolean active True when a compile/watch/stop handle is active.
 function M.has_active(service)

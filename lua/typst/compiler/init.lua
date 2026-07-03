@@ -35,6 +35,21 @@ local function provider_name(provider)
     return type(provider) == "table" and provider.name or "compiler"
 end
 
+local function explicit_terminal_result(value)
+    return type(value) == "table"
+        and value.pending ~= true
+        and (
+            value.ok ~= nil
+            or value.code ~= nil
+            or value.reason ~= nil
+            or value.message ~= nil
+            or value.stopped ~= nil
+            or value.forced ~= nil
+            or value.orphaned ~= nil
+            or value.idle ~= nil
+        )
+end
+
 ---@param run_config? table Effective run configuration.
 ---@return integer? timeout_ms Provider timeout in milliseconds.
 local function provider_timeout_ms(run_config)
@@ -204,7 +219,11 @@ function M.compile(project, callback, run_config)
             end,
             after_started = function(handle)
                 local compiler_state = compiler_service.get(project) or {}
-                if handle and not compiler_state.process then
+                if
+                    handle
+                    and not compiler_state.process
+                    and not explicit_terminal_result(handle)
+                then
                     compiler_service.set(project, { process = handle })
                 end
             end,
@@ -294,7 +313,11 @@ function M.start(project, callback, run_config)
             end,
             after_started = function(handle)
                 local compiler_state = compiler_service.get(project) or {}
-                if handle and not compiler_state.watcher then
+                if
+                    handle
+                    and not compiler_state.watcher
+                    and not explicit_terminal_result(handle)
+                then
                     compiler_service.set(project, { watcher = handle })
                 end
 
@@ -322,9 +345,11 @@ function M.stop(project, callback)
 
     local compiler_state = compiler_service.get(project) or {}
     if not compiler_state.watcher and not compiler_state.process then
-        compiler_service.set(project, {
-            clear = { "watcher", "process" },
-            status = "idle",
+        compiler_service.finish_stop_confirmed(project, {
+            code = 0,
+            stale = false,
+            stopped = true,
+            idle = true,
         })
         if callback then
             callback({ code = 0, stale = false, stopped = true, idle = true })
@@ -347,17 +372,9 @@ function M.stop(project, callback)
             result = compiler_result.normalize(result)
             if core_result.is_confirmed_stopped(result) then
                 release_output_lease(project)
-                compiler_service.set(project, {
-                    clear = { "process", "watcher", "output_lease" },
-                })
+                compiler_service.finish_stop_confirmed(project, result)
             else
-                result._typst_unconfirmed_stop = true
-                result.status = "stopping_failed"
-                result._typst_status_authoritative = true
-                compiler_service.set(project, {
-                    status = "stopping_failed",
-                    last_result = result,
-                })
+                compiler_service.finish_stop_unconfirmed(project, result)
             end
 
             compiler_result.emit(project, result)
@@ -397,9 +414,11 @@ function M.stop_for_exit(project, opts)
 
     local compiler_state = compiler_service.get(project) or {}
     if not compiler_state.watcher and not compiler_state.process then
-        compiler_service.set(project, {
-            clear = { "watcher", "process" },
-            status = "idle",
+        compiler_service.finish_stop_confirmed(project, {
+            code = 0,
+            stale = false,
+            stopped = true,
+            idle = true,
         })
         return { code = 0, stale = false, stopped = true, idle = true }
     end
@@ -443,17 +462,9 @@ function M.stop_for_exit(project, opts)
     )
     if core_result.is_confirmed_stopped(result) then
         release_output_lease(project)
-        compiler_service.set(project, {
-            clear = { "process", "watcher", "output_lease" },
-        })
+        compiler_service.finish_stop_confirmed(project, result)
     else
-        result._typst_unconfirmed_stop = true
-        result.status = "stopping_failed"
-        result._typst_status_authoritative = true
-        compiler_service.set(project, {
-            status = "stopping_failed",
-            last_result = result,
-        })
+        compiler_service.finish_stop_unconfirmed(project, result)
     end
     compiler_result.emit(project, result)
     provider_binding.clear_if_idle(project)
@@ -537,18 +548,7 @@ function M.force_clear(project, opts)
         key_display = key_display,
     }
 
-    compiler_service.set(project, {
-        clear = {
-            "process",
-            "watcher",
-            "stopping_compile",
-            "output_lease",
-            "process_operation",
-            "watcher_operation",
-        },
-        status = "idle",
-        last_result = result,
-    })
+    compiler_service.force_clear(project, result)
     provider_binding.clear_if_idle(project)
     log.add("warn", "force-cleared unconfirmed external compiler state", result)
     events.emit("TypstCompilerForceCleared", project, result)

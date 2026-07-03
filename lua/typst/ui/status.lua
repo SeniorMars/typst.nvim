@@ -8,6 +8,7 @@ local diagnostics_service = require("typst.project.services.diagnostics")
 local graph_service = require("typst.project.services.graph")
 local index_service = require("typst.project.services.index")
 local preview_service = require("typst.project.services.preview")
+local resource_session = require("typst.resources.session")
 local viewer_service = require("typst.project.services.viewer")
 local telemetry = require("typst.core.telemetry")
 local semantic_provider = require("typst.integrations.semantic_provider")
@@ -91,6 +92,7 @@ function M.snapshot(bufnr, opts)
     local viewer_state = viewer_service.get(state) or {}
     local graph = graph_service.get(state) or {}
     local index_state = index_service.get(state) or {}
+    local resources = resource_session.snapshot(state) or {}
     local watcher = compiler_state.watcher
     local output = compiler_state.output
 
@@ -178,6 +180,9 @@ function M.snapshot(bufnr, opts)
             active = index_state.fs_watch_active_count,
             cap = index_state.fs_watch_cap,
         },
+        resources = resources,
+        blockers = copy_table(resources.blockers) or {},
+        blocker_count = resources.blocker_count or 0,
     }, opts)
 end
 
@@ -187,6 +192,7 @@ function M.project_snapshot(state)
     local compiler_state = compiler_service.get(state) or {}
     local graph = graph_service.get(state) or {}
     local index_state = index_service.get(state) or {}
+    local resources = resource_session.snapshot(state) or {}
     local watcher = compiler_state.watcher
     local output = compiler_state.output
     if not snapshot.attached then
@@ -217,6 +223,9 @@ function M.project_snapshot(state)
                 active = index_state.fs_watch_active_count,
                 cap = index_state.fs_watch_cap,
             },
+            resources = resources,
+            blockers = copy_table(resources.blockers) or {},
+            blocker_count = resources.blocker_count or 0,
         }
     end
 
@@ -249,6 +258,9 @@ function M.project_snapshot(state)
         active = index_state.fs_watch_active_count,
         cap = index_state.fs_watch_cap,
     }
+    snapshot.resources = resources
+    snapshot.blockers = copy_table(resources.blockers) or {}
+    snapshot.blocker_count = resources.blocker_count or 0
     return snapshot
 end
 

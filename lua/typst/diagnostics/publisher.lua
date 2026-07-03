@@ -48,9 +48,31 @@ end
 function M.publish(ctx, project, text, opts)
     opts = opts or {}
     local key = ctx.source_key(opts.source)
-    ctx.clear(project, { emit = false, source = key })
 
-    local by_buffer = ctx.parse(project, text, opts)
+    local parse_ok, by_buffer = xpcall(function()
+        return ctx.parse(project, text, opts)
+    end, debug.traceback)
+    if not parse_ok or type(by_buffer) ~= "table" then
+        local err = {
+            ok = false,
+            reason = "diagnostics_parse_failed",
+            message = "Typst diagnostic output could not be parsed",
+            error = tostring(by_buffer),
+            source = key,
+        }
+        log.add(
+            "warn",
+            "diagnostic parse failed; keeping previous diagnostics",
+            {
+                source = key,
+                main = project and project.main,
+                error = err.error,
+            }
+        )
+        return nil, err
+    end
+
+    ctx.clear(project, { emit = false, source = key })
     local published = publish_buffers(ctx, project, key, by_buffer)
 
     quickfix.maybe_set(project, published)

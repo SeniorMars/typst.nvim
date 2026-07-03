@@ -91,6 +91,9 @@ function M.result_like(value)
     if type(value) ~= "table" then
         return false
     end
+    if value.pending == true then
+        return false
+    end
 
     return value.ok ~= nil
         or value.code ~= nil
@@ -99,10 +102,12 @@ function M.result_like(value)
         or value.stopped ~= nil
         or value.forced ~= nil
         or value.orphaned ~= nil
+        or value.idle ~= nil
 end
 
 local function explicit_terminal_result(value)
     return type(value) == "table"
+        and value.pending ~= true
         and (
             value.ok ~= nil
             or value.code ~= nil
@@ -111,6 +116,7 @@ local function explicit_terminal_result(value)
             or value.stopped ~= nil
             or value.forced ~= nil
             or value.orphaned ~= nil
+            or value.idle ~= nil
         )
 end
 

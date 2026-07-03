@@ -1,6 +1,6 @@
 local config = require("typst.config")
 local index = require("typst.index")
-local project_registry = require("typst.project")
+local project_context = require("typst.project.context")
 
 local M = {}
 
@@ -13,13 +13,7 @@ function M.project_for(opts)
     end
 
     local bufnr = M.normalize_bufnr(opts.bufnr)
-    local project = project_registry.get(bufnr)
-    if project then
-        return project
-    end
-
-    local ok, resolved = pcall(project_registry.resolve, bufnr)
-    return ok and resolved or nil
+    return project_context.resolve({ bufnr = bufnr }, { create = true })
 end
 
 function M.package_key(spec)

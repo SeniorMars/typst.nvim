@@ -650,6 +650,7 @@ function M.run(kind, command, opts, handlers)
     local timeout_ms = tonumber(handlers.timeout_ms or opts.timeout_ms)
     proc_opts.timeout_ms = nil
 
+    operation.state = "running"
     operation.handle = process.spawn(command, proc_opts, {
         on_exit = function(result)
             if handlers.schedule == false then
@@ -662,7 +663,6 @@ function M.run(kind, command, opts, handlers)
         end,
         on_spawn_error = handlers.on_spawn_error,
     })
-    operation.state = "running"
 
     if timeout_ms and timeout_ms > 0 then
         operation.timeout_ms = timeout_ms

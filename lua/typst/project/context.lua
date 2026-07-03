@@ -26,6 +26,26 @@ local public_tables = {
     "last_resolution",
 }
 
+local function can_create_project_from_buffer(bufnr, opts)
+    opts = opts or {}
+    if opts.allow_non_typst_create == true then
+        return true
+    end
+    if
+        type(bufnr) ~= "number"
+        or bufnr <= 0
+        or not vim.api.nvim_buf_is_valid(bufnr)
+    then
+        return false
+    end
+    if vim.bo[bufnr].filetype == "typst" then
+        return true
+    end
+
+    local name = vim.api.nvim_buf_get_name(bufnr)
+    return type(name) == "string" and name:match("%.typ$") ~= nil
+end
+
 local function copyable_key(key)
     return key == nil or scalar_types[type(key)] == true
 end
@@ -93,6 +113,10 @@ function M.resolve(opts, resolve_opts)
     end
     if state or resolve_opts.create == false then
         return state
+    end
+
+    if not can_create_project_from_buffer(bufnr, resolve_opts) then
+        return nil
     end
 
     local ok, resolved = pcall(registry.resolve, bufnr)

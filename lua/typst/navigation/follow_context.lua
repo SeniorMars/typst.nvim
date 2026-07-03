@@ -1,6 +1,6 @@
 local lexical = require("typst.syntax.lexical")
 local position = require("typst.completion.position")
-local project_registry = require("typst.project")
+local project_context = require("typst.project.context")
 local util = require("typst.core.util")
 
 local M = {}
@@ -27,13 +27,7 @@ function M.cursor_position(opts)
 end
 
 function M.project_for(bufnr)
-    local project = project_registry.get(bufnr)
-    if project then
-        return project
-    end
-
-    local ok, resolved = pcall(project_registry.resolve, bufnr)
-    return ok and resolved or nil
+    return project_context.resolve({ bufnr = bufnr }, { create = true })
 end
 
 function M.line_at(bufnr, row)

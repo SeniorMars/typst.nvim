@@ -44,6 +44,7 @@ function M.maybe_open_quickfix(state, by_buffer, opts)
 end
 
 function M.publish_output(state, output, opts, fields)
+    opts = opts or {}
     if generation_stale(state, opts) then
         -- Lint providers can finish out of order. A stale result is reported to
         -- its caller but must not clear or replace diagnostics from a newer run.
@@ -51,12 +52,27 @@ function M.publish_output(state, output, opts, fields)
     end
 
     output = output or ""
-    local by_buffer
+    local by_buffer, publish_err
     if output == "" then
         diagnostics.clear(state, { source = "lint" })
         by_buffer = {}
     else
-        by_buffer = diagnostics.publish(state, output, { source = "lint" })
+        by_buffer, publish_err =
+            diagnostics.publish(state, output, { source = "lint" })
+        if not by_buffer then
+            return vim.tbl_extend("force", {
+                ok = false,
+                reason = publish_err and publish_err.reason
+                    or "diagnostics_publish_failed",
+                message = publish_err and publish_err.message
+                    or "Typst lint diagnostics could not be published",
+                error = publish_err,
+                diagnostics = 0,
+                buffers = 0,
+                by_buffer = {},
+                quickfix = {},
+            }, fields or {})
+        end
     end
 
     local items = M.maybe_open_quickfix(state, by_buffer, opts)

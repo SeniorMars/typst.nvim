@@ -1,7 +1,7 @@
 local config = require("typst.config")
 local log = require("typst.core.log")
 local operation = require("typst.core.operation")
-local project = require("typst.project")
+local project_context = require("typst.project.context")
 local providers = require("typst.integrations.providers")
 local provider_adapter = require("typst.integrations.provider_adapter")
 local results = require("typst.lint.results")
@@ -22,17 +22,7 @@ local function resolve_project(bufnr, opts)
         return opts.project
     end
 
-    local state = project.get(bufnr)
-    if state then
-        return state
-    end
-
-    local ok, resolved = pcall(project.resolve, bufnr)
-    if ok then
-        return resolved
-    end
-
-    return nil
+    return project_context.resolve({ bufnr = bufnr }, { create = true })
 end
 
 local function buffer_text(bufnr)

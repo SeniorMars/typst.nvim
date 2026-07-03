@@ -2,7 +2,7 @@ local config = require("typst.config")
 local diagnostics = require("typst.diagnostics")
 local grammar_command = require("typst.syntax.grammar_command")
 local grammar_output = require("typst.syntax.grammar_output")
-local project = require("typst.project")
+local project_context = require("typst.project.context")
 local providers = require("typst.integrations.providers")
 local provider_adapter = require("typst.integrations.provider_adapter")
 
@@ -15,17 +15,7 @@ local function resolve_project(bufnr, opts)
         return opts.project
     end
 
-    local state = project.get(bufnr)
-    if state then
-        return state
-    end
-
-    local ok, resolved = pcall(project.resolve, bufnr)
-    if ok then
-        return resolved
-    end
-
-    return nil
+    return project_context.resolve({ bufnr = bufnr }, { create = true })
 end
 
 local function diagnostic_total(by_buffer)
@@ -97,13 +87,27 @@ local function publish_output(state, output, opts, fields)
             or opts.current_file
             or state.main,
     })
-    local by_buffer
+    local by_buffer, publish_err
     if output == "" then
         diagnostics.clear(state, { source = "typst grammar" })
         by_buffer = {}
     else
-        by_buffer =
+        by_buffer, publish_err =
             diagnostics.publish(state, output, { source = "typst grammar" })
+        if not by_buffer then
+            return vim.tbl_extend("force", {
+                ok = false,
+                reason = publish_err and publish_err.reason
+                    or "diagnostics_publish_failed",
+                message = publish_err and publish_err.message
+                    or "Typst grammar diagnostics could not be published",
+                error = publish_err,
+                diagnostics = 0,
+                buffers = 0,
+                by_buffer = {},
+                quickfix = {},
+            }, output_fields)
+        end
     end
 
     local items = maybe_open_quickfix(state, by_buffer, opts)

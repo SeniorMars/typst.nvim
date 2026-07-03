@@ -52,6 +52,7 @@ local function transfer_buffer(bufnr, next_key)
         return
     end
 
+    require("typst.project.attachments").forget(bufnr, previous_key)
     local previous = project_store.get(previous_key)
     if previous then
         previous.bufs[bufnr] = nil
@@ -198,6 +199,7 @@ function M.detach(bufnr)
     end
 
     local state = project_store.get(key)
+    require("typst.project.attachments").forget(bufnr, key)
     project_store.clear_buffer(bufnr)
 
     if state then
@@ -297,6 +299,9 @@ function M.clear_main(bufnr, opts)
 
     local previous_key = project_store.key_for_buffer(bufnr)
     local previous = previous_key and project_store.get(previous_key) or nil
+    if previous_key then
+        require("typst.project.attachments").forget(bufnr, previous_key)
+    end
     if previous then
         previous.bufs[bufnr] = nil
         diagnostics.clear_buffer(previous, bufnr, { emit = false })

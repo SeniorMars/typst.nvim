@@ -195,6 +195,33 @@ local function count_label(counts)
     return table.concat(labels, " ")
 end
 
+local function blocker_label(blocker)
+    local fields = {
+        blocker.kind or "unknown",
+        blocker.severity or "info",
+    }
+    if blocker.count then
+        fields[#fields + 1] = ("count=%d"):format(blocker.count)
+    end
+    if blocker.pid then
+        fields[#fields + 1] = ("pid=%s"):format(blocker.pid)
+    end
+    if blocker.reason then
+        fields[#fields + 1] = ("reason=%s"):format(blocker.reason)
+    end
+    if blocker.backend then
+        fields[#fields + 1] = ("backend=%s"):format(blocker.backend)
+    end
+    if blocker.path then
+        fields[#fields + 1] = ("path=%s"):format(blocker.path)
+    end
+    local kinds = count_label(blocker.kinds)
+    if kinds ~= "" then
+        fields[#fields + 1] = ("kinds=%s"):format(kinds)
+    end
+    return table.concat(fields, " ")
+end
+
 local function bytes_label(bytes)
     bytes = tonumber(bytes) or 0
     if bytes >= 1024 * 1024 then
@@ -768,6 +795,12 @@ function M.status_report_lines(snapshot)
             tostring(fs_watchers.cap or "auto"),
             suffix
         )
+    end
+    if type(snapshot.blockers) == "table" and #snapshot.blockers > 0 then
+        lines[#lines + 1] = ("  blockers: %d"):format(#snapshot.blockers)
+        for _, blocker in ipairs(snapshot.blockers) do
+            lines[#lines + 1] = ("    %s"):format(blocker_label(blocker))
+        end
     end
     if snapshot.telemetry_report and #snapshot.telemetry_report > 0 then
         lines[#lines + 1] = "  telemetry:"

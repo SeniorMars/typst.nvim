@@ -1,18 +1,12 @@
 local index = require("typst.index")
-local project_registry = require("typst.project")
+local project_context = require("typst.project.context")
 local label_rename = require("typst.ui.label_rename")
 local util = require("typst.core.util")
 
 local M = {}
 
 local function resolve_project(bufnr)
-    local state = project_registry.get(bufnr)
-    if state then
-        return state
-    end
-
-    local ok, resolved = pcall(project_registry.resolve, bufnr)
-    return ok and resolved or nil
+    return project_context.resolve({ bufnr = bufnr }, { create = true })
 end
 
 local function line_at(bufnr, row)

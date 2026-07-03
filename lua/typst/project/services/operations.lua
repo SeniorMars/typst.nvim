@@ -27,6 +27,7 @@ local M = {}
 ---@field stale integer Number of stale records cleared without a live handle.
 ---@field uncancellable integer Number of live unsupported handles retained.
 ---@field retained integer Number of records moved to retained-orphan tracking.
+---@field outcomes table[] Per-record cancellation outcome rows.
 
 local scalar_types = {
     boolean = true,
@@ -286,15 +287,15 @@ end
 
 local function cancellable_handle(record)
     local handle = record and record.handle
-    if type(handle) == "table" and type(handle.cancel) == "function" then
-        return handle
-    end
     if
         type(handle) == "table"
         and type(handle.operation) == "table"
         and type(handle.operation.cancel) == "function"
     then
         return handle.operation
+    end
+    if type(handle) == "table" and type(handle.cancel) == "function" then
+        return handle
     end
     return nil
 end
@@ -313,13 +314,16 @@ local function has_live_uncancellable_handle(record)
     return true
 end
 
-local function cancel_handle(handle, opts)
-    local called, stopped, result = pcall(handle.cancel, opts)
-    if not called then
-        called, stopped, result = pcall(handle.cancel, handle, opts)
-    end
+local function normalize_cancel_call(called, stopped, result)
     if not called then
         return false, { error = stopped }
+    end
+    if stopped == nil and result == nil then
+        return false,
+            {
+                reason = "cancel_no_result",
+                message = "operation cancel returned no result",
+            }
     end
     if stopped == false then
         return false, result
@@ -328,6 +332,105 @@ local function cancel_handle(handle, opts)
         return false, result
     end
     return true, result or stopped
+end
+
+local function confirmed_cancel_call(called, stopped, result)
+    if not called or stopped == false then
+        return false
+    end
+    if stopped == nil and result == nil then
+        return false
+    end
+    if type(result) == "table" and result.orphaned then
+        return false
+    end
+    return true
+end
+
+local function should_try_cancel_fallback(called, stopped, result)
+    if not called or (stopped == nil and result == nil) then
+        return true
+    end
+    if stopped ~= false or type(result) ~= "table" then
+        return false
+    end
+    return result.reason == "missing_reason"
+        or result.reason == "wrong_receiver"
+        or result.reason == "invalid_receiver"
+end
+
+local function call_cancel(handle, opts, style)
+    if style == "dot" then
+        return pcall(handle.cancel, opts)
+    end
+    return pcall(handle.cancel, handle, opts)
+end
+
+local function cancel_style(handle)
+    if type(handle) ~= "table" then
+        return "dot", true
+    end
+    if
+        handle.cancel_style == "dot"
+        or handle._typst_cancel_style == "dot"
+        or handle.deferred == true
+    then
+        return "dot", true
+    end
+    if
+        handle.cancel_style == "colon"
+        or handle.cancel_style == "method"
+        or handle._typst_cancel_style == "colon"
+        or handle.on_finish_style == "colon"
+        or handle._typst_on_finish_style == "colon"
+    then
+        return "method", true
+    end
+    local ok, info = pcall(debug.getinfo, handle.cancel, "u")
+    if ok and type(info) == "table" then
+        if type(info.nparams) == "number" and info.nparams >= 2 then
+            return "method", false
+        end
+        if info.isvararg ~= true and (info.nparams or 0) <= 1 then
+            return "dot", false
+        end
+    end
+    return "method", false
+end
+
+local function cancel_handle(handle, opts)
+    local first_style, explicit_style = cancel_style(handle)
+    local called, stopped, result = call_cancel(handle, opts, first_style)
+    if
+        not explicit_style
+        and should_try_cancel_fallback(called, stopped, result)
+    then
+        local fallback_style = first_style == "dot" and "method" or "dot"
+        local fallback_called, fallback_stopped, fallback_result =
+            call_cancel(handle, opts, fallback_style)
+        if
+            confirmed_cancel_call(
+                fallback_called,
+                fallback_stopped,
+                fallback_result
+            )
+        then
+            called, stopped, result =
+                fallback_called, fallback_stopped, fallback_result
+        end
+    end
+    return normalize_cancel_call(called, stopped, result)
+end
+
+local function add_cancel_outcome(summary, record, outcome, result)
+    summary.outcomes = summary.outcomes or {}
+    summary.outcomes[#summary.outcomes + 1] = {
+        id = record and record.id,
+        kind = record and record.kind,
+        outcome = outcome,
+        reason = type(result) == "table" and result.reason or nil,
+        retained = outcome == "retained" or outcome == "uncancellable",
+    }
 end
 
 --- Cancel cancellable non-compiler operations for a project.
@@ -345,6 +448,7 @@ function M.cancel_project(project, opts)
             stale = 0,
             uncancellable = 0,
             retained = 0,
+            outcomes = {},
         }
     end
 
@@ -361,6 +465,7 @@ function M.cancel_project(project, opts)
         stale = 0,
         uncancellable = 0,
         retained = 0,
+        outcomes = {},
     }
 
     local records = vim.tbl_values(service.active_by_id or {})
@@ -420,11 +525,29 @@ function M.cancel_project(project, opts)
                         active_record,
                         operation.result or cancel_result or operation
                     )
+                    add_cancel_outcome(
+                        summary,
+                        active_record,
+                        "retained",
+                        operation.result or cancel_result or operation
+                    )
                 elseif ok then
                     summary.cancelled = summary.cancelled + 1
                     M.clear(project, active_record)
+                    add_cancel_outcome(
+                        summary,
+                        active_record,
+                        "cancelled",
+                        cancel_result
+                    )
                 else
                     summary.failed = summary.failed + 1
+                    add_cancel_outcome(
+                        summary,
+                        active_record,
+                        "failed",
+                        cancel_result
+                    )
                 end
             else
                 if has_live_uncancellable_handle(active_record) then
@@ -436,9 +559,18 @@ function M.cancel_project(project, opts)
                         message = "operation handle does not implement cancel",
                         kind = kind,
                     })
+                    add_cancel_outcome(
+                        summary,
+                        active_record,
+                        "uncancellable",
+                        {
+                            reason = "uncancellable_handle",
+                        }
+                    )
                 else
                     summary.stale = summary.stale + 1
                     M.clear(project, active_record)
+                    add_cancel_outcome(summary, active_record, "stale")
                 end
             end
         end
@@ -503,6 +635,7 @@ local function run(project, kind, callback, runner, opts)
                 ok = false,
                 pending = true,
                 deferred = true,
+                cancel_style = "dot",
                 kind = kind,
                 cancel = function(cancel_opts, cancel_callback)
                     if actual then
@@ -690,6 +823,7 @@ function M.stop(project, callback, notify)
             ok = false,
             pending = true,
             deferred = true,
+            cancel_style = "dot",
             kind = "stop",
             cancel = function(cancel_opts, cancel_callback)
                 if actual and type(actual.cancel) == "function" then

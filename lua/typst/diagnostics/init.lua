@@ -296,7 +296,8 @@ end
 ---@param project table Project state whose buffers receive diagnostics.
 ---@param text string Raw compiler/lint/grammar output.
 ---@param opts? table Publish options, including optional diagnostic source.
----@return table<integer, table[]> by_buffer Diagnostics published by valid buffer.
+---@return table<integer, table[]>|nil by_buffer Diagnostics published by valid buffer, or nil when parsing failed.
+---@return table? error Structured diagnostics parse error when publishing failed.
 function M.publish(project, text, opts)
     return publisher.publish({
         source_key = source_key,

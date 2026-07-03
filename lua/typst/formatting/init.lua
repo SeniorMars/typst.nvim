@@ -2,7 +2,7 @@ local config = require("typst.config")
 local prose = require("typst.formatting.prose")
 local log = require("typst.core.log")
 local operation = require("typst.core.operation")
-local project = require("typst.project")
+local project_context = require("typst.project.context")
 local providers = require("typst.integrations.providers")
 local provider_adapter = require("typst.integrations.provider_adapter")
 local tinymist = require("typst.integrations.tinymist")
@@ -41,17 +41,7 @@ local function resolve_project(bufnr, opts)
         return opts.project
     end
 
-    local state = project.get(bufnr)
-    if state then
-        return state
-    end
-
-    local ok, resolved = pcall(project.resolve, bufnr)
-    if ok then
-        return resolved
-    end
-
-    return nil
+    return project_context.resolve({ bufnr = bufnr }, { create = true })
 end
 
 local function buffer_text(bufnr)
@@ -310,6 +300,20 @@ local function normalize_command_exit(
         }
     end
 
+    local input_text = opts.input_text
+    local input_has_content = type(input_text) == "string"
+        and input_text ~= ""
+        and input_text ~= "\n"
+    if result.stdout == "" and input_has_content then
+        return {
+            ok = false,
+            reason = "empty_output",
+            provider = provider_name,
+            command = full_command,
+            message = "Formatter command produced empty stdout; command formatters must write the full formatted file to stdout",
+        }
+    end
+
     if not vim.api.nvim_buf_is_valid(bufnr) then
         return {
             ok = false,
@@ -373,7 +377,10 @@ local function run_command(bufnr, state, opts, provider_name, callback)
         local normalized = normalize_command_exit(
             bufnr,
             finished,
-            vim.tbl_extend("force", opts, { apply_context = apply_context }),
+            vim.tbl_extend("force", opts, {
+                apply_context = apply_context,
+                input_text = input,
+            }),
             provider_name,
             full_command,
             timeout_ms
