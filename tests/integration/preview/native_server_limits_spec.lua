@@ -5,6 +5,7 @@ local config = require("typst.config")
 local browser = require("typst.preview.native.browser")
 local server = require("typst.preview.native.server")
 local session = require("typst.preview.native.session")
+local source_maps = require("typst.preview.source_maps")
 local typst = require("typst")
 
 local uv = vim.uv or vim.loop
@@ -265,6 +266,85 @@ assert(
     "streamed browser preview artifact body should be complete"
 )
 
+local write_callbacks = {}
+local fake_client = {
+    closed = false,
+    writes = {},
+}
+function fake_client:is_closing()
+    return self.closed
+end
+function fake_client:write(data, callback)
+    self.writes[#self.writes + 1] = data
+    write_callbacks[#write_callbacks + 1] = callback
+end
+function fake_client:shutdown(callback)
+    if callback then
+        callback()
+    end
+end
+function fake_client:close()
+    self.closed = true
+end
+local failure_fd = assert(uv.fs_open(streamed_output, "r", 438))
+local failure_stat = assert(uv.fs_fstat(failure_fd))
+server._send_file_for_tests(
+    fake_client,
+    streamed_output,
+    failure_fd,
+    failure_stat
+)
+assert(
+    #fake_client.writes == 1 and #write_callbacks == 1,
+    "native preview send_file test should start by writing response headers"
+)
+write_callbacks[1]("synthetic write failure")
+assert(
+    fake_client.closed == true,
+    "native preview write failures after response start should close the socket"
+)
+
+local chunk_write_callbacks = {}
+local chunk_failure_client = {
+    closed = false,
+    writes = 0,
+}
+function chunk_failure_client:is_closing()
+    return self.closed
+end
+function chunk_failure_client:write(_data, callback)
+    self.writes = self.writes + 1
+    if self.writes > 1 then
+        error("synthetic chunk write failure")
+    end
+    chunk_write_callbacks[#chunk_write_callbacks + 1] = callback
+end
+function chunk_failure_client:shutdown(callback)
+    if callback then
+        callback()
+    end
+end
+function chunk_failure_client:close()
+    self.closed = true
+end
+local chunk_failure_fd = assert(uv.fs_open(streamed_output, "r", 438))
+local chunk_failure_stat = assert(uv.fs_fstat(chunk_failure_fd))
+server._send_file_for_tests(
+    chunk_failure_client,
+    streamed_output,
+    chunk_failure_fd,
+    chunk_failure_stat
+)
+assert(
+    #chunk_write_callbacks == 1,
+    "chunk write failure test should capture the response header callback"
+)
+chunk_write_callbacks[1]()
+assert(
+    chunk_failure_client.closed == true,
+    "native preview synchronous chunk write failures should close the socket"
+)
+
 local huge_header_response = http_raw(
     host,
     port,
@@ -301,6 +381,57 @@ local state_response = http_raw(
 assert(
     state_response:find("HTTP/1.1 200 OK", 1, true),
     "native preview server should handle requests after an EOF client"
+)
+
+local source_sync_fast_event = nil
+config.unsafe_get().preview.source_maps.provider = {
+    name = "fast-event-test",
+    browser_inverse = function(_, request)
+        source_sync_fast_event = vim.in_fast_event and vim.in_fast_event()
+            or false
+        return {
+            path = request.main,
+            line = 1,
+            column = 1,
+        }
+    end,
+}
+local source_sync_response = http_raw(
+    host,
+    port,
+    ("GET %ssource-sync?page=1&x=1&y=1 HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n"):format(
+        base_path,
+        host
+    )
+)
+assert(
+    source_sync_response:find("HTTP/1.1 200 OK", 1, true),
+    "browser source-sync route should return a successful response"
+)
+assert(
+    source_sync_fast_event == false,
+    "browser source-sync provider should run from scheduled context"
+)
+
+local original_browser_inverse = source_maps.browser_inverse
+source_maps.browser_inverse = function()
+    error("synthetic source-sync route failure")
+end
+local route_error_ok, route_error_response = pcall(
+    http_raw,
+    host,
+    port,
+    ("GET %ssource-sync?page=1&x=1&y=1 HTTP/1.1\r\nHost: %s\r\nConnection: close\r\n\r\n"):format(
+        base_path,
+        host
+    )
+)
+source_maps.browser_inverse = original_browser_inverse
+assert(route_error_ok, route_error_response)
+assert(
+    route_error_response:find("HTTP/1.1 500 Internal Server Error", 1, true)
+        and route_error_response:find("route_failed", 1, true),
+    "browser source-sync route failures should return structured 500 responses"
 )
 
 local protected_route = session.set_route(project, {

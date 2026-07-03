@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local compiler_service = require("typst.project.services.compiler")
 local preview_service = require("typst.project.services.preview")
+local project_store = require("typst.project.store")
 local server = require("typst.preview.native.server")
 local session = require("typst.preview.native.session")
 local typst = require("typst")
@@ -52,7 +53,9 @@ local ok, err = xpcall(function()
     write_svg(second_output)
 
     vim.cmd.edit(main)
-    local first_project = typst.project.set_main(main)
+    local first_snapshot = typst.project.set_main(main)
+    local first_project =
+        assert(project_store.get(first_snapshot.key), "live first project")
     compiler_service.set(first_project, { output = first_output })
 
     local opened = typst.viewer.preview_open_browser()
@@ -66,7 +69,9 @@ local ok, err = xpcall(function()
 
     local original_url = opened_urls[1]
     vim.cmd.edit(chapter)
-    local second_project = typst.project.set_main(chapter)
+    local second_snapshot = typst.project.set_main(chapter)
+    local second_project =
+        assert(project_store.get(second_snapshot.key), "live second project")
     compiler_service.set(second_project, { output = second_output })
     require("typst.preview.follow_buffer").on_buffer(
         vim.api.nvim_get_current_buf()

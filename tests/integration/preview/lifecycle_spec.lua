@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local registry = require("typst.project")
+local project_store = require("typst.project.store")
 local typst = require("typst")
 typst.reset()
 
@@ -155,7 +156,7 @@ assert(
     "last-buffer detach should clear preview active state"
 )
 assert(
-    registry.all()[project.key] == nil,
+    project_store.all()[project.key] == nil,
     "preview project should be pruned after detach stops preview"
 )
 
@@ -212,11 +213,12 @@ assert(
     "old project preview state should be cleared after main change"
 )
 assert(
-    registry.all()[chapter_project.key] == nil,
+    project_store.all()[chapter_project.key] == nil,
     "old preview project should be pruned after main change"
 )
 assert(
-    registry.all()[main_project.key] == main_project,
+    project_store.all()[main_project.key]
+        and project_store.all()[main_project.key].key == main_project.key,
     "new project should remain registered after preview transfer"
 )
 
@@ -271,7 +273,8 @@ assert(
     "failed preview cleanup should not mark the compiler stopping failed"
 )
 assert(
-    registry.all()[project.key] == project,
+    project_store.all()[project.key]
+        and project_store.all()[project.key].key == project.key,
     "unstoppable preview project should stay registered after failed stop"
 )
 

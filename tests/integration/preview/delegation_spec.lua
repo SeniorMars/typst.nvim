@@ -33,6 +33,7 @@ vim.api.nvim_create_user_command("TypstPreviewSyncCursor", function()
 end, {})
 
 local typst = require("typst")
+local project_store = require("typst.project.store")
 typst.reset()
 typst.setup({
     root = root,
@@ -122,20 +123,21 @@ assert(
     preview_event.command[1] == "TypstPreview document",
     "delegated preview event had wrong command"
 )
+local live_project = assert(project_store.get(project.key))
 assert(
-    typst_test_preview(project).last_backend == "typst-preview.nvim",
+    typst_test_preview(live_project).last_backend == "typst-preview.nvim",
     "project should record delegated preview backend"
 )
 assert(
-    typst_test_preview(project).last_mode == "document",
+    typst_test_preview(live_project).last_mode == "document",
     "project should record delegated preview mode"
 )
 assert(
-    typst_test_preview(project).last_command[1] == "TypstPreview document",
+    typst_test_preview(live_project).last_command[1] == "TypstPreview document",
     "project should record delegated preview command"
 )
 assert(
-    typst_test_preview(project).last_cwd == root,
+    typst_test_preview(live_project).last_cwd == root,
     "project should record delegated preview cwd"
 )
 assert(
@@ -172,7 +174,7 @@ assert(
     "preview stopped event should expose preview cwd"
 )
 assert(
-    typst_test_preview(project).active == false,
+    typst_test_preview(live_project).active == false,
     "delegated preview stop should clear active state"
 )
 
@@ -193,7 +195,7 @@ assert(
     "delegated preview toggle should restore the caller cwd"
 )
 assert(
-    typst_test_preview(project).active == true,
+    typst_test_preview(live_project).active == true,
     "delegated preview toggle should mark preview active"
 )
 
@@ -272,12 +274,12 @@ assert(
     "delegated forward event should expose command"
 )
 assert(
-    typst_test_preview(project).last_backend
+    typst_test_preview(live_project).last_backend
         == "typst-preview.nvim-forward-command",
     "project should record forward backend"
 )
 assert(
-    typst_test_preview(project).last_command[1] == "TypstPreviewSyncCursor",
+    typst_test_preview(live_project).last_command[1] == "TypstPreviewSyncCursor",
     "project should record sync command"
 )
 

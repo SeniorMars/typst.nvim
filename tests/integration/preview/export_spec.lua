@@ -5,6 +5,7 @@ local helpers = dofile(root .. "/tests/helpers.lua")
 local compiler_service = require("typst.project.services.compiler")
 local config = require("typst.config")
 local native = require("typst.preview.native")
+local project_store = require("typst.project.store")
 local typst = require("typst")
 
 local function wait_for_handle(handle, label)
@@ -91,7 +92,8 @@ typst.setup({
 
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
-local project = typst.project.set_main(main)
+local project_snapshot = typst.project.set_main(main)
+local project = assert(project_store.get(project_snapshot.key), "live project")
 local compiler_output_before = (compiler_service.get(project) or {}).output
 
 local viewer_result = typst.viewer.preview({ mode = "document" })
@@ -196,7 +198,8 @@ typst.setup({
 })
 
 vim.cmd.edit(main)
-project = typst.project.set_main(main)
+project_snapshot = typst.project.set_main(main)
+project = assert(project_store.get(project_snapshot.key), "live project")
 compiler_output_before = (compiler_service.get(project) or {}).output
 
 local browser_result =
@@ -410,7 +413,8 @@ typst.setup({
 })
 
 vim.cmd.edit(main)
-project = typst.project.set_main(main)
+project_snapshot = typst.project.set_main(main)
+project = assert(project_store.get(project_snapshot.key), "live project")
 
 local race_open = typst.viewer.preview({ mode = "document" })
 assert(race_open and race_open.ok == true, "race preview should open")

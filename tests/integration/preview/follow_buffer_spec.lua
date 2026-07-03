@@ -4,6 +4,7 @@ vim.opt.runtimepath:prepend(root)
 local typst = require("typst")
 local compiler_service = require("typst.project.services.compiler")
 local preview_service = require("typst.project.services.preview")
+local project_store = require("typst.project.store")
 local session = require("typst.preview.native.session")
 
 typst.reset()
@@ -37,7 +38,9 @@ vim.fn.writefile({
 }, second_output)
 
 vim.cmd.edit(main)
-local first_project = typst.project.set_main(main)
+local first_snapshot = typst.project.set_main(main)
+local first_project =
+    assert(project_store.get(first_snapshot.key), "live first project")
 compiler_service.set(first_project, {
     output = first_output,
 })
@@ -51,7 +54,9 @@ assert(#opened_urls == 1, "native browser preview should open one URL")
 local original_url = opened_urls[1]
 
 vim.cmd.edit(chapter)
-local second_project = typst.project.set_main(chapter)
+local second_snapshot = typst.project.set_main(chapter)
+local second_project =
+    assert(project_store.get(second_snapshot.key), "live second project")
 compiler_service.set(second_project, {
     output = second_output,
 })

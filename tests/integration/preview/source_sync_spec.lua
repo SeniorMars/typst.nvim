@@ -76,7 +76,7 @@ assert(
     "view_forward should fall back to preview forward callback"
 )
 assert(
-    forwarded_project == project,
+    forwarded_project and forwarded_project.key == project.key,
     "preview forward callback should receive project"
 )
 assert(

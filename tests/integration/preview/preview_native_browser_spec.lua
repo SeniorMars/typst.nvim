@@ -5,6 +5,7 @@ local helpers = dofile(root .. "/tests/helpers.lua")
 local html = require("typst.preview.native.html")
 local native = require("typst.preview.native")
 local preview_service = require("typst.project.services.preview")
+local project_store = require("typst.project.store")
 local resource_session = require("typst.resources.session")
 local typst = require("typst")
 local util = require("typst.core.util")
@@ -18,6 +19,10 @@ local stop_callbacks = 0
 
 local function test_cache_dir(name)
     return typst_test_cache_path(name)
+end
+
+local function live_project(snapshot)
+    return assert(project_store.get(snapshot.key), "live project")
 end
 
 local escaped_shell = html.file_shell({
@@ -123,7 +128,7 @@ typst.setup({
 
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
-local project = typst.project.set_main(main)
+local project = live_project(typst.project.set_main(main))
 
 local done = false
 typst.compiler.compile({}, function(result)
@@ -332,7 +337,7 @@ typst.setup({
 })
 
 vim.cmd.edit(main)
-local pending_stop_project = typst.project.set_main(main)
+local pending_stop_project = live_project(typst.project.set_main(main))
 done = false
 typst.compiler.compile({}, function(result)
     assert(result.code == 0, "compile failed before pending native stop")
@@ -458,7 +463,7 @@ typst.setup({
 })
 
 vim.cmd.edit(main)
-local nil_refresh_project = typst.project.set_main(main)
+local nil_refresh_project = live_project(typst.project.set_main(main))
 local nil_refresh_open = typst.viewer.preview({ mode = "document" })
 assert(
     nil_refresh_open and nil_refresh_open.ok == true,
@@ -548,7 +553,7 @@ typst.setup({
 })
 
 vim.cmd.edit(main)
-local fallback_project = typst.project.set_main(main)
+local fallback_project = live_project(typst.project.set_main(main))
 done = false
 typst.compiler.compile({}, function(result)
     assert(result.code == 0, "compile failed before native auto fallback")
@@ -657,7 +662,7 @@ typst.setup({
 })
 
 vim.cmd.edit(main)
-local preflight_project = typst.project.set_main(main)
+local preflight_project = live_project(typst.project.set_main(main))
 done = false
 typst.compiler.compile({}, function(result)
     assert(result.code == 0, "compile failed before opener preflight")
@@ -717,7 +722,7 @@ typst.setup({
 })
 
 vim.cmd.edit(main)
-local declined_project = typst.project.set_main(main)
+local declined_project = live_project(typst.project.set_main(main))
 done = false
 typst.compiler.compile({}, function(result)
     assert(result.code == 0, "compile failed before declined browser open")
@@ -913,7 +918,7 @@ typst.setup({
 })
 
 vim.cmd.edit(main)
-local svg_shell_project = typst.project.set_main(main)
+local svg_shell_project = live_project(typst.project.set_main(main))
 done = false
 typst.compiler.compile({}, function(result)
     assert(result.code == 0, "compile failed before SVG file-shell preview")
@@ -981,7 +986,7 @@ typst.setup({
 })
 
 vim.cmd.edit(main)
-local throttle_project = typst.project.set_main(main)
+local throttle_project = live_project(typst.project.set_main(main))
 done = false
 typst.compiler.compile({}, function(result)
     assert(result.code == 0, "compile failed before reload throttle")

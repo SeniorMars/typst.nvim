@@ -11,6 +11,7 @@ local server = nil
 local HEADER_LIMIT_BYTES = 64 * 1024
 local READ_TIMEOUT_MS = 5000
 local STREAM_CHUNK_BYTES = 64 * 1024
+local response_started = setmetatable({}, { __mode = "k" })
 
 local function loopback_host(host)
     return host == "127.0.0.1"
@@ -124,9 +125,22 @@ end
 
 local function send(client, status, headers, body)
     body = body or ""
-    client:write(response_head(status, headers, #body) .. body, function()
-        close_client(client)
-    end)
+    local ok, err = pcall(
+        client.write,
+        client,
+        response_head(status, headers, #body) .. body,
+        function()
+            close_client(client)
+        end
+    )
+    if ok then
+        response_started[client] = true
+        return
+    end
+    if not client:is_closing() then
+        client:close()
+    end
+    error(err)
 end
 
 local function send_json(client, status, payload)
@@ -183,15 +197,33 @@ local function send_file(client, path, fd, stat)
         end
 
         offset = offset + #chunk
-        client:write(chunk, write_next)
+        local ok, write_err = pcall(client.write, client, chunk, write_next)
+        if not ok then
+            log.add("warn", "native preview artifact write failed", {
+                path = path,
+                error = write_err,
+            })
+            finish()
+        end
     end
 
-    client:write(
+    local ok, err = pcall(
+        client.write,
+        client,
         response_head("200 OK", {
             ["Content-Type"] = mime_for(path),
         }, stat.size),
         write_next
     )
+    if ok then
+        response_started[client] = true
+        return
+    end
+    close_file()
+    if not client:is_closing() then
+        client:close()
+    end
+    error(err)
 end
 
 local function decode_component(value)
@@ -372,7 +404,40 @@ local function handle_client(client)
         local method, target = request:match("^([A-Z]+)%s+([^%s]+)")
         target = target or "/"
         local path, query = target:match("^([^?]*)%??(.*)$")
-        handle_route(client, method or "GET", path or "/", query)
+        method = method or "GET"
+        path = path or "/"
+        query = query or ""
+        -- The read callback is a libuv fast-event context. Route handlers may
+        -- resolve projects, invoke providers, emit events, or open buffers, so
+        -- dispatch the full route on the main loop and keep socket parsing here.
+        vim.schedule(function()
+            if client:is_closing() then
+                return
+            end
+            local ok, route_err = xpcall(function()
+                handle_route(client, method, path, query)
+            end, debug.traceback)
+            if ok then
+                return
+            end
+
+            log.add("warn", "native preview route failed", {
+                method = method,
+                path = path,
+                error = route_err,
+            })
+            if not client:is_closing() and response_started[client] ~= true then
+                local sent =
+                    pcall(send_json, client, "500 Internal Server Error", {
+                        ok = false,
+                        error = "preview route failed",
+                        reason = "route_failed",
+                    })
+                if not sent and not client:is_closing() then
+                    client:close()
+                end
+            end
+        end)
     end)
 end
 
@@ -462,6 +527,10 @@ end
 
 function M._stream_chunk_bytes()
     return STREAM_CHUNK_BYTES
+end
+
+function M._send_file_for_tests(client, path, fd, stat)
+    return send_file(client, path, fd, stat)
 end
 
 return M

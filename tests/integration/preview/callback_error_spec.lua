@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local registry = require("typst.project")
+local project_store = require("typst.project.store")
 local typst = require("typst")
 
 local main = root .. "/tests/fixtures/basic/main.typ"
@@ -218,7 +219,8 @@ assert(
     "lifecycle detach should not mark preview failure as compiler failure"
 )
 assert(
-    registry.all()[stop_project.key] == stop_project,
+    project_store.all()[stop_project.key]
+        and project_store.all()[stop_project.key].key == stop_project.key,
     "lifecycle detach should retain failed preview project"
 )
 
