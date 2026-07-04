@@ -25,6 +25,27 @@ mode = args[0] if args else ""
 main = args[-2] if len(args) >= 2 else "main.typ"
 output = args[-1] if len(args) >= 1 else "main.pdf"
 fixture_mode = os.environ.get("TYPST_NVIM_FAKE_TYPST_MODE", "")
+record_dir = os.environ.get("TYPST_NVIM_FAKE_TYPST_RECORD_DIR", "")
+
+
+def record_invocation():
+    if not record_dir:
+        return
+    os.makedirs(record_dir, exist_ok=True)
+    with open(os.path.join(record_dir, "argv.json"), "w", encoding="utf-8") as handle:
+        json.dump(args, handle)
+    with open(os.path.join(record_dir, "cwd.txt"), "w", encoding="utf-8") as handle:
+        handle.write(os.getcwd())
+    if "-" in args:
+        with open(
+            os.path.join(record_dir, "stdin.txt"),
+            "w",
+            encoding="utf-8",
+        ) as handle:
+            handle.write(sys.stdin.read())
+
+
+record_invocation()
 
 
 def option_value(name):

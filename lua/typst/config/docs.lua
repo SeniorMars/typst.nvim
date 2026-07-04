@@ -8,6 +8,7 @@ local optional_nil_defaults = {
     "output_name",
     "root",
     "main",
+    "project.import_scan_max_descendant_depth",
     "compile.provider",
     "exports.provider",
     "exports.default",
@@ -87,10 +88,12 @@ local optional_types = {
     ["preview.source_maps.provider"] = "nil|string|function|table",
     ["preview.source_maps.forward"] = "nil|function",
     ["preview.source_maps.inverse"] = "nil|function",
+    ["project.import_scan_max_descendant_depth"] = "nil|number",
     ["folds.text"] = "nil|string|function",
 }
 
 local type_overrides = {
+    ["diagnostics.external_paths"] = "string",
     ["diagnostics.max_buffers_per_publish"] = "integer",
     ["integrations.semantic.provider"] = "nil|string|function|table",
     ["preview.browser.style.variables"] = "table",

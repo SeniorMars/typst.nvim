@@ -126,6 +126,10 @@ assert(
     "project import scan entry cap should default to 2000"
 )
 assert(
+    default_config.project.import_scan_max_descendant_depth == nil,
+    "project import scan descendant depth should default to unlimited"
+)
+assert(
     vim.tbl_contains(default_config.project.import_scan_skip_dirs, "build"),
     "project import scan should skip common generated directories by default"
 )
@@ -210,6 +214,14 @@ local invalid_configs = {
     {
         opts = { project = { import_scan_max_depth = -1 } },
         message = "project.import_scan_max_depth",
+    },
+    {
+        opts = { project = { import_scan_max_descendant_depth = 1.5 } },
+        message = "project.import_scan_max_descendant_depth",
+    },
+    {
+        opts = { project = { import_scan_max_descendant_depth = -1 } },
+        message = "project.import_scan_max_descendant_depth",
     },
     {
         opts = { project = { import_scan_max_entries = 0 } },
@@ -495,6 +507,10 @@ local invalid_configs = {
     {
         opts = { diagnostics = { max_buffers_per_publish = 1.5 } },
         message = "diagnostics.max_buffers_per_publish",
+    },
+    {
+        opts = { diagnostics = { external_paths = "buffer-list" } },
+        message = "diagnostics.external_paths",
     },
     {
         opts = { bibliography = false },
@@ -1290,6 +1306,7 @@ local ok, err = pcall(function()
             import_scan = false,
             import_scan_max_files = 25,
             import_scan_max_depth = 1,
+            import_scan_max_descendant_depth = 2,
             import_scan_max_entries = 100,
             import_scan_skip_dirs = { "heavy", "generated" },
             persist_main = false,
@@ -1342,6 +1359,7 @@ local ok, err = pcall(function()
             fonts = false,
             font_scan_timeout_ms = 25,
             max_buffers_per_publish = 32,
+            external_paths = "open-files-only",
         },
         conceal = {
             categories = {
@@ -1666,6 +1684,10 @@ assert(
     "project import scan depth should be configurable"
 )
 assert(
+    config.get().project.import_scan_max_descendant_depth == 2,
+    "project import scan descendant depth should be configurable"
+)
+assert(
     config.get().project.import_scan_max_entries == 100,
     "project import scan entry cap should be configurable"
 )
@@ -1703,6 +1725,10 @@ assert(
 assert(
     config.get().diagnostics.max_buffers_per_publish == 32,
     "diagnostic buffer cap should be configurable"
+)
+assert(
+    config.get().diagnostics.external_paths == "open-files-only",
+    "diagnostic external path policy should be configurable"
 )
 assert(config.get().docs == nil, "legacy docs config should not be retained")
 assert(

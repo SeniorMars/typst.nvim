@@ -36,6 +36,7 @@ local known_optional_paths = {
     metadata_version = true,
     output_name = true,
     root = true,
+    ["project.import_scan_max_descendant_depth"] = true,
     ["compile.fragments.source_dir"] = true,
     ["compile.generic.compile"] = true,
     ["compile.generic.cwd"] = true,

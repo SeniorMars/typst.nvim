@@ -9,6 +9,7 @@ local log = require("typst.core.log")
 local operation = require("typst.core.operation")
 local output_ownership = require("typst.resources.outputs")
 local compiler_service = require("typst.project.services.compiler")
+local scratch_policy = require("typst.compiler.scratch_policy")
 
 local M = {}
 
@@ -21,6 +22,22 @@ function M.start(project, callback, run_config)
     local opts = run_config or config.unsafe_get()
     local compiler_state = compiler_service.get(project) or {}
     local generation = (compiler_state.generation or 0) + 1
+    local supported, result = scratch_policy.check(project, "compile", opts)
+    if not supported then
+        compiler_service.set(project, {
+            generation = generation,
+            status = "error",
+            last_result = result,
+        })
+        compiler_fanout.compile_failed(project, result, {
+            publish_diagnostics = false,
+        })
+        if callback then
+            callback(result)
+        end
+        return nil
+    end
+
     local output = output_path_util.output_path(project, opts)
     local lease, lease_err = output_ownership.acquire(output, {
         kind = "compile",

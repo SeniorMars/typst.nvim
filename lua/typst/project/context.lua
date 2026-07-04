@@ -19,6 +19,8 @@ local public_fields = {
     "main_confidence",
     "main_confidence_source",
     "resolution_pending",
+    "source_kind",
+    "scratch",
 }
 
 local public_tables = {

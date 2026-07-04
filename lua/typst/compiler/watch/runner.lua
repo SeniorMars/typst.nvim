@@ -11,6 +11,7 @@ local log = require("typst.core.log")
 local operation = require("typst.core.operation")
 local output_ownership = require("typst.resources.outputs")
 local compiler_service = require("typst.project.services.compiler")
+local scratch_policy = require("typst.compiler.scratch_policy")
 
 local M = {}
 
@@ -228,6 +229,22 @@ function M.start(project, callback, run_config)
     local opts = run_config or config.unsafe_get()
     local compiler_state = compiler_service.get(project) or {}
     local generation = (compiler_state.watch_generation or 0) + 1
+    local supported, result = scratch_policy.check(project, "watch", opts)
+    if not supported then
+        compiler_service.set(project, {
+            watch_generation = generation,
+            status = "error",
+            last_result = result,
+        })
+        compiler_fanout.watch_failed(project, result, nil, {
+            publish_diagnostics = false,
+        })
+        if callback then
+            callback(result)
+        end
+        return nil
+    end
+
     local output = output_path_util.output_path(project, opts)
     -- Hold the output lease for the whole watch lifetime so compile/export or
     -- render jobs cannot write the same PDF while `typst watch` is active.

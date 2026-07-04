@@ -82,6 +82,19 @@ function M.project(project)
     end
 
     if
+        project.import_scan_max_descendant_depth ~= nil
+        and (
+            type(project.import_scan_max_descendant_depth) ~= "number"
+            or project.import_scan_max_descendant_depth < 0
+            or project.import_scan_max_descendant_depth % 1 ~= 0
+        )
+    then
+        error(
+            "typst.nvim: project.import_scan_max_descendant_depth must be nil or a non-negative integer"
+        )
+    end
+
+    if
         type(project.import_scan_max_entries) ~= "number"
         or project.import_scan_max_entries < 1
     then

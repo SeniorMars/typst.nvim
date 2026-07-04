@@ -42,6 +42,7 @@ end
 for _, required in ipairs({
     "completion.package_cache_ttl_ms",
     "completion.package_cache_prewarm",
+    "diagnostics.external_paths",
     "diagnostics.font_scan_timeout_ms",
     "diagnostics.max_buffers_per_publish",
     "format.timeout_ms",
@@ -51,6 +52,7 @@ for _, required in ipairs({
     "preview.cache.max_entries",
     "preview.export.mode",
     "preview.provider",
+    "project.import_scan_max_descendant_depth",
     "project.index.fs_watchers",
     "render.cache.ttl_ms",
 }) do

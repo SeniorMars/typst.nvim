@@ -109,6 +109,7 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `conceal.safety.max_display_width` | `number` | `1` |
 | `conceal.viewport_margin` | `number` | `25` |
 | `diagnostics.enabled` | `boolean` | `true` |
+| `diagnostics.external_paths` | `string` | `"bufadd"` |
 | `diagnostics.font_scan_timeout_ms` | `number` | `250` |
 | `diagnostics.fonts` | `boolean` | `true` |
 | `diagnostics.list` | `string` | `"quickfix"` |
@@ -300,6 +301,7 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `preview.stop` | `nil\|function` | `nil` |
 | `project.import_scan` | `boolean` | `true` |
 | `project.import_scan_max_depth` | `number` | `3` |
+| `project.import_scan_max_descendant_depth` | `nil\|number` | `nil` |
 | `project.import_scan_max_entries` | `number` | `2000` |
 | `project.import_scan_max_files` | `number` | `200` |
 | `project.import_scan_skip_dirs` | `list` | `{ ".git", "node_modules", ".direnv", ".cache", "target", "build", "dist", "vendor", ".venv", "__pycache__" }` |

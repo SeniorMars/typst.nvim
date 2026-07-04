@@ -73,6 +73,7 @@ function M.diagnostics()
         fonts = true,
         font_scan_timeout_ms = 250,
         max_buffers_per_publish = 256,
+        external_paths = "bufadd",
     }
 end
 

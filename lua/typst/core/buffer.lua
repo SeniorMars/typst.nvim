@@ -19,8 +19,12 @@ end
 
 local function remove_buffer(bufnr)
     for key in pairs(paths_by_buffer[bufnr] or {}) do
-        if buffers_by_path[key] == bufnr then
-            buffers_by_path[key] = nil
+        local buffers = buffers_by_path[key]
+        if type(buffers) == "table" then
+            buffers[bufnr] = nil
+            if next(buffers) == nil then
+                buffers_by_path[key] = nil
+            end
         end
     end
     paths_by_buffer[bufnr] = nil
@@ -34,9 +38,51 @@ local function add_path(bufnr, path)
     paths_by_buffer[bufnr] = paths_by_buffer[bufnr] or {}
     for _, candidate in ipairs({ path, path_util.normalize(path) }) do
         local key = path_util.path_key(candidate)
-        buffers_by_path[key] = bufnr
+        buffers_by_path[key] = buffers_by_path[key] or {}
+        buffers_by_path[key][bufnr] = true
         paths_by_buffer[bufnr][key] = true
     end
+end
+
+local function sorted_valid_buffers(candidates)
+    local out = {}
+    if type(candidates) == "number" then
+        candidates = { [candidates] = true }
+    end
+    for bufnr in pairs(candidates or {}) do
+        if
+            type(bufnr) == "number"
+            and vim.api.nvim_buf_is_valid(bufnr)
+            and vim.api.nvim_buf_is_loaded(bufnr)
+        then
+            out[#out + 1] = bufnr
+        end
+    end
+    table.sort(out)
+    return out
+end
+
+local function select_buffer(candidates)
+    local buffers = sorted_valid_buffers(candidates)
+    if #buffers == 0 then
+        return nil
+    end
+
+    local current = vim.api.nvim_get_current_buf()
+    for _, bufnr in ipairs(buffers) do
+        if bufnr == current then
+            return bufnr
+        end
+    end
+    return buffers[#buffers]
+end
+
+local function candidates_for_key(by_path, key)
+    local value = by_path and by_path[key]
+    if type(value) == "number" then
+        return { [value] = true }
+    end
+    return value
 end
 
 local function refresh_buffer(bufnr)
@@ -85,12 +131,44 @@ local function ensure_index()
     })
 end
 
---- Build and return a copy of the file-path-to-buffer index.
+--- Build and return a compatibility file-path-to-selected-buffer map.
 --- Lazy-initialized and refreshed from Neovim buffers as needed.
----@return table<string, number> by_path Normalized file paths keyed to loaded buffer numbers.
+---@return table<string, number> by_path Normalized file paths keyed to selected loaded buffer numbers.
 function M.loaded_buffers_by_path()
     ensure_index()
-    return vim.deepcopy(buffers_by_path)
+    local selected = {}
+    for key, candidates in pairs(buffers_by_path) do
+        local bufnr = select_buffer(candidates)
+        if bufnr then
+            selected[key] = bufnr
+        end
+    end
+    return selected
+end
+
+--- Return all loaded buffers currently indexed for a path.
+---@param path? string File path to look up.
+---@param by_path? table<string, integer|table<integer, boolean>> Optional path map.
+---@return integer[] bufnrs Valid loaded buffers, sorted by buffer number.
+function M.loaded_buffers_for_path(path, by_path)
+    ensure_index()
+    local normalized = path and path_util.normalize(path) or nil
+    if not normalized then
+        return {}
+    end
+
+    by_path = by_path or buffers_by_path
+    local candidates = candidates_for_key(by_path, path_util.path_key(path))
+        or candidates_for_key(by_path, path_util.path_key(normalized))
+    local buffers = sorted_valid_buffers(candidates)
+    if #buffers > 0 or by_path ~= buffers_by_path then
+        return buffers
+    end
+
+    build_index()
+    candidates = candidates_for_key(buffers_by_path, path_util.path_key(path))
+        or candidates_for_key(buffers_by_path, path_util.path_key(normalized))
+    return sorted_valid_buffers(candidates)
 end
 
 --- Return the loaded buffer for a path, if any.
@@ -105,19 +183,25 @@ function M.loaded_buffer_for_path(path, by_path)
     end
 
     if by_path then
-        return by_path[path_util.path_key(path)]
-            or by_path[path_util.path_key(normalized)]
+        return select_buffer(
+            candidates_for_key(by_path, path_util.path_key(path))
+                or candidates_for_key(by_path, path_util.path_key(normalized))
+        )
     end
 
-    local found = buffers_by_path[path_util.path_key(path)]
-        or buffers_by_path[path_util.path_key(normalized)]
-    if found and vim.api.nvim_buf_is_valid(found) then
+    local found = select_buffer(
+        buffers_by_path[path_util.path_key(path)]
+            or buffers_by_path[path_util.path_key(normalized)]
+    )
+    if found then
         return found
     end
 
     build_index()
-    return buffers_by_path[path_util.path_key(path)]
-        or buffers_by_path[path_util.path_key(normalized)]
+    return select_buffer(
+        buffers_by_path[path_util.path_key(path)]
+            or buffers_by_path[path_util.path_key(normalized)]
+    )
 end
 
 --- Switch to an existing loaded buffer for a path or edit the path.

@@ -163,6 +163,16 @@ function M.diagnostics(diagnostics)
     )
 
     if
+        diagnostics.external_paths ~= "bufadd"
+        and diagnostics.external_paths ~= "quickfix-only"
+        and diagnostics.external_paths ~= "open-files-only"
+    then
+        error(
+            'typst.nvim: diagnostics.external_paths must be "bufadd", "quickfix-only", or "open-files-only"'
+        )
+    end
+
+    if
         diagnostics.source ~= "fallback"
         and diagnostics.source ~= "always"
         and diagnostics.source ~= "off"

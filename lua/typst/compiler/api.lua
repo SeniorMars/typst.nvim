@@ -61,17 +61,7 @@ function M.compile(state, opts, callback, notify)
         typst_open = opts.typst_open,
     })
 
-    notify_user(
-        notify,
-        ("Compiling %s%s"):format(
-            util.relpath(state.main, state.root),
-            run_config.compile.profile
-                    and (" [" .. run_config.compile.profile .. "]")
-                or ""
-        )
-    )
-
-    return compiler.compile(state, function(result)
+    local handle = compiler.compile(state, function(result)
         if result.stale then
             return
         end
@@ -105,6 +95,18 @@ function M.compile(state, opts, callback, notify)
             callback(result, state)
         end
     end, run_config)
+    if handle ~= nil then
+        notify_user(
+            notify,
+            ("Compiling %s%s"):format(
+                util.relpath(state.main, state.root),
+                run_config.compile.profile
+                        and (" [" .. run_config.compile.profile .. "]")
+                    or ""
+            )
+        )
+    end
+    return handle
 end
 
 --- Compile a selected Typst fragment through the fragment workflow.
@@ -154,17 +156,7 @@ function M.watch(state, opts, callback, notify)
     })
     local viewer_opened = false
 
-    notify_user(
-        notify,
-        ("Watching %s%s"):format(
-            util.relpath(state.main, state.root),
-            run_config.compile.profile
-                    and (" [" .. run_config.compile.profile .. "]")
-                or ""
-        )
-    )
-
-    return compiler.start(state, function(result)
+    local handle = compiler.start(state, function(result)
         if result.stale then
             return
         end
@@ -202,6 +194,18 @@ function M.watch(state, opts, callback, notify)
             callback(result, state)
         end
     end, run_config)
+    if handle ~= nil then
+        notify_user(
+            notify,
+            ("Watching %s%s"):format(
+                util.relpath(state.main, state.root),
+                run_config.compile.profile
+                        and (" [" .. run_config.compile.profile .. "]")
+                    or ""
+            )
+        )
+    end
+    return handle
 end
 
 --- Stop the active compiler or watcher for one project.

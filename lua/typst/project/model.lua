@@ -222,6 +222,8 @@ function M.new_project(root, main, key)
         instance_id = project_instance_counter,
         root = root,
         main = main,
+        source_kind = "file",
+        scratch = false,
         services = services.new_state(),
         bufs = {},
         resolutions = {},
@@ -230,6 +232,19 @@ function M.new_project(root, main, key)
         main_source = nil,
     }
     return project
+end
+
+--- Return whether a project is backed by an unnamed scratch buffer.
+---
+--- Scratch project main paths are identity keys, not readable Typst files.
+--- File-backed compiler/watch commands must reject or translate them to stdin.
+---@param project TypstProject? Project state to inspect.
+---@return boolean scratch True when the project main is synthetic.
+function M.is_scratch(project)
+    if type(project) ~= "table" then
+        return false
+    end
+    return project.scratch == true or project.source_kind == "scratch"
 end
 
 --- Resolve the current configured output path for a project.

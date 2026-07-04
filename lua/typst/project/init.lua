@@ -78,6 +78,11 @@ end
 local function create_or_update(root, main, bufnr, path, resolution)
     local key = project_key(root, main)
     local project = project_store.create(root, main)
+    local buffer_is_scratch = type(resolution) == "table"
+        and resolution.scratch == true
+    local main_is_scratch = buffer_is_scratch and util.same_path(path, main)
+    project.source_kind = main_is_scratch and "scratch" or "file"
+    project.scratch = main_is_scratch
 
     transfer_buffer(bufnr, key)
     project.bufs[bufnr] = true

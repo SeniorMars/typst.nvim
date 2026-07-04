@@ -113,8 +113,18 @@ local function tokens(text)
 end
 
 local function buffer_lines(path)
-    local bufnr = vim.fn.bufnr(path)
-    if bufnr > 0 and vim.api.nvim_buf_is_loaded(bufnr) then
+    local bufnr = nil
+    local ok, buffer = pcall(require, "typst.core.buffer")
+    if ok and type(buffer.loaded_buffer_for_path) == "function" then
+        bufnr = buffer.loaded_buffer_for_path(path)
+    else
+        bufnr = vim.fn.bufnr(path)
+    end
+    if
+        type(bufnr) == "number"
+        and bufnr > 0
+        and vim.api.nvim_buf_is_loaded(bufnr)
+    then
         local ok, lines = pcall(vim.api.nvim_buf_get_lines, bufnr, 0, -1, false)
         if ok then
             return lines
@@ -125,6 +135,19 @@ local function buffer_lines(path)
     end
     local ok, lines = pcall(vim.fn.readfile, path)
     return ok and lines or nil
+end
+
+local function selected_buffer_for_path(path)
+    local ok, buffer = pcall(require, "typst.core.buffer")
+    if ok and type(buffer.loaded_buffer_for_path) == "function" then
+        return buffer.loaded_buffer_for_path(path)
+    end
+
+    local bufnr = vim.fn.bufnr(path)
+    if bufnr > 0 and vim.api.nvim_buf_is_loaded(bufnr) then
+        return bufnr
+    end
+    return nil
 end
 
 local function source_files(project)
@@ -191,6 +214,56 @@ local function source_index(project)
         end
     end
     return lines
+end
+
+local function source_signature(project)
+    local parts = {}
+    local service_state = project.services or {}
+    local project_index = service_state.index or {}
+    local invalidation = service_state.invalidation or {}
+    local generation_signature = table.concat({
+        tostring(project_index.generation or 0),
+        tostring(project_index.file_generation or 0),
+        tostring(project_index.buffer_generation or 0),
+        tostring(project_index.dependency_generation or 0),
+        tostring(invalidation.generation or 0),
+    }, ":")
+    local has_generation_signal = generation_signature ~= "0:0:0:0:0"
+
+    for _, path in ipairs(source_files(project)) do
+        local key = util.path_key(path)
+        local bufnr = selected_buffer_for_path(path)
+        if type(bufnr) == "number" and vim.api.nvim_buf_is_loaded(bufnr) then
+            parts[#parts + 1] = table.concat({
+                key,
+                "buffer",
+                ("%d:%d"):format(
+                    bufnr,
+                    vim.api.nvim_buf_get_changedtick(bufnr)
+                ),
+            }, ":")
+        elseif has_generation_signal then
+            parts[#parts + 1] = table.concat({
+                key,
+                "project",
+                generation_signature,
+            }, ":")
+        else
+            local stat = (vim.uv or vim.loop).fs_stat(path)
+            local mtime = stat
+                    and stat.mtime
+                    and (stat.mtime.sec .. "." .. stat.mtime.nsec)
+                or "missing"
+            parts[#parts + 1] = table.concat({
+                key,
+                "file",
+                tostring(stat and stat.size or 0),
+                mtime,
+            }, ":")
+        end
+    end
+    table.sort(parts)
+    return table.concat(parts, "\n")
 end
 
 local function score_line(block_tokens, block_text, line)
@@ -380,6 +453,7 @@ local function cache_key(project, request)
         output,
         tostring(request and request.generation or ""),
         mtime,
+        source_signature(project),
         tostring(config.generation()),
     }, "\n")
 end
@@ -605,5 +679,13 @@ function M._reset_for_tests()
 end
 
 M.reset = M._reset_for_tests
+
+function M._cache_key_for_tests(project, request)
+    return cache_key(project, request or {})
+end
+
+function M._source_index_for_tests(project)
+    return source_index(project)
+end
 
 return M

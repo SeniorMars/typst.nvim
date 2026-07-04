@@ -152,7 +152,10 @@ function M.explicit_main_changed(bufnr, state)
             and resolution.main_source == "buffer variable vim.b.typst_main"
     end
 
-    return util.resolve_path(buffer_main, state.root) ~= state.main
+    return not util.same_path(
+        util.resolve_path(buffer_main, state.root),
+        state.main
+    )
 end
 
 --- Move persisted explicit-main state after a buffer path changes.

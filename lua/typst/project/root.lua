@@ -125,12 +125,32 @@ end
 
 local REMAINING_SCAN_DIR_BUDGET = 64
 
+local function queue_item(dir, depth)
+    return {
+        dir = dir,
+        depth = depth or 0,
+    }
+end
+
+local function item_dir_depth(item)
+    if type(item) == "table" then
+        return item.dir, item.depth or 0
+    end
+    return item, 0
+end
+
+local function can_descend(depth, max_depth)
+    return max_depth == nil or depth < max_depth
+end
+
 local function scan_has_remaining_candidates(
     handle,
     current_dir,
+    current_depth,
     queue,
     count_entry,
-    skip_dirs
+    skip_dirs,
+    max_depth
 )
     local pending = vim.deepcopy(queue or {})
     while handle do
@@ -144,15 +164,21 @@ local function scan_has_remaining_candidates(
         if kind == "file" and name:match("%.typ$") then
             return true, false
         end
-        if kind == "directory" and not skip_scan_dir(name, skip_dirs) then
-            pending[#pending + 1] = util.join(current_dir, name)
+        if
+            kind == "directory"
+            and can_descend(current_depth, max_depth)
+            and not skip_scan_dir(name, skip_dirs)
+        then
+            pending[#pending + 1] =
+                queue_item(util.join(current_dir, name), current_depth + 1)
         end
     end
 
     local seen = {}
     local checked = 0
     while #pending > 0 and checked < REMAINING_SCAN_DIR_BUDGET do
-        local dir = util.normalize(table.remove(pending, 1))
+        local pending_dir, depth = item_dir_depth(table.remove(pending, 1))
+        local dir = util.normalize(pending_dir)
         if not seen[dir] then
             seen[dir] = true
             checked = checked + 1
@@ -169,9 +195,12 @@ local function scan_has_remaining_candidates(
                     return true, false
                 end
                 if
-                    kind == "directory" and not skip_scan_dir(name, skip_dirs)
+                    kind == "directory"
+                    and can_descend(depth, max_depth)
+                    and not skip_scan_dir(name, skip_dirs)
                 then
-                    pending[#pending + 1] = util.join(dir, name)
+                    pending[#pending + 1] =
+                        queue_item(util.join(dir, name), depth + 1)
                 end
             end
         end
@@ -180,9 +209,15 @@ local function scan_has_remaining_candidates(
     return false, false
 end
 
-local function collect_typst_files(root, limit, entry_limit, skip_dirs)
+local function collect_typst_files(
+    root,
+    limit,
+    entry_limit,
+    skip_dirs,
+    max_depth
+)
     local files = {}
-    local queue = { root }
+    local queue = { queue_item(root, 0) }
     local seen_dirs = {}
     local hit_limit = false
     local entries = 0
@@ -198,7 +233,8 @@ local function collect_typst_files(root, limit, entry_limit, skip_dirs)
     end
 
     while #queue > 0 and #files < limit and not hit_entry_limit do
-        local dir = table.remove(queue, 1)
+        local item = table.remove(queue, 1)
+        local dir, depth = item_dir_depth(item)
         dir = util.normalize(dir)
         if not seen_dirs[dir] then
             seen_dirs[dir] = true
@@ -220,9 +256,11 @@ local function collect_typst_files(root, limit, entry_limit, skip_dirs)
                             scan_has_remaining_candidates(
                                 handle,
                                 dir,
+                                depth,
                                 queue,
                                 count_entry,
-                                skip_dirs
+                                skip_dirs,
+                                max_depth
                             )
                         hit_limit = has_remaining == true
                         if helper_hit_entry_limit then
@@ -231,9 +269,11 @@ local function collect_typst_files(root, limit, entry_limit, skip_dirs)
                         break
                     end
                 elseif
-                    kind == "directory" and not skip_scan_dir(name, skip_dirs)
+                    kind == "directory"
+                    and can_descend(depth, max_depth)
+                    and not skip_scan_dir(name, skip_dirs)
                 then
-                    queue[#queue + 1] = full
+                    queue[#queue + 1] = queue_item(full, depth + 1)
                 end
             end
         end
@@ -339,6 +379,10 @@ local function import_scan_key(path, root, root_source, project_opts)
         tostring(root_source or ""),
         tostring(project_opts.import_scan_max_files or 200),
         tostring(project_opts.import_scan_max_depth or 0),
+        tostring(
+            project_opts.import_scan_max_descendant_depth == nil and "unlimited"
+                or project_opts.import_scan_max_descendant_depth
+        ),
         tostring(project_opts.import_scan_max_entries or 2000),
         table.concat(skip_dirs, "\0"),
         tostring(config_generation),
@@ -443,6 +487,7 @@ function M.import_scan_main(path, root, root_source, opts)
     -- unbounded recursive search.
     local max_files = project_opts.import_scan_max_files or 200
     local max_entries = project_opts.import_scan_max_entries or 2000
+    local max_descendant_depth = project_opts.import_scan_max_descendant_depth
     local skip_dirs = skip_dir_set(project_opts)
     local started_at = uv.hrtime()
     local result = telemetry.time("project.import_scan", function()
@@ -455,7 +500,8 @@ function M.import_scan_main(path, root, root_source, opts)
                 scan_root,
                 max_files,
                 max_entries,
-                skip_dirs
+                skip_dirs,
+                max_descendant_depth
             )
             scan_info = scan_info or {}
             import_scan_stats.entries = import_scan_stats.entries

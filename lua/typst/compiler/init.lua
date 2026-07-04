@@ -338,23 +338,29 @@ end
 ---@param callback? fun(result:TypstCompilerResult) Stop result callback.
 ---@return unknown handle Provider-specific stop handle, or nil when the project was already idle.
 function M.stop(project, callback)
-    local provider, builtin, external = provider_binding.active(project)
-    if builtin then
-        return provider.stop(project, callback)
-    end
-
     local compiler_state = compiler_service.get(project) or {}
-    if not compiler_state.watcher and not compiler_state.process then
+    if
+        not compiler_state.watcher
+        and not compiler_state.process
+        and not compiler_state.stopping_compile
+    then
+        release_output_lease(project)
         compiler_service.finish_stop_confirmed(project, {
             code = 0,
             stale = false,
             stopped = true,
             idle = true,
         })
+        provider_binding.clear_if_idle(project)
         if callback then
             callback({ code = 0, stale = false, stopped = true, idle = true })
         end
         return nil
+    end
+
+    local provider, builtin, external = provider_binding.active(project)
+    if builtin then
+        return provider.stop(project, callback)
     end
 
     local provider_project =
@@ -405,22 +411,28 @@ end
 ---@param opts? table Shutdown options forwarded to the provider or process helper.
 ---@return TypstCompilerResult result Final shutdown result.
 function M.stop_for_exit(project, opts)
-    local provider, builtin, external = provider_binding.active(project)
-    if builtin then
-        local result = provider.stop_for_exit(project, opts)
-        provider_binding.clear_if_idle(project)
-        return result
-    end
-
     local compiler_state = compiler_service.get(project) or {}
-    if not compiler_state.watcher and not compiler_state.process then
+    if
+        not compiler_state.watcher
+        and not compiler_state.process
+        and not compiler_state.stopping_compile
+    then
+        release_output_lease(project)
         compiler_service.finish_stop_confirmed(project, {
             code = 0,
             stale = false,
             stopped = true,
             idle = true,
         })
+        provider_binding.clear_if_idle(project)
         return { code = 0, stale = false, stopped = true, idle = true }
+    end
+
+    local provider, builtin, external = provider_binding.active(project)
+    if builtin then
+        local result = provider.stop_for_exit(project, opts)
+        provider_binding.clear_if_idle(project)
+        return result
     end
 
     local result

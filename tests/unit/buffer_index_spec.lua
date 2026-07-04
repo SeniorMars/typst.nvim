@@ -72,6 +72,34 @@ assert(
     "BufDelete should remove unloaded buffers from the path index"
 )
 
+local duplicate_a = vim.api.nvim_create_buf(false, true)
+local duplicate_b = vim.api.nvim_create_buf(false, true)
+vim.api.nvim_buf_set_lines(duplicate_a, 0, -1, false, { "= A" })
+vim.api.nvim_buf_set_lines(duplicate_b, 0, -1, false, { "= B" })
+vim.api.nvim_set_current_buf(duplicate_b)
+local synthetic_map = {
+    [path.path_key(first)] = {
+        [duplicate_a] = true,
+        [duplicate_b] = true,
+    },
+}
+local synthetic_buffers = buffer.loaded_buffers_for_path(first, synthetic_map)
+assert(
+    #synthetic_buffers == 2,
+    "multimap lookup should expose every valid loaded buffer"
+)
+assert(
+    buffer.loaded_buffer_for_path(first, synthetic_map) == duplicate_b,
+    "single-buffer compatibility lookup should prefer the current buffer"
+)
+vim.api.nvim_buf_delete(duplicate_b, { force = true })
+synthetic_buffers = buffer.loaded_buffers_for_path(first, synthetic_map)
+assert(
+    #synthetic_buffers == 1 and synthetic_buffers[1] == duplicate_a,
+    "multimap lookup should prune invalid duplicate buffers"
+)
+vim.api.nvim_buf_delete(duplicate_a, { force = true })
+
 buffer.reset()
 
 local bibliography_edit = require("typst.bibliography.edit")
