@@ -6,6 +6,7 @@ local M = {}
 function M.defaults()
     return {
         active = false,
+        opening = false,
     }
 end
 
@@ -17,6 +18,7 @@ function M.ensure(project)
         return nil
     end
     service.active = service.active == true
+    service.opening = service.opening == true
     return service
 end
 
@@ -29,6 +31,7 @@ function M.set(project, fields)
     local preview = base.update(project, "preview", fields)
     if preview then
         preview.active = preview.active == true
+        preview.opening = preview.opening == true
     end
     return preview
 end

@@ -164,7 +164,14 @@ end
 ---@return table[] items Quickfix items that were set/opened.
 function M.quickfix(project, opts)
     opts = opts or {}
-    return quickfix.open(project, M.namespace_for(project, opts.source), opts)
+    local key = source_key(opts.source)
+    local diagnostic_state = diagnostics_service.get(project) or {}
+    local open_opts = vim.tbl_extend("force", opts, {
+        extra_items = diagnostic_state.quickfix_by_source
+                and diagnostic_state.quickfix_by_source[key]
+            or nil,
+    })
+    return quickfix.open(project, M.namespace_for(project, key), open_opts)
 end
 
 source_buffers = function(project, key)
@@ -276,6 +283,12 @@ function M.clear(project, opts)
         local diagnostic_state = diagnostics_service.get(project) or {}
         diagnostic_state.by_source = diagnostic_state.by_source or {}
         diagnostic_state.by_source[key] = {}
+        diagnostic_state.quickfix_by_source = diagnostic_state.quickfix_by_source
+            or {}
+        if next(diagnostic_state.quickfix_by_source[key] or {}) ~= nil then
+            had_diagnostics = true
+        end
+        diagnostic_state.quickfix_by_source[key] = {}
     end
 
     rebuild_diagnostic_buffers(project)
@@ -331,6 +344,7 @@ end
 ---@param text string Raw compiler/lint/grammar output.
 ---@param opts? table Parser options.
 ---@return table<integer, table[]> by_buffer Diagnostics grouped by buffer.
+---@return TypstDiagnosticParseMeta meta Diagnostic path/buffer handling metadata.
 function M.parse(project, text, opts)
     return diagnostic_parser.parse(project, text, opts)
 end

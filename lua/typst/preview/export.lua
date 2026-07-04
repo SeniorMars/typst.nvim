@@ -28,7 +28,14 @@ end
 local function output_path(project)
     local path = (compiler_service.get(project) or {}).output
     if not path or vim.fn.filereadable(path) ~= 1 then
-        error(("typst.nvim: output does not exist: %s"):format(path or "<nil>"))
+        return nil,
+            {
+                ok = false,
+                reason = "missing_compiler_output",
+                message = ("No Typst compiler output exists yet (%s). Run :TypstCompile or :TypstWatch first, or configure preview.export.mode = 'profile'."):format(
+                    path or "<nil>"
+                ),
+            }
     end
     return path
 end
@@ -324,7 +331,11 @@ function M.resolve(project, target, callback, opts)
     export.mode = export.mode or "compile"
 
     if export.mode == "compile" then
-        return resolved(project, target, export, output_path(project))
+        local path, path_error = output_path(project)
+        if not path then
+            return failed(project, export, target, path_error)
+        end
+        return resolved(project, target, export, path)
     end
 
     local opts, opts_error = export_opts(project, target, export)

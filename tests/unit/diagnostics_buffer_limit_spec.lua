@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local log = require("typst.core.log")
 local diagnostics = require("typst.diagnostics")
+local diagnostics_service = require("typst.project.services.diagnostics")
 local typst = require("typst")
 
 typst.reset({ force = true })
@@ -131,6 +132,104 @@ local unlimited = diagnostics.parse(
 assert(
     vim.tbl_count(unlimited) == 3,
     "diagnostic buffer cap value 0 should allow all parsed buffers"
+)
+
+typst.reset({ force = true })
+typst.setup({
+    root_markers = {},
+    diagnostics = {
+        external_paths = "open-files-only",
+        max_buffers_per_publish = 2,
+    },
+})
+
+local open_only_path = fixture_root .. "/open-only.typ"
+vim.fn.writefile({ "= File" }, open_only_path)
+assert(
+    vim.fn.bufnr(open_only_path) == -1,
+    "open-files-only diagnostic fixture should start unloaded"
+)
+
+local open_only, open_only_meta = diagnostics.parse(
+    project,
+    "open-only.typ:1:1: error: skipped unopened path"
+)
+assert(
+    vim.tbl_count(open_only) == 0,
+    "open-files-only should not publish diagnostics for unloaded files"
+)
+assert(
+    vim.fn.bufnr(open_only_path) == -1,
+    "open-files-only should not create unloaded diagnostic buffers"
+)
+assert(
+    open_only_meta
+        and open_only_meta.external_paths == "open-files-only"
+        and open_only_meta.skipped_external_paths == 1
+        and open_only_meta.first_skipped_path == open_only_path,
+    "open-files-only should report skipped external diagnostic paths"
+)
+
+typst.reset({ force = true })
+typst.setup({
+    root_markers = {},
+    diagnostics = {
+        external_paths = "quickfix-only",
+        use_quickfix = true,
+    },
+})
+
+local quickfix_only_path = fixture_root .. "/quickfix-only.typ"
+vim.fn.writefile({ "= File" }, quickfix_only_path)
+assert(
+    vim.fn.bufnr(quickfix_only_path) == -1,
+    "quickfix-only diagnostic fixture should start unloaded"
+)
+
+local quickfix_only, quickfix_only_meta =
+    diagnostics.parse(project, "quickfix-only.typ:1:1: error: quickfix path")
+assert(
+    vim.tbl_count(quickfix_only) == 0,
+    "quickfix-only should not publish buffer diagnostics for unloaded files"
+)
+assert(
+    quickfix_only_meta
+        and quickfix_only_meta.quickfix_only_diagnostics == 1
+        and #quickfix_only_meta.quickfix_items == 1
+        and quickfix_only_meta.quickfix_items[1].filename
+            == quickfix_only_path,
+    "quickfix-only should return filename-based quickfix diagnostics"
+)
+assert(
+    vim.fn.bufnr(quickfix_only_path) == -1,
+    "quickfix-only parser path should not create unloaded diagnostic buffers"
+)
+
+local published =
+    diagnostics.publish(project, "quickfix-only.typ:1:1: error: quickfix path")
+assert(
+    published and vim.tbl_count(published) == 0,
+    "quickfix-only publish should not create buffer diagnostics for unloaded files"
+)
+local diagnostic_state = diagnostics_service.get(project) or {}
+assert(
+    next(diagnostic_state.buffers or {}) == nil,
+    "quickfix-only publish should not track unopened files as diagnostic buffers"
+)
+local qf = vim.fn.getqflist({ items = 1, title = 1 })
+assert(
+    qf.title == "typst.nvim: main.typ" and #qf.items == 1,
+    "quickfix-only publish should still populate the configured diagnostics list"
+)
+assert(
+    qf.items[1].text == "quickfix path",
+    "quickfix-only quickfix item should preserve diagnostic message"
+)
+vim.fn.setqflist({}, "r", { title = "user list", items = {} })
+local reopened = diagnostics.quickfix(project, { open = false })
+assert(
+    #reopened == 1 and reopened[1].text == "quickfix path",
+    "quickfix-only diagnostics should reopen after quickfix is replaced"
 )
 
 vim.cmd("qa!")

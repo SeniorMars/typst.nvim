@@ -76,7 +76,12 @@ function M.open(project, opts)
         return viewer_result
     end
 
-    error('typst.nvim: preview.native must be "browser", "viewer", or "auto"')
+    return {
+        ok = false,
+        reason = "invalid_preview_native",
+        message = 'preview.native must be "browser", "viewer", or "auto"',
+        native = native,
+    }
 end
 
 function M.follow_buffer(project, next_project, opts)

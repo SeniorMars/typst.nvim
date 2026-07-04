@@ -31,6 +31,16 @@ local function to_qf_item(bufnr, diagnostic, opts)
     }
 end
 
+local function to_path_qf_item(path, diagnostic, opts)
+    return {
+        filename = path,
+        lnum = diagnostic.lnum + 1,
+        col = diagnostic.col + 1,
+        text = diagnostic.message,
+        type = diagnostic_type(diagnostic, opts),
+    }
+end
+
 local function valid_buffer(bufnr)
     return type(bufnr) == "number"
         and bufnr > 0
@@ -45,10 +55,17 @@ local function buffer_name(bufnr)
     return ok and name or ""
 end
 
+local function item_name(item)
+    if type(item.filename) == "string" and item.filename ~= "" then
+        return item.filename
+    end
+    return buffer_name(item.bufnr)
+end
+
 local function sort_qf_items(items)
     table.sort(items, function(left, right)
-        local left_name = buffer_name(left.bufnr)
-        local right_name = buffer_name(right.bufnr)
+        local left_name = item_name(left)
+        local right_name = item_name(right)
 
         if left_name ~= right_name then
             return left_name < right_name
@@ -133,11 +150,32 @@ end
 ---@param opts? {type_map?:table<integer,string>,default_type?:string}
 ---@return table[] items Sorted quickfix items.
 function M.items(by_buffer, opts)
+    opts = opts or {}
     local items = {}
     for bufnr, diagnostics in pairs(by_buffer or {}) do
         if valid_buffer(bufnr) then
             for _, diagnostic in ipairs(diagnostics) do
                 items[#items + 1] = to_qf_item(bufnr, diagnostic, opts)
+            end
+        end
+    end
+    for _, item in ipairs(opts.extra_items or {}) do
+        items[#items + 1] = vim.deepcopy(item)
+    end
+    return sort_qf_items(items)
+end
+
+--- Convert path-keyed diagnostics into quickfix items without creating buffers.
+---@param by_path table<string, table[]> Diagnostics grouped by filename.
+---@param opts? {type_map?:table<integer,string>,default_type?:string}
+---@return table[] items Sorted quickfix items.
+function M.path_items(by_path, opts)
+    opts = opts or {}
+    local items = {}
+    for path, diagnostics in pairs(by_path or {}) do
+        if type(path) == "string" and path ~= "" then
+            for _, diagnostic in ipairs(diagnostics or {}) do
+                items[#items + 1] = to_path_qf_item(path, diagnostic, opts)
             end
         end
     end
@@ -162,7 +200,7 @@ end
 ---@return table[] items Quickfix items that were set.
 function M.set(project, by_buffer, opts)
     opts = opts or {}
-    local items = M.items(by_buffer)
+    local items = M.items(by_buffer, opts)
     local title = title_for(project)
 
     if normalize_list_kind(opts.list) == "loclist" then
@@ -193,13 +231,18 @@ end
 ---@param project table Project state that may own quickfix.
 ---@param by_buffer table<integer, table[]> Diagnostics grouped by buffer.
 ---@return table[] items Quickfix items that were set, or empty when disabled.
-function M.maybe_set(project, by_buffer)
+function M.maybe_set(project, by_buffer, opts)
+    opts = opts or {}
     local diagnostics_config = config.unsafe_get().diagnostics
     if not diagnostics_config.use_quickfix then
         return {}
     end
 
-    return M.set(project, by_buffer, { list = diagnostics_config.list })
+    return M.set(
+        project,
+        by_buffer,
+        vim.tbl_extend("force", opts, { list = diagnostics_config.list })
+    )
 end
 
 --- Read currently published diagnostics for project-owned buffers.

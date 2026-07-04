@@ -6,6 +6,8 @@ local M = {}
 function M.defaults()
     return {
         buffers = {},
+        last_publish = nil,
+        quickfix_by_source = {},
     }
 end
 
@@ -17,6 +19,7 @@ function M.ensure(project)
         return nil
     end
     service.buffers = service.buffers or {}
+    service.quickfix_by_source = service.quickfix_by_source or {}
     return service
 end
 
@@ -29,6 +32,7 @@ function M.set(project, fields)
     local diagnostics = base.update(project, "diagnostics", fields)
     if diagnostics then
         diagnostics.buffers = diagnostics.buffers or {}
+        diagnostics.quickfix_by_source = diagnostics.quickfix_by_source or {}
     end
     return diagnostics
 end
@@ -42,6 +46,11 @@ function M.snapshot(project)
     end
     return {
         buffers = base.copy_value(diagnostics.buffers or {}, 3) or {},
+        last_publish = base.copy_value(diagnostics.last_publish, 3),
+        quickfix_by_source = base.copy_value(
+            diagnostics.quickfix_by_source or {},
+            4
+        ) or {},
     }
 end
 

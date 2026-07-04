@@ -9,6 +9,7 @@ local events = require("typst.core.events")
 local log = require("typst.core.log")
 local pending_handle = require("typst.core.pending")
 local restart_handle = require("typst.core.restart_handle")
+local project_store = require("typst.project.store")
 local preview_service = require("typst.project.services.preview")
 local preview_capabilities =
     require("typst.integrations.typst_preview.capabilities")
@@ -23,6 +24,12 @@ M.own_toggle_command_definition = runtime.own_toggle_command_definition
 M.own_inverse_command_definition = runtime.own_inverse_command_definition
 
 local callback_error = preview_capabilities.callback_error
+local open_generation = 0
+
+local function next_open_generation()
+    open_generation = open_generation + 1
+    return open_generation
+end
 
 local function subscribe_on_finish(handle, callback)
     local style = type(handle) == "table"
@@ -97,6 +104,9 @@ local function record_open_failed(project, result)
             "active_shell",
             "active_server_port",
             "stopping",
+            "opening",
+            "open_handle",
+            "open_generation",
         },
         active = false,
         status = "open_failed",
@@ -105,6 +115,447 @@ local function record_open_failed(project, result)
                 and (result.error or result.message or result.reason)
             or result,
     })
+end
+
+local function record_opening(project, opts, handle, generation)
+    preview_service.set(project, {
+        clear = {
+            "active_backend",
+            "active_mode",
+            "active_command",
+            "active_cwd",
+            "active_url",
+            "active_output",
+            "active_export",
+            "active_transport",
+            "active_shell",
+            "active_server_port",
+            "stopping",
+        },
+        active = false,
+        opening = true,
+        status = "opening",
+        last_backend = "callback",
+        last_mode = opts and opts.mode or nil,
+        open_handle = handle,
+        open_generation = generation,
+    })
+end
+
+local function pending_open_current(project, handle, generation)
+    local preview = preview_service.get(project) or {}
+    return preview.opening == true
+        and preview.open_handle == handle
+        and preview.open_generation == generation
+end
+
+local function project_open_current(project, handle, generation)
+    if
+        type(project) ~= "table"
+        or project._typst_project_pruned == true
+        or type(project.key) ~= "string"
+    then
+        return false
+    end
+
+    local live = project_store.get(project.key)
+    if live ~= project then
+        return false
+    end
+    if
+        live
+        and project.instance_id ~= nil
+        and live.instance_id ~= project.instance_id
+    then
+        return false
+    end
+
+    return pending_open_current(project, handle, generation)
+end
+
+local function open_cancelled_result(reason)
+    return {
+        ok = true,
+        opened = false,
+        stopped = false,
+        cancelled = true,
+        superseded = true,
+        reason = reason or "cancelled",
+        message = "Typst preview open was cancelled before it became active",
+    }
+end
+
+local function clear_pending_open(project, result)
+    preview_service.set(project, {
+        clear = {
+            "opening",
+            "open_handle",
+            "open_generation",
+            "stopping",
+            "status",
+            "last_error",
+        },
+        active = false,
+        last_result = result,
+    })
+end
+
+local function set_pending_open_cancel_unconfirmed(project, result, status)
+    preview_service.set(project, {
+        active = false,
+        opening = true,
+        stopping = true,
+        status = status,
+        last_result = result,
+        last_error = type(result) == "table"
+                and (result.error or result.message or result.reason)
+            or result,
+    })
+end
+
+local function cancel_confirmed(result)
+    return type(result) == "table"
+        and result.ok ~= false
+        and result.stopped == true
+end
+
+local function compact_result(result)
+    if type(result) ~= "table" then
+        return result ~= nil and { value = tostring(result) } or nil
+    end
+    return {
+        ok = result.ok,
+        reason = result.reason,
+        message = result.message,
+        opened = result.opened,
+        stopped = result.stopped,
+        cancelled = result.cancelled,
+        superseded = result.superseded,
+        stale = result.stale,
+        pending = result.pending,
+    }
+end
+
+local function retain_superseded_open(project, provider_handle, result, reason)
+    if type(provider_handle) ~= "table" then
+        return
+    end
+
+    local preview = preview_service.get(project) or {}
+    local retained = preview.retained_open_handles
+    if type(retained) ~= "table" then
+        retained = {}
+    end
+
+    local id = next_open_generation()
+    local entry = {
+        id = id,
+        kind = "preview-open",
+        reason = reason or (result and result.reason) or "superseded",
+        pending = true,
+        superseded = true,
+        stopped = false,
+        handle = provider_handle,
+        result = compact_result(result),
+    }
+    retained[#retained + 1] = entry
+    while #retained > 8 do
+        table.remove(retained, 1)
+    end
+    preview_service.set(project, { retained_open_handles = retained })
+
+    local subscribed = subscribe_on_finish(provider_handle, function(final)
+        local current = preview_service.get(project) or {}
+        for _, item in ipairs(current.retained_open_handles or {}) do
+            if item.id == id then
+                item.pending = false
+                item.finished = true
+                item.result = compact_result(final)
+                break
+            end
+        end
+        preview_service.set(project, {
+            retained_open_handles = current.retained_open_handles,
+        })
+        log.add("debug", "superseded preview open settled", {
+            main = project.main,
+            reason = entry.reason,
+        })
+    end)
+    if not subscribed then
+        entry.unobservable = true
+        preview_service.set(project, { retained_open_handles = retained })
+    end
+end
+
+local function observe_pending_open_cancel(
+    project,
+    handle,
+    generation,
+    cancel_handle,
+    reason
+)
+    if type(cancel_handle) ~= "table" then
+        return
+    end
+
+    local subscribed = subscribe_on_finish(cancel_handle, function(final)
+        local preview = preview_service.get(project) or {}
+        if
+            preview.open_handle ~= handle
+            or preview.open_generation ~= generation
+        then
+            return
+        end
+
+        local result = vim.tbl_extend(
+            "force",
+            open_cancelled_result(reason),
+            type(final) == "table" and final or {},
+            {
+                opened = false,
+                cancelled = true,
+            }
+        )
+
+        if cancel_confirmed(result) then
+            clear_pending_open(project, result)
+            if
+                type(handle) == "table"
+                and handle.pending
+                and type(handle.finish) == "function"
+            then
+                handle:finish(result, "cancel")
+            end
+            return
+        end
+
+        set_pending_open_cancel_unconfirmed(
+            project,
+            result,
+            "open_cancel_failed"
+        )
+    end)
+
+    if not subscribed then
+        set_pending_open_cancel_unconfirmed(
+            project,
+            vim.tbl_extend("force", open_cancelled_result(reason), {
+                ok = false,
+                reason = "cancel_subscription_failed",
+                message = "Pending Typst preview open cancellation could not be observed",
+            }),
+            "open_cancel_failed"
+        )
+    end
+end
+
+local function stale_open_result(result)
+    local out = type(result) == "table" and vim.deepcopy(result) or {}
+    out.ok = false
+    out.stale = true
+    out.reason = out.reason or "stale_preview_open"
+    out.message = out.message
+        or "Typst preview open result was ignored because a newer open replaced it"
+    return out
+end
+
+local function record_open_succeeded(project, opts, result, handle, generation)
+    if handle and not project_open_current(project, handle, generation) then
+        return stale_open_result(result)
+    end
+    state.record(project, "callback", opts, nil, nil, true)
+    preview_service.set(project, {
+        clear = { "opening", "open_handle", "open_generation" },
+        last_result = type(result) == "table" and result or nil,
+    })
+    log.add(
+        "info",
+        "preview opened by configured callback",
+        { main = project.main, mode = opts and opts.mode }
+    )
+    events.emit("TypstPreviewOpened", project, {
+        backend = "callback",
+        mode = opts and opts.mode,
+    })
+    return result
+end
+
+local function open_pending_result_failed(result)
+    return result == false
+        or (
+            type(result) == "table"
+            and (result.ok == false or result.opened == false)
+        )
+end
+
+local function observe_pending_open(project, opts, result)
+    local generation = next_open_generation()
+    local handle
+    handle = pending_handle.new({
+        kind = "preview-open",
+        handle = result,
+        fields = {
+            provider_handle = result,
+        },
+        complete = function(final)
+            if
+                type(final) == "table"
+                and final.cancelled == true
+                and final.opened == false
+            then
+                return final
+            end
+            if not project_open_current(project, handle, generation) then
+                return stale_open_result(final)
+            end
+            if open_pending_result_failed(final) then
+                record_open_failed(project, final)
+                return final
+            end
+            return record_open_succeeded(
+                project,
+                opts,
+                final,
+                handle,
+                generation
+            )
+        end,
+    })
+    record_opening(project, opts, handle, generation)
+
+    local subscribed, subscribe_error = subscribe_on_finish(
+        result,
+        function(final)
+            handle:finish(final)
+        end
+    )
+    if not subscribed then
+        local failed = pending_unobservable("open", subscribe_error)
+        record_open_failed(project, failed)
+        return failed
+    end
+    return handle
+end
+
+local function cancel_pending_open(project, opts)
+    opts = opts or {}
+    local preview_state = preview_service.get(project) or {}
+    if preview_state.opening ~= true then
+        return nil
+    end
+
+    local handle = preview_state.open_handle
+    local generation = preview_state.open_generation
+    local reason = opts.reason or "cancelled"
+    local result = open_cancelled_result(reason)
+
+    local provider_handle = type(handle) == "table"
+            and (handle.provider_handle or handle.handle)
+        or nil
+    if
+        type(provider_handle) == "table"
+        and type(provider_handle.cancel) == "function"
+    then
+        local ok, stopped, cancel_result =
+            pcall(provider_handle.cancel, provider_handle, { reason = reason })
+        if not ok then
+            result = {
+                ok = false,
+                opened = false,
+                stopped = false,
+                cancelled = true,
+                reason = "cancel_failed",
+                message = tostring(stopped),
+            }
+        elseif
+            type(cancel_result) == "table" and cancel_result.pending == true
+        then
+            result.provider_result = cancel_result
+        elseif
+            stopped == false
+            or (
+                type(cancel_result) == "table"
+                and (
+                    cancel_result.ok == false
+                    or cancel_result.stopped == false
+                )
+            )
+        then
+            if type(cancel_result) == "table" then
+                result = vim.tbl_extend("force", cancel_result, {
+                    ok = false,
+                    opened = false,
+                    stopped = false,
+                    cancelled = true,
+                    superseded = true,
+                })
+            else
+                result = {
+                    ok = false,
+                    opened = false,
+                    stopped = false,
+                    cancelled = true,
+                    reason = "cancel_failed",
+                    message = "Pending Typst preview open did not cancel",
+                }
+            end
+        elseif type(cancel_result) == "table" then
+            result = vim.tbl_extend("force", result, cancel_result, {
+                opened = false,
+                stopped = cancel_result.stopped ~= false,
+                cancelled = true,
+            })
+        else
+            result.stopped = stopped ~= false
+        end
+    end
+
+    local supersede = opts.supersede == true or reason == "restart"
+    local status = type(result) == "table"
+            and result.ok == false
+            and "open_cancel_failed"
+        or (type(result) == "table" and result.provider_result and result.provider_result.pending == true and "open_cancel_pending")
+        or "open_cancel_unconfirmed"
+
+    if cancel_confirmed(result) or supersede or opts.force == true then
+        clear_pending_open(project, result)
+    else
+        set_pending_open_cancel_unconfirmed(project, result, status)
+    end
+
+    if
+        type(handle) == "table"
+        and handle.pending
+        and type(handle.finish) == "function"
+        and (cancel_confirmed(result) or supersede or opts.force == true)
+    then
+        handle:finish(result, "cancel")
+    end
+
+    if supersede and not cancel_confirmed(result) then
+        retain_superseded_open(project, provider_handle, result, reason)
+    elseif
+        not cancel_confirmed(result)
+        and type(result) == "table"
+        and type(result.provider_result) == "table"
+        and result.provider_result.pending == true
+    then
+        observe_pending_open_cancel(
+            project,
+            handle,
+            generation,
+            result.provider_result,
+            reason
+        )
+    end
+
+    log.add("info", "pending preview open cancelled", {
+        main = project.main,
+        reason = reason,
+        ok = type(result) ~= "table" or result.ok ~= false,
+    })
+    return result
 end
 
 local function open_after_pending_stop(project, stop_handle, opts)
@@ -229,11 +680,37 @@ end
 ---@param opts? table Clear options such as reason/lifecycle.
 ---@return boolean cleared True when active preview state was cleared.
 function M.clear_state(project, opts)
+    local cancel_opts = vim.tbl_extend("force", opts or {}, {
+        force = true,
+        supersede = true,
+    })
+    if cancel_pending_open(project, cancel_opts) ~= nil then
+        return true
+    end
     return state.clear(project, opts)
 end
 
 local function prepare_open(project, preview, opts)
     local preview_state = preview_service.get(project) or {}
+    if preview_state.opening == true then
+        if preview.reuse ~= false and opts.restart ~= true then
+            log.add("debug", "preview open already pending; reusing handle", {
+                main = project.main,
+                backend = preview_state.last_backend,
+                mode = preview_state.last_mode,
+            })
+            return false, preview_state.open_handle or true
+        end
+
+        local cancelled = cancel_pending_open(
+            project,
+            { reason = "restart", supersede = true }
+        )
+        if type(cancelled) == "table" and cancelled.ok == false then
+            return false, cancelled
+        end
+    end
+
     if preview_state.active ~= true then
         return true
     end
@@ -481,17 +958,11 @@ function M.open(project, opts)
         if type(result) == "table" and result.ok == false then
             return result
         end
+        if type(result) == "table" and result.pending == true then
+            return observe_pending_open(project, opts, result)
+        end
         if result ~= false then
-            state.record(project, "callback", opts, nil, nil, true)
-            log.add(
-                "info",
-                "preview opened by configured callback",
-                { main = project.main, mode = opts.mode }
-            )
-            events.emit("TypstPreviewOpened", project, {
-                backend = "callback",
-                mode = opts.mode,
-            })
+            record_open_succeeded(project, opts, result)
         end
         return result
     end
@@ -545,9 +1016,12 @@ function M.open(project, opts)
         return native.open_viewer(project, opts)
     end
 
-    error(
-        "typst.nvim: preview backend is unavailable; configure preview.open or use :TypstView"
-    )
+    return {
+        ok = false,
+        reason = "preview_backend_unavailable",
+        message = "Typst preview backend is unavailable; configure preview.open or use :TypstView",
+        provider = preview.provider,
+    }
 end
 
 --- Stop the active preview backend for a project.
@@ -557,6 +1031,11 @@ end
 function M.stop(project, opts)
     opts = opts or {}
     local preview = config.unsafe_get().preview
+    local cancelled_open = cancel_pending_open(project, opts)
+    if cancelled_open ~= nil then
+        return cancelled_open
+    end
+
     local native_active = active_native_browser(project)
 
     if native_active and type(preview.stop) == "function" then

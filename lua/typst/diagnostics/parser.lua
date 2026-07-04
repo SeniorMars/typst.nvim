@@ -10,6 +10,17 @@ local M = {}
 ---@field source string
 ---@field message string
 
+---@class TypstDiagnosticParseMeta
+---@field external_paths "bufadd"|"quickfix-only"|"open-files-only"
+---@field max_buffers_per_publish integer
+---@field added_buffers integer
+---@field skipped_buffers integer
+---@field skipped_by_cap integer
+---@field skipped_external_paths integer
+---@field first_skipped_path? string
+---@field quickfix_only_diagnostics integer
+---@field quickfix_items table[]
+
 local severity = {
     error = vim.diagnostic.severity.ERROR,
     warning = vim.diagnostic.severity.WARN,
@@ -30,6 +41,26 @@ local function default_max_buffers_per_publish()
     end
     local diagnostics = (config.unsafe_get().diagnostics or {})
     return tonumber(diagnostics.max_buffers_per_publish) or 256
+end
+
+local function default_external_paths()
+    local ok, config = pcall(require, "typst.config")
+    if not ok then
+        return "bufadd"
+    end
+    local diagnostics = (config.unsafe_get().diagnostics or {})
+    return diagnostics.external_paths or "bufadd"
+end
+
+local function normalize_external_paths(value)
+    if
+        value == "quickfix-only"
+        or value == "open-files-only"
+        or value == "bufadd"
+    then
+        return value
+    end
+    return "bufadd"
 end
 
 local function update_line_limit(line_cache, path, lnum)
@@ -190,6 +221,7 @@ end
 ---@param text string Raw stderr/stdout diagnostic text from Typst or a compatible provider.
 ---@param opts? table Parser options such as diagnostic source and path handling.
 ---@return table<number, table[]> by_buffer Diagnostics keyed by Neovim buffer number.
+---@return TypstDiagnosticParseMeta meta Diagnostic path/buffer handling metadata.
 function M.parse(project, text, opts)
     opts = opts or {}
     local parse_opts = vim.tbl_extend("force", opts, {
@@ -200,18 +232,64 @@ function M.parse(project, text, opts)
     local pending_pretty = nil
     local max_buffers = tonumber(parse_opts.max_buffers_per_publish)
         or default_max_buffers_per_publish()
+    local external_paths = normalize_external_paths(
+        parse_opts.external_paths or default_external_paths()
+    )
     local new_buffer_count = 0
-    local skipped_buffer_count = 0
+    local skipped_by_cap = 0
+    local skipped_external_count = 0
+    local quickfix_only_count = 0
     local first_skipped_path = nil
+    local quickfix_by_path = {}
+
+    local function loaded_bufnr(path)
+        local loaded = util.loaded_buffer_for_path(path)
+        if loaded and vim.api.nvim_buf_is_valid(loaded) then
+            return loaded
+        end
+
+        local existing = vim.fn.bufnr(path)
+        if
+            existing > 0
+            and vim.api.nvim_buf_is_valid(existing)
+            and vim.api.nvim_buf_is_loaded(existing)
+        then
+            return existing
+        end
+    end
+
+    local function add_quickfix_only(path, diagnostic)
+        quickfix_by_path[path] = quickfix_by_path[path] or {}
+        table.insert(quickfix_by_path[path], diagnostic)
+        quickfix_only_count = quickfix_only_count + 1
+    end
 
     local function add(path, diagnostic)
+        local loaded = loaded_bufnr(path)
+        if loaded then
+            by_buffer[loaded] = by_buffer[loaded] or {}
+            table.insert(by_buffer[loaded], diagnostic)
+            return
+        end
+
+        if external_paths == "open-files-only" then
+            skipped_external_count = skipped_external_count + 1
+            first_skipped_path = first_skipped_path or path
+            return
+        end
+
+        if external_paths == "quickfix-only" then
+            add_quickfix_only(path, diagnostic)
+            return
+        end
+
         local existing = vim.fn.bufnr(path)
         if
             existing <= 0
             and max_buffers > 0
             and new_buffer_count >= max_buffers
         then
-            skipped_buffer_count = skipped_buffer_count + 1
+            skipped_by_cap = skipped_by_cap + 1
             first_skipped_path = first_skipped_path or path
             return
         end
@@ -259,16 +337,33 @@ function M.parse(project, text, opts)
         end
     end
 
-    if skipped_buffer_count > 0 then
+    if skipped_by_cap > 0 then
         log.add("warn", "diagnostic buffer limit reached", {
             main = project and project.main,
             max_buffers_per_publish = max_buffers,
-            skipped_buffers = skipped_buffer_count,
+            skipped_buffers = skipped_by_cap,
             first_skipped_path = first_skipped_path,
         })
     end
 
-    return by_buffer
+    local quickfix_items = nil
+    if next(quickfix_by_path) ~= nil then
+        quickfix_items =
+            require("typst.diagnostics.quickfix").path_items(quickfix_by_path)
+    end
+
+    return by_buffer,
+        {
+            external_paths = external_paths,
+            max_buffers_per_publish = max_buffers,
+            added_buffers = new_buffer_count,
+            skipped_buffers = skipped_by_cap + skipped_external_count,
+            skipped_by_cap = skipped_by_cap,
+            skipped_external_paths = skipped_external_count,
+            first_skipped_path = first_skipped_path,
+            quickfix_only_diagnostics = quickfix_only_count,
+            quickfix_items = quickfix_items or {},
+        }
 end
 
 return M

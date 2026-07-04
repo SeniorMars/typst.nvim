@@ -13,6 +13,20 @@ local M = {}
 
 local notify_user = require("typst.core.notify").user
 
+local function stop_failed(result)
+    return type(result) == "table"
+        and (result.ok == false or result.stopped == false)
+end
+
+local function stop_failure_message(result, fallback)
+    if type(result) ~= "table" then
+        return fallback
+    end
+    return result.message
+        or (result.stopped == false and "Typst preview stop was not confirmed")
+        or fallback
+end
+
 local function source_position(opts)
     opts = opts or {}
     if opts.line or opts.column then
@@ -304,10 +318,10 @@ function M.preview_stop(state, opts, notify)
     opts = opts or {}
     local result = typst_preview.stop(state, opts)
 
-    if type(result) == "table" and result.ok == false then
+    if stop_failed(result) then
         notify_user(
             notify,
-            result.message or "Typst preview stop is unavailable",
+            stop_failure_message(result, "Typst preview stop is unavailable"),
             vim.log.levels.WARN
         )
     elseif result ~= false then
@@ -331,11 +345,18 @@ function M.preview_toggle(state, opts, notify)
     opts = opts or {}
     local result = typst_preview.toggle(state, opts)
 
-    if type(result) == "table" and result.ok == false then
+    if stop_failed(result) then
         notify_user(
             notify,
-            result.message or "Typst preview toggle is unavailable",
+            stop_failure_message(result, "Typst preview toggle is unavailable"),
             vim.log.levels.WARN
+        )
+    elseif type(result) == "table" and result.pending == true then
+        notify_user(
+            notify,
+            ("Preview opening for %s"):format(
+                util.relpath(state.main, state.root)
+            )
         )
     elseif (preview_service.get(state) or {}).active then
         notify_user(

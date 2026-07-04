@@ -27,6 +27,9 @@ function M.record(project, backend, opts, command, cwd, active)
             "last_error",
             "stop_prune_reason",
             "stopping",
+            "opening",
+            "open_handle",
+            "open_generation",
         },
         last_backend = backend,
         last_mode = opts and opts.mode or nil,
@@ -112,6 +115,9 @@ function M.emit_stopped(project, backend, command, cwd)
             "last_error",
             "stop_prune_reason",
             "stopping",
+            "opening",
+            "open_handle",
+            "open_generation",
         },
         active = false,
         last_backend = backend or preview.last_backend,
@@ -138,7 +144,7 @@ end
 function M.clear(project, opts)
     opts = opts or {}
     local preview = preview_service.get(project) or {}
-    if not project or preview.active ~= true then
+    if not project or (preview.active ~= true and preview.opening ~= true) then
         return false
     end
 
@@ -164,6 +170,9 @@ function M.clear(project, opts)
             "last_error",
             "stop_prune_reason",
             "stopping",
+            "opening",
+            "open_handle",
+            "open_generation",
         },
         active = false,
         last_backend = backend,
