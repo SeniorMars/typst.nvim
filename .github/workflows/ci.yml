@@ -465,7 +465,9 @@ jobs:
     env:
       TYPST_NVIM_REQUIRE_FRONTENDS: "1"
       TYPST_NVIM_FRONTEND_POPUP_E2E: "1"
+      TYPST_NVIM_REQUIRE_PLAYWRIGHT: "1"
       TYPST_NVIM_TEST_EXTRA_RTP: ${{ github.workspace }}/.deps/nvim-cmp:${{ github.workspace }}/.deps/blink.lib:${{ github.workspace }}/.deps/blink.cmp
+      NODE_PATH: ${{ github.workspace }}/.deps/playwright-smoke/node_modules
       XDG_STATE_HOME: ${{ runner.temp }}/typst-nvim-xdg/state
       XDG_DATA_HOME: ${{ runner.temp }}/typst-nvim-xdg/data
       XDG_CACHE_HOME: ${{ runner.temp }}/typst-nvim-xdg/cache
@@ -489,6 +491,12 @@ jobs:
           git clone --depth=1 https://github.com/hrsh7th/nvim-cmp .deps/nvim-cmp
           git clone --depth=1 https://github.com/Saghen/blink.lib .deps/blink.lib
           git clone --depth=1 https://github.com/Saghen/blink.cmp .deps/blink.cmp
+
+      - name: Install Playwright Chromium
+        run: |
+          mkdir -p .deps/playwright-smoke
+          npm --prefix .deps/playwright-smoke install --no-save --no-package-lock playwright
+          .deps/playwright-smoke/node_modules/.bin/playwright install --with-deps chromium
 
       - name: Run frontend smoke tests
         run: bash tests/run_frontend_smoke.sh

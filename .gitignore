@@ -17,3 +17,4 @@ Cargo.lock
 lua/typst.so
 .deps/
 nvim.log
+node_modules/

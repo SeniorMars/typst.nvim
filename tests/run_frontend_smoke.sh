@@ -10,3 +10,5 @@ nvim --headless -u tests/minimal_init.lua -l tests/integration/completion_fronte
 echo "==> tests/integration/completion_frontends/completion_frontend_popup_spec.lua"
 TYPST_NVIM_FRONTEND_POPUP_E2E="${TYPST_NVIM_FRONTEND_POPUP_E2E:-0}" \
   nvim --headless -u tests/minimal_init.lua -l tests/integration/completion_frontends/completion_frontend_popup_spec.lua
+
+bash tests/run_playwright_smoke.sh

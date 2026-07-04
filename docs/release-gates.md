@@ -27,6 +27,12 @@ The release checklist lives in `docs/stable-core-checklist.md`. Stable-core
 release candidates should complete that checklist before broad feature work
 resumes.
 
+Lifecycle state machines and ownership invariants live in
+`docs/architecture-lifecycle.md`. Release, compatibility, and deprecation policy
+live in `docs/stability-policy.md`. Changes to project, compiler, preview,
+provider, cache, or public API behavior should update those documents when the
+invariant or release contract changes.
+
 ## Performance
 
 `tests/run_performance_gate.sh` runs the normal runtime performance spec plus a
@@ -70,6 +76,17 @@ verifies the `nvim-cmp` refresh hook path and separately checks that cached
 adapter output still carries Tinymist text edits, snippets, additional edits,
 and commands. Full visual insertion and frontend-specific refresh rendering
 remain owned by the frontend and are outside the headless CI contract.
+
+The same gate also invokes `tests/run_playwright_smoke.sh`. That lane launches a
+headless Neovim native browser preview, opens the local preview URL with
+Playwright Chromium when Playwright is installed, and verifies the shell DOM plus
+`state`, `artifact`, and `source-sync` browser requests. It skips by default
+when Node or Playwright is unavailable. Set `TYPST_NVIM_REQUIRE_PLAYWRIGHT=1`
+after installing Playwright, for example `npm --prefix .deps/playwright-smoke
+install --no-save --no-package-lock playwright &&
+.deps/playwright-smoke/node_modules/.bin/playwright install chromium`, to make
+the browser smoke mandatory. CI installs Chromium this way and treats the
+Playwright smoke as part of the frontend gate.
 
 ## Watch Output
 

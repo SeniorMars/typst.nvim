@@ -39,6 +39,9 @@ windows-edge:
 frontend-smoke:
   bash tests/run_frontend_smoke.sh
 
+playwright-smoke:
+  bash tests/run_playwright_smoke.sh
+
 provider-matrix:
   bash tests/run_provider_matrix.sh
 
