@@ -12,6 +12,7 @@ local public_functions = {
     "experimental_symbols",
     "is_setup",
     "reset",
+    "report",
 }
 
 for _, name in ipairs(public_functions) do
@@ -165,6 +166,14 @@ assert(
     "reset should be reported as experimental"
 )
 assert(
+    vim.tbl_contains(experimental_symbols, "report"),
+    "bug report root helper should be reported as experimental"
+)
+assert(
+    vim.tbl_contains(experimental_symbols, "ui.bug_report"),
+    "bug report UI helper should be reported as experimental"
+)
+assert(
     vim.tbl_contains(experimental_symbols, "development.profile"),
     "broad pre-1.0 namespaces should be reported as experimental"
 )
@@ -316,6 +325,7 @@ assert_namespace(typst.diagnostics, {
 
 assert_namespace(typst.ui, {
     "info",
+    "bug_report",
     "status",
     "status_report",
     "status_all",

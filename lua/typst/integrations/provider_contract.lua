@@ -147,7 +147,61 @@ local fixture_cases = {
     },
 }
 
+local conformance_cases = {
+    {
+        id = "sync_success",
+        label = "synchronous success",
+        required = true,
+    },
+    {
+        id = "sync_failure",
+        label = "synchronous failure",
+        required = true,
+    },
+    {
+        id = "callback_success",
+        label = "asynchronous callback success",
+        required = true,
+    },
+    {
+        id = "callback_failure",
+        label = "asynchronous callback failure",
+        required = true,
+    },
+    {
+        id = "returned_pending_handle",
+        label = "returned pending handle",
+        required = true,
+    },
+    {
+        id = "raw_handle_timeout",
+        label = "timeout or never-callback handle",
+        required = true,
+    },
+    {
+        id = "cancellation_before_completion",
+        label = "cancel before completion",
+        required = true,
+    },
+    {
+        id = "duplicate_callback",
+        label = "stale or duplicate terminal callback",
+        required = true,
+    },
+    {
+        id = "thrown_provider_error",
+        label = "thrown provider error",
+        required = true,
+    },
+    {
+        id = "malformed_nil_result",
+        label = "malformed or nil result",
+        required = true,
+    },
+}
+
 local result_contract = {
+    version = 1,
     terminal_fields = {
         "ok",
         "code",
@@ -156,6 +210,20 @@ local result_contract = {
         "stopped",
         "forced",
         "orphaned",
+    },
+    common_fields = {
+        "ok",
+        "pending",
+        "code",
+        "reason",
+        "message",
+        "error",
+        "stale",
+        "stopped",
+        "forced",
+        "orphaned",
+        "output",
+        "path",
     },
     handle_like_fields = {
         "path",
@@ -215,6 +283,18 @@ function M.fixture_cases()
     return vim.deepcopy(fixture_cases)
 end
 
+function M.conformance_cases()
+    return vim.deepcopy(conformance_cases)
+end
+
+function M.conformance_matrix()
+    local matrix = {}
+    for _, kind in ipairs(M.kinds()) do
+        matrix[kind] = M.conformance_cases()
+    end
+    return matrix
+end
+
 function M.result_contract()
     return vim.deepcopy(result_contract)
 end
@@ -232,6 +312,8 @@ function M.sdk_contract()
         result_contract = M.result_contract(),
         structural_results = M.structural_results(),
         fixture_cases = M.fixture_cases(),
+        conformance_cases = M.conformance_cases(),
+        conformance_matrix = M.conformance_matrix(),
     }
 end
 

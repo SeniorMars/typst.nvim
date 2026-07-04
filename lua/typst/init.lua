@@ -28,6 +28,13 @@ function M.contract()
     return require("typst.api.contract").snapshot()
 end
 
+--- Build a redacted bug-report artifact for support.
+---@param opts? table Report controls such as `open`, `path`, and `redact`.
+---@return table result Bug-report data plus JSON lines and optional buffer/path.
+function M.report(opts)
+    return require("typst.internal.debug").bug_report(opts)
+end
+
 local notify = require("typst.core.notify").default
 
 api_exports.install(M, notify)

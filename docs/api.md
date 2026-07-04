@@ -55,6 +55,8 @@ typst.metadata.symbol()
 typst.symbol.info()
 typst.bibliography.diagnostics()
 typst.providers.register()
+typst.report({ open = true })
+typst.ui.bug_report({ open = true })
 typst.invalidation.subscribe(project, "buffer_changed", callback)
 ```
 

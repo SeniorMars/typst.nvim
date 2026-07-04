@@ -25,6 +25,9 @@ the feature patch updates the matching tests and docs in the same change.
 - [ ] Events and aliases match API contract.
 - [ ] Config docs and schema are generated from defaults.
 - [ ] Provider kinds and fixture cases match provider docs.
+- [ ] Lifecycle state machines match `docs/architecture-lifecycle.md`.
+- [ ] Release, compatibility, and deprecation policy match
+      `docs/stability-policy.md`.
 
 ## Required negative tests
 
@@ -61,3 +64,10 @@ the feature patch updates the matching tests and docs in the same change.
 - [ ] Has docs or a generated docs entry.
 - [ ] Adds telemetry or debug info if it can be slow or async.
 - [ ] Does not expand stable API unless `API.md` and tests are updated.
+
+## Bug-report policy
+
+- [ ] Any unreproduced lifecycle failure includes `:TypstBugReport` output.
+- [ ] Public support instructions request redacted reports by default.
+- [ ] Unredacted reports are used only for local debugging or explicit
+      maintainer requests.

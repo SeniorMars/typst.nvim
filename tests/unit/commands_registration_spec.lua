@@ -150,6 +150,7 @@ local public_commands = {
     "TypstSmartClose",
     "TypstConvertRaw",
     "TypstDoctor",
+    "TypstBugReport",
     "TypstLog",
 }
 
@@ -245,6 +246,7 @@ local ok, err = xpcall(function()
     vim.cmd("TypstCleanLocks")
     vim.cmd("TypstCheckInvariants")
     vim.cmd("TypstDoctor")
+    vim.cmd("TypstBugReport")
     vim.cmd("TypstTelemetry")
 end, debug.traceback)
 

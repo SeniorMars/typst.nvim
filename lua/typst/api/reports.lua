@@ -189,6 +189,30 @@ function M.install(api, notify)
         return snapshots, lines
     end
 
+    local function bug_report(opts)
+        opts = opts or {}
+        local result = require("typst").report(opts)
+        if opts.echo ~= false then
+            if result.ok then
+                if result.path then
+                    notify(
+                        ("Typst bug report written to %s"):format(result.path)
+                    )
+                elseif result.buffer then
+                    notify("Typst bug report opened")
+                else
+                    notify("Typst bug report generated")
+                end
+            else
+                notify(
+                    result.message or "Typst bug report failed",
+                    vim.log.levels.ERROR
+                )
+            end
+        end
+        return result
+    end
+
     local function count(opts)
         opts = opts or {}
         local count = require("typst.diagnostics.count")
@@ -365,6 +389,7 @@ function M.install(api, notify)
         status = status,
         status_report = status_report,
         status_all = status_all,
+        bug_report = bug_report,
         statusline = statusline,
         count = count,
         log = log,

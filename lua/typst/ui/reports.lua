@@ -497,6 +497,24 @@ function M.project_lines(state, bufnr, opts)
         ("  diagnostic buffers: %d"):format(#diagnostic_buffers),
     }
 
+    local last_diagnostic_publish = diagnostic_state.last_publish
+    if last_diagnostic_publish then
+        lines[#lines + 1] = ("  diagnostic external paths: %s; added %d, quickfix-only %d, skipped %d"):format(
+            last_diagnostic_publish.external_paths or "bufadd",
+            tonumber(last_diagnostic_publish.added_buffers) or 0,
+            tonumber(last_diagnostic_publish.quickfix_only_diagnostics) or 0,
+            tonumber(last_diagnostic_publish.skipped_buffers) or 0
+        )
+        if last_diagnostic_publish.first_skipped_path then
+            lines[#lines + 1] = ("    first skipped: %s"):format(
+                util.relpath(
+                    last_diagnostic_publish.first_skipped_path,
+                    state.root
+                )
+            )
+        end
+    end
+
     if compiler_state.last_profile then
         lines[#lines + 1] = ("  profile: %s"):format(
             compiler_state.last_profile

@@ -91,15 +91,19 @@ Useful entry points:
 - `:help typst-troubleshooting` for runtime diagnosis.
 - [API.md](API.md) for the normative Lua compatibility contract.
 - [docs/api.md](docs/api.md) for Lua API usage notes and async result shapes.
+- [docs/architecture-lifecycle.md](docs/architecture-lifecycle.md) for
+  maintainer lifecycle state machines and invariants.
 - [docs/provider-contracts.md](docs/provider-contracts.md) for provider callbacks,
   pending handles, cancellation, and stop timeout semantics.
+- [docs/stability-policy.md](docs/stability-policy.md) for release,
+  compatibility, and deprecation policy.
 
 ## Stability and limitations
 
 | Surface | Status | Notes |
 | --- | --- | --- |
 | User commands | Supported, but still early-reset quality. | Commands are the preferred automation surface while internals settle. |
-| Installed Lua namespaces such as `typst.project`, `typst.compiler`, diagnostics, viewer, completion, conceal, bibliography, and metadata | Only exact dotted symbols listed in [API.md](API.md) are stable. | API stability is checked in CI; [docs/api.md](docs/api.md) explains usage tiers and examples. |
+| Installed Lua namespaces such as `typst.project`, `typst.compiler`, diagnostics, viewer, completion, conceal, bibliography, and metadata | Only exact dotted symbols in the stable-symbol block of [API.md](API.md) are stable. | API stability is checked in CI; [docs/api.md](docs/api.md) explains usage tiers and examples. |
 | Provider contracts | Supported but intentionally strict. | Compiler providers that may write output must call back, expose cancellation, or accept retained leases until force-clear. |
 | Service tables, project lifecycle internals, resource/session internals | Internal. | These may move as ownership boundaries harden. Use commands or documented API wrappers instead. |
 
@@ -110,7 +114,7 @@ Feature stability is grouped by workflow, not by module directory:
 | Core workflow | Setup, project discovery, main-file control, compile/watch/stop, diagnostics, viewer dispatch, status/info/log/cache/lock commands. | Supported user workflow; regressions should be treated as bugs. |
 | Editor workflow | Completion adapters, TOC/pickers, folds, motions, text objects, conceal, formatting, lint, grammar, and structural transforms. | Supported, but quality can depend on Tree-sitter, Typst CLI, Tinymist, and configured providers. |
 | Integration workflow | Tinymist, native preview, typst-preview.nvim delegation, custom providers, export/render/eval/profile/test/bench/coverage helpers. | Supported where configured; provider contracts may still tighten before a stable release. |
-| Lua API | Exact dotted symbols listed in [API.md](API.md). | Stable at the current API level. Installed helpers outside that list are experimental. |
+| Lua API | Exact dotted symbols in the stable-symbol block of [API.md](API.md). | Stable at the current API level. Installed helpers outside that list are experimental. |
 | Internals | Service tables, resolver/index/preview sessions, resource supervision, generated metadata loaders, and cache registries. | Internal; use commands or documented Lua wrappers instead of depending on these shapes. |
 
 Known limitations:
@@ -198,7 +202,8 @@ stable Lua API is intentionally narrow and symbol-based, not namespace-based.
 Setup/contract introspection plus core `project`, `compiler`, and `viewer`
 workflow helpers are stable when listed by `stable_symbols()`. Editing,
 completion, artifact, metadata, provider, navigation, preview helper, and
-development APIs remain installed but experimental unless promoted in `API.md`;
+development APIs remain installed but experimental unless promoted to the
+stable-symbol block in `API.md`;
 `experimental_symbols()` reports those helpers explicitly.
 Use `contract()` to inspect the versioned API/event contract, including
 documented `TypstEvent*` names and payload fields.
@@ -1244,7 +1249,13 @@ the later heuristic and records `resolution_pending = "import_scan"`; a
 scheduled scan reassigns the buffer if it finds a unique importing main.
 Unnamed Typst buffers attach to a scratch in-memory project rooted at the
 current working directory; `:saveas` re-resolves them as normal file-backed
-projects and prunes the scratch project.
+projects and prunes the scratch project. Scratch project main paths are
+internal identity keys, not readable Typst files. Normal `:TypstCompile`,
+`:TypstWatch`, and native preview compile-mode reject unnamed buffers with an
+actionable "save first" error. Stdin-backed fragment workflows such as
+`:TypstCompileSelected` are intentionally allowed from unnamed buffers because
+they send generated source to `typst compile -` instead of compiling the
+synthetic scratch path.
 
 The shipped Tree-sitter highlight query covers Typst markup, code, math,
 comments, raw blocks, and punctuation, and also marks TODO/NOTE/WARN/FIXME
@@ -1800,7 +1811,8 @@ documents may need tighter caps.
 | Tinymist and async providers | `integrations.tinymist.lsp`, provider `timeout_ms` fields, `diagnostics.source` | Use `"detect"` if another plugin owns Tinymist startup. Prefer bounded provider timeouts and inspect stale callbacks or retained leases through `:TypstInfo!` and `:TypstLog`. |
 | Native browser preview | `preview.browser.server`, `preview.browser.refresh_ms`, `preview.browser.max_artifact_bytes` | The local server caps headers and artifact size, then streams under-cap artifacts. Keep the cap enabled unless previewing trusted local artifacts in a controlled session. |
 
-Use `:TypstInfo!`, `:TypstStatusAll!`, `:TypstDoctor`, `:TypstLog`,
+Use `:TypstInfo!`, `:TypstStatusAll!`, `:TypstDoctor`, `:TypstBugReport`,
+`:TypstLog`,
 `:checkhealth typst`, and `:TypstTelemetry` to decide which path is actually
 slow before lowering caps.
 

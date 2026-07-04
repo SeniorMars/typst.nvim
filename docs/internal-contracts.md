@@ -23,9 +23,17 @@ for files outside the current window. To avoid unbounded hidden-buffer growth
 from malformed provider output, new diagnostic buffers are capped by
 `diagnostics.max_buffers_per_publish`; diagnostics for already accepted buffers
 continue to publish within the same batch. Set the cap to `0` to disable it.
-The cap applies to parser-created hidden buffers. Providers that return native
-`by_buffer` diagnostics are expected to supply valid existing buffer numbers and
-are not path-expanded by the parser.
+The cap applies to parser-created hidden buffers. `diagnostics.external_paths`
+can opt out of parser-created buffers: `"quickfix-only"` keeps unopened-file
+diagnostics as quickfix/location-list items without tracking them as
+`vim.diagnostic` buffers, while `"open-files-only"` skips unopened files
+entirely. Jumpable quickfix filename entries may still allocate Neovim buflist
+entries; use `"open-files-only"` when no new buffer entries are acceptable.
+quickfix-only path diagnostics must be stored by diagnostic source so explicit
+quickfix reopen commands can rebuild the list after a user-owned quickfix
+replacement.
+Providers that return native `by_buffer` diagnostics are expected to supply
+valid existing buffer numbers and are not path-expanded by the parser.
 
 ## Public Project Snapshots
 

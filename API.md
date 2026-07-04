@@ -426,6 +426,7 @@ code and this document together when the public symbol surface changes.
 - `render.fragment`
 - `render.image`
 - `render.page`
+- `report`
 - `reset`
 - `semantic.code_action`
 - `semantic.code_lens`
@@ -453,6 +454,7 @@ code and this document together when the public symbol surface changes.
 - `tools.format`
 - `tools.grammar`
 - `tools.lint`
+- `ui.bug_report`
 - `ui.count`
 - `ui.info`
 - `ui.log`
@@ -505,7 +507,11 @@ attachment prefers explicit associations, then compiler-discovered edges, then
 heuristic associations.
 Unnamed Typst buffers can attach before they have a file name. They use a
 scratch in-memory project rooted at the current working directory, and
-`:saveas` re-resolves them into normal file-backed projects.
+`:saveas` re-resolves them into normal file-backed projects. Normal
+`:TypstCompile`, `:TypstWatch`, and compile-mode preview reject scratch mains
+until the buffer is saved. Stdin-backed fragment compiles such as
+`:TypstCompileSelected` are intentionally allowed because the generated source
+is sent to `typst compile -` rather than the synthetic scratch path.
 - `require("typst").ui.count(opts)`
 - `require("typst").tools.format(opts)`
 - `require("typst").tools.lint(opts)`
@@ -1138,6 +1144,7 @@ The public statusline helpers are:
 
 - `require("typst").ui.status(bufnr)`
 - `require("typst").ui.status_report(opts)`
+- `require("typst").ui.bug_report(opts)`
 - `require("typst").ui.statusline(opts)`
 
 `status()` includes project identity, root/main decision sources, output,
@@ -1180,6 +1187,13 @@ re-resolves the current buffer and reapplies typst.nvim buffer state without
 stopping active compilers.
 `clear_cache()` invalidates generated metadata selection, package resource cache
 state, import-scan cache, project index cache, and conceal match caches.
+`require("typst").report({ open = true })` and
+`require("typst").ui.bug_report({ open = true })` generate the same redacted
+JSON support artifact as `:TypstBugReport`; both are experimental support APIs
+listed under `experimental_symbols()`, not stable API symbols. Reports are
+pretty-printed by default and cap project, operation, telemetry, and log
+sections; pass `pretty = false` or larger `max_*` limits only for local
+debugging or maintainer-requested captures.
 `metadata_version` may pin a bundled Typst metadata snapshot such as `"0.14.2"` or `"0.15.0"`;
 when unset, typst.nvim uses the newest compatible bundled metadata and reports
 version mismatches through catalog/status metadata.
@@ -1519,6 +1533,7 @@ The public command surface is:
 - `:TypstSmartClose`
 - `:TypstConvertRaw [toggle|inline|block]`
 - `:TypstDoctor`
+- `:TypstBugReport[!] [path]`
 - `:TypstCheckInvariants`
 - `:TypstTelemetry`
 - `:TypstTelemetryReset`

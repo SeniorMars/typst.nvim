@@ -10,6 +10,14 @@ specs=(
   tests/unit/commands_registration_spec.lua
   tests/unit/public_api_context_spec.lua
   tests/unit/project_public_snapshot_immutability_spec.lua
+  tests/unit/compiler_scratch_buffer_spec.lua
+  tests/unit/compiler_stop_idle_lease_spec.lua
+  tests/unit/lifecycle_path_equivalence_spec.lua
+  tests/unit/import_scan_descendant_depth_spec.lua
+  tests/unit/source_map_cache_signature_spec.lua
+  tests/unit/bug_report_spec.lua
+  tests/unit/preview_error_contract_spec.lua
+  tests/stable_core/invariants_spec.lua
   tests/unit/cache_registry_spec.lua
   tests/policy/cache_registry_contract_spec.lua
   tests/policy/architecture_contract_spec.lua
@@ -22,6 +30,7 @@ specs=(
   tests/integration/compiler/lifecycle_spec.lua
   tests/integration/watch/process_spec.lua
   tests/integration/resources/supervisor_spec.lua
+  tests/integration/preview/pending_open_spec.lua
   tests/integration/preview/native_preview_fast_event_spec.lua
 )
 

@@ -202,6 +202,11 @@ assert(
     type(sdk.structural_results) == "table",
     "provider SDK contract should document structural result fields"
 )
+assert(
+    type(sdk.conformance_matrix) == "table"
+        and type(sdk.conformance_cases) == "table",
+    "provider SDK contract should expose provider conformance coverage"
+)
 
 for kind, fields in pairs(contract.structural_results()) do
     local field = fields[1]

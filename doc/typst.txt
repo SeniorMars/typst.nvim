@@ -236,7 +236,13 @@ Project resolution order:
 
 Unnamed Typst buffers attach to a scratch in-memory project rooted at the
 current working directory. `:saveas` re-resolves them as normal file-backed
-projects and prunes the scratch project.
+projects and prunes the scratch project. Scratch project main paths are
+internal identity keys, not readable Typst files. The built-in CLI compiler and
+watcher reject scratch projects with an actionable error; save the buffer first
+before running |:TypstCompile|, |:TypstWatch|, |:TypstPreview| in compile mode,
+or other file-backed workflows. Stdin-backed fragment compiles such as
+|:TypstCompileSelected| are the deliberate exception: they send generated
+source to `typst compile -` and do not compile the synthetic scratch path.
 
 Root-level Typst files under the same root marker can resolve as independent
 main documents instead of all falling back to a sibling `main.typ`; the
@@ -1011,7 +1017,9 @@ Command groups:
     make one active native browser preview follow the focused Typst buffer's
     resolved project/main. `mode=...`, `profile=...`, `format=...`,
     `export=...`, and `restart` tokens provide one-shot preview export
-    overrides.
+    overrides. With the default `preview.export.mode = "compile"`, native
+    preview displays the latest compiler output; run |:TypstCompile| or
+    |:TypstWatch| first, or use a preview export profile/provider.
 
                                                 *:TypstPreviewOpenBrowser*
 :TypstPreviewOpenBrowser[!] [document|slide|profile=name|format=fmt]
@@ -1638,6 +1646,24 @@ Implement `render(project, opts, callback)` to replace rendering.
     buffers, operations, and leases inspected; a failing result writes details
     to |:TypstLog|.
 
+                                                        *:TypstBugReport*
+:TypstBugReport[!] [path]
+    Generate a JSON bug-report artifact with Neovim/Typst version data,
+    current project snapshots, compiler/preview/diagnostics service snapshots,
+    active operations, output leases, cache statistics, telemetry, invariant
+    results, and recent logs.
+
+    Without [path], the report opens in a scratch buffer. With [path], the JSON
+    report is written to that file. Reports are redacted by default: the home
+    directory is replaced with `~` and the current working directory with
+    `<cwd>`. Use bang only for local debugging or when a maintainer explicitly
+    requests an unredacted report. Redacted reports may still include
+    project-relative file names, package names, command names, and short
+    stdout/stderr excerpts. Bug reports are pretty-printed by default and cap
+    project, operation, telemetry, and log sections; use Lua `typst.report({
+    pretty = false, max_logs = ... })` for compact output or larger local
+    debugging captures.
+
                                                         *:TypstCheckInvariants*
 :TypstCheckInvariants
     Compatibility alias for |:TypstDoctor|.
@@ -2191,6 +2217,7 @@ Defaults: >
       import_scan = true,
       import_scan_max_files = 200,
       import_scan_max_depth = 3,
+      import_scan_max_descendant_depth = nil,
       import_scan_max_entries = 2000,
       import_scan_skip_dirs = {
         ".git",
@@ -2654,7 +2681,8 @@ Project and main-file resolution are explained in |typst-projects|. The
 configuration keys that affect that model are `root_markers`, `main`,
 `project.import_scan`, `project.import_scan_max_files`,
 `project.import_scan_max_depth`, `project.import_scan_max_entries`,
-`project.import_scan_skip_dirs`, and `project.persist_main`.
+`project.import_scan_max_descendant_depth`, `project.import_scan_skip_dirs`,
+and `project.persist_main`.
 `project.import_scan_skip_dirs` entries are directory basenames, not paths or
 glob patterns. Use "build" rather than "build/" or "foo/build".
 
@@ -2705,6 +2733,18 @@ compiler diagnostics by default.
 `"quickfix"` uses the global quickfix list. `"loclist"` uses the current
 window's location list, which is better when multiple Typst projects are open
 in different windows.
+
+`diagnostics.external_paths` controls how parsed diagnostics for unopened files
+are handled. The default `"bufadd"` creates unloaded buffers up to
+`diagnostics.max_buffers_per_publish` so `vim.diagnostic` can own those
+diagnostics. `"quickfix-only"` avoids creating diagnostic buffers and keeps
+those items only in the configured quickfix/location list when
+`diagnostics.use_quickfix` is enabled; Neovim may still create its own buflist
+entry for jumpable quickfix filenames. `"open-files-only"` publishes
+diagnostics only for already loaded buffers and reports skipped external paths
+in `:TypstInfo!`; use this for the strict no-new-buffer policy.
+quickfix-only diagnostics are stored by diagnostic source so
+`:TypstDiagnostics` can rebuild the list after another command replaces it.
 
 Tinymist integration                                      *typst-tinymist*
 
@@ -3345,12 +3385,17 @@ completion sources, Tinymist requests, and preview refresh. The defaults favor
 a useful out-of-box workflow, but large repositories may need tighter settings.
 
 Project import scanning is bounded by `project.import_scan_max_files`,
-`project.import_scan_max_depth`, and `project.import_scan_max_entries`. It skips
-directory basenames listed in `project.import_scan_skip_dirs` before spending
-filesystem-entry budget, is kept in a short-lived cache keyed by path, root,
-config generation, and root metadata, and |:TypstClearCache| clears it
-immediately. Buffer attach defers the scan so opening a leaf file can use a
-fast fallback first; command paths force any pending scan before they operate.
+`project.import_scan_max_depth`, `project.import_scan_max_descendant_depth`,
+and `project.import_scan_max_entries`. `project.import_scan_max_depth` controls
+how many ancestor root candidates are scanned when the root was only the buffer
+directory; `project.import_scan_max_descendant_depth` controls recursive
+descent below each scan root when set, and defaults to unlimited traversal
+bounded by the file and entry caps. It skips directory basenames listed in
+`project.import_scan_skip_dirs` before spending filesystem-entry budget, is
+kept in a short-lived cache keyed by path, root, config generation, root
+metadata, and scan limits, and |:TypstClearCache| clears it immediately. Buffer
+attach defers the scan so opening a leaf file can use a fast fallback first;
+command paths force any pending scan before they operate.
 When a scan root exceeds the entry cap, typst.nvim abandons that import-scan
 attempt and falls back to later main-file heuristics before candidate files are
 read.

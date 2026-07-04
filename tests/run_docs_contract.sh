@@ -16,6 +16,7 @@ specs=(
   tests/unit/provider_contract_spec.lua
   tests/policy/parity_doc_spec.lua
   tests/policy/architecture_contract_spec.lua
+  tests/policy/stability_docs_spec.lua
 )
 
 for spec in "${specs[@]}"; do

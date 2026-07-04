@@ -45,6 +45,38 @@ function M.register(ctx)
         run_invariant_check(ctx)
     end, opts("Check typst.nvim runtime invariants and lifecycle ownership"))
 
+    create(
+        "TypstBugReport",
+        function(args)
+            local result = require("typst").report({
+                open = args.args == "",
+                path = args.args ~= "" and args.args or nil,
+                redact = not args.bang,
+            })
+            if result.ok and result.path then
+                notify(
+                    ctx,
+                    ("Typst bug report written to %s"):format(result.path)
+                )
+            elseif result.ok then
+                notify(ctx, "Typst bug report opened")
+            else
+                notify(
+                    ctx,
+                    result.message or "Typst bug report failed",
+                    vim.log.levels.ERROR
+                )
+            end
+        end,
+        vim.tbl_extend(
+            "force",
+            opts("Generate a redacted typst.nvim bug report", "?", "file"),
+            {
+                bang = true,
+            }
+        )
+    )
+
     create("TypstTelemetry", function()
         local lines = require("typst.internal.debug").telemetry_report()
         if #lines == 0 then

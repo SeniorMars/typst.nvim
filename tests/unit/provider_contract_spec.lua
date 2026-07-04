@@ -21,6 +21,33 @@ end
 
 local docs = read("docs/provider-contracts.md")
 local structural_results = contract.structural_results()
+local result_contract = contract.result_contract()
+assert(
+    result_contract.version == 1,
+    "provider result contract should be versioned"
+)
+for _, field in ipairs(result_contract.common_fields or {}) do
+    assert(
+        docs:find("`" .. field .. "`", 1, true)
+            or docs:find(field .. "?", 1, true),
+        ("provider docs should document common result field `%s`"):format(field)
+    )
+end
+for _, text in ipairs({
+    "TypstResult",
+    "TypstPending",
+    "ok = false, reason, message",
+}) do
+    assert(
+        docs:find(text, 1, true),
+        "provider docs should document canonical result grammar: " .. text
+    )
+end
+assert(
+    docs:find("stopped = true", 1, true)
+        and docs:find("only after shutdown is confirmed", 1, true),
+    "provider docs should document canonical result grammar: stopped = true only after shutdown is confirmed"
+)
 assert(
     provider_adapter.result_like({ ok = true }) == true,
     "explicit provider result fields should be terminal"
@@ -90,6 +117,44 @@ for _, fixture in ipairs(contract.fixture_matrix()) do
         docs:lower():find(fixture:lower(), 1, true),
         ("provider docs should mention fixture: %s"):format(fixture)
     )
+end
+local conformance_cases = contract.conformance_cases()
+local conformance_by_id = {}
+for _, case in ipairs(conformance_cases) do
+    conformance_by_id[case.id] = case
+    assert(
+        docs:find("`" .. case.id .. "`", 1, true),
+        ("provider docs should list conformance fixture `%s`"):format(case.id)
+    )
+    assert(
+        docs:lower():find(case.label:lower(), 1, true),
+        ("provider docs should describe conformance fixture `%s`"):format(
+            case.label
+        )
+    )
+end
+local conformance_matrix = contract.conformance_matrix()
+for _, kind in ipairs(contract.kinds()) do
+    local cases = conformance_matrix[kind]
+    assert(
+        cases,
+        ("provider kind `%s` should have conformance cases"):format(kind)
+    )
+    local kind_cases = {}
+    for _, case in ipairs(cases) do
+        kind_cases[case.id] = true
+    end
+    for id, case in pairs(conformance_by_id) do
+        if case.required then
+            assert(
+                kind_cases[id],
+                ("provider kind `%s` should cover conformance case `%s`"):format(
+                    kind,
+                    id
+                )
+            )
+        end
+    end
 end
 
 for _, text in ipairs({

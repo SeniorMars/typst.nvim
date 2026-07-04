@@ -82,6 +82,38 @@ Provider methods may complete in one of four ways:
 The adapter enforces a single terminal result. Late duplicate callbacks after a
 timeout, cancellation, or earlier result are logged and ignored.
 
+## Canonical Result Grammar
+
+All provider kinds share this base result and pending-handle grammar. Individual
+provider kinds may add fields, but they should not invent a separate success,
+failure, cancellation, or pending convention.
+
+```lua
+---@class TypstResult
+---@field ok? boolean
+---@field pending? boolean
+---@field code? integer
+---@field reason? string
+---@field message? string
+---@field error? any
+---@field stale? boolean
+---@field stopped? boolean
+---@field forced? boolean
+---@field orphaned? boolean
+---@field output? string
+---@field path? string
+
+---@class TypstPending
+---@field pending true
+---@field result? TypstResult
+---@field cancel? fun(self: TypstPending, opts?: table): boolean, TypstResult?
+---@field on_finish fun(self: TypstPending, cb: fun(result: TypstResult, handle?: TypstPending)): TypstPending
+```
+
+Expected failure results should use `{ ok = false, reason, message }`. Expected
+stop results should use `stopped = true` only after shutdown is confirmed.
+Timeouts and unknown external state should not claim `stopped = true`.
+
 When a timeout is configured, raw handles and pending tables are watchdog
 protected. A provider that never calls back receives a synthetic timeout result.
 For compiler-provider compile, watch/start, and stop paths, timeout means
@@ -382,6 +414,11 @@ Relationships to other provider surfaces:
 - `preview.open`, `preview.stop`, and `preview.refresh` are callback extension
   points. When the active backend is native browser, stop/refresh callbacks are
   composed with native cleanup/refresh rather than replacing them.
+- `preview.open` may return `true`, `false`, a structured failure table, or a
+  pending handle. Pending opens mark preview state as `opening`, not `active`;
+  typst.nvim records active preview state and emits opened events only after
+  the pending handle finishes successfully. A pending open that cannot be
+  observed or finishes with `ok = false` is recorded as `open_failed`.
 - `preview.forward`, `preview.inverse`, and `preview.capabilities` are
   source-sync declarations. Native browser preview does not declare source maps
   by default, and reports unavailable source sync for PDF output unless a
@@ -609,3 +646,26 @@ New provider kinds or major provider behavior changes should add fixtures for:
 - duplicate callback after terminal result;
 - thrown provider error;
 - malformed or nil result.
+
+The executable conformance matrix lives in
+`typst.integrations.provider_contract`. Every stable provider kind listed in
+this document must be covered by the shared adapter fixtures below, plus any
+kind-specific integration tests required by its lifecycle:
+
+| Fixture id | Required edge case |
+| --- | --- |
+| `sync_success` | synchronous success |
+| `sync_failure` | synchronous failure |
+| `callback_success` | asynchronous callback success |
+| `callback_failure` | asynchronous callback failure |
+| `returned_pending_handle` | returned pending handle |
+| `raw_handle_timeout` | timeout or never-callback handle |
+| `cancellation_before_completion` | cancel before completion |
+| `duplicate_callback` | stale or duplicate terminal callback |
+| `thrown_provider_error` | thrown provider error |
+| `malformed_nil_result` | malformed or nil result |
+
+The release `provider-matrix` gate runs the shared SDK fixtures for compiler,
+preview/export/render, source-map, viewer, formatter, linter, grammar, and
+workflow providers. A provider behavior change is incomplete unless it updates
+the conformance matrix, docs, and focused fixture coverage in the same patch.
