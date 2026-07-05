@@ -83,6 +83,7 @@ local payload_keys = {
     "stopped",
     "idle",
     "forced",
+    "provider",
 }
 
 local function copy_payload(spec, opts)

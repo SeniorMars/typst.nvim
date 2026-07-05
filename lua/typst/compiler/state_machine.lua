@@ -101,6 +101,15 @@ function M.emit(project, result, active_field)
         return
     end
 
+    local compiler_state = compiler_service.get(project) or {}
+    if type(result) == "table" and result.provider == nil then
+        result.provider = compiler_state.provider_label
+            or (
+                type(project.compiler_provider) == "table"
+                and project.compiler_provider.label
+            )
+    end
+
     M.apply_status(project, result, active_field)
 
     compiler_events.from_result(project, result)

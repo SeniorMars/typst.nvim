@@ -74,7 +74,6 @@ typst.setup({
         },
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local main_bufnr = vim.api.nvim_get_current_buf()
@@ -86,7 +85,6 @@ local handle = typst.compiler.compile({ profile = "generic" }, function(result)
     compile_code = result.code
     compile_done = true
 end)
-
 assert(
     handle.provider == "generic",
     "generic compile should return provider state"
@@ -123,7 +121,7 @@ assert(
     vim.fn.filereadable(typst_test_compiler(project).output) == 1,
     "generic provider should write configured output"
 )
-local generic_output = typst_test_compiler(project).output
+local generic_output = assert(typst_test_compiler(project).output)
 assert(vim.fn.writefile({
     "user-modified generic compile output",
 }, generic_output) == 0, "failed to modify generic compile output")
@@ -261,7 +259,6 @@ typst.setup({
         },
     },
 })
-
 vim.cmd.edit(main)
 local task_bufnr = vim.api.nvim_get_current_buf()
 local task_project = typst.project.set_main(main)
@@ -390,19 +387,16 @@ local ok, err = xpcall(function()
         return handle
     end
 
-    process.spawn = function(command)
+    rawset(process, "spawn", function(command)
         return fake_spawn(command)
-    end
-
-    process.system = function(command)
+    end)
+    rawset(process, "system", function(command)
         return fake_spawn(command)
-    end
-
-    process.shutdown = function(handle)
+    end)
+    rawset(process, "shutdown", function(handle)
         restart_events[#restart_events + 1] = ("shutdown:%d"):format(handle.id)
         return true, { stopped = true }
-    end
-
+    end)
     typst.setup({
         root = root,
         output_dir = typst_test_cache_path("generic-provider-restart"),
@@ -417,7 +411,6 @@ local ok, err = xpcall(function()
             },
         },
     })
-
     vim.cmd.edit(main)
     local restart_project = typst.project.set_main(main)
     local first = typst.compiler.compile()
@@ -450,21 +443,20 @@ local ok, err = xpcall(function()
     typst.reset()
     restart_events = {}
     restart_handles = {}
-    process.spawn = function(command)
+    rawset(process, "spawn", function(command)
         return fake_spawn(command)
-    end
-    process.system = function(command)
+    end)
+    rawset(process, "system", function(command)
         return fake_spawn(command)
-    end
-    process.shutdown = function(handle)
+    end)
+    rawset(process, "shutdown", function(handle)
         restart_events[#restart_events + 1] = ("shutdown:%d"):format(handle.id)
         return false,
             {
                 stopped = false,
                 error = "simulated shutdown failure",
             }
-    end
-
+    end)
     typst.setup({
         root = root,
         output_dir = typst_test_cache_path("generic-provider-restart-failure"),
@@ -479,7 +471,6 @@ local ok, err = xpcall(function()
             },
         },
     })
-
     vim.cmd.edit(main)
     local retained_project = typst.project.set_main(main)
     local retained = typst.compiler.compile()

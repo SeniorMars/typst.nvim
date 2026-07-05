@@ -15,7 +15,6 @@ typst.setup({
         deps = false,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -29,7 +28,6 @@ assert(
 local ok, err = pcall(function()
     typst.viewer.clean()
 end)
-
 assert(not ok, "clean should refuse while a one-shot compile is active")
 assert(tostring(err):match("stop the active Typst compiler"), tostring(err))
 assert(

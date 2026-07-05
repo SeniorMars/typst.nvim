@@ -42,6 +42,7 @@ lock_helper.write_owner(stale_output, {
 })
 local stale_lease =
     assert(outputs.acquire(stale_output, { kind = "stale-lock-recovered" }))
+---@type any
 local stale_lock = outputs._read_lock(stale_output)
 assert(
     stale_lock.owner.kind == "stale-lock-recovered",
@@ -90,6 +91,7 @@ assert(
 )
 local old_empty_lease =
     assert(outputs.acquire(old_empty_output, { kind = "old-empty-recovered" }))
+---@type any
 local old_empty_lock = outputs._read_lock(old_empty_output)
 assert(
     old_empty_lock.owner.kind == "old-empty-recovered",
@@ -112,6 +114,7 @@ assert(
 local old_corrupt_lease = assert(
     outputs.acquire(old_corrupt_output, { kind = "old-corrupt-recovered" })
 )
+---@type any
 local old_corrupt_lock = outputs._read_lock(old_corrupt_output)
 assert(
     old_corrupt_lock.owner.kind == "old-corrupt-recovered",
@@ -132,6 +135,7 @@ vim.fn.writefile({
 }, outputs._owner_path(same_pid_output))
 local same_pid_lease =
     assert(outputs.acquire(same_pid_output, { kind = "same-pid-recovered" }))
+---@type any
 local same_pid_lock = outputs._read_lock(same_pid_output)
 assert(
     same_pid_lock.owner.kind == "same-pid-recovered",

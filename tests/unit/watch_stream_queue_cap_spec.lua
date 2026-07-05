@@ -8,10 +8,9 @@ local project_services = require("typst.project.services")
 
 local original_schedule = vim.schedule
 local scheduled = nil
-vim.schedule = function(callback)
+rawset(vim, "schedule", function(callback)
     scheduled = callback
-end
-
+end)
 local ok, err = xpcall(function()
     local project = {
         key = "watch-stream-queue-cap",
@@ -30,7 +29,6 @@ local ok, err = xpcall(function()
         watcher = watcher,
         watch_generation = watcher.generation,
     })
-
     local function enqueue_flood()
         local total = 0
         for _ = 1, 400 do

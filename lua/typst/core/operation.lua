@@ -24,6 +24,7 @@ local retained = {}
 ---@field cwd string|nil
 ---@field stdout string
 ---@field stderr string
+---@field code integer?
 ---@field ok boolean|nil
 ---@field result table|nil
 ---@field reason string|nil
@@ -36,8 +37,14 @@ local retained = {}
 ---@field exited_after_orphan boolean|nil
 ---@field exited boolean|nil
 ---@field wait_timeout number|nil
----@field _callbacks table[]
----@field _cancel_callbacks table[]|nil
+---@field _callbacks fun(operation:typst.Operation)[]
+---@field _cancel_callbacks fun(operation:typst.Operation)[]
+---@field _timeout_timer any?
+---@field cleanup fun(self:typst.Operation)?
+---@field on_cancel fun(self:typst.Operation, opts?:table)?
+---@field on_cancel_failed fun(self:typst.Operation, opts?:table)?
+---@field handle any?
+---@field [string] any
 local Operation = {}
 Operation.__index = Operation
 
@@ -250,7 +257,6 @@ function Operation:finish(result)
     end
 
     run_callbacks(self)
-
     return self
 end
 
@@ -285,7 +291,6 @@ function Operation:_orphan(result)
         reason = self.reason or "orphaned",
         message = "operation process could not be confirmed stopped",
     }, type(result) == "table" and result or {})
-
     copy_result_fields(self, result)
     log.add("warn", "operation process became orphaned", {
         id = self.id,
@@ -402,7 +407,6 @@ function Operation:_cancel(opts, callback)
         kill_timeout_ms = 750,
         wait = false,
     }, opts or {})
-
     if self.state == "finished" then
         if type(callback) == "function" then
             callback(true, { stopped = true, idle = true })
@@ -642,7 +646,6 @@ function M.run(kind, command, opts, handlers)
         on_cancel = handlers.on_cancel,
         on_cancel_failed = handlers.on_cancel_failed,
     })
-
     if type(handlers.on_finish) == "function" then
         operation:on_finish(handlers.on_finish)
     end
@@ -664,7 +667,6 @@ function M.run(kind, command, opts, handlers)
         end,
         on_spawn_error = handlers.on_spawn_error,
     })
-
     if timeout_ms and timeout_ms > 0 then
         operation.timeout_ms = timeout_ms
         operation._timeout_timer = uv.new_timer()

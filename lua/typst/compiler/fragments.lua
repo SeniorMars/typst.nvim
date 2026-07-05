@@ -32,7 +32,7 @@ end
 --- Compile selected buffer ranges as temporary Typst projects.
 ---@param parent table Parent project state used for root/config context.
 ---@param opts? table Fragment compile options; includes buffer and range fields.
----@param callback? fun(result:table) Terminal compile result callback.
+---@param callback? fun(result:table, fragment?:TypstProject) Terminal compile result callback.
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
 ---@return table|userdata|nil result Failure payload, compiler handle, or nil on early startup failure.
 function M.compile_selected(parent, opts, callback, notify)
@@ -181,11 +181,15 @@ function M.compile_selected(parent, opts, callback, notify)
         )
     end
 
-    if not stdin_source then
+    local owned_source_dir = type(source_dir) == "string" and source_dir or nil
+    if not stdin_source and owned_source_dir then
         if
-            fragment_helpers.source_dir_auto_mark_allowed(source_dir, parent)
+            fragment_helpers.source_dir_auto_mark_allowed(
+                owned_source_dir,
+                parent
+            )
         then
-            fragment_helpers.mark_owned_source_dir(source_dir)
+            fragment_helpers.mark_owned_source_dir(owned_source_dir)
         end
         local written, write_err =
             fragment_helpers.write_source(source_path, source)
@@ -209,7 +213,6 @@ function M.compile_selected(parent, opts, callback, notify)
         parent = parent.main,
         range = range,
     })
-
     if opts.notify ~= false then
         fragment_helpers.notify_user(
             notify,

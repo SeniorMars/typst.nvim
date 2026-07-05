@@ -63,7 +63,6 @@ typst.setup({
         },
     },
 })
-
 local function make_force_clear_collision(prefix)
     local literal_key = prefix .. "%2Fmain"
     local decoded_key = prefix .. "/main"
@@ -118,7 +117,6 @@ local function make_force_clear_collision(prefix)
         output_lease = decoded_lease,
         status = "stopping_failed",
     })
-
     return {
         literal_key = literal_key,
         decoded_key = decoded_key,
@@ -147,8 +145,9 @@ assert(
     no_project_clear.reason == "no_project",
     "force clear outside a Typst project should return no_project"
 )
-local no_project_command_ok, no_project_command_err =
-    pcall(vim.cmd, "TypstCompilerForceClear")
+local no_project_command_ok, no_project_command_err = pcall(function()
+    vim.cmd("TypstCompilerForceClear")
+end)
 assert(
     no_project_command_ok,
     "TypstCompilerForceClear outside a Typst project should not throw: "
@@ -353,6 +352,7 @@ typst.setup({
 vim.cmd.edit(main)
 project = typst.project.set_main(main)
 
+---@type any
 local timeout_compile = nil
 local timeout_compile_handle = typst.compiler.compile({}, function(result)
     timeout_compile = result
@@ -404,15 +404,16 @@ assert(
 )
 local original_notify = vim.notify
 local unknown_command_notifications = {}
-vim.notify = function(message, level)
+rawset(vim, "notify", function(message, level)
     unknown_command_notifications[#unknown_command_notifications + 1] = {
         message = message,
         level = level,
     }
-end
-local unknown_command_ok, unknown_command_err =
-    pcall(vim.cmd, "TypstCompilerForceClear! not-a-project-key")
-vim.notify = original_notify
+end)
+local unknown_command_ok, unknown_command_err = pcall(function()
+    vim.cmd("TypstCompilerForceClear! not-a-project-key")
+end)
+rawset(vim, "notify", original_notify)
 assert(
     unknown_command_ok,
     "TypstCompilerForceClear unknown key should not throw: "
@@ -466,8 +467,9 @@ assert(
     encoded_command_key == collision.literal_key,
     "collision fixture should make decoded key's command display match another raw key"
 )
-local command_collision_ok, command_collision_err =
-    pcall(vim.cmd, "TypstCompilerForceClear! " .. encoded_command_key)
+local command_collision_ok, command_collision_err = pcall(function()
+    vim.cmd("TypstCompilerForceClear! " .. encoded_command_key)
+end)
 assert(
     command_collision_ok,
     "TypstCompilerForceClear should accept encoded colliding key: "
@@ -513,6 +515,118 @@ assert(
     "force clear should emit a destructive recovery event with project keys"
 )
 
+local late_callback = nil
+local late_provider = {
+    name = "late-callback-provider",
+    compile = function(_project, callback)
+        late_callback = callback
+        return { kind = "late-callback-compile" }
+    end,
+    start = function()
+        return { kind = "late-callback-watch" }
+    end,
+    stop = function(_project, callback)
+        if callback then
+            callback({ code = 0, stopped = true, stale = false })
+        end
+        return { kind = "late-callback-stop" }
+    end,
+    status = function(project_state)
+        return "late-" .. typst_test_compiler(project_state).status
+    end,
+    output = function()
+        return typst_test_cache_path("async-provider/late-callback.pdf")
+    end,
+}
+
+typst.reset()
+typst.setup({
+    root = root,
+    compile = {
+        provider = late_provider,
+        provider_timeout_ms = 20,
+    },
+})
+vim.cmd.edit(main)
+project = typst.project.set_main(main)
+---@type any
+local late_timeout = nil
+assert(
+    typst.compiler.compile({}, function(result)
+        late_timeout = result
+    end),
+    "late callback provider should start compile"
+)
+assert(
+    vim.wait(1000, function()
+        return late_timeout ~= nil
+    end, 10),
+    "late callback compile should time out"
+)
+assert(
+    late_timeout.reason == "timeout",
+    "late callback fixture should reach timeout before recovery"
+)
+local late_clear = typst.compiler.force_clear({ notify = false })
+assert(
+    late_clear.ok and late_clear.reason == "force_cleared",
+    "force clear should discard late callback provider state"
+)
+assert(late_callback)({ code = 0, stale = false })
+vim.wait(50, function()
+    return false
+end, 10)
+assert(
+    late_timeout.reason == "timeout",
+    "late callback after force clear should not replace timeout result"
+)
+assert(
+    typst_test_compiler(project).status == "idle"
+        and typst_test_compiler(project).process == nil
+        and typst_test_compiler(project).output_lease == nil,
+    "late callback after force clear should not resurrect compiler state"
+)
+assert(
+    not output_ownership.active(late_provider.output()),
+    "late callback after force clear should not reacquire output ownership"
+)
+
+late_callback = nil
+typst.reset()
+typst.setup({
+    root = root,
+    compile = {
+        provider = late_provider,
+        provider_timeout_ms = 20,
+    },
+})
+vim.cmd.edit(main)
+project = typst.project.set_main(main)
+local reset_key = project.key
+---@type any
+local reset_timeout = nil
+assert(
+    typst.compiler.compile({}, function(result)
+        reset_timeout = result
+    end),
+    "late reset provider should start compile"
+)
+assert(
+    vim.wait(1000, function()
+        return reset_timeout ~= nil
+    end, 10),
+    "late reset compile should time out"
+)
+typst.reset({ force = true })
+assert(late_callback)({ code = 0, stale = false })
+vim.wait(50, function()
+    return false
+end, 10)
+assert(
+    project_store.all()[reset_key] == nil,
+    "late callback after force reset should not re-register project state"
+)
+
 local raw_userdata_handle = nil
 local raw_userdata_provider = {
     name = "raw-userdata-timeout-provider",
@@ -547,6 +661,7 @@ typst.setup({
 })
 vim.cmd.edit(main)
 project = typst.project.set_main(main)
+---@type any
 local raw_userdata_result = nil
 local raw_userdata_returned = typst.compiler.compile({}, function(result)
     raw_userdata_result = result
@@ -598,6 +713,7 @@ typst.setup({
 vim.cmd.edit(main)
 project = typst.project.set_main(main)
 
+---@type any
 local timeout_watch = nil
 local timeout_watch_handle = typst.compiler.watch({}, function(result)
     timeout_watch = result
@@ -718,6 +834,7 @@ typst.setup({
         provider_timeout_ms = 20,
     },
 })
+---@type any
 local timeout_stop = nil
 local stop_timeout_event = nil
 vim.api.nvim_create_autocmd("User", {

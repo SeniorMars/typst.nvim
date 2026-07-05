@@ -228,7 +228,6 @@ function M.finish_cycle(project, watcher, code, reason)
         watch_cycle = cycle.id,
         last_cycle_generation = cycle.generation,
     })
-
     if code == 0 and not output_readable(output) then
         -- Typst can report a successful watch cycle even when the expected
         -- output path was not written, for example after bad output options or
@@ -281,6 +280,10 @@ local function schedule_error_cycle_finish(project, watcher, cycle, reason)
     -- Error output can arrive as several lines after the status marker. Delay
     -- the terminal failure briefly so diagnostics receive the whole burst.
     local timer = uv.new_timer()
+    if not timer then
+        M.finish_cycle(project, watcher, 1, reason)
+        return
+    end
     cycle.finish_timer = timer
     timer:start(
         WATCH_ERROR_DEBOUNCE_MS,

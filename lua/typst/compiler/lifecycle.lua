@@ -90,7 +90,6 @@ function M.replace_active(stop_active, start_next, callback)
         end
     end)
     restart:set_stop_handle(stop_handle)
-
     return restart
 end
 

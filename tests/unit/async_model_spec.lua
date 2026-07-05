@@ -42,7 +42,6 @@ local ok, err = xpcall(function()
     op:on_finish(function()
         finished = finished + 1
     end)
-
     scheduler:push("finish A", function()
         op:finish({ ok = true, code = 0 })
         assert(op.state == "finished", "operation A should finish")
@@ -56,7 +55,6 @@ local ok, err = xpcall(function()
         assert(cleaned == 1, "duplicate finish should not clean twice")
         assert_no_finished_active()
     end)
-
     local adapter_results = {}
     scheduler:push("callback before provider return", function()
         local returned = provider_adapter.invoke(
@@ -83,7 +81,6 @@ local ok, err = xpcall(function()
             "duplicate provider callback should be ignored"
         )
     end)
-
     scheduler:push("orphan B then late exit", function()
         local late_finished = 0
         local late_cleaned = 0
@@ -96,10 +93,9 @@ local ok, err = xpcall(function()
         orphan:on_finish(function()
             late_finished = late_finished + 1
         end)
-        process.kill = function()
+        rawset(process, "kill", function()
             return true
-        end
-
+        end)
         local cancel_callbacks = 0
         local stopped, cancel_result = orphan:cancel({
             timeout_ms = 0,
@@ -159,7 +155,6 @@ local ok, err = xpcall(function()
             "late orphan exit should clear retained operations"
         )
     end)
-
     local late_callback
     local timeout_result
     scheduler:push("provider timeout then late callback", function()
@@ -196,7 +191,6 @@ local ok, err = xpcall(function()
             "late callback after timeout should not replace terminal result"
         )
     end)
-
     scheduler:run()
 end, debug.traceback)
 

@@ -165,7 +165,6 @@ function M.spawn(command, opts, handlers)
     opts = vim.tbl_extend("force", opts or {}, {
         detach = opts == nil or opts.detach ~= false,
     })
-
     local finished = false
     local handle
     local early_result
@@ -291,9 +290,9 @@ end
 ---@param handle table|nil Process handle returned by `vim.system`.
 ---@param signal? integer Signal number to send.
 ---@return boolean ok True when a process or group was targeted successfully.
----@return string|nil error Error message when no signal path succeeded.
+---@return string|integer|nil error Error message when no signal path succeeded.
 ---@return string|nil mode Signal target mode such as `group` or `process`.
----@return string|nil fallback_error Process-group error when direct process fallback succeeded.
+---@return string|integer|nil fallback_error Process-group error when direct process fallback succeeded.
 function M.kill(handle, signal)
     local group_ok, group_err = kill_group(handle, signal)
     if group_ok then
@@ -495,12 +494,12 @@ end
 --- Normal stop paths use this asynchronous variant so `:TypstStop` and watcher
 --- restarts get the same tree-aware Windows behavior as exit/reset shutdown
 --- without blocking for the full shutdown timeout.
----@param handle table Process handle returned by `spawn`/`vim.system`.
+---@param handle any Process handle returned by `spawn`/`vim.system`.
 ---@param signal? integer Signal number to send.
 ---@return boolean ok True when a process/tree was targeted successfully.
----@return string|nil error Error message when no signal path succeeded.
+---@return string|integer|vim.SystemObj|nil error Error message when no signal path succeeded.
 ---@return string|nil mode Signal target mode such as `group` or `windows-tree`.
----@return string|nil fallback_error Fallback error when direct process signaling was used.
+---@return string|integer|vim.SystemObj|nil fallback_error Fallback error when direct process signaling was used.
 function M.terminate_tree_signal(handle, signal)
     signal = signal or 15
     if is_windows() then
@@ -521,7 +520,7 @@ function M.terminate_tree_signal(handle, signal)
 end
 
 --- Request graceful process shutdown, then force termination if needed.
----@param handle table Process handle returned by `vim.system`.
+---@param handle any Process handle returned by `vim.system`.
 ---@param opts? {term_signal?:integer,kill_signal?:integer,timeout_ms?:integer,kill_timeout_ms?:integer} Shutdown signal and wait-time controls.
 ---@return boolean stopped True when the process is confirmed stopped or already idle.
 ---@return table result Stop metadata used by lifecycle cleanup.
@@ -532,7 +531,6 @@ function M.shutdown(handle, opts)
         timeout_ms = DEFAULT_TERM_TIMEOUT_MS,
         kill_timeout_ms = DEFAULT_KILL_TIMEOUT_MS,
     }, opts or {})
-
     if not handle or is_closing(handle) then
         return true, { stopped = true, idle = true }
     end

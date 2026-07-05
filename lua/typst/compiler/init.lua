@@ -116,6 +116,11 @@ local function acquire_output_lease(project, kind, callback)
         return true
     end
 
+    err = err
+        or {
+            reason = "lease_failed",
+            message = "Failed to acquire output lease",
+        }
     local result = {
         ok = false,
         code = 1,
@@ -409,7 +414,7 @@ end
 --- Stop compiler work synchronously during Neovim exit cleanup.
 ---@param project TypstProject Project state whose compiler process should be shut down.
 ---@param opts? table Shutdown options forwarded to the provider or process helper.
----@return TypstCompilerResult result Final shutdown result.
+---@return TypstCompilerResult|TypstProviderPendingHandle|any result Final shutdown result or retained provider handle.
 function M.stop_for_exit(project, opts)
     local compiler_state = compiler_service.get(project) or {}
     if

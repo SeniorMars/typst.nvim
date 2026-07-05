@@ -30,7 +30,6 @@ typst.setup({
         end,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -49,7 +48,6 @@ local compile_callback_called = false
 local handle = typst.compiler.compile({}, function()
     compile_callback_called = true
 end)
-
 assert(
     typst_test_compiler(project).process == handle,
     "reset fixture should have an active compile"
@@ -143,7 +141,6 @@ typst.setup({
         end,
     },
 })
-
 vim.cmd.edit(main)
 local unstoppable_project = typst.project.set_main(main)
 local live_unstoppable_project = assert(
@@ -175,5 +172,4 @@ assert(
     "typst.reset should retain unstoppable preview projects"
 )
 typst.reset({ force = true })
-
 vim.cmd("qa!")

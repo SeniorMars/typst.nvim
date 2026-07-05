@@ -10,7 +10,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("async-cancel-output"),
 })
-
 local original_system = process.system
 local original_spawn = process.spawn
 local original_shutdown = process.shutdown
@@ -54,15 +53,13 @@ local function make_handle(command, opts, on_exit)
     return handle
 end
 
-process.spawn = function(command, opts, handlers)
+rawset(process, "spawn", function(command, opts, handlers)
     return make_handle(command, opts, handlers and handlers.on_exit)
-end
-
-process.system = function(command, opts, on_exit)
+end)
+rawset(process, "system", function(command, opts, on_exit)
     return make_handle(command, opts, on_exit)
-end
-
-process.kill = function(handle, signal)
+end)
+rawset(process, "kill", function(handle, signal)
     kills[#kills + 1] = {
         handle = handle,
         signal = signal,
@@ -71,9 +68,9 @@ process.kill = function(handle, signal)
         handle.closed = true
     end
     return true
-end
+end)
 
-process.shutdown = function(handle, opts)
+rawset(process, "shutdown", function(handle, opts)
     shutdowns[#shutdowns + 1] = {
         handle = handle,
         opts = opts,
@@ -85,7 +82,7 @@ process.shutdown = function(handle, opts)
         stopped = true,
         signal_target = "test",
     }
-end
+end)
 
 local ok, err = xpcall(function()
     local main = root .. "/tests/fixtures/basic/main.typ"
@@ -349,7 +346,6 @@ local ok, err = xpcall(function()
         root = root,
         output_dir = typst_test_cache_path("async-cancel-output"),
     })
-
     local registry = require("typst.package.registry")
     reset_fakes()
     registry.reset()

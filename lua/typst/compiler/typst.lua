@@ -74,7 +74,6 @@ function M.compile(project, callback, run_config)
             end
         end)
         restart:set_stop_handle(stop_handle)
-
         return restart
     end
 
@@ -89,6 +88,9 @@ end
 function M.start(project, callback, run_config)
     if compiler_process.active_watcher(project) then
         local watcher = (compiler_service.get(project) or {}).watcher
+        if not watcher then
+            return compiler_watcher.start(project, callback, run_config)
+        end
         local restart = restart_handle.new()
         -- Collapse repeated watcher restarts while SIGTERM is in flight; the
         -- latest run_config wins instead of launching parallel watch processes.
@@ -180,6 +182,17 @@ end
 function M.stop(project, callback)
     if compiler_process.stopping_process(project) then
         local stopping = (compiler_service.get(project) or {}).stopping_compile
+        if not stopping then
+            if callback then
+                callback({
+                    code = 0,
+                    stale = false,
+                    stopped = true,
+                    idle = true,
+                })
+            end
+            return nil
+        end
         compiler_process.add_stop_callback(stopping, callback)
         return stopping.handle
     end
@@ -195,7 +208,6 @@ function M.stop(project, callback)
             status = "stopping",
         })
         log.add("info", "stopping compile", { main = project.main })
-
         local ok, err, kill_timer = compiler_process.terminate_handle(
             handle,
             "compile process",
@@ -241,6 +253,16 @@ function M.stop(project, callback)
 
     local compiler_state = compiler_service.get(project) or {}
     local watcher = compiler_state.watcher
+    if not watcher then
+        compiler_service.set(project, {
+            clear = { "watcher", "process" },
+            status = "idle",
+        })
+        if callback then
+            callback({ code = 0, stale = false, stopped = true, idle = true })
+        end
+        return nil
+    end
     if watcher.stopping then
         compiler_process.add_watcher_stop_callback(watcher, callback)
         log.add("info", "watcher stop already pending", { main = project.main })
@@ -251,7 +273,6 @@ function M.stop(project, callback)
     watcher.stopping = true
     compiler_process.add_watcher_stop_callback(watcher, callback)
     log.add("info", "stopping watcher", { main = project.main })
-
     local ok, err, kill_timer = compiler_process.terminate_handle(
         watcher.handle,
         "watcher process",
@@ -282,7 +303,6 @@ function M.stop_for_exit(project, opts)
         timeout_ms = 750,
         kill_timeout_ms = 750,
     }, opts or {})
-
     local attempted = false
     local stopped = true
     local ok = true

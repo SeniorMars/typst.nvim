@@ -34,7 +34,6 @@ local ok, err = xpcall(function()
         cancel = false,
         finish = false,
     })
-
     assert(cleaned, "operation cleanup should not be overwritten by results")
     assert(op.state == "finished", "result state should not overwrite state")
     assert(op.id == id, "result id should not overwrite operation id")
@@ -63,11 +62,9 @@ local ok, err = xpcall(function()
     orphan:on_finish(function(finished)
         orphan_callback = finished
     end)
-
-    process.kill = function()
+    rawset(process, "kill", function()
         return true
-    end
-
+    end)
     local cancel_callbacks = 0
     local cancel_stopped = nil
     local cancel_payload = nil
@@ -107,8 +104,10 @@ local ok, err = xpcall(function()
     )
     assert(cancel_callbacks == 1, "orphan cancel callback should run once")
     assert(cancel_stopped == false, "orphan cancel callback should fail stop")
+    ---@type any
+    local payload = cancel_payload
     assert(
-        cancel_payload == orphan and cancel_payload.orphaned == true,
+        payload == orphan and payload.orphaned == true,
         "orphan cancel callback should receive retained operation"
     )
     assert(
@@ -174,10 +173,9 @@ local ok, err = xpcall(function()
         end,
     })
     term_failed.handle = {}
-    process.kill = function()
+    rawset(process, "kill", function()
         return false, "term denied"
-    end
-
+    end)
     local term_cancel_callbacks = 0
     local stopped, cancel_result = term_failed:cancel(
         nil,
@@ -215,11 +213,11 @@ local ok, err = xpcall(function()
 
     local sync_finished = operation.new("sync-finish-during-cancel")
     sync_finished.handle = {}
-    process.kill = function(handle)
+    rawset(process, "kill", function(handle)
         assert(handle == sync_finished.handle, "cancel should kill sync handle")
         sync_finished:finish({ code = 0, stopped = true })
         return true
-    end
+    end)
     local sync_cancel_callbacks = 0
     local sync_cancel_stopped = nil
     sync_finished:cancel({ timeout_ms = 0 }, function(stopped_result)
@@ -325,7 +323,7 @@ ok, err = xpcall(function()
     op.stdout = "partial stdout"
     op.stderr = "partial stderr"
 
-    process.shutdown = function(handle, opts)
+    rawset(process, "shutdown", function(handle, opts)
         assert(
             handle == op.handle,
             "cancel should shut down the operation handle"
@@ -341,8 +339,7 @@ ok, err = xpcall(function()
                 error = "still running",
                 raw_only = true,
             }
-    end
-
+    end)
     local callback_stopped = nil
     local callback_payload = nil
     local stopped, payload = op:cancel({
@@ -352,7 +349,6 @@ ok, err = xpcall(function()
         callback_stopped = done
         callback_payload = result
     end)
-
     assert(stopped == false, "wait cancel should report failed stop")
     assert(
         payload == callback_payload,

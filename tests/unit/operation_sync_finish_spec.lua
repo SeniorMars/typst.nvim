@@ -7,7 +7,7 @@ local process = require("typst.core.process")
 local original_spawn = process.spawn
 local finish_seen = nil
 local run_ok, run_err = xpcall(function()
-    process.spawn = function(_, _, handlers)
+    rawset(process, "spawn", function(_, _, handlers)
         handlers.on_exit({
             code = 1,
             stdout = "",
@@ -29,15 +29,13 @@ local run_ok, run_err = xpcall(function()
                 }
             end,
         }
-    end
-
+    end)
     local op = operation.run("sync-finish", { "fake" }, {}, {
         schedule = false,
         on_finish = function(result)
             finish_seen = result
         end,
     })
-
     assert(op.state == "finished", "synchronous finish must stay finished")
     assert(op.pending == false, "synchronous finish should clear pending")
     assert(op.code == 1, "synchronous finish should copy result fields")
@@ -49,7 +47,6 @@ end, debug.traceback)
 
 process.spawn = original_spawn
 operation.cancel_all({ wait = false })
-
 if not run_ok then
     error(run_err)
 end

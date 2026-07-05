@@ -40,12 +40,12 @@ local client = {
     end,
 }
 
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if opts and opts.bufnr and vim.api.nvim_buf_is_valid(opts.bufnr) then
         return { client }
     end
     return {}
-end
+end)
 
 local function deliver(id, result)
     local request =
@@ -66,7 +66,9 @@ local function cleanup()
     require("typst.integrations.tinymist.async").reset()
     typst.reset({ force = true })
     vim.lsp.get_clients = original_get_clients
-    pcall(vim.cmd, "silent! %bwipeout!")
+    pcall(function()
+        vim.cmd("silent! %bwipeout!")
+    end)
 end
 
 typst.reset()
@@ -78,10 +80,10 @@ typst.setup({
         },
     },
 })
-
 local ok, err = xpcall(function()
     local bufnr = make_buffer()
 
+    ---@type any
     local cursor_result = nil
     requests.hover(bufnr, {
         callback = function(result)
@@ -100,7 +102,9 @@ local ok, err = xpcall(function()
     )
 
     vim.api.nvim_win_set_cursor(0, { 1, 1 })
+    ---@type any
     local first_generation = nil
+    ---@type any
     local second_generation = nil
     requests.hover(bufnr, {
         callback = function(result)
@@ -131,6 +135,7 @@ local ok, err = xpcall(function()
     )
 
     local deleted_buf = make_buffer({ "#let y = 2" })
+    ---@type any
     local invalid_result = nil
     requests.hover(deleted_buf, {
         callback = function(result)

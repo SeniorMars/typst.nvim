@@ -12,13 +12,15 @@ local function cleanup()
     pcall(function()
         typst.reset({ force = true })
     end)
-    pcall(vim.cmd, "silent! %bwipeout!")
+    pcall(function()
+        vim.cmd("silent! %bwipeout!")
+    end)
     log.clear()
 end
 
 local function has_dependency(project, path)
-    return project_services.graph(project).dependencies[util.normalize(path)]
-        == true
+    local graph = project_services.graph(project)
+    return graph ~= nil and graph.dependencies[util.normalize(path)] == true
 end
 
 local function saw_log(message)
@@ -43,12 +45,12 @@ local function run_schema_case(schema, assert_case)
             deps = true,
         },
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project_snapshot = typst.project.set_main(main)
     local project =
         assert(project_store.get(project_snapshot.key), "live project")
+    ---@type any
     local result = nil
     typst.compiler.compile({}, function(done)
         result = done
@@ -93,7 +95,6 @@ local ok, err = xpcall(function()
             "parser should ignore future non-input fields"
         )
     end)
-
     run_schema_case("missing-inputs", function(project)
         assert(
             not has_dependency(
@@ -107,7 +108,6 @@ local ok, err = xpcall(function()
             "missing inputs should be treated as an empty supported schema"
         )
     end)
-
     run_schema_case("invalid-inputs", function(project)
         assert(
             not has_dependency(
@@ -121,7 +121,6 @@ local ok, err = xpcall(function()
             "invalid input schema should be logged clearly"
         )
     end)
-
     run_schema_case("malformed", function(project)
         assert(
             not has_dependency(

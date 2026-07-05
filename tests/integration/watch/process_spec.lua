@@ -13,7 +13,9 @@ local function cleanup(group)
     if group then
         pcall(vim.api.nvim_del_augroup_by_id, group)
     end
-    pcall(vim.cmd, "silent! %bwipeout!")
+    pcall(function()
+        vim.cmd("silent! %bwipeout!")
+    end)
 end
 
 local function run_case(name, fn)
@@ -21,12 +23,10 @@ local function run_case(name, fn)
     local group = vim.api.nvim_create_augroup("TypstWatchProcess" .. case_id, {
         clear = true,
     })
-
     cleanup(group)
     group = vim.api.nvim_create_augroup("TypstWatchProcess" .. case_id, {
         clear = true,
     })
-
     local ok, err = xpcall(function()
         fn(group)
     end, debug.traceback)
@@ -88,14 +88,14 @@ run_case("process group stop terminates child", function()
             ),
             output_dir = typst_test_cache_path("watch-process-group-output"),
         }, main, { "= Process group fixture" })
-
         typst.compiler.watch()
 
         assert(
             vim.wait(10000, function()
-                return typst_test_compiler(project).watcher
-                    and typst_test_compiler(project).watcher.handle
-                    and typst_test_compiler(project).watcher.handle.pid
+                local watcher = typst_test_compiler(project).watcher
+                return watcher ~= nil
+                    and watcher.handle ~= nil
+                    and watcher.handle.pid ~= nil
                     and vim.fn.filereadable(marker) == 1
             end, 20),
             "fake watcher did not start and report process-tree metadata"
@@ -112,7 +112,6 @@ run_case("process group stop terminates child", function()
         typst.compiler.stop({}, function(result)
             stopped = result.stopped
         end)
-
         assert(
             vim.wait(10000, function()
                 return stopped
@@ -140,7 +139,6 @@ run_case("process group stop terminates child", function()
         error(err)
     end
 end)
-
 run_case("stop flushes partial success line", function(group)
     local status = require("typst.ui.status")
     local fixture_dir = typst_test_cache_path(
@@ -179,17 +177,16 @@ run_case("stop flushes partial success line", function(group)
     typst.compiler.watch({}, function(result)
         callbacks[#callbacks + 1] = result
     end)
-
     assert(
         vim.wait(10000, function()
             local watcher = typst_test_compiler(project).watcher
-            return watcher
+            return watcher ~= nil
                 and watcher.currently_compiling == true
                 and ((watcher.line_buffers or {}).stderr or ""):find(
                     "compiled successfully",
                     1,
                     true
-                )
+                ) ~= nil
                 and vim.fn.filereadable(typst_test_compiler(project).output)
                     == 1
         end, 20),
@@ -200,7 +197,6 @@ run_case("stop flushes partial success line", function(group)
     typst.compiler.stop({}, function(result)
         stopped = result.stopped
     end)
-
     assert(
         vim.wait(10000, function()
             return stopped
@@ -255,7 +251,6 @@ run_case("stop flushes partial success line", function(group)
         "status should retain the flushed cycle generation"
     )
 end)
-
 run_case("queued restarts debounce stop", function()
     local log = require("typst.core.log")
     local marker = typst_test_cache_path("watch-restart-debounce/starts.txt")
@@ -274,17 +269,16 @@ run_case("queued restarts debounce stop", function()
             ),
             output_dir = typst_test_cache_path("watch-restart-debounce-output"),
         }, main, { "= Watch restart debounce fixture" })
-
         typst.compiler.watch()
 
         assert(
             vim.wait(10000, function()
-                return typst_test_compiler(project).watcher
-                    and typst_test_compiler(project).watcher.last_cycle_status == "success"
-                    and vim.fn.filereadable(
-                            typst_test_compiler(project).output
-                        )
-                        == 1
+                local compiler = typst_test_compiler(project)
+                local watcher = compiler.watcher
+                return watcher ~= nil
+                    and watcher.last_cycle_status == "success"
+                    and compiler.output ~= nil
+                    and vim.fn.filereadable(compiler.output) == 1
             end, 20),
             "initial watcher did not start before restart debounce test"
         )
@@ -309,10 +303,10 @@ run_case("queued restarts debounce stop", function()
 
         assert(
             vim.wait(10000, function()
-                return typst_test_compiler(project).watcher
-                    and typst_test_compiler(project).watcher.handle ~= first_handle
-                    and typst_test_compiler(project).watcher.last_cycle_status
-                        == "success"
+                local watcher = typst_test_compiler(project).watcher
+                return watcher ~= nil
+                    and watcher.handle ~= first_handle
+                    and watcher.last_cycle_status == "success"
             end, 20),
             "watcher did not restart after queued restart requests"
         )
@@ -357,7 +351,6 @@ run_case("queued restarts debounce stop", function()
         typst.compiler.stop({}, function(result)
             stopped = result.stopped
         end)
-
         assert(
             vim.wait(10000, function()
                 return stopped
@@ -373,7 +366,6 @@ run_case("queued restarts debounce stop", function()
         error(err)
     end
 end)
-
 run_case("restart stop failure preserves watcher", function()
     local compiler = require("typst.compiler.typst")
     local process = require("typst.core.process")
@@ -384,7 +376,6 @@ run_case("restart stop failure preserves watcher", function()
         root = root,
         output_dir = typst_test_cache_path("watch-restart-failure-output"),
     })
-
     local handle = {
         pid = 12345,
         is_closing = function()
@@ -414,12 +405,10 @@ run_case("restart stop failure preserves watcher", function()
             stopping = false,
         },
     })
-
     local original_kill = process.kill
-    process.kill = function()
+    rawset(process, "kill", function()
         return false, "simulated kill failure"
-    end
-
+    end)
     local restart_result = nil
     local ok, returned = pcall(function()
         return compiler.start(project, function(result)
@@ -465,5 +454,4 @@ run_case("restart stop failure preserves watcher", function()
         "failed watcher restart should clear the queued restart"
     )
 end)
-
 vim.cmd("qa!")

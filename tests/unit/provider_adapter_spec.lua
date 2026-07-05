@@ -65,6 +65,7 @@ assert(
     "nil callback results should be normalized as invalid"
 )
 
+---@type any
 local timed_out = nil
 local pending = adapter.invoke(
     function()
@@ -91,6 +92,7 @@ assert(
 )
 assert(timed_out.reason == "timeout", "silent provider should time out")
 
+---@type any
 local returned_pending_timeout = nil
 local returned_pending = adapter.invoke(
     function()
@@ -132,6 +134,7 @@ assert(
     "returned pending provider should time out"
 )
 
+---@type any
 local normalized_without_callback = nil
 local returned_without_callback = adapter.invoke(
     function()

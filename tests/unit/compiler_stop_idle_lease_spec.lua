@@ -28,19 +28,17 @@ compiler_service.set(project, {
     output = output,
     output_lease = lease,
 })
-
 local callback_result = nil
 local stop_handle = compiler.stop(project, function(result)
     callback_result = result
 end)
-
 assert(stop_handle == nil, "idle stop should not return a provider handle")
 assert(
     callback_result and callback_result.stopped == true,
     "idle stop should confirm stopped"
 )
 assert(
-    compiler_service.get(project).output_lease == nil,
+    (compiler_service.get(project) or {}).output_lease == nil,
     "idle stop should clear retained output lease state"
 )
 assert(

@@ -2,6 +2,7 @@ local compiler = require("typst.compiler")
 local config = require("typst.config")
 local consumers = require("typst.compiler.consumers")
 local fragments = require("typst.compiler.fragments")
+local provider_adapter = require("typst.integrations.provider_adapter")
 local compiler_service = require("typst.project.services.compiler")
 local log = require("typst.core.log")
 local project_registry = require("typst.project")
@@ -12,6 +13,12 @@ local util = require("typst.core.util")
 local M = {}
 
 local notify_user = require("typst.core.notify").user
+
+local function is_active_handle(value)
+    return value ~= nil
+        and value ~= false
+        and not provider_adapter.result_like(value)
+end
 
 local function warn_low_confidence_main(state, action, notify)
     local project_config = (config.unsafe_get().project or {})
@@ -60,7 +67,6 @@ function M.compile(state, opts, callback, notify)
         open = opts.open,
         typst_open = opts.typst_open,
     })
-
     local handle = compiler.compile(state, function(result)
         if result.stale then
             return
@@ -95,7 +101,7 @@ function M.compile(state, opts, callback, notify)
             callback(result, state)
         end
     end, run_config)
-    if handle ~= nil then
+    if is_active_handle(handle) then
         notify_user(
             notify,
             ("Compiling %s%s"):format(
@@ -114,7 +120,7 @@ end
 ---@param opts? table Fragment compile options, including range and template data.
 ---@param callback? fun(result:table, state:table) Callback invoked with the fragment result.
 ---@param notify? fun(message:string, level?:integer) Notification sink used by commands/API calls.
----@return table result Fragment compile result or pending operation handle.
+---@return any result Fragment compile result or pending operation handle.
 function M.compile_selected(state, opts, callback, notify)
     opts = opts or {}
     return fragments.compile_selected(state, opts, callback, notify)
@@ -194,7 +200,7 @@ function M.watch(state, opts, callback, notify)
             callback(result, state)
         end
     end, run_config)
-    if handle ~= nil then
+    if is_active_handle(handle) then
         notify_user(
             notify,
             ("Watching %s%s"):format(
@@ -236,8 +242,8 @@ function M.stop(state, callback, notify)
 end
 
 --- Force-clear unconfirmed external compiler provider state for one project.
----@param state TypstProject Project state whose compiler state may be discarded.
----@param opts? {force?:boolean} Clear controls; force bypasses the stopping_failed guard.
+---@param state TypstProject? Project state whose compiler state may be discarded.
+---@param opts? {force?:boolean, notify?:boolean} Clear controls; force bypasses the stopping_failed guard.
 ---@param notify? fun(message:string, level?:integer) Notification sink used by commands/API calls.
 ---@return TypstCompilerResult result Force-clear status.
 function M.force_clear(state, opts, notify)
@@ -295,7 +301,6 @@ function M.stop_all(opts, callback, notify)
     table.sort(states, function(left, right)
         return left.main < right.main
     end)
-
     local summary = {
         total = #states,
         active = 0,

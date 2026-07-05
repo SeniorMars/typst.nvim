@@ -10,6 +10,13 @@ local function project(name)
     return project_helper.new_state_project(name)
 end
 
+local function compiler_state(project_state)
+    return assert(
+        compiler_service.get(project_state),
+        "test project should have compiler service state"
+    )
+end
+
 local compile_project = project("compile-transition")
 local compile_handle = { kind = "compile-handle" }
 local compile_operation = { kind = "compile-operation" }
@@ -18,7 +25,7 @@ compiler_service.start_compile(compile_project, {
     process_operation = compile_operation,
     output = "main.pdf",
 })
-local compile_state = compiler_service.get(compile_project)
+local compile_state = compiler_state(compile_project)
 assert(
     compile_state.status == "compiling" and compile_state.generation == 1,
     "compile start should set status and generation"
@@ -28,7 +35,7 @@ assertions.compiler_active_compile(
     "compile start should expose an active compiler process"
 )
 compiler_service.finish_compile(compile_project, { code = 0, stdout = "" })
-compile_state = compiler_service.get(compile_project)
+compile_state = compiler_state(compile_project)
 assert(
     compile_state.status == "success"
         and compile_state.process == nil
@@ -50,7 +57,7 @@ state_machine.apply_status(stale_project, {
     stale = true,
     reason = "stale_result",
 }, "process")
-local stale_state = compiler_service.get(stale_project)
+local stale_state = compiler_state(stale_project)
 assert(
     stale_state.process and stale_state.process.id == "newer",
     "stale compile finish must not clear newer active process"
@@ -61,7 +68,7 @@ assert(
 )
 
 local watch_project = project("watch-transition")
-local watcher = { kind = "watcher" }
+local watcher = { kind = "watcher", generation = 1 }
 compiler_service.start_watch(watch_project, {
     watcher = watcher,
     watcher_operation = { kind = "watch-operation" },
@@ -70,7 +77,7 @@ state_machine.apply_status(watch_project, {
     watch = true,
     code = 0,
 }, "watcher")
-local watch_state = compiler_service.get(watch_project)
+local watch_state = compiler_state(watch_project)
 assert(
     watch_state.watcher == watcher and watch_state.status == "watching",
     "watch cycle results should not clear the active watcher"
@@ -88,7 +95,7 @@ compiler_service.finish_stop_confirmed(watch_project, {
     code = 0,
     stopped = true,
 })
-watch_state = compiler_service.get(watch_project)
+watch_state = compiler_state(watch_project)
 assert(
     watch_state.status == "idle"
         and watch_state.watcher == nil
@@ -103,7 +110,7 @@ assertions.compiler_idle(
 local confirmed_lease_project = project("confirmed-stop-lease-transition")
 local confirmed_lease = { path = "main.pdf" }
 compiler_service.start_watch(confirmed_lease_project, {
-    watcher = { kind = "watcher" },
+    watcher = { kind = "watcher", generation = 1 },
     watcher_operation = { kind = "watch-operation" },
     output_lease = confirmed_lease,
 })
@@ -111,7 +118,7 @@ compiler_service.finish_stop_confirmed(confirmed_lease_project, {
     code = 0,
     stopped = true,
 })
-local confirmed_lease_state = compiler_service.get(confirmed_lease_project)
+local confirmed_lease_state = compiler_state(confirmed_lease_project)
 assert(
     confirmed_lease_state.output_lease == confirmed_lease,
     "confirmed stop should not clear output leases; callers release output ownership first"
@@ -128,7 +135,7 @@ compiler_service.finish_stop_unconfirmed(unconfirmed_project, {
     stopped = false,
     reason = "timeout",
 })
-local unconfirmed_state = compiler_service.get(unconfirmed_project)
+local unconfirmed_state = compiler_state(unconfirmed_project)
 assert(
     unconfirmed_state.status == "stopping_failed",
     "unconfirmed stop should mark compiler state as stopping_failed"
@@ -142,7 +149,7 @@ compiler_service.force_clear(unconfirmed_project, {
     ok = true,
     reason = "force_cleared",
 })
-local cleared_state = compiler_service.get(unconfirmed_project)
+local cleared_state = compiler_state(unconfirmed_project)
 assert(
     cleared_state.status == "idle"
         and cleared_state.process == nil

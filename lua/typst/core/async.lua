@@ -13,7 +13,7 @@ local function list_from(value)
 end
 
 --- Stop and close a libuv timer if it is still open.
----@param timer? userdata Timer handle.
+---@param timer? any Timer handle.
 function M.close_timer(timer)
     if not timer then
         return
@@ -54,7 +54,7 @@ function M.cancel_lsp_request(client, request_id)
 end
 
 --- Shut down one system process handle.
----@param handle? userdata Process handle to stop.
+---@param handle? any Process handle to stop.
 ---@param opts? table Shutdown options forwarded to process helpers.
 ---@return boolean ok True when the handle stopped or was already idle.
 ---@return table result Shutdown result payload.

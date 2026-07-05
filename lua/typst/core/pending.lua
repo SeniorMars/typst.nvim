@@ -19,20 +19,113 @@ local function default_cancel_result(opts, stopped)
     }
 end
 
+local function cancel_unconfirmed_result(opts)
+    return {
+        ok = false,
+        reason = "cancel_unconfirmed",
+        message = "Pending handle cancel did not confirm shutdown",
+        requested_reason = opts and opts.reason or nil,
+        stopped = false,
+    }
+end
+
+local function normalize_cancel_return(stopped, result, opts)
+    if type(stopped) == "table" and result == nil then
+        result = stopped
+        stopped = result.stopped
+    end
+
+    if type(result) == "table" then
+        if result.stopped == true then
+            return true, result
+        end
+        if result.pending == true then
+            return false, result
+        end
+        if result.stopped == false or result.ok == false or result.reason then
+            if result.stopped == nil then
+                result.stopped = false
+            end
+            return false, result
+        end
+    end
+
+    if stopped == true then
+        return true, result or default_cancel_result(opts, true)
+    end
+    if stopped == false then
+        return false, result or default_cancel_result(opts, false)
+    end
+
+    return false, result or cancel_unconfirmed_result(opts)
+end
+
 local function copy_fields(target, fields)
     for key, value in pairs(fields or {}) do
         target[key] = value
     end
 end
 
-local function call_cancel(source, opts)
-    if type(source) ~= "table" or type(source.cancel) ~= "function" then
+local function cancel_style(source, opts)
+    local style = opts and opts.style or nil
+    if style == nil and type(source) == "table" then
+        style = source.cancel_style or source._typst_cancel_style
+    end
+    if style == "method" then
+        style = "colon"
+    end
+    if style == nil then
+        if
+            type(source) == "table"
+            and (source.on_finish_style or source._typst_on_finish_style)
+                == "dot"
+        then
+            return nil, "dot_cancel_requires_explicit_style"
+        end
+        return "colon"
+    end
+    if style ~= "colon" and style ~= "dot" then
+        return nil, "unsupported_cancel_style"
+    end
+    return style
+end
+
+local function call_cancel(source, opts, call_opts)
+    if type(source) ~= "table" then
+        return true, default_cancel_result(opts, true)
+    end
+    if type(source.cancel) ~= "function" then
+        if source.pending == true or type(source.on_finish) == "function" then
+            return false,
+                {
+                    ok = false,
+                    reason = "cancel_unavailable",
+                    message = "Pending handle does not expose cancel",
+                    stopped = false,
+                }
+        end
         return true, default_cancel_result(opts, true)
     end
 
-    local ok, stopped, result = pcall(source.cancel, source, opts)
+    local style, style_error = cancel_style(source, call_opts)
+    if not style then
+        return false,
+            {
+                ok = false,
+                reason = style_error,
+                message = "Pending handle cancellation needs an explicit cancel_style",
+                stopped = false,
+            }
+    end
+
+    local ok, stopped, result
+    if style == "dot" then
+        ok, stopped, result = pcall(source.cancel, opts)
+    else
+        ok, stopped, result = pcall(source.cancel, source, opts)
+    end
     if ok then
-        return stopped ~= false, result
+        return normalize_cancel_return(stopped, result, opts)
     end
 
     return false,
@@ -42,6 +135,16 @@ local function call_cancel(source, opts)
             message = tostring(stopped),
             stopped = false,
         }
+end
+
+---Cancel another pending handle using an explicit cancel calling convention.
+---@param source any Pending source handle.
+---@param opts? table Cancellation options passed to the provider handle.
+---@param call_opts? {style?:"colon"|"dot"|"method"} Calling convention.
+---@return boolean stopped False when cancellation failed or was unconfirmed.
+---@return any result Provider cancellation result or normalized failure.
+function M.cancel(source, opts, call_opts)
+    return call_cancel(source, opts, call_opts)
 end
 
 ---Create a single-shot pending handle with shared finish/on_finish/cancel rules.
@@ -143,7 +246,11 @@ function M.new(opts)
             local ok, cancel_stopped, cancel_result =
                 pcall(opts.cancel, handle, cancel_opts, handle.finish)
             if ok then
-                stopped, result = cancel_stopped, cancel_result
+                stopped, result = normalize_cancel_return(
+                    cancel_stopped,
+                    cancel_result,
+                    cancel_opts
+                )
             else
                 stopped, result =
                     false, {
@@ -154,7 +261,9 @@ function M.new(opts)
                     }
             end
         else
-            stopped, result = call_cancel(source, cancel_opts)
+            stopped, result = call_cancel(source, cancel_opts, {
+                style = opts.cancel_style,
+            })
         end
 
         if finished then

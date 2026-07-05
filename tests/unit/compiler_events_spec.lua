@@ -4,9 +4,9 @@ vim.opt.runtimepath:prepend(root)
 local typst = require("typst")
 typst.reset()
 typst.setup({ root = root })
-
 local compiler_events = require("typst.compiler.events")
 local compiler_service = require("typst.project.services.compiler")
+local compiler_state_machine = require("typst.compiler.state_machine")
 local project_services = require("typst.project.services")
 
 local contract = typst.contract()
@@ -48,7 +48,6 @@ local pattern, payload = compiler_events.payload("cycle_success", {
     output_wait_attempts = 3,
     stdout = "must not leak",
 })
-
 assert(
     pattern == "TypstCompileSuccess",
     "cycle success should use success event"
@@ -94,7 +93,6 @@ compiler_service.set(project, {
     status = "watching",
     output = typst_test_cache_path("compiler-events/main.pdf"),
 })
-
 local seen = {}
 vim.api.nvim_create_autocmd("User", {
     pattern = {
@@ -106,7 +104,6 @@ vim.api.nvim_create_autocmd("User", {
         seen[#seen + 1] = args.data
     end,
 })
-
 compiler_events.from_result(project, {
     code = 0,
     watch = true,
@@ -118,7 +115,6 @@ compiler_events.from_result(project, {
     status = "watching",
     stdout = "ignored",
 })
-
 local success = seen[#seen]
 assert(success, "compiler event helper should emit the compatibility event")
 assert(
@@ -154,7 +150,6 @@ compiler_events.from_result(project, {
     cycle_generation = 11,
     reason = "synthetic",
 })
-
 local failure = seen[#seen]
 assert(
     failure.event_kind == "cycle_failure",
@@ -167,8 +162,23 @@ assert(
 )
 assert(failure.reason == "synthetic", "failure reason should be retained")
 
-compiler_events.from_result(project, { code = 0, idle = true })
+compiler_service.set(project, {
+    provider_label = "active-provider-a",
+    process = { provider = "active-provider-a" },
+})
+compiler_state_machine.emit(project, { code = 0 }, "process")
 
+local provider_event = seen[#seen]
+assert(
+    provider_event.provider == "active-provider-a",
+    "compiler terminal events should retain the active provider label"
+)
+assert(
+    (compiler_service.get(project) or {}).provider_label == nil,
+    "active provider label should clear after idle"
+)
+
+compiler_events.from_result(project, { code = 0, idle = true })
 local stopped = seen[#seen]
 assert(stopped.event_kind == "compile_stopped", "idle result should be stopped")
 assert(stopped.idle == true, "idle flag should be retained")

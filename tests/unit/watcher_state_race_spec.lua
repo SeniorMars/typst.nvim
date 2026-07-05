@@ -12,7 +12,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("watcher-state-race-output"),
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -21,11 +20,12 @@ local original_run = operation.run
 local original_append_stream = compiler_watch.append_stream
 local original_start_poll = compiler_dependencies.start_poll
 
+---@type any
 local appended_watcher = nil
 local appended_stream = nil
 local appended_data = nil
 
-operation.run = function(_, _, system_opts)
+rawset(operation, "run", function(_, _, system_opts)
     system_opts.stdout(nil, "[12:34:56] compiling ...\n")
     return {
         handle = {
@@ -35,16 +35,13 @@ operation.run = function(_, _, system_opts)
             end,
         },
     }
-end
-
-compiler_watch.append_stream = function(_, watcher, stream, data)
+end)
+rawset(compiler_watch, "append_stream", function(_, watcher, stream, data)
     appended_watcher = watcher
     appended_stream = stream
     appended_data = data
-end
-
-compiler_dependencies.start_poll = function() end
-
+end)
+rawset(compiler_dependencies, "start_poll", function() end)
 local ok, err = xpcall(function()
     typst_watcher.start(project)
     assert(
@@ -69,7 +66,7 @@ compiler_watch.append_stream = original_append_stream
 compiler_dependencies.start_poll = original_start_poll
 
 if not ok then
-    vim.api.nvim_err_writeln(err)
+    vim.api.nvim_echo({ { tostring(err), "ErrorMsg" } }, true, {})
     vim.cmd("cquit")
 end
 

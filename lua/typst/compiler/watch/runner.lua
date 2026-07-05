@@ -178,6 +178,10 @@ local function finish_watcher(project, watcher, deps_path, result, callback)
     end
 
     local active_watcher = (compiler_service.get(project) or {}).watcher
+    if not active_watcher then
+        finish_stale_watcher(project, watcher, deps_path, result, callback)
+        return
+    end
     local was_stopping = active_watcher and active_watcher.stopping
     -- Typst can exit with a partial final line. Flush before classifying the
     -- result because cycle state depends on that buffered output.
@@ -203,7 +207,6 @@ local function finish_watcher(project, watcher, deps_path, result, callback)
             "watcher_operation",
         },
     })
-
     if was_stopping then
         if not had_completed_cycle then
             compiler_service.set(project, { last_result = result })
@@ -231,6 +234,12 @@ function M.start(project, callback, run_config)
     local generation = (compiler_state.watch_generation or 0) + 1
     local supported, result = scratch_policy.check(project, "watch", opts)
     if not supported then
+        result = result
+            or {
+                ok = false,
+                reason = "unsupported",
+                message = "watch is not supported for this project",
+            }
         compiler_service.set(project, {
             watch_generation = generation,
             status = "error",
@@ -255,6 +264,11 @@ function M.start(project, callback, run_config)
         generation = generation,
     })
     if not lease then
+        lease_err = lease_err
+            or {
+                reason = "lease_failed",
+                message = "Failed to acquire output lease",
+            }
         local result = {
             code = 1,
             stdout = "",
@@ -342,7 +356,6 @@ function M.start(project, callback, run_config)
         last_command = command,
         last_cwd = project.root,
     })
-
     log.add("info", "watch started", {
         command = command,
         cwd = project.root,
@@ -351,7 +364,6 @@ function M.start(project, callback, run_config)
         main = project.main,
         output = output,
     })
-
     local watcher_state = {
         handle = nil,
         operation = nil,
@@ -440,7 +452,6 @@ function M.start(project, callback, run_config)
         status = "watching",
     })
     compiler_dependencies.start_poll(project, watcher_state)
-
     return handle
 end
 

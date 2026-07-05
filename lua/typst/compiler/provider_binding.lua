@@ -94,6 +94,19 @@ local function validate_or_failure(provider, provider_name, reason)
     return load_failure(provider_name, reason or "provider_invalid", result)
 end
 
+---@param provider TypstCompileProvider
+---@param builtin boolean
+---@return string label Stable label for the provider selected for one run.
+function M.label(provider, builtin)
+    if builtin then
+        return "typst"
+    end
+    if type(provider) == "table" then
+        return provider.name or "table"
+    end
+    return config.provider_label()
+end
+
 --- Resolve the configured compile provider and its provenance flags.
 ---@return TypstCompileProvider provider Provider implementation selected from config.
 ---@return boolean builtin True when the built-in Typst provider is active.
@@ -139,7 +152,16 @@ function M.configured()
             true
     end
 
-    return validate(provider), false, true
+    -- Normal setup validates inline table providers strictly before this point.
+    -- Keep a structured fallback here for dynamic config mutation, registered
+    -- providers, and tests that exercise corrupted runtime state.
+    return validate_or_failure(
+        provider,
+        type(provider) == "table" and provider.name or "table",
+        "provider_invalid"
+    ),
+        false,
+        true
 end
 
 --- Attach the active compiler provider binding to a project.
@@ -148,12 +170,19 @@ end
 ---@param builtin boolean True when the provider is the built-in Typst backend.
 ---@param external boolean True when the provider needs an adapter project context.
 function M.bind(project, provider, builtin, external)
-    ---@diagnostic disable-next-line: assign-type-mismatch
+    local label = M.label(provider, builtin)
     project.compiler_provider = {
         provider = provider,
         builtin = builtin,
         external = external == true,
+        label = label,
     }
+    compiler_service.set(project, {
+        provider_label = label,
+        provider_builtin = builtin == true,
+        provider_external = external == true,
+        last_provider_label = label,
+    })
 end
 
 --- Return the provider that should handle the project's current compiler state.
@@ -162,6 +191,9 @@ end
 ---@return boolean builtin True when the provider is the built-in Typst backend.
 ---@return boolean external True when the provider needs an adapter project context.
 function M.active(project)
+    -- Active compiler work keeps its original provider even if setup() later
+    -- changes config. Stop callbacks, output ownership, and event payloads must
+    -- describe the provider that owns the process/watcher being resolved.
     local binding = project.compiler_provider
     local compiler_state = compiler_service.get(project) or {}
     if
@@ -188,6 +220,13 @@ function M.clear_if_idle(project)
         and not compiler_state.stopping_compile
     then
         project.compiler_provider = nil
+        compiler_service.set(project, {
+            clear = {
+                "provider_label",
+                "provider_builtin",
+                "provider_external",
+            },
+        })
     end
 end
 

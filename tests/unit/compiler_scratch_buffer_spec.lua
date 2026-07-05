@@ -16,7 +16,6 @@ typst.setup({
     ),
     output_dir = typst_test_cache_path("compiler-scratch-output"),
 })
-
 vim.cmd.enew()
 local bufnr = vim.api.nvim_get_current_buf()
 vim.bo[bufnr].filetype = "typst"
@@ -24,7 +23,6 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
     "= Unsaved",
     "Scratch body",
 })
-
 local snapshot = assert(typst.project.attach(bufnr), "scratch should attach")
 assert(snapshot.scratch == true, "public snapshot should mark scratch project")
 local live = assert(
@@ -140,7 +138,6 @@ typst.setup({
     root = real_root,
     output_dir = typst_test_cache_path("compiler-scratch-file-main-output"),
 })
-
 vim.cmd.enew()
 local scratch_with_main = vim.api.nvim_get_current_buf()
 vim.bo[scratch_with_main].filetype = "typst"

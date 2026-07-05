@@ -137,7 +137,6 @@ operations.finish(project, retained, {
     was_orphaned = true,
     exited_after_orphan = true,
 })
-
 local uncancellable = assert(operations.begin(project, "profile"))
 uncancellable.handle = { pending = true, raw = true }
 local uncancellable_summary = operations.cancel_project(project, { skip = {} })
@@ -159,7 +158,6 @@ operations.finish(project, uncancellable, {
     ok = false,
     reason = "force_cleared",
 })
-
 local failed = assert(operations.begin(project, "test"))
 failed.handle = {
     cancel = function()

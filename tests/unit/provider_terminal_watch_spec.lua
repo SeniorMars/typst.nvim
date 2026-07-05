@@ -39,7 +39,6 @@ local terminal_provider = fake_provider.compiler({
         return typst_test_cache_path("sync-terminal-watch/output.pdf")
     end,
 })
-
 local project = setup_project(terminal_provider)
 local started_saw_watcher = nil
 local group = vim.api.nvim_create_augroup(
@@ -53,12 +52,10 @@ vim.api.nvim_create_autocmd("User", {
         started_saw_watcher = typst_test_compiler(project).watcher ~= nil
     end,
 })
-
 local terminal_result = nil
 local handle = typst.compiler.watch({}, function(result)
     terminal_result = result
 end)
-
 vim.api.nvim_del_augroup_by_id(group)
 
 assert(handle and handle.ok == true, "sync terminal start should return result")

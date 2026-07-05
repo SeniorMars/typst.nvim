@@ -150,7 +150,6 @@ typst.providers.register("toc", "provider-api-toc", {
         }
     end,
 })
-
 assert(
     typst.providers.get("format", "provider-api-format"),
     "registered format provider should be retrievable"
@@ -189,13 +188,11 @@ typst.setup({
         provider = "provider-api-picker",
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
 local live_project = assert(require("typst.project.store").get(project.key))
 vim.api.nvim_buf_set_lines(0, 0, -1, false, { "= Unformatted" })
-
 local compile_done = false
 local handle = typst.compiler.compile({}, function(result)
     assert(result.code == 0, "registered compiler should report success")

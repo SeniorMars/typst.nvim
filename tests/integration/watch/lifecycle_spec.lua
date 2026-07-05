@@ -14,7 +14,9 @@ local function cleanup(group)
     if group then
         pcall(vim.api.nvim_del_augroup_by_id, group)
     end
-    pcall(vim.cmd, "silent! %bwipeout!")
+    pcall(function()
+        vim.cmd("silent! %bwipeout!")
+    end)
 end
 
 local function run_case(name, fn)
@@ -120,7 +122,6 @@ run_case("cycle success failure success", function(group)
             end,
         },
     }, "watch-cycle", { "= Watch cycle fixture", "", "Hello" })
-
     local seen = {
         started = {},
         success = {},
@@ -145,7 +146,6 @@ run_case("cycle success failure success", function(group)
             end
         end,
     })
-
     typst.compiler.watch({}, function(result)
         callbacks[#callbacks + 1] = {
             code = result.code,
@@ -154,11 +154,11 @@ run_case("cycle success failure success", function(group)
             stderr = result.stderr,
         }
     end)
-
     assert(
         vim.wait(10000, function()
-            return typst_test_compiler(project).watcher
-                and typst_test_compiler(project).watcher.last_cycle_status == "success"
+            local watcher = typst_test_compiler(project).watcher
+            return watcher ~= nil
+                and watcher.last_cycle_status == "success"
                 and #seen.started >= 3
                 and #seen.success >= 2
                 and #seen.failed >= 1
@@ -346,7 +346,6 @@ run_case("cycle success failure success", function(group)
         "watcher did not stop after cycle test"
     )
 end)
-
 run_case("watch exits after one cycle", function(group)
     local status = require("typst.ui.status")
     local project = setup_project({
@@ -355,7 +354,6 @@ run_case("watch exits after one cycle", function(group)
         ),
         output_dir = typst_test_cache_path("watch-exit-output"),
     }, "watch-exit", { "= Watch exits after one cycle" })
-
     local success_events = {}
     local failed_events = {}
     local stopped_events = {}
@@ -367,7 +365,6 @@ run_case("watch exits after one cycle", function(group)
     typst.compiler.watch({}, function(result)
         callbacks[#callbacks + 1] = result
     end)
-
     assert(
         vim.wait(10000, function()
             return typst_test_compiler(project).watcher == nil
@@ -418,7 +415,6 @@ run_case("watch exits after one cycle", function(group)
         "status should retain the last cycle generation"
     )
 end)
-
 run_case("watch partial success exit", function(group)
     local status = require("typst.ui.status")
     local project = setup_project({
@@ -427,7 +423,6 @@ run_case("watch partial success exit", function(group)
         ),
         output_dir = typst_test_cache_path("watch-partial-exit-output"),
     }, "watch-partial-exit", { "= Watch partial exit" })
-
     local success_events = {}
     local failed_events = {}
     local callbacks = {}
@@ -437,7 +432,6 @@ run_case("watch partial success exit", function(group)
     typst.compiler.watch({}, function(result)
         callbacks[#callbacks + 1] = result
     end)
-
     assert(
         vim.wait(10000, function()
             return typst_test_compiler(project).watcher == nil
@@ -484,7 +478,6 @@ run_case("watch partial success exit", function(group)
         "status should retain the flushed cycle generation"
     )
 end)
-
 run_case("missing output fails cycle", function(group)
     local diagnostics = require("typst.diagnostics")
     local status = require("typst.ui.status")
@@ -494,29 +487,28 @@ run_case("missing output fails cycle", function(group)
         ),
         output_dir = typst_test_cache_path("watch-missing-output"),
     }, "watch-missing-output", { "= Watch missing output" })
-
     local failed_events = {}
     local callbacks = {}
     record(group, project, "TypstCompileFailed", failed_events, {
         watch_only = true,
     })
-
     typst.compiler.watch({}, function(result)
         callbacks[#callbacks + 1] = result
     end)
-
     assert(
         vim.wait(10000, function()
             local current = vim.diagnostic.get(
                 0,
                 { namespace = diagnostics.namespace_for(project) }
             )
-            return typst_test_compiler(project).watcher
-                and typst_test_compiler(project).watcher.last_cycle_status == "error"
+            local watcher = typst_test_compiler(project).watcher
+            return watcher ~= nil
+                and watcher.last_cycle_status == "error"
                 and #failed_events == 1
                 and #callbacks >= 1
                 and #current == 1
                 and current[1].message:find("did not create", 1, true)
+                    ~= nil
                     ~= nil
         end, 20),
         "missing watch output should fail the cycle and publish a diagnostic"
@@ -568,7 +560,6 @@ run_case("missing output fails cycle", function(group)
         "watcher did not stop after missing-output test"
     )
 end)
-
 run_case("delayed output retry succeeds", function(group)
     local diagnostics = require("typst.diagnostics")
     local log = require("typst.core.log")
@@ -579,7 +570,7 @@ run_case("delayed output retry succeeds", function(group)
         ),
         output_dir = typst_test_cache_path("watch-delayed-output"),
     }, "watch-delayed-output", { "= Watch delayed output" })
-    local output = typst_test_compiler(project).output
+    local output = assert(typst_test_compiler(project).output)
     local release = output .. ".release"
     vim.fn.delete(output)
     vim.fn.delete(release)
@@ -589,11 +580,9 @@ run_case("delayed output retry succeeds", function(group)
     record(group, project, "TypstCompileFailed", failed_events, {
         watch_only = true,
     })
-
     typst.compiler.watch({}, function(result)
         callbacks[#callbacks + 1] = result
     end)
-
     assert(
         vim.wait(10000, function()
             for _, entry in ipairs(log.entries()) do
@@ -619,8 +608,9 @@ run_case("delayed output retry succeeds", function(group)
                 0,
                 { namespace = diagnostics.namespace_for(project) }
             )
-            return typst_test_compiler(project).watcher
-                and typst_test_compiler(project).watcher.last_cycle_status == "success"
+            local watcher = typst_test_compiler(project).watcher
+            return watcher ~= nil
+                and watcher.last_cycle_status == "success"
                 and #failed_events == 0
                 and #callbacks >= 1
                 and callbacks[#callbacks].code == 0
@@ -643,7 +633,6 @@ run_case("delayed output retry succeeds", function(group)
         "watcher did not stop after delayed-output test"
     )
 end)
-
 run_case("late old stream does not affect replacement watcher", function()
     local process = require("typst.core.process")
     local original_system = process.system
@@ -679,24 +668,22 @@ run_case("late old stream does not affect replacement watcher", function()
         return handle
     end
 
-    process.spawn = function(command, opts, handlers)
+    rawset(process, "spawn", function(command, opts, handlers)
         return fake_spawn(command, opts, handlers and handlers.on_exit)
-    end
-    process.system = function(command, opts, on_exit)
+    end)
+    rawset(process, "system", function(command, opts, on_exit)
         return fake_spawn(command, opts, on_exit)
-    end
-    process.kill = function(handle, signal)
+    end)
+    rawset(process, "kill", function(handle, signal)
         handle.killed_signal = signal
         handle.closed = true
         return true, nil, "process"
-    end
-
+    end)
     local ok, err = xpcall(function()
         local project = setup_project({
             executable = { "fake-typst" },
             output_dir = typst_test_cache_path("watch-late-stream-output"),
         }, "watch-late-stream", { "= Watch late stream fixture" })
-
         local first_handle = typst.compiler.watch()
         local first_watcher = typst_test_compiler(project).watcher
         assert(
@@ -730,7 +717,7 @@ run_case("late old stream does not affect replacement watcher", function()
         assert(
             vim.wait(1000, function()
                 return #handles >= 2
-                    and typst_test_compiler(project).watcher
+                    and typst_test_compiler(project).watcher ~= nil
                     and typst_test_compiler(project).watcher.handle
                         == handles[2]
             end, 10),
@@ -768,7 +755,6 @@ run_case("late old stream does not affect replacement watcher", function()
             stopped = result.stopped
         end)
         handles[2]:finish({ code = 0, stdout = "", stderr = "" })
-
         assert(
             vim.wait(1000, function()
                 return stopped
@@ -787,7 +773,6 @@ run_case("late old stream does not affect replacement watcher", function()
         error(err)
     end
 end)
-
 run_case("queued stream is parsed before exit", function()
     local process = require("typst.core.process")
     local original_spawn = process.spawn
@@ -812,15 +797,14 @@ run_case("queued stream is parsed before exit", function()
         return handle
     end
 
-    process.spawn = function(command, opts, handlers)
+    rawset(process, "spawn", function(command, opts, handlers)
         local handle = new_handle()
         handle.command = command
         handle.opts = opts
         handle.on_exit = handlers and handlers.on_exit
         handles[#handles + 1] = handle
         return handle
-    end
-
+    end)
     local ok, err = xpcall(function()
         local project = setup_project({
             executable = { "fake-typst" },
@@ -835,8 +819,9 @@ run_case("queued stream is parsed before exit", function()
         assert(handle == handles[1], "watch should return fake process handle")
         assert(watcher and watcher.handle == handle, "watcher should be active")
 
-        vim.fn.mkdir(vim.fs.dirname(compiler_state.output), "p")
-        vim.fn.writefile({ "pdf" }, compiler_state.output)
+        local output = assert(compiler_state.output)
+        vim.fn.mkdir(vim.fs.dirname(output), "p")
+        vim.fn.writefile({ "pdf" }, output)
 
         handle.opts.stderr(
             nil,
@@ -844,7 +829,6 @@ run_case("queued stream is parsed before exit", function()
                 .. "[12:34:56] compiled successfully in 31 ms\n"
         )
         handle:finish({ code = 0, stdout = "", stderr = "" })
-
         local final_state = typst_test_compiler(project)
         assert(
             final_state.watcher == nil and final_state.status == "idle",
@@ -865,7 +849,6 @@ run_case("queued stream is parsed before exit", function()
         error(err)
     end
 end)
-
 run_case("output buffers are bounded", function()
     local project = setup_project({
         executable = helpers.python_command(
@@ -873,13 +856,12 @@ run_case("output buffers are bounded", function()
         ),
         output_dir = typst_test_cache_path("watch-output-bounds"),
     }, "watch-output-bounds", { "= Watch output bounds fixture" })
-
     typst.compiler.watch()
 
     assert(
         vim.wait(10000, function()
             local watcher = typst_test_compiler(project).watcher
-            return watcher
+            return watcher ~= nil
                 and watcher.last_cycle_status == "success"
                 and #((watcher.line_buffers or {}).stderr or "") == 64 * 1024
                 and #(watcher.stderr or "") <= 64 * 1024
@@ -900,14 +882,12 @@ run_case("output buffers are bounded", function()
         "watcher did not stop after output-bounds test"
     )
 end)
-
 run_case("start restart stop and idle stop", function()
     typst.reset()
     typst.setup({
         root = root,
         output_dir = typst_test_cache_path("watch-output"),
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
@@ -959,7 +939,6 @@ run_case("start restart stop and idle stop", function()
         stopped = result.stopped
         stop_deps_path = result.deps_path
     end)
-
     local did_stop = vim.wait(10000, function()
         return stopped
             and typst_test_compiler(project).watcher == nil
@@ -981,7 +960,6 @@ run_case("start restart stop and idle stop", function()
     local idle_stop_handle = typst.compiler.stop({}, function(result)
         idle_stop_result = result
     end)
-
     assert(
         idle_stop_handle == nil,
         "idle stop after watcher stop should not return a handle"
@@ -991,14 +969,12 @@ run_case("start restart stop and idle stop", function()
         "idle stop after watcher stop should be marked as idle"
     )
 end)
-
 run_case("last buffer detach stops watcher", function()
     typst.reset()
     typst.setup({
         root = root,
         output_dir = typst_test_cache_path("watch-detach-output"),
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
@@ -1033,14 +1009,12 @@ run_case("last buffer detach stops watcher", function()
         "watcher handle did not close after last buffer detach"
     )
 end)
-
 run_case("main transfer stops old watcher", function()
     typst.reset()
     typst.setup({
         root = root,
         output_dir = typst_test_cache_path("watch-transfer-output"),
     })
-
     local chapter = root .. "/tests/fixtures/basic/chapter.typ"
     local main = root .. "/tests/fixtures/basic/main.typ"
 
@@ -1092,7 +1066,6 @@ run_case("main transfer stops old watcher", function()
         "new project should remain registered"
     )
 end)
-
 run_case("watch refreshes dependency graph", function()
     local project_services = require("typst.project.services")
 
@@ -1116,7 +1089,6 @@ run_case("watch refreshes dependency graph", function()
             watch_output = "human",
         },
     })
-
     local state_store = require("typst.core.state")
     state_store.clear_explicit_main(main)
     state_store.clear_explicit_main(chapter)
@@ -1130,7 +1102,7 @@ run_case("watch refreshes dependency graph", function()
 
     local function graph_debug()
         local compiler = typst_test_compiler(project)
-        local graph = project_services.graph(project)
+        local graph = assert(project_services.graph(project))
         local deps = {}
         for path in pairs(graph.dependencies or {}) do
             deps[#deps + 1] = path
@@ -1156,10 +1128,13 @@ run_case("watch refreshes dependency graph", function()
 
     assert(
         vim.wait(10000, function()
-            return typst_test_compiler(project).watcher ~= nil
+            local compiler = typst_test_compiler(project)
+            local graph = project_services.graph(project) or {}
+            return compiler.watcher ~= nil
                 and typst_test_compiler(project).status == "watching"
-                and vim.fn.filereadable(typst_test_compiler(project).output) == 1
-                and project_services.graph(project).dependencies[chapter]
+                and compiler.output ~= nil
+                and vim.fn.filereadable(compiler.output) == 1
+                and (graph.dependencies or {})[chapter] ~= nil
         end, 20),
         "active Typst watcher did not refresh project dependencies: "
             .. graph_debug()
@@ -1184,7 +1159,6 @@ run_case("watch refreshes dependency graph", function()
     typst.compiler.stop({}, function(result)
         stopped = result.stopped
     end)
-
     assert(
         vim.wait(10000, function()
             return stopped
@@ -1194,5 +1168,4 @@ run_case("watch refreshes dependency graph", function()
         "Typst watcher did not stop cleanly"
     )
 end)
-
 vim.cmd("qa!")

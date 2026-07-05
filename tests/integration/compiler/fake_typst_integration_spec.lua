@@ -11,12 +11,14 @@ local function cleanup()
     pcall(function()
         typst.reset({ force = true })
     end)
-    pcall(vim.cmd, "silent! %bwipeout!")
+    pcall(function()
+        vim.cmd("silent! %bwipeout!")
+    end)
 end
 
 local function has_dependency(project, path)
-    return project_services.graph(project).dependencies[util.normalize(path)]
-        == true
+    local graph = project_services.graph(project)
+    return graph ~= nil and graph.dependencies[util.normalize(path)] == true
 end
 
 cleanup()
@@ -52,18 +54,17 @@ local ok, err = xpcall(function()
             end,
         },
     })
-
     vim.cmd.edit(main)
     local project_snapshot = typst.project.set_main(main)
     local project =
         assert(project_store.get(project_snapshot.key), "live project")
     vim.fn.delete(typst_test_compiler(project).output)
 
+    ---@type any
     local compile_result = nil
     typst.compiler.compile({}, function(result)
         compile_result = result
     end)
-
     assert(
         vim.wait(10000, function()
             return compile_result ~= nil
@@ -104,11 +105,11 @@ local ok, err = xpcall(function()
     typst.compiler.watch({}, function(result)
         watch_results[#watch_results + 1] = result
     end)
-
     assert(
         vim.wait(10000, function()
-            return typst_test_compiler(project).watcher
-                and typst_test_compiler(project).watcher.last_cycle_status == "success"
+            local watcher = typst_test_compiler(project).watcher
+            return watcher ~= nil
+                and watcher.last_cycle_status == "success"
                 and #watch_results >= 1
                 and #refreshes >= 1
         end, 20),

@@ -17,7 +17,9 @@ local function cleanup(group)
     if group then
         pcall(vim.api.nvim_del_augroup_by_id, group)
     end
-    pcall(vim.cmd, "silent! %bwipeout!")
+    pcall(function()
+        vim.cmd("silent! %bwipeout!")
+    end)
 end
 
 local group =
@@ -25,7 +27,6 @@ local group =
 cleanup(group)
 group =
     vim.api.nvim_create_augroup("TypstStopRestartRaceSpec", { clear = true })
-
 local marker = typst_test_cache_path("stop-restart-race/events.txt")
 vim.fn.delete(marker)
 vim.fn.mkdir(vim.fs.dirname(marker), "p")
@@ -44,12 +45,12 @@ local ok, err = xpcall(function()
             deps = false,
         },
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
 
     local initial_watch_cycles = 0
+    ---@type any
     local first_watch = typst.compiler.watch({}, function(result)
         if result.watch and result.code == 0 then
             initial_watch_cycles = initial_watch_cycles + 1
@@ -58,14 +59,17 @@ local ok, err = xpcall(function()
     assert(first_watch, "initial watch should start")
     assert(
         vim.wait(10000, function()
-            return typst_test_compiler(project).watcher
-                and typst_test_compiler(project).watcher.handle == first_watch
+            local watcher = typst_test_compiler(project).watcher
+            return watcher ~= nil
+                and watcher.handle == first_watch
                 and initial_watch_cycles >= 1
         end, 20),
         "initial watcher did not report a successful cycle"
     )
 
+    ---@type any
     local compile_started_handle = nil
+    ---@type any
     local watch_restart = nil
     local compile_callback_called = false
     local final_watch_cycles = 0
@@ -84,7 +88,6 @@ local ok, err = xpcall(function()
             end)
         end,
     })
-
     local compile_restart = typst.compiler.compile({}, function()
         compile_callback_called = true
     end)
@@ -140,7 +143,7 @@ local ok, err = xpcall(function()
             for _ in text:gmatch("watch%-start") do
                 watch_starts = watch_starts + 1
             end
-            return watch_starts >= 2 and text:find("watch-exit", 1, true)
+            return watch_starts >= 2 and text:find("watch-exit", 1, true) ~= nil
         end, 20),
         "race fixture should record initial watcher stop and replacement watcher"
     )

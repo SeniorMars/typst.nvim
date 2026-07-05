@@ -120,12 +120,12 @@ assert(
 
 local original_notify = vim.notify
 local output_command_notifications = {}
-vim.notify = function(message, level)
+rawset(vim, "notify", function(message, level)
     output_command_notifications[#output_command_notifications + 1] = {
         message = message,
         level = level,
     }
-end
+end)
 local notify_ok, notify_err = xpcall(function()
     vim.cmd.enew()
     vim.bo.filetype = ""
@@ -140,7 +140,7 @@ local notify_ok, notify_err = xpcall(function()
         "TypstCompileOutput should report no-project errors visibly"
     )
 end, debug.traceback)
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 assert(notify_ok, notify_err)
 
 local stop_summary = typst.compiler.stop_all({ notify = false })

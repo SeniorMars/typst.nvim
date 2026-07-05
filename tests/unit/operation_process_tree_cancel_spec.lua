@@ -13,17 +13,16 @@ local ok, err = xpcall(function()
     op.handle = { id = 1 }
     op.state = "running"
 
-    process.terminate_tree_signal = function(handle, signal)
+    rawset(process, "terminate_tree_signal", function(handle, signal)
         calls[#calls + 1] = {
             handle = handle,
             signal = signal,
         }
         return true, nil, signal == 9 and "forced-tree" or "tree"
-    end
-    process.kill = function()
+    end)
+    rawset(process, "kill", function()
         error("operation cancel should use process-tree signalling")
-    end
-
+    end)
     local stopped, result = op:cancel({
         timeout_ms = 1000,
         kill_timeout_ms = 1000,
@@ -37,7 +36,6 @@ local ok, err = xpcall(function()
     assert(calls[1].signal == 15, "graceful cancel should use SIGTERM")
 
     op:finish({ code = 0, stdout = "", stderr = "", stopped = true })
-
     calls = {}
     local forced = operation.new("process-tree-force-cancel")
     forced.handle = { id = 2 }
@@ -67,16 +65,14 @@ local ok, err = xpcall(function()
     )
 
     forced:finish({ code = 143, stdout = "", stderr = "", stopped = true })
-
     calls = {}
     local failed = operation.new("process-tree-cancel-failure")
     failed.handle = { id = 3 }
     failed.state = "running"
-    process.terminate_tree_signal = function(_handle, signal)
+    rawset(process, "terminate_tree_signal", function(_handle, signal)
         calls[#calls + 1] = { signal = signal }
         return false, "tree unavailable"
-    end
-
+    end)
     local callback_stopped
     local callback_result
     local failed_stopped, failed_result = failed:cancel({

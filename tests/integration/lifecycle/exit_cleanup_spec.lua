@@ -29,7 +29,6 @@ typst.setup({
         end,
     },
 })
-
 local quit_event = nil
 local stopped_events = {}
 local preview_stopped_event = nil
@@ -52,14 +51,12 @@ vim.api.nvim_create_autocmd("User", {
         preview_stopped_event = args.data
     end,
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local compile_project = typst.project.set_main(main)
 local compile_handle = typst.compiler.compile({}, function()
     error("exit cleanup should stale active compile callbacks")
 end)
-
 assert(
     typst_test_compiler(compile_project).process == compile_handle,
     "compile should be active before VimLeavePre cleanup"
@@ -94,7 +91,6 @@ assert(
 )
 
 vim.api.nvim_exec_autocmds("VimLeavePre", { modeline = false })
-
 assert(
     quit_event and quit_event.projects >= 2,
     "VimLeavePre should emit a quit event with project count"
@@ -181,7 +177,6 @@ typst.setup({
         end,
     },
 })
-
 vim.cmd.edit(main)
 local pending_project = typst.project.set_main(main)
 assert(
@@ -194,7 +189,6 @@ assert(
 )
 
 vim.api.nvim_exec_autocmds("VimLeavePre", { modeline = false })
-
 assert(pending_stop_called == 1, "VimLeavePre should request preview stop")
 assert(
     pending_stop_handle and pending_stop_handle.pending == true,

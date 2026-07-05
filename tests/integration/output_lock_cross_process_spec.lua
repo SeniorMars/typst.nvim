@@ -44,8 +44,7 @@ vim.fn.writefile({
     pid = vim.uv.os_getpid(),
   }),
 }, %s)
-vim.wait(10000, function()
-  return vim.fn.filereadable(%s) == 1
+vim.wait(10000, function() return vim.fn.filereadable(%s) == 1
 end, 20)
 outputs.release(lease)
 vim.cmd("qa!")
@@ -89,7 +88,6 @@ local holder = vim.system({
     "-l",
     holder_script,
 }, { text = true })
-
 assert(
     vim.wait(10000, function()
         return vim.fn.filereadable(ready_path) == 1

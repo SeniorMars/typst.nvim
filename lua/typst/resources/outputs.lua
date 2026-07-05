@@ -352,6 +352,10 @@ function M.acquire_many(items, owner)
 end
 
 function M.release(lease)
+    -- Release in-memory ownership first so typst.nvim cannot deadlock itself on
+    -- stale Lua state. File-lock removal can still fail independently; keep that
+    -- failure visible in status/bug reports instead of pretending cleanup was
+    -- complete.
     local released = path_leases.release(lease)
     if released then
         local lock_released, lock_err = release_lock(lease)
@@ -481,7 +485,7 @@ function M.last_release_failure(project)
     then
         return nil
     end
-    return vim.deepcopy(last_release_failure)
+    return last_release_failure and vim.deepcopy(last_release_failure) or nil
 end
 
 function M._clear_last_release_failure()

@@ -13,6 +13,7 @@ local project = {
     bufs = {},
     services = project_services.new_state(),
 }
+---@type any
 local handle = {
     is_closing = function()
         return true
@@ -40,7 +41,6 @@ compiler_service.set(project, {
     },
     status = "stopping",
 })
-
 local handled = compiler_process.finish_stopped_compile(
     project,
     handle,
@@ -50,7 +50,7 @@ local handled = compiler_process.finish_stopped_compile(
 assert(handled == true, "stopping compile should be handled")
 assert(later_callback_ran, "later stop callbacks should still run")
 assert(
-    compiler_service.get(project).status == "idle",
+    (compiler_service.get(project) or {}).status == "idle",
     "compiler state should end idle"
 )
 

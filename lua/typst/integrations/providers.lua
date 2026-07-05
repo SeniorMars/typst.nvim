@@ -108,7 +108,7 @@ end
 ---@param opts? table Snapshot options forwarded to `typst.project.context`.
 ---@return table context Provider-facing project context.
 function M.project_context(project, opts)
-    return require("typst.project.context").snapshot(project, opts)
+    return require("typst.project.context").snapshot(project, opts) or {}
 end
 
 return M

@@ -12,13 +12,9 @@ function M.defaults()
     }
 end
 
----@param project TypstProject? Project whose compiler service is ensured.
----@return TypstProjectCompilerService? service Compiler service table.
-function M.ensure(project)
-    local service = base.service(project, "compiler")
-    if not service then
-        return nil
-    end
+---@param service TypstProjectCompilerService Compiler service table to normalize.
+---@return TypstProjectCompilerService service Normalized compiler service table.
+local function normalize(service)
     service.status = service.status or "idle"
     service.generation = service.generation or 0
     service.watch_generation = service.watch_generation or 0
@@ -26,17 +22,35 @@ function M.ensure(project)
     return service
 end
 
-M.get = M.ensure
+---@param project TypstProject? Project whose compiler service is read.
+---@return TypstProjectCompilerService? service Compiler service table, if present.
+function M.get(project)
+    if type(project) ~= "table" or type(project.services) ~= "table" then
+        return nil
+    end
+    local service = project.services.compiler
+    if type(service) ~= "table" then
+        return nil
+    end
+    return normalize(service)
+end
+
+---@param project TypstProject Project whose compiler service is ensured.
+---@return TypstProjectCompilerService service Compiler service table.
+function M.ensure(project)
+    local service = base.service(project, "compiler")
+    if not service then
+        error("typst.nvim: compiler service requires a project", 2)
+    end
+    return normalize(service)
+end
 
 ---@param project TypstProject Project whose compiler service is mutated.
 ---@param fields TypstProjectCompilerServicePatch Fields to set; `clear`/`_clear` removes keys first.
----@return TypstProjectCompilerService? compiler Compiler service table.
+---@return TypstProjectCompilerService compiler Compiler service table.
 function M.set(project, fields)
-    local compiler = base.update(project, "compiler", fields)
-    if compiler then
-        M.ensure(project)
-    end
-    return compiler
+    local compiler = assert(base.update(project, "compiler", fields))
+    return normalize(compiler)
 end
 
 local function merge(fields, defaults)
@@ -54,7 +68,7 @@ end
 ---Start a one-shot compile transition.
 ---@param project TypstProject Project whose compiler service is mutated.
 ---@param fields? TypstProjectCompilerServicePatch Additional fields to store.
----@return TypstProjectCompilerService? compiler Compiler service table.
+---@return TypstProjectCompilerService compiler Compiler service table.
 function M.start_compile(project, fields)
     local compiler = M.ensure(project)
     local generation = fields and fields.generation
@@ -72,7 +86,7 @@ end
 ---@param project TypstProject Project whose compiler service is mutated.
 ---@param result TypstCompilerResult Compile terminal result.
 ---@param opts? {clear_active?:boolean} Transition controls.
----@return TypstProjectCompilerService? compiler Compiler service table.
+---@return TypstProjectCompilerService compiler Compiler service table.
 function M.finish_compile(project, result, opts)
     opts = opts or {}
     local clear = opts.clear_active == false and nil
@@ -91,7 +105,7 @@ end
 ---Start a long-running watch transition.
 ---@param project TypstProject Project whose compiler service is mutated.
 ---@param fields? TypstProjectCompilerServicePatch Additional fields to store.
----@return TypstProjectCompilerService? compiler Compiler service table.
+---@return TypstProjectCompilerService compiler Compiler service table.
 function M.start_watch(project, fields)
     local compiler = M.ensure(project)
     local generation = fields and fields.watch_generation
@@ -108,7 +122,7 @@ end
 ---Record an intermediate watch compile cycle.
 ---@param project TypstProject Project whose compiler service is mutated.
 ---@param result TypstCompilerResult Watch cycle result.
----@return TypstProjectCompilerService? compiler Compiler service table.
+---@return TypstProjectCompilerService compiler Compiler service table.
 function M.finish_watch_cycle(project, result)
     return M.set(project, {
         last_result = result,
@@ -124,7 +138,7 @@ end
 ---@param project TypstProject Project whose compiler service is mutated.
 ---@param result TypstCompilerResult Watch terminal result.
 ---@param opts? {status?:string, clear_active?:boolean} Transition controls.
----@return TypstProjectCompilerService? compiler Compiler service table.
+---@return TypstProjectCompilerService compiler Compiler service table.
 function M.finish_watch_process(project, result, opts)
     opts = opts or {}
     local status = opts.status or result_status(result, "success", "error")
@@ -143,7 +157,7 @@ end
 ---Begin a stop transition for active compiler work.
 ---@param project TypstProject Project whose compiler service is mutated.
 ---@param fields? TypstProjectCompilerServicePatch Additional fields to store.
----@return TypstProjectCompilerService? compiler Compiler service table.
+---@return TypstProjectCompilerService compiler Compiler service table.
 function M.begin_stop(project, fields)
     return M.set(project, merge(fields, { status = "stopping" }))
 end
@@ -154,7 +168,7 @@ end
 ---ownership before recording a confirmed stop, so release failures stay visible.
 ---@param project TypstProject Project whose compiler service is mutated.
 ---@param result TypstCompilerResult Stop result.
----@return TypstProjectCompilerService? compiler Compiler service table.
+---@return TypstProjectCompilerService compiler Compiler service table.
 function M.finish_stop_confirmed(project, result)
     return M.set(project, {
         clear = {
@@ -172,7 +186,7 @@ end
 ---Finish an unconfirmed stop transition.
 ---@param project TypstProject Project whose compiler service is mutated.
 ---@param result TypstCompilerResult Stop result.
----@return TypstProjectCompilerService? compiler Compiler service table.
+---@return TypstProjectCompilerService compiler Compiler service table.
 function M.finish_stop_unconfirmed(project, result)
     if type(result) == "table" then
         result._typst_unconfirmed_stop = true
@@ -188,7 +202,7 @@ end
 ---Force-clear retained compiler state without claiming external shutdown.
 ---@param project TypstProject Project whose compiler service is mutated.
 ---@param result TypstCompilerResult Force-clear result.
----@return TypstProjectCompilerService? compiler Compiler service table.
+---@return TypstProjectCompilerService compiler Compiler service table.
 function M.force_clear(project, result)
     return M.set(project, {
         clear = {
@@ -216,7 +230,7 @@ end
 ---@param project TypstProject Project to snapshot.
 ---@return table? snapshot Summary-safe compiler service snapshot.
 function M.snapshot(project)
-    local compiler = M.ensure(project)
+    local compiler = M.get(project)
     if not compiler then
         return nil
     end
@@ -230,6 +244,10 @@ function M.snapshot(project)
         stopping = compiler.stopping_compile ~= nil,
         last_cwd = compiler.last_cwd,
         last_profile = compiler.last_profile,
+        provider_label = compiler.provider_label,
+        last_provider_label = compiler.last_provider_label,
+        provider_builtin = compiler.provider_builtin,
+        provider_external = compiler.provider_external,
         output = compiler.output,
     }
 end

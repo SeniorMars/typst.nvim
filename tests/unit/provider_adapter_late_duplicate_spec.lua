@@ -42,7 +42,7 @@ assert(
     late_results[1].reason == "timeout",
     "first terminal result should be timeout"
 )
-late_callback({ ok = true, value = "late-success" })
+assert(late_callback)({ ok = true, value = "late-success" })
 vim.wait(20)
 assert(
     #late_results == 1 and late_results[1].reason == "timeout",

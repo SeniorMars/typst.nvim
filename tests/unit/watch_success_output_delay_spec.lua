@@ -21,11 +21,10 @@ compiler_service.set(project, {
     output = output,
     status = "watching",
 })
-
 local original_refresh_watcher = compiler_dependencies.refresh_watcher
-compiler_dependencies.refresh_watcher = function() end
-
+rawset(compiler_dependencies, "refresh_watcher", function() end)
 local timer = assert((vim.uv or vim.loop).new_timer())
+---@type any
 local callback_result = nil
 local seen_success
 local seen_failure = false
@@ -58,7 +57,6 @@ local watcher = {
     },
 }
 compiler_service.set(project, { watcher = watcher, watch_generation = 1 })
-
 local ok, err = xpcall(function()
     timer:start(
         120,
@@ -125,7 +123,7 @@ if timer and not timer:is_closing() then
 end
 
 if not ok then
-    vim.api.nvim_err_writeln(err)
+    vim.api.nvim_echo({ { tostring(err), "ErrorMsg" } }, true, {})
     vim.cmd("cquit")
 end
 

@@ -13,7 +13,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("lease-failure-output"),
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -26,12 +25,10 @@ vim.api.nvim_create_autocmd("User", {
         failed_events[#failed_events + 1] = args.data
     end,
 })
-
 local original_build = compiler_command.build
-compiler_command.build = function()
+rawset(compiler_command, "build", function()
     error("synthetic command build failure")
-end
-
+end)
 local callback_result = nil
 local ok, err = xpcall(function()
     local handle = typst_compile.start(project, function(result)
@@ -85,7 +82,7 @@ end, debug.traceback)
 compiler_command.build = original_build
 
 if not ok then
-    vim.api.nvim_err_writeln(err)
+    vim.api.nvim_echo({ { tostring(err), "ErrorMsg" } }, true, {})
     vim.cmd("cquit")
 end
 

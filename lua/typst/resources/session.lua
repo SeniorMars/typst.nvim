@@ -223,7 +223,6 @@ function M.snapshot(project)
     local diagnostics = diagnostics_service.get(project) or {}
     local outputs = output_ownership.active_for_project(project)
     local blockers = M.blockers(project)
-
     return {
         compiler = {
             active = compiler_service.has_active(compiler),

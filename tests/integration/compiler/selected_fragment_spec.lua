@@ -103,7 +103,6 @@ local function compile_fragment_template(
         code = result.code
         done = true
     end)
-
     assert(
         run.ok == true,
         ("compile_selected should start %s fragment compilation"):format(
@@ -157,7 +156,6 @@ local function compile_fragment_template(
             template
         )
     )
-
     return source
 end
 

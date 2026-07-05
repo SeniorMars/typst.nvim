@@ -98,7 +98,6 @@ typst.setup({
         },
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -125,7 +124,6 @@ local handle = typst.compiler.compile({ profile = "custom" }, function(result)
     assert(result.code == 0, "custom provider compile failed")
     compile_done = true
 end)
-
 assert(
     handle.provider == "test",
     "custom provider compile handle was not returned"
@@ -192,16 +190,15 @@ assert(
 
 local captured = {}
 local original_echo = vim.api.nvim_echo
-vim.api.nvim_echo = function(chunks)
+rawset(vim.api, "nvim_echo", function(chunks)
     for _, chunk in ipairs(chunks) do
         captured[#captured + 1] = chunk[1]
     end
-end
+end)
 
 local info_ok, info_err = pcall(function()
     typst.ui.info()
 end)
-
 vim.api.nvim_echo = original_echo
 assert(info_ok, info_err)
 local info_text = table.concat(captured, "\n")
@@ -322,7 +319,6 @@ typst.setup({
         },
     },
 })
-
 assert(
     typst.ui.status().status == "provider-idle",
     "status() should expose custom provider stopped status"
@@ -609,7 +605,6 @@ local ok, err = pcall(function()
         },
     })
 end)
-
 assert(not ok, "invalid compile provider should fail validation")
 assert(tostring(err):match("compile%.provider%.start"), tostring(err))
 

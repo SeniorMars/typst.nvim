@@ -24,6 +24,12 @@ function M.start(project, callback, run_config)
     local generation = (compiler_state.generation or 0) + 1
     local supported, result = scratch_policy.check(project, "compile", opts)
     if not supported then
+        result = result
+            or {
+                ok = false,
+                reason = "unsupported",
+                message = "compile is not supported for this project",
+            }
         compiler_service.set(project, {
             generation = generation,
             status = "error",
@@ -46,6 +52,11 @@ function M.start(project, callback, run_config)
         generation = generation,
     })
     if not lease then
+        lease_err = lease_err
+            or {
+                reason = "lease_failed",
+                message = "Failed to acquire output lease",
+            }
         local result = {
             code = 1,
             stdout = "",
@@ -134,7 +145,6 @@ function M.start(project, callback, run_config)
         last_cwd = project.root,
         active_compile_deps_path = deps_path,
     })
-
     log.add("info", "compile started", {
         command = command,
         cwd = project.root,
@@ -143,7 +153,6 @@ function M.start(project, callback, run_config)
         main = project.main,
         output = output,
     })
-
     local handle
     local compile_operation
     local process_opts = { cwd = project.root, text = true }
@@ -189,7 +198,6 @@ function M.start(project, callback, run_config)
                     deps_path = deps_path,
                     stale = false,
                 })
-
                 if result.code == 0 then
                     compiler_service.set(project, {
                         clear = {

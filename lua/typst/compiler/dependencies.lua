@@ -213,6 +213,9 @@ function M.start_poll(project, watcher)
     end
 
     local timer = uv.new_timer()
+    if not timer then
+        return
+    end
     watcher.deps_timer = timer
     local function schedule_next(delay)
         if watcher.deps_timer ~= timer or timer_is_closing(timer) then

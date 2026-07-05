@@ -135,6 +135,11 @@ local function run(kind, mode, project, callback, run_config)
         main = project.main,
     })
     if not lease then
+        lease_err = lease_err
+            or {
+                reason = "lease_failed",
+                message = "Failed to acquire output lease",
+            }
         local result = {
             code = 1,
             stdout = "",
@@ -186,7 +191,6 @@ local function run(kind, mode, project, callback, run_config)
         last_cwd = command_cwd,
         last_profile = run_config.compile.profile,
     })
-
     log.add("info", "generic compiler command started", {
         provider = kind,
         mode = mode,
@@ -196,7 +200,6 @@ local function run(kind, mode, project, callback, run_config)
         main = project.main,
         output = ctx.output,
     })
-
     local state = {
         provider = kind,
         mode = mode,

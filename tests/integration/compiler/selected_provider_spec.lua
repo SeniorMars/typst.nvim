@@ -35,7 +35,6 @@ typst.setup({
         },
     },
 })
-
 local failed_fragment = typst.compiler.compile_selected({
     notify = false,
     line1 = 1,
@@ -96,7 +95,6 @@ typst.setup({
         },
     },
 })
-
 local declined_fragment = typst.compiler.compile_selected({
     notify = false,
     line1 = 1,

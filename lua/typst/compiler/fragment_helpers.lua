@@ -333,7 +333,6 @@ function M.failure(opts, notify, reason, message, range, extra)
         message = message,
         range = range,
     }, extra or {})
-
     log.add("warn", "selected compile failed", result)
     if opts.notify ~= false then
         M.notify_user(notify, message, vim.log.levels.WARN)

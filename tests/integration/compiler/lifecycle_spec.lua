@@ -15,7 +15,9 @@ local function cleanup(group)
     if group then
         pcall(vim.api.nvim_del_augroup_by_id, group)
     end
-    pcall(vim.cmd, "silent! %bwipeout!")
+    pcall(function()
+        vim.cmd("silent! %bwipeout!")
+    end)
 end
 
 local function run_case(name, fn)
@@ -67,7 +69,6 @@ run_case("compile success and parent failure", function(group)
     local project = setup_project({
         output_dir = typst_test_cache_path("test-output"),
     })
-
     local started_event = nil
     local started_event_process = nil
     local started_event_operation = nil
@@ -89,7 +90,6 @@ run_case("compile success and parent failure", function(group)
             success_event = args.data
         end,
     })
-
     local done = false
     local result_code = nil
     local deps_path = nil
@@ -191,15 +191,13 @@ run_case("compile success and parent failure", function(group)
     util.ensure_parent = function()
         return false, "synthetic parent failure"
     end
-    process.spawn = function(...)
+    rawset(process, "spawn", function(...)
         spawn_count = spawn_count + 1
         return original_spawn(...)
-    end
-
+    end)
     local failed_handle = typst.compiler.compile({}, function(result)
         parent_failure = result
     end)
-
     util.ensure_parent = original_ensure_parent
     process.spawn = original_spawn
 
@@ -213,7 +211,6 @@ run_case("compile success and parent failure", function(group)
         "parent failure should be reported before spawning"
     )
 end)
-
 run_case("stop active and idle compile", function(group)
     local executable = helpers.fake_typst_sleep(root)
     local project = setup_project({
@@ -223,7 +220,6 @@ run_case("stop active and idle compile", function(group)
             deps = true,
         },
     })
-
     local stopped_event = nil
     vim.api.nvim_create_autocmd("User", {
         group = group,
@@ -232,12 +228,10 @@ run_case("stop active and idle compile", function(group)
             stopped_event = args.data
         end,
     })
-
     local compile_callback_called = false
     local handle = typst.compiler.compile({}, function()
         compile_callback_called = true
     end)
-
     assert(
         typst_test_compiler(project).process == handle,
         "project should track the running one-shot compile"
@@ -257,7 +251,6 @@ run_case("stop active and idle compile", function(group)
     local stopped_handle = typst.compiler.stop({}, function(result)
         stop_result = result
     end)
-
     assert(
         stopped_handle == handle,
         "TypstStop should return the stopped compile handle"
@@ -320,19 +313,17 @@ run_case("stop active and idle compile", function(group)
             idle_stopped_event = true
         end,
     })
-
     local notifications = {}
     local original_notify = vim.notify
-    vim.notify = function(message)
+    rawset(vim, "notify", function(message)
         notifications[#notifications + 1] = message
-    end
+    end)
 
     local idle_stop_result = nil
     local idle_stop_handle = typst.compiler.stop({}, function(result)
         idle_stop_result = result
     end)
-
-    vim.notify = original_notify
+    rawset(vim, "notify", original_notify)
 
     assert(
         idle_stop_handle == nil,
@@ -360,7 +351,6 @@ run_case("stop active and idle compile", function(group)
         "idle TypstStop should not claim that an active compiler was stopped"
     )
 end)
-
 run_case("compile started event handler can stop compile", function(group)
     local executable = helpers.fake_typst_sleep(root)
     local project = setup_project({
@@ -370,7 +360,6 @@ run_case("compile started event handler can stop compile", function(group)
             deps = false,
         },
     })
-
     local started_process = nil
     local started_operation = nil
     local stop_handle = nil
@@ -394,12 +383,10 @@ run_case("compile started event handler can stop compile", function(group)
             stopped_event = args.data
         end,
     })
-
     local compile_callback_called = false
     local handle = typst.compiler.compile({}, function()
         compile_callback_called = true
     end)
-
     assert(
         started_process == handle,
         "TypstCompileStarted handler should see the active compile process"
@@ -442,7 +429,6 @@ run_case("compile started event handler can stop compile", function(group)
         "compile callback should not receive the stale stopped result"
     )
 end)
-
 run_case("restart waits for old compile exit", function(group)
     local marker = typst_test_cache_path("compile-restart-output/slow-stop.txt")
     vim.fn.delete(marker)
@@ -460,7 +446,6 @@ run_case("restart waits for old compile exit", function(group)
                 deps = false,
             },
         })
-
         local stopped_event_count = 0
         vim.api.nvim_create_autocmd("User", {
             group = group,
@@ -469,12 +454,10 @@ run_case("restart waits for old compile exit", function(group)
                 stopped_event_count = stopped_event_count + 1
             end,
         })
-
         local first_callback_called = false
         local first_handle = typst.compiler.compile({}, function()
             first_callback_called = true
         end)
-
         assert(
             typst_test_compiler(project).process == first_handle,
             "first compile process should be active before restart"
@@ -491,7 +474,6 @@ run_case("restart waits for old compile exit", function(group)
         local second_handle = typst.compiler.compile({}, function()
             second_callback_called = true
         end)
-
         assert(
             second_handle
                 and second_handle.restart == true
@@ -526,7 +508,7 @@ run_case("restart waits for old compile exit", function(group)
         assert(
             vim.wait(10000, function()
                 return first_handle:is_closing()
-                    and typst_test_compiler(project).process
+                    and typst_test_compiler(project).process ~= nil
                     and typst_test_compiler(project).process ~= first_handle
                     and #vim.fn.readfile(marker) >= 4
             end, 20),
@@ -588,7 +570,6 @@ run_case("restart waits for old compile exit", function(group)
         error(err)
     end
 end)
-
 run_case("cancel pending compile restart", function()
     local marker = typst_test_cache_path("compile-restart-cancel/slow-stop.txt")
     vim.fn.delete(marker)
@@ -606,7 +587,6 @@ run_case("cancel pending compile restart", function()
                 deps = false,
             },
         })
-
         local first_handle = typst.compiler.compile()
         assert(
             vim.wait(10000, function()
@@ -656,7 +636,6 @@ run_case("cancel pending compile restart", function()
         error(err)
     end
 end)
-
 run_case("detach stops active compile", function()
     local project = setup_project({
         executable = helpers.fake_typst_sleep(root),
@@ -665,7 +644,6 @@ run_case("detach stops active compile", function()
             deps = false,
         },
     })
-
     local compile_callback_called = false
     local handle = typst.compiler.compile({}, function()
         compile_callback_called = true
@@ -701,7 +679,6 @@ run_case("detach stops active compile", function()
         "stale detached compile result should not call public compile callback"
     )
 end)
-
 run_case("compile stops active watcher", function(group)
     local project = setup_project({
         executable = helpers.fake_typst_sleep(root),
@@ -710,7 +687,6 @@ run_case("compile stops active watcher", function(group)
             deps = false,
         },
     })
-
     local watch_handle = typst.compiler.watch()
     assert(
         typst_test_compiler(project).watcher
@@ -726,12 +702,10 @@ run_case("compile stops active watcher", function(group)
             stopped_event_count = stopped_event_count + 1
         end,
     })
-
     local compile_callback_called = false
     local returned_handle = typst.compiler.compile({}, function()
         compile_callback_called = true
     end)
-
     assert(
         returned_handle
             and returned_handle.restart == true
@@ -781,7 +755,6 @@ run_case("compile stops active watcher", function(group)
         "replacement one-shot compile did not stop cleanly"
     )
 end)
-
 run_case("watch stops active compile", function(group)
     local project = setup_project({
         executable = helpers.python_command(
@@ -792,7 +765,6 @@ run_case("watch stops active compile", function(group)
             deps = false,
         },
     })
-
     local compile_callback_called = false
     local compile_handle = typst.compiler.compile({}, function()
         compile_callback_called = true
@@ -810,7 +782,6 @@ run_case("watch stops active compile", function(group)
             stopped_event_count = stopped_event_count + 1
         end,
     })
-
     local watch_handle = typst.compiler.watch()
     assert(
         watch_handle
@@ -874,5 +845,4 @@ run_case("watch stops active compile", function(group)
         "watcher did not stop cleanly after race test"
     )
 end)
-
 vim.cmd("qa!")

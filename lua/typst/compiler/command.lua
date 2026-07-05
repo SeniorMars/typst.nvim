@@ -13,7 +13,13 @@ local M = {}
 function M.build_args(kind, project, opts)
     local supported, scratch_result = scratch_policy.check(project, kind, opts)
     if not supported then
-        error(scratch_policy.error_message(scratch_result), 2)
+        error(
+            scratch_policy.error_message(scratch_result or {
+                reason = "unsupported",
+                message = ("%s is not supported for this project"):format(kind),
+            }),
+            2
+        )
     end
 
     local stdin_source = opts.compile and opts.compile.stdin

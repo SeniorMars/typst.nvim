@@ -10,11 +10,9 @@ local handle = pending.new({
         return { ok = true, value = raw.value }
     end,
 })
-
 handle:on_finish(function(result, finished)
     completed[#completed + 1] = { result = result, handle = finished }
 end)
-
 local result = handle.finish({ value = 42 }, "test")
 assert(result.ok == true and result.value == 42, "finish should normalize raw")
 assert(handle.pending == false, "finish should clear pending")
@@ -73,7 +71,6 @@ local cancellable = pending.new({
         end,
     },
 })
-
 local stopped, cancel_result = cancellable.cancel({ reason = "unit_cancel" })
 assert(stopped == true, "cancel should report stopped")
 assert(
@@ -157,6 +154,87 @@ dot_two_arg_callbacks[1]({ ok = true, dot_two_arg = true })
 assert(
     observed and observed.dot_two_arg == true,
     "subscribe should forward two-argument dot-style source completion"
+)
+
+local dot_cancel_opts = nil
+local dot_cancel_source = {
+    pending = true,
+    on_finish_style = "dot",
+    cancel_style = "dot",
+    cancel = function(opts)
+        dot_cancel_opts = opts
+        return true, { ok = true, stopped = true, dot_cancel = true }
+    end,
+}
+local dot_cancel_stopped, dot_cancel_result =
+    pending.cancel(dot_cancel_source, { reason = "unit" })
+assert(dot_cancel_stopped == true, "explicit dot-style cancel should stop")
+assert(
+    dot_cancel_opts and dot_cancel_opts.reason == "unit",
+    "explicit dot-style cancel should receive opts as first argument"
+)
+assert(
+    dot_cancel_result and dot_cancel_result.dot_cancel == true,
+    "explicit dot-style cancel should return provider result"
+)
+
+local unstyled_dot_cancel_called = false
+local unstyled_dot_cancel_source = {
+    pending = true,
+    on_finish_style = "dot",
+    cancel = function()
+        unstyled_dot_cancel_called = true
+        return true, { ok = true, stopped = true }
+    end,
+}
+local unstyled_stopped, unstyled_result =
+    pending.cancel(unstyled_dot_cancel_source, { reason = "unit" })
+assert(
+    unstyled_stopped == false,
+    "dot-style cancel should require explicit cancel_style"
+)
+assert(
+    unstyled_result
+        and unstyled_result.reason == "dot_cancel_requires_explicit_style",
+    "unstyled dot cancel should explain the missing style"
+)
+assert(
+    unstyled_dot_cancel_called == false,
+    "unstyled dot cancel should not call provider with guessed arguments"
+)
+
+local no_cancel_source = {
+    pending = true,
+    on_finish = function() end,
+}
+local no_cancel_stopped, no_cancel_result =
+    pending.cancel(no_cancel_source, { reason = "unit" })
+assert(
+    no_cancel_stopped == false,
+    "pending handles without cancel should not report confirmed stop"
+)
+assert(
+    no_cancel_result
+        and no_cancel_result.reason == "cancel_unavailable"
+        and no_cancel_result.stopped == false,
+    "pending handles without cancel should report cancel_unavailable"
+)
+
+local nil_return_cancel_source = {
+    pending = true,
+    cancel = function() end,
+}
+local nil_return_stopped, nil_return_result =
+    pending.cancel(nil_return_cancel_source, { reason = "unit" })
+assert(
+    nil_return_stopped == false,
+    "pending cancel without an explicit return should be unconfirmed"
+)
+assert(
+    nil_return_result
+        and nil_return_result.reason == "cancel_unconfirmed"
+        and nil_return_result.stopped == false,
+    "pending cancel without an explicit return should report cancel_unconfirmed"
 )
 
 local colon_callbacks = {}

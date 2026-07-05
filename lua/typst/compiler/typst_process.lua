@@ -17,7 +17,7 @@ end
 -- and handle checks prevent late libuv callbacks from clearing newer jobs.
 --- Check whether the project has an open built-in watcher handle.
 ---@param project TypstProject Project state whose compiler service is inspected.
----@return boolean|userdata active Watcher handle when active, otherwise false/nil.
+---@return boolean|userdata|nil active Watcher handle when active, otherwise false/nil.
 function M.active_watcher(project)
     local watcher = (compiler_service.get(project) or {}).watcher
     return watcher and watcher.handle and not watcher.handle:is_closing()
@@ -25,7 +25,7 @@ end
 
 --- Check whether the project has an open one-shot compile handle.
 ---@param project TypstProject Project state whose compiler service is inspected.
----@return boolean|userdata active Compile handle when active, otherwise false/nil.
+---@return boolean|userdata|nil active Compile handle when active, otherwise false/nil.
 function M.active_process(project)
     local handle = (compiler_service.get(project) or {}).process
     return handle and not handle:is_closing()
@@ -33,7 +33,7 @@ end
 
 --- Check whether a one-shot compile is already in its stop transition.
 ---@param project TypstProject Project state whose compiler service is inspected.
----@return boolean|userdata active Stopping handle when active, otherwise false/nil.
+---@return boolean|userdata|nil active Stopping handle when active, otherwise false/nil.
 function M.stopping_process(project)
     local stopping = (compiler_service.get(project) or {}).stopping_compile
     return stopping and stopping.handle and not stopping.finished
@@ -71,7 +71,7 @@ function M.queue_watcher_restart(watcher, callback, run_config, restart_handle)
 end
 
 --- Stop and close a libuv timer when it is still open.
----@param timer? userdata Timer handle created by `uv.new_timer`.
+---@param timer? any Timer handle created by `uv.new_timer`.
 function M.close_timer(timer)
     if timer and not timer:is_closing() then
         timer:stop()
@@ -80,7 +80,7 @@ function M.close_timer(timer)
 end
 
 --- Request process termination with a SIGKILL fallback timer.
----@param handle userdata libuv process handle to terminate.
+---@param handle any libuv process handle to terminate.
 ---@param label string Human-readable process label used in logs.
 ---@param fields? table Extra log fields.
 ---@return boolean ok True when SIGTERM or fallback signal was sent.
@@ -114,6 +114,9 @@ function M.terminate_handle(handle, label, fields)
     end
 
     local timer = uv.new_timer()
+    if not timer then
+        return true, nil, nil
+    end
     timer:start(
         1500,
         0,
@@ -141,7 +144,6 @@ function M.terminate_handle(handle, label, fields)
             end
         end)
     )
-
     return true, nil, timer
 end
 
@@ -237,7 +239,6 @@ function M.finish_stopped_compile(project, handle, result)
         stale = false,
         stopped = true,
     })
-
     if stopping.exit_cleanup then
         log.add(
             "debug",
@@ -290,7 +291,6 @@ function M.stop_compile_for_exit(project, opts)
         generation = (compiler_state.generation or 0) + 1,
         status = "stopping",
     })
-
     if stopping and stopping.handle == handle then
         M.close_timer(stopping.kill_timer)
         stopping.kill_timer = nil

@@ -19,6 +19,7 @@ local M = {}
 ---@field retained_at integer? `uv.hrtime()` timestamp when the operation became retained.
 ---@field result any Summary-safe copy of the terminal result.
 ---@field handle any Native pending handle returned by the underlying workflow.
+---@field [string] any
 
 ---@class TypstOperationCancelSummary
 ---@field total integer Number of active records considered for cancellation.
@@ -188,7 +189,7 @@ end
 
 --- Settle an operation record and store its summary on project services.
 ---@param project table Project state whose operation service owns the record.
----@param record TypstOperationRecord? Operation record returned by `begin`.
+---@param record TypstOperationRecord|TypstProjectOperationRecord? Operation record returned by `begin`.
 ---@param result any Native terminal result returned by the underlying workflow.
 ---@return any result The original result, unchanged.
 function M.finish(project, record, result)
@@ -236,7 +237,7 @@ end
 
 --- Move an active operation record into retained-orphan tracking.
 ---@param project table Project state whose operation service owns the record.
----@param record TypstOperationRecord? Operation record returned by `begin`.
+---@param record TypstOperationRecord|TypstProjectOperationRecord? Operation record returned by `begin`.
 ---@param result any Best-known retained orphan result.
 ---@return any result The original result, unchanged.
 function M.retain(project, record, result)
@@ -259,7 +260,7 @@ end
 
 --- Clear one active operation record or all active records for a kind.
 ---@param project table Project state whose active operation index is mutated.
----@param target string|TypstOperationRecord Operation kind or specific record.
+---@param target string|TypstOperationRecord|TypstProjectOperationRecord Operation kind or specific record.
 function M.clear(project, target)
     local service = operation_service(project)
     if not service then
@@ -592,6 +593,17 @@ local function protected_callback(callback, ...)
     end
 end
 
+local function missing_project_result(kind, callback)
+    local result = {
+        ok = false,
+        pending = false,
+        reason = "missing_project",
+        message = ("Typst %s requires a project"):format(kind or "operation"),
+    }
+    protected_callback(callback, result)
+    return result
+end
+
 local function terminal_result(result)
     if result == nil then
         return false
@@ -760,12 +772,15 @@ local function finish_stop(project, record, callback)
 end
 
 --- Run a project compile under operation tracking.
----@param project table? Project state to track, or nil to call the compiler directly.
+---@param project table? Project state to track.
 ---@param opts? table Compile options.
 ---@param callback? fun(result:TypstCompilerResult) Terminal result callback.
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
 ---@return unknown result Native compiler handle or synchronous result.
 function M.compile(project, opts, callback, notify)
+    if type(project) ~= "table" then
+        return missing_project_result("compile", callback)
+    end
     return run(project, "compile", callback, function(done)
         return require("typst.compiler.api").compile(
             project,
@@ -783,6 +798,9 @@ end
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
 ---@return unknown result Native compile-selected handle or synchronous result.
 function M.compile_selected(project, opts, callback, notify)
+    if type(project) ~= "table" then
+        return missing_project_result("compile_selected", callback)
+    end
     return run(project, "compile_selected", callback, function(done)
         return require("typst.compiler.api").compile_selected(
             project,
@@ -800,6 +818,9 @@ end
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
 ---@return unknown result Native watcher handle or synchronous result.
 function M.watch(project, opts, callback, notify)
+    if type(project) ~= "table" then
+        return missing_project_result("watch", callback)
+    end
     return run(project, "watch", callback, function(done)
         return require("typst.compiler.api").watch(project, opts, done, notify)
     end, { streaming = true })
@@ -812,7 +833,7 @@ end
 ---@return unknown result Native stop handle, deferred proxy, synchronous result, or nil.
 function M.stop(project, callback, notify)
     if type(project) ~= "table" then
-        return require("typst.compiler.api").stop(project, callback, notify)
+        return missing_project_result("stop", callback)
     end
 
     local events = require("typst.core.events")
@@ -888,10 +909,10 @@ function M.force_clear_compiler(project, opts, notify)
     local result =
         require("typst.compiler.api").force_clear(project, opts, notify)
     if result and result.ok and result.discarded == true then
-        M.clear(project, "compile")
-        M.clear(project, "watch")
-        M.clear(project, "stop")
         if project then
+            M.clear(project, "compile")
+            M.clear(project, "watch")
+            M.clear(project, "stop")
             require("typst.project").prune(project, "compiler force clear")
         end
     end
@@ -957,6 +978,9 @@ end
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
 ---@return unknown result Native render handle or synchronous result.
 function M.render_fragment(project, opts, callback, notify)
+    if type(project) ~= "table" then
+        return missing_project_result("render_fragment", callback)
+    end
     return run(project, "render_fragment", callback, function(done)
         return require("typst.workflows.render").fragment(
             project,
@@ -974,6 +998,9 @@ end
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
 ---@return unknown result Native render handle or synchronous result.
 function M.render_equation(project, opts, callback, notify)
+    if type(project) ~= "table" then
+        return missing_project_result("render_equation", callback)
+    end
     return run(project, "render_equation", callback, function(done)
         return require("typst.workflows.render").equation(
             project,
@@ -991,6 +1018,9 @@ end
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
 ---@return unknown result Native render handle or synchronous result.
 function M.render_image(project, opts, callback, notify)
+    if type(project) ~= "table" then
+        return missing_project_result("render_image", callback)
+    end
     return run(project, "render_image", callback, function(done)
         return require("typst.workflows.render").image(
             project,
@@ -1008,6 +1038,9 @@ end
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
 ---@return unknown result Native render handle or synchronous result.
 function M.render_page(project, opts, callback, notify)
+    if type(project) ~= "table" then
+        return missing_project_result("render_page", callback)
+    end
     return run(project, "render_page", callback, function(done)
         return require("typst.workflows.render").page(
             project,
@@ -1025,6 +1058,9 @@ end
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
 ---@return unknown result Native export handle or synchronous result.
 function M.export(project, opts, callback, notify)
+    if type(project) ~= "table" then
+        return missing_project_result("export", callback)
+    end
     return run(project, "export", callback, function(done)
         return require("typst.workflows.artifacts").export(
             project,
@@ -1042,6 +1078,9 @@ end
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
 ---@return unknown result Native eval handle or synchronous result.
 function M.eval(project, opts, callback, notify)
+    if type(project) ~= "table" then
+        return missing_project_result("eval", callback)
+    end
     return run(project, "eval", callback, function(done)
         return require("typst.workflows.eval").eval(project, opts, done, notify)
     end)
@@ -1054,6 +1093,9 @@ end
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
 ---@return unknown result Native eval handle or synchronous result.
 function M.eval_selection(project, opts, callback, notify)
+    if type(project) ~= "table" then
+        return missing_project_result("eval_selection", callback)
+    end
     return run(project, "eval_selection", callback, function(done)
         return require("typst.workflows.eval").eval_selection(
             project,
@@ -1071,6 +1113,9 @@ end
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
 ---@return unknown result Native inspect handle or synchronous result.
 function M.inspect(project, opts, callback, notify)
+    if type(project) ~= "table" then
+        return missing_project_result("inspect", callback)
+    end
     return run(project, "inspect", callback, function(done)
         return require("typst.workflows.eval").inspect(
             project,
@@ -1082,6 +1127,9 @@ function M.inspect(project, opts, callback, notify)
 end
 
 local function development(kind, project, opts, callback, notify)
+    if type(project) ~= "table" then
+        return missing_project_result(kind, callback)
+    end
     return run(project, kind, callback, function(done)
         return require("typst.workflows.development")[kind](
             project,

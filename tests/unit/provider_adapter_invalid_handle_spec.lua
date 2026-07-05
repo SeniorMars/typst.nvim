@@ -37,7 +37,6 @@ typst.setup({
         provider = provider,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(vim.fn.fnameescape(main))
 local project = assert(typst.project.set_main(main))
@@ -50,7 +49,6 @@ vim.api.nvim_create_autocmd("User", {
         started_saw_watcher = typst_test_compiler(project).watcher ~= nil
     end,
 })
-
 local compile_result = typst.compiler.compile({}, function(result)
     callback_result = result
 end)

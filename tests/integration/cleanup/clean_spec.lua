@@ -21,7 +21,6 @@ typst.setup({
         },
     },
 })
-
 local main = project_root .. "/main.typ"
 assert(
     vim.fn.writefile({ "= Clean", "temporary cleanup test" }, main) == 0,
@@ -37,13 +36,11 @@ vim.api.nvim_create_autocmd("User", {
         clean_event = args.data
     end,
 })
-
 local done = false
 typst.compiler.compile({}, function(result)
     assert(result.code == 0, "compile failed before clean test")
     done = true
 end)
-
 assert(
     vim.wait(10000, function()
         return done
@@ -135,7 +132,7 @@ assert(
     "clean event should include temporary artifacts"
 )
 
-local output = typst_test_compiler(project).output
+local output = assert(typst_test_compiler(project).output)
 assert(vim.fn.writefile({
     "user-modified compile output",
     "must not be deleted without force",

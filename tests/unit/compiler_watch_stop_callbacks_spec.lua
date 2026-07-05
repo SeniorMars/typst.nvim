@@ -13,7 +13,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("watch-stop-callbacks"),
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -35,19 +34,18 @@ local handle = {
     end,
 }
 
-operation.run = function(_, _, _, opts)
+rawset(operation, "run", function(_, _, _, opts)
     finish = opts.on_finish
     cleanup = opts.cleanup
     return { handle = handle }
-end
-process.kill = function()
+end)
+rawset(process, "kill", function()
     kill_calls = kill_calls + 1
     return true
-end
-compiler_dependencies.start_poll = function() end
-compiler_dependencies.stop_poll = function() end
-compiler_dependencies.refresh_watcher = function() end
-
+end)
+rawset(compiler_dependencies, "start_poll", function() end)
+rawset(compiler_dependencies, "stop_poll", function() end)
+rawset(compiler_dependencies, "refresh_watcher", function() end)
 local ok, err = xpcall(function()
     typst_watcher.start(project)
 
@@ -60,6 +58,10 @@ local ok, err = xpcall(function()
     watcher.current_cycle = {
         id = 1,
         generation = 1,
+        stdout = "",
+        stderr = "",
+        started_at = 0,
+        finished = false,
         finish_timer = cycle_timer,
     }
 
@@ -70,7 +72,6 @@ local ok, err = xpcall(function()
     typst_watcher.stop(project, function(result)
         callbacks[#callbacks + 1] = { id = "second", result = result }
     end)
-
     assert(kill_calls == 1, "repeated watcher stop should signal once")
     assert(watcher.kill_timer, "watcher should hold fallback kill timer")
 
@@ -106,7 +107,7 @@ compiler_dependencies.stop_poll = original_stop_poll
 compiler_dependencies.refresh_watcher = original_refresh_watcher
 
 if not ok then
-    vim.api.nvim_err_writeln(err)
+    vim.api.nvim_echo({ { tostring(err), "ErrorMsg" } }, true, {})
     vim.cmd("cquit")
 end
 

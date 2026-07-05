@@ -63,7 +63,6 @@ local ok, err = xpcall(function()
             deps = false,
         },
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
@@ -107,7 +106,6 @@ local ok, err = xpcall(function()
 end, debug.traceback)
 
 typst.reset({ force = true })
-
 if not ok then
     error(err)
 end

@@ -304,18 +304,16 @@ local function insert_callback(args, callback, position)
 end
 
 local function cancel_returned(value, cancel_opts)
-    if type(value) ~= "table" then
+    local value_type = type(value)
+    if value_type ~= "table" and value_type ~= "userdata" then
         return false
     end
-    if type(value.cancel) == "function" then
-        local ok, stopped, result = pcall(value.cancel, value, cancel_opts)
-        if ok then
-            return stopped ~= false, result
-        end
-        return false, stopped
+    if value_type == "table" and type(value.cancel) == "function" then
+        return pending_handle.cancel(value, cancel_opts)
     end
-    local handle = value.handle or value
-    if type(handle) == "table" then
+    local handle = value_type == "table" and (value.handle or value) or value
+    local handle_type = type(handle)
+    if handle_type == "table" or handle_type == "userdata" then
         local ok, result = async.cancel_system(handle, {
             timeout_ms = cancel_opts and cancel_opts.timeout_ms or 0,
             kill_timeout_ms = cancel_opts and cancel_opts.kill_timeout_ms or 0,
@@ -327,11 +325,11 @@ end
 
 --- Invoke a provider method and normalize synchronous, async, and cancelable returns.
 ---@param provider table|fun(...):any Provider table or callback-style provider.
----@param method string|string[] Provider method name or fallback method names.
+---@param method? string|string[] Provider method name or fallback method names.
 ---@param context? table Project or request context passed to provider callbacks.
 ---@param opts? table Provider-specific options passed through to the invocation.
 ---@param control? table Adapter controls such as timeout, callback position, and result normalizer.
----@return typst.ProviderCancelHandle|typst.ProviderResult|table|nil result Provider result, pending handle, or nil when handle-only invocation cannot start.
+---@return any result Provider result, pending handle, or nil when handle-only invocation cannot start.
 function M.invoke(provider, method, context, opts, control)
     opts = opts or {}
     control = control or {}
@@ -444,7 +442,6 @@ function M.invoke(provider, method, context, opts, control)
             return ok, finish(terminal, "cancel")
         end,
     })
-
     local function finish(raw, source)
         return pending.finish(raw, source)
     end
@@ -462,6 +459,9 @@ function M.invoke(provider, method, context, opts, control)
         end
 
         timer = uv.new_timer()
+        if not timer then
+            return
+        end
         timer:start(timeout_ms, 0, function()
             schedule(function()
                 if pending.result ~= nil then
@@ -491,7 +491,6 @@ function M.invoke(provider, method, context, opts, control)
     local ok, returned = async_state.protect(function()
         return fn(unpack(args))
     end)
-
     if not ok then
         local result = finish(provider_error(kind, name, returned), "error")
         if control.return_mode == "handle" then
@@ -525,12 +524,7 @@ function M.invoke(provider, method, context, opts, control)
 
             local ok, result
             if type(original_cancel) == "function" then
-                local called
-                called, ok, result = pcall(original_cancel, value, cancel_opts)
-                if not called then
-                    return false,
-                        finish(provider_error(kind, name, ok), "cancel")
-                end
+                ok, result = pending_handle.cancel(value, cancel_opts)
             else
                 ok, result = cancel_returned(value, cancel_opts)
             end
