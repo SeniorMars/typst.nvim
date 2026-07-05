@@ -82,8 +82,9 @@ active
 - Pending stop keeps active state until the backend confirms stopped.
 - Restart of an active preview must wait for stop success or return a structured
   failure. Restart of a pending open may optimistically supersede the old open;
-  that old open is recorded as `superseded=true`, `stopped=false`, and retained
-  until the provider result settles.
+  that old open is recorded as `superseded=true`, `stopped=false`, and
+  `cancel_pending=true` when provider cancellation is still settling. The
+  superseded handle is retained until the provider result settles.
 - Native browser follow-buffer transfers exactly one route from the old project
   to the new project.
 

@@ -33,6 +33,13 @@ live in `docs/stability-policy.md`. Changes to project, compiler, preview,
 provider, cache, or public API behavior should update those documents when the
 invariant or release contract changes.
 
+Maintainer inventories for service ownership, event ordering, cache
+invalidation, autocmd lifecycle, and stable-core policy choices live in
+`docs/services.md`, `docs/event-ordering.md`, `docs/cache-invalidation.md`,
+`docs/autocmd-lifecycle.md`, and `docs/stable-core-decisions.md`. Stable-core
+release candidates should treat those as release artifacts: if behavior changes
+there, the matching inventory should change in the same patch.
+
 ## Performance
 
 `tests/run_performance_gate.sh` runs the normal runtime performance spec plus a
@@ -52,6 +59,38 @@ The budgets are intentionally regression gates, not proofs of final asymptotic
 behavior. Bibliography, index, and package hot paths can still improve, but a
 release should not regress the measured p95-style interactive paths without an
 explicit budget update.
+
+## Manual Smoke
+
+Stable-core release candidates need a small manual smoke pass in addition to
+headless gates. The minimum checklist is:
+
+- Fresh install with `typst` only and no Tree-sitter parser.
+- Fresh install with Tree-sitter parser and no Tinymist.
+- Tinymist native LSP auto-start with built-in Neovim LSP.
+- coc-tinymist present; `integrations.tinymist.lsp = "auto"` must not steal
+  native LSP ownership.
+- Compile, watch, stop, reset, and force-clear recovery.
+- Native viewer preview.
+- Native browser preview.
+- typst-preview.nvim delegation.
+- Diagnostics external paths with `bufadd`, `quickfix-only`, and
+  `open-files-only`.
+- Windows path with spaces and UNC-like paths on a real Windows runner.
+
+For a short noninteractive local smoke of the native browser preview matrix,
+run:
+
+```sh
+TYPST_NVIM_PREVIEW_MATRIX_WAIT_MS=3000 \
+TYPST_NVIM_PREVIEW_MATRIX_REFRESH_AFTER_MS=500 \
+TYPST_NVIM_PREVIEW_MATRIX_STOP_AFTER_MS=1500 \
+bash tests/run_preview_matrix.sh browser-server
+```
+
+That command verifies the preview matrix harness, export provider, native
+browser route, refresh callback, and stop path. It does not replace the real
+manual visual pass.
 
 ## Windows Edges
 

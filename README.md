@@ -338,6 +338,9 @@ require("typst").setup({
   diagnostics = {
     source = "fallback",
     use_quickfix = true,
+    -- "bufadd" enables vim.diagnostic for unopened external files up to
+    -- max_buffers_per_publish. Use "quickfix-only" on large/remote trees.
+    external_paths = "bufadd",
   },
 })
 ```
@@ -480,6 +483,8 @@ require("typst").setup({
     source = "fallback",
     use_quickfix = false,
     list = "quickfix",
+    external_paths = "bufadd",
+    max_buffers_per_publish = 16,
     fonts = true,
     font_scan_timeout_ms = 250,
   },
@@ -1795,6 +1800,15 @@ unconfirmed custom provider still owns an output lease,
 `:TypstCompilerForceClear[!]` discards typst.nvim's retained handle, but it does
 not kill or prove termination of the external process.
 
+Output lock recovery recipe:
+
+1. Run `:TypstLocks` to inspect lock owner metadata.
+2. Run `:TypstInfo!` to check active compiler, preview, and output leases.
+3. Stop active work with `:TypstStop` or `:TypstStopAll`.
+4. Use `:TypstCleanLocks` for stale dead-owner locks only.
+5. Use `:TypstCleanLocks!` or `:TypstCompilerForceClear[!]` only after you have
+   confirmed the external writer is gone or explicitly accept the risk.
+
 ## Performance tuning
 
 The expensive paths are project discovery, project indexing, completion scans,
@@ -1812,17 +1826,21 @@ documents may need tighter caps.
 | Native browser preview | `preview.browser.server`, `preview.browser.refresh_ms`, `preview.browser.max_artifact_bytes` | The local server caps headers and artifact size, then streams under-cap artifacts. Keep the cap enabled unless previewing trusted local artifacts in a controlled session. |
 
 Use `:TypstInfo!`, `:TypstStatusAll!`, `:TypstDoctor`, `:TypstBugReport`,
-`:TypstLog`,
+`:TypstSupportBundle`, `:TypstLog`,
 `:checkhealth typst`, and `:TypstTelemetry` to decide which path is actually
 slow before lowering caps.
 
 ## Troubleshooting
 
 Start with `:checkhealth typst`, `:TypstInfo!`, `:TypstDoctor`,
-`:TypstCompileOutput`, and `:TypstLog`. They show the resolved
-root/main/output, Tinymist ownership, active compiler/preview state, last
-command output, lifecycle/provider errors, and runtime ownership invariants.
+`:TypstCompileOutput`, `:TypstLog`, and `:TypstSupportBundle` when a report
+artifact is needed. They show the resolved root/main/output, Tinymist ownership,
+active compiler/preview state, last command output, lifecycle/provider errors,
+and runtime ownership invariants.
 
+- Optional JSONL file logging is local-only and disabled by default. If enabled,
+  the raw log file may contain absolute paths in structured fields; generated
+  `:TypstBugReport` and `:TypstSupportBundle` artifacts redact paths by default.
 - Wrong file compiles: inspect `root_source` and `main_source` in
   `:TypstInfo!`; use `:TypstSetMain`, `.typstmain`, or a setup `main` policy.
 - `:TypstWatch` runs but preview does not refresh: check watcher status,
@@ -1836,6 +1854,12 @@ command output, lifecycle/provider errors, and runtime ownership invariants.
   `diagnostics.source = "fallback"`, compiler diagnostics are suppressed when
   Tinymist or another semantic provider owns diagnostics. Use `"always"` to
   keep compiler diagnostics beside semantic diagnostics.
+- Unexpected hidden buffers after a build: the default
+  `diagnostics.external_paths = "bufadd"` creates unloaded buffers for external
+  diagnostic paths up to `diagnostics.max_buffers_per_publish` so
+  `vim.diagnostic` can own them. Use `"quickfix-only"` to keep unopened-file
+  diagnostics in quickfix/location lists, or `"open-files-only"` to skip
+  unopened external files.
 - coc.nvim is active and native Tinymist did not start: configure
   `coc-tinymist` through Coc settings, or set
   `integrations.tinymist.lsp = "start"` if you intentionally want

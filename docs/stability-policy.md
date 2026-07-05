@@ -61,9 +61,10 @@ After `1.0`:
 - `tests/run_performance_gate.sh`
 - Windows edge gate
 - Manual smoke checklist from `docs/release-gates.md`
+- Stable-core policy decisions in `docs/stable-core-decisions.md` reviewed
 - Changelog entry for every stable API/config/provider behavior change
-- Bug-report artifact from `:TypstBugReport` attached to any unreproduced
-  lifecycle failure before release
+- Bug-report artifact from `:TypstBugReport` or `:TypstSupportBundle` attached
+  to any unreproduced lifecycle failure before release
 
 ## Feature Freeze Rule
 

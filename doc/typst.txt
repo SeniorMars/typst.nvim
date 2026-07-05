@@ -586,8 +586,8 @@ Command groups:
     structural edit commands documented below.
 
   Debug and maintenance:
-    |:TypstDoctor|, |:TypstCheckInvariants|, |:TypstTelemetry|,
-    |:TypstTelemetryReset|
+    |:TypstDoctor|, |:TypstBugReport|, |:TypstSupportBundle|,
+    |:TypstCheckInvariants|, |:TypstTelemetry|, |:TypstTelemetryReset|
 
                                                         *:TypstInfo*
 :TypstInfo[!]
@@ -1662,7 +1662,17 @@ Implement `render(project, opts, callback)` to replace rendering.
     stdout/stderr excerpts. Bug reports are pretty-printed by default and cap
     project, operation, telemetry, and log sections; use Lua `typst.report({
     pretty = false, max_logs = ... })` for compact output or larger local
-    debugging captures.
+    debugging captures. Optional JSONL file logging is local-only and disabled
+    by default; when enabled, the raw log file may contain absolute paths in
+    structured fields, while generated bug reports/support bundles apply the
+    redaction rules above.
+
+                                                        *:TypstSupportBundle*
+:TypstSupportBundle[!] [path]
+    Compatibility support command for |:TypstBugReport|. It generates the same
+    redacted JSON artifact but uses support-bundle wording in notifications and
+    release checklists. Use this command when attaching diagnostics to an issue
+    or maintainer-requested reproduction.
 
                                                         *:TypstCheckInvariants*
 :TypstCheckInvariants

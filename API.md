@@ -1189,11 +1189,11 @@ stopping active compilers.
 state, import-scan cache, project index cache, and conceal match caches.
 `require("typst").report({ open = true })` and
 `require("typst").ui.bug_report({ open = true })` generate the same redacted
-JSON support artifact as `:TypstBugReport`; both are experimental support APIs
-listed under `experimental_symbols()`, not stable API symbols. Reports are
-pretty-printed by default and cap project, operation, telemetry, and log
-sections; pass `pretty = false` or larger `max_*` limits only for local
-debugging or maintainer-requested captures.
+JSON support artifact as `:TypstBugReport` and `:TypstSupportBundle`; both Lua
+helpers are experimental support APIs listed under `experimental_symbols()`, not
+stable API symbols. Reports are pretty-printed by default and cap project,
+operation, telemetry, and log sections; pass `pretty = false` or larger
+`max_*` limits only for local debugging or maintainer-requested captures.
 `metadata_version` may pin a bundled Typst metadata snapshot such as `"0.14.2"` or `"0.15.0"`;
 when unset, typst.nvim uses the newest compatible bundled metadata and reports
 version mismatches through catalog/status metadata.
@@ -1534,6 +1534,7 @@ The public command surface is:
 - `:TypstConvertRaw [toggle|inline|block]`
 - `:TypstDoctor`
 - `:TypstBugReport[!] [path]`
+- `:TypstSupportBundle[!] [path]`
 - `:TypstCheckInvariants`
 - `:TypstTelemetry`
 - `:TypstTelemetryReset`

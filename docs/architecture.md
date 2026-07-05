@@ -5,6 +5,15 @@ project, compiler, preview, diagnostics, completion, conceal, and provider
 features grow. Public API details live in `API.md` and
 `docs/provider-contracts.md`; this file is about ownership and lifecycle rules.
 
+Detailed maintainer inventories live next to this overview:
+
+- `docs/services.md` records project service owners and reset rules.
+- `docs/event-ordering.md` records public event ordering and provider identity.
+- `docs/cache-invalidation.md` records cache owners, invalidators, and budgets.
+- `docs/autocmd-lifecycle.md` records buffer-local and runtime autocmd rules.
+- `docs/stable-core-decisions.md` records release policy decisions that should
+  not be hidden in code comments.
+
 ## Workflow-First Target Layout
 
 The long-term layout should make typst.nvim read like a Typst workflow

@@ -166,6 +166,9 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `lint.extra_args` | `list` | `{}` |
 | `lint.provider` | `string` | `"typst"` |
 | `lint.timeout_ms` | `number` | `2000` |
+| `log.file` | `boolean` | `false` |
+| `log.file_max_bytes` | `number` | `1048576` |
+| `log.file_path` | `nil\|string` | `nil` |
 | `log.max_entries` | `number` | `200` |
 | `main` | `nil\|string` | `nil` |
 | `mappings.commands.clean` | `string` | `"<localleader>lc"` |

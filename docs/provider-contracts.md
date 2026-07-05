@@ -79,6 +79,12 @@ Provider methods may complete in one of four ways:
 - Return `{ pending = true, cancel = function(...) ... end }`.
 - Return a raw handle or userdata while completing through the callback.
 
+Inline compiler provider tables supplied directly to `setup()` are validated
+strictly during setup so missing required methods are reported before command
+execution. Registered or dynamically resolved providers that fail validation are
+converted to structured `provider_invalid` failures so command paths can report a
+provider error without throwing.
+
 The adapter enforces a single terminal result. Late duplicate callbacks after a
 timeout, cancellation, or earlier result are logged and ignored.
 
@@ -106,6 +112,8 @@ failure, cancellation, or pending convention.
 ---@class TypstPending
 ---@field pending true
 ---@field result? TypstResult
+---@field on_finish_style? "colon"|"dot"
+---@field cancel_style? "colon"|"dot"
 ---@field cancel? fun(self: TypstPending, opts?: table): boolean, TypstResult?
 ---@field on_finish fun(self: TypstPending, cb: fun(result: TypstResult, handle?: TypstPending)): TypstPending
 ```
@@ -123,6 +131,18 @@ Recovery requires `typst.reset({ force = true })` or
 `:TypstCompilerForceClear[!] [project-key]`. Providers that can confirm shutdown
 should call back with `{ stopped = true }` or report `idle = true` before the
 timeout.
+
+Provider anti-patterns that typst.nvim treats as failures or unconfirmed state:
+
+- returning a pending handle and never calling its finish callback;
+- returning a handle-like table without `pending`, `on_finish`, or terminal
+  result fields;
+- reporting `stopped = true` before the external process or writer is
+  confirmed stopped;
+- writing to the declared output after a timeout without first reporting a
+  retained/orphaned state;
+- using dot-style `on_finish(callback)` or `cancel(opts)` without explicitly
+  setting `on_finish_style = "dot"` or `cancel_style = "dot"` for the adapter.
 
 ### Handle and Result Classification
 
@@ -209,9 +229,11 @@ handle:on_finish(function(result) end)
 
 typst.nvim-owned handles advertise this with `on_finish_style = "colon"`.
 Legacy dot-style handles can be observed only when the adapter explicitly asks
-for that calling convention. Do not infer dot-vs-colon style from function
-arity; Lua callbacks often accept optional arguments, and guessing can register
-the wrong object as the callback.
+for that calling convention. Cancellation has its own calling convention:
+dot-style observation does not imply dot-style cancellation. A handle that needs
+`cancel(opts)` instead of `handle:cancel(opts)` must set `cancel_style = "dot"`.
+Do not infer dot-vs-colon style from function arity; Lua callbacks often accept
+optional arguments, and guessing can register the wrong object as the callback.
 
 The executable provider SDK contract lives in
 `typst.integrations.provider_contract`. It exposes stable kind aliases, method

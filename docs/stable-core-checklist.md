@@ -28,6 +28,8 @@ the feature patch updates the matching tests and docs in the same change.
 - [ ] Lifecycle state machines match `docs/architecture-lifecycle.md`.
 - [ ] Release, compatibility, and deprecation policy match
       `docs/stability-policy.md`.
+- [ ] Service ownership, event ordering, cache invalidation, autocmd lifecycle,
+      and stable-core decisions match their docs.
 
 ## Required negative tests
 
@@ -67,7 +69,8 @@ the feature patch updates the matching tests and docs in the same change.
 
 ## Bug-report policy
 
-- [ ] Any unreproduced lifecycle failure includes `:TypstBugReport` output.
+- [ ] Any unreproduced lifecycle failure includes `:TypstBugReport` or
+      `:TypstSupportBundle` output.
 - [ ] Public support instructions request redacted reports by default.
 - [ ] Unredacted reports are used only for local debugging or explicit
       maintainer requests.
