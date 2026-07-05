@@ -37,11 +37,17 @@ local function normalize_foreign_windows_path(path)
     return normalized
 end
 
---- Join trusted path components without interpreting absolute tails specially.
+--- Join trusted path components without letting absolute tails reset the base.
 ---
 --- This is a lightweight string join for call sites that already validated
---- their components. Use `join_checked()` or `resolve_path()` when any tail
---- component comes from user input, Typst output, or a provider.
+--- their components. Tail components have leading/trailing separators trimmed,
+--- but are not validated for parent traversal. Use `join_checked()` or
+--- `resolve_path()` when any tail component comes from user input, Typst
+--- output, or a provider.
+---
+--- Invariant: local roots stay roots. `join("/", "tmp")` must be `/tmp`, not
+--- `//tmp`, because double-slash paths are intentionally preserved for UNC-like
+--- foreign paths elsewhere in this module.
 function M.join(...)
     local parts = vim.iter({ ... })
         :flatten()
@@ -54,7 +60,37 @@ function M.join(...)
         return ""
     end
 
-    return table.concat(parts, M.path_sep())
+    local sep = M.path_sep()
+    local first = tostring(parts[1])
+    local prefix = nil
+    local joined = {}
+
+    if first:match("^[/\\]+$") then
+        prefix = sep
+        first = ""
+    elseif first:match("^%a:[/\\]*$") then
+        prefix = first:sub(1, 2) .. sep
+        first = ""
+    else
+        first = first:gsub("[/\\]+$", "")
+    end
+
+    if first ~= "" then
+        joined[#joined + 1] = first
+    end
+    for index = 2, #parts do
+        local part = tostring(parts[index])
+        part = part:gsub("^[/\\]+", ""):gsub("[/\\]+$", "")
+        if part ~= "" then
+            joined[#joined + 1] = part
+        end
+    end
+
+    local suffix = table.concat(joined, sep)
+    if prefix then
+        return suffix ~= "" and (prefix .. suffix) or prefix
+    end
+    return suffix
 end
 
 local function has_parent_segment(path)

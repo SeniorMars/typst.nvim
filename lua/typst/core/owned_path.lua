@@ -124,7 +124,7 @@ end
 ---@param path string Directory path to delete.
 ---@param opts? table Ownership policy.
 ---@return boolean ok True when the directory was removed or did not exist.
----@return table|string|nil error Error payload/message when refused or failed.
+---@return table|string|integer|nil error Error payload/message when refused or failed.
 function M.delete_tree(path, opts)
     local ok, result = M.check_tree(path, opts)
     if not ok then

@@ -8,8 +8,13 @@ vim.fn.mkdir(base, "p")
 
 local joined = path.join(base, "/absolute-tail")
 assert(
-    joined == base .. path.path_sep() .. "/absolute-tail",
-    "path.join should document trusted string-concat behavior"
+    joined == base .. path.path_sep() .. "absolute-tail",
+    "path.join should strip accidental leading separators from tail components"
+)
+
+assert(
+    path.join("/", "tmp") == "/tmp",
+    "path.join should preserve POSIX roots without creating UNC-like paths"
 )
 
 local checked = assert(path.join_checked(base, "chapter.typ"))

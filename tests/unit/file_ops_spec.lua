@@ -3,16 +3,26 @@ vim.opt.runtimepath:prepend(root)
 
 local state_store = require("typst.core.state")
 local owned_path = require("typst.core.owned_path")
+local files = require("typst.core.files")
 local util = require("typst.core.util")
 
 local workdir = typst_test_cache_path("file-ops")
 vim.fn.mkdir(workdir, "p")
 
-local original_writefile = vim.fn.writefile
-vim.fn.writefile = function()
-    return -1
+---@param path any
+local function readable_any(path)
+    return files.readable(path)
 end
 
+assert(files.readable(nil) == false, "readable should reject nil paths")
+assert(readable_any(false) == false, "readable should reject boolean paths")
+assert(readable_any({}) == false, "readable should reject table paths")
+assert(files.readable("") == false, "readable should reject empty paths")
+
+local original_writefile = vim.fn.writefile
+rawset(vim.fn, "writefile", function()
+    return -1
+end)
 local ok, err =
     util.writefile_checked({ "new" }, workdir .. "/failed-write.txt")
 assert(
@@ -35,10 +45,9 @@ assert(
 vim.fn.writefile = original_writefile
 
 local original_delete = vim.fn.delete
-vim.fn.delete = function()
+rawset(vim.fn, "delete", function()
     return -1
-end
-
+end)
 ok, err = util.delete_checked(workdir .. "/missing-delete.txt")
 assert(
     not ok and tostring(err):find("delete returned", 1, true),
@@ -200,7 +209,7 @@ if vim.uv.fs_fsync then
         return original_fsync(fd)
     end
 
-    ok, err = util.atomic_writefile({ "durable" }, durable_path, {
+    ok, err = files.atomic_writefile({ "durable" }, durable_path, {
         durable = true,
     })
     vim.uv.fs_fsync = original_fsync

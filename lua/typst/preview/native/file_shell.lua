@@ -84,7 +84,6 @@ function M.write(project, path, browser, id, result)
     end
 
     write_state(state_path, state_payload(project, path, generation))
-
     return {
         url = file_url(html_path),
         path = html_path,

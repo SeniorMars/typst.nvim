@@ -4,11 +4,8 @@ vim.opt.runtimepath:prepend(root)
 local output_policy = require("typst.core.output_policy")
 local util = require("typst.core.util")
 
-local tmp = util.join(
-    root,
-    typst_test_root_path("cache/typst.nvim"),
-    "output-policy-spec"
-)
+local tmp = typst_test_cache_path("output-policy-spec")
+assert(util.is_absolute(tmp), "output policy fixture path must be absolute")
 vim.fn.delete(tmp, "rf")
 vim.fn.mkdir(tmp, "p")
 

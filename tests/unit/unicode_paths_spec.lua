@@ -28,7 +28,6 @@ typst.setup({
     output_dir = output_dir,
     allow_external_output = true,
 })
-
 vim.cmd.edit(vim.fn.fnameescape(main))
 local project = typst.project.set_main(main)
 assert(
@@ -42,6 +41,7 @@ assert(
 )
 
 if vim.fn.executable("typst") == 1 then
+    ---@type any
     local compile_result = nil
     local handle = typst.compiler.compile({ notify = false }, function(result)
         compile_result = result

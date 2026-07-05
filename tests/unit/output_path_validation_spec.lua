@@ -33,9 +33,9 @@ rejects("paper\0name", "NUL output_name")
 rejects("paper\nname", "control-character output_name")
 
 local original_is_windows = path_util.is_windows
-path_util.is_windows = function()
+rawset(path_util, "is_windows", function()
     return true
-end
+end)
 rejects("paper:name", "Windows reserved character output_name")
 rejects("paper*name", "Windows wildcard output_name")
 rejects("paper.", "Windows trailing dot output_name")

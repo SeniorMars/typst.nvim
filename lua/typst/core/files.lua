@@ -14,7 +14,9 @@ local temp_counter = 0
 ---@param path? string File path to inspect.
 ---@return boolean readable True when Neovim can read the file.
 function M.readable(path)
-    return path and vim.fn.filereadable(path) == 1
+    return type(path) == "string"
+        and path ~= ""
+        and vim.fn.filereadable(path) == 1
 end
 
 --- Create the parent directory for a path when needed.
@@ -82,7 +84,7 @@ end
 ---@param path string Directory path to delete.
 ---@param opts? table Ownership policy.
 ---@return boolean ok True when the directory was removed or did not exist.
----@return table|string|nil error Error payload/message when refused or failed.
+---@return table|string|integer|nil error Error payload/message when refused or failed.
 function M.delete_owned_tree(path, opts)
     return owned_path.delete_tree(path, opts)
 end
@@ -268,7 +270,9 @@ function M.atomic_writefile(lines, path, opts)
         backup = backup,
     }, opts)
     if not journal_ok then
-        M.delete_checked(journal)
+        if journal then
+            M.delete_checked(journal)
+        end
         return false,
             {
                 reason = "journal_failed",
