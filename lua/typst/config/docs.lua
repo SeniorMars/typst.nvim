@@ -20,6 +20,7 @@ local optional_nil_defaults = {
     "integrations.tinymist.capabilities",
     "integrations.tinymist.on_attach",
     "lint.command",
+    "log.file_path",
     "picker.custom",
     "render.provider",
     "render.display_provider",
@@ -56,6 +57,7 @@ local optional_nil_defaults = {
 local optional_types = {
     ["integrations.tinymist.capabilities"] = "nil|table",
     ["integrations.tinymist.on_attach"] = "nil|function",
+    ["log.file_path"] = "nil|string",
     ["integrations.semantic.provider"] = "nil|string|function|table",
     ["compile.provider"] = "nil|string|function|table",
     ["exports.provider"] = "nil|string|function|table",

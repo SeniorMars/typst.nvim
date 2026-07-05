@@ -119,6 +119,15 @@ end
 local function check_project_resources(findings, projects)
     for key, project in pairs(projects) do
         local services = project_services.ensure(project)
+        if not services then
+            add(
+                findings,
+                "project_services_missing",
+                "project services are unavailable",
+                { project = key }
+            )
+            goto continue
+        end
         local compiler = services.compiler or {}
         local operations = services.operations or {}
         if
@@ -139,6 +148,7 @@ local function check_project_resources(findings, projects)
                 { project = key }
             )
         end
+        ::continue::
     end
 end
 
@@ -240,6 +250,7 @@ end
 
 function M.check_invariants()
     local findings = {}
+    ---@type table<string, TypstProject>
     local projects = project_store.all()
 
     check_buffer_mappings(findings, projects)
@@ -249,7 +260,6 @@ function M.check_invariants()
     check_leases(findings)
     check_diagnostic_namespaces(findings, projects)
     check_follow_buffer_autocmds(findings)
-
     return {
         ok = #findings == 0,
         findings = findings,
@@ -315,6 +325,8 @@ local function collect_redaction_paths(opts)
         end
     end
 
+    add(vim.fn.getcwd(), "<cwd>")
+
     local project_index = 0
     for _, project in pairs(project_store.all()) do
         if type(project.root) == "string" then
@@ -333,7 +345,10 @@ local function collect_redaction_paths(opts)
     add(vim.fn.stdpath("state"), "<state>")
     add(vim.fn.stdpath("data"), "<data>")
     add(vim.fn.stdpath("config"), "<config>")
-
+    add(vim.uv.os_homedir(), "~")
+    table.sort(paths, function(left, right)
+        return #left.path > #right.path
+    end)
     return paths
 end
 
@@ -351,16 +366,9 @@ local function redact_string(value, opts)
         return value
     end
 
-    local cwd = vim.fn.getcwd()
-    value = replace_path(value, cwd, "<cwd>")
-
     for _, entry in ipairs(opts._redaction_paths or {}) do
         value = replace_path(value, entry.path, entry.token)
     end
-
-    local home = vim.uv.os_homedir()
-    value = replace_path(value, home, "~")
-
     return value
 end
 
@@ -534,8 +542,8 @@ local function typst_version()
 end
 
 ---Build a redacted support artifact for bug reports.
----@param opts? {redact?:boolean, max_depth?:integer, max_logs?:integer, max_operations?:integer, max_projects?:integer, max_retained?:integer, max_telemetry_entries?:integer, pretty?:boolean} Bug-report controls.
----@return table data Structured report data.
+---@param opts? {redact?:boolean, redact_paths?:table, max_depth?:integer, max_logs?:integer, max_operations?:integer, max_projects?:integer, max_retained?:integer, max_telemetry_entries?:integer, pretty?:boolean} Bug-report controls.
+---@return any data Structured report data after redaction/truncation.
 function M.bug_report_data(opts)
     opts = with_redaction_paths(opts or {})
     opts._limits = limits_for(opts)
@@ -590,6 +598,7 @@ function M.bug_report_data(opts)
             snapshot = telemetry_snapshot,
             report = telemetry_report,
         },
+        log_file = log.file_state(),
         logs = tail(log.entries(), opts._limits.max_logs),
     }
 
@@ -652,7 +661,6 @@ local function pretty_json(encoded)
         end
     end
     push()
-
     return lines
 end
 
@@ -674,7 +682,7 @@ local function encode_bug_report(data, opts)
 end
 
 ---Return JSON lines for a bug-report artifact.
----@param opts? table Bug-report controls.
+---@param opts? {redact?:boolean, redact_paths?:table, max_depth?:integer, max_logs?:integer, max_operations?:integer, max_projects?:integer, max_retained?:integer, max_telemetry_entries?:integer, pretty?:boolean} Bug-report controls.
 ---@return string[]|nil lines JSON report lines.
 ---@return table|nil error Structured encode failure.
 function M.bug_report_lines(opts)
@@ -683,13 +691,40 @@ function M.bug_report_lines(opts)
 end
 
 ---Create a bug-report artifact, optionally writing/opening it.
----@param opts? {open?:boolean, path?:string, redact?:boolean} Controls.
+---@param opts? {open?:boolean, path?:string, redact?:boolean, redact_paths?:table, max_depth?:integer, max_logs?:integer, max_operations?:integer, max_projects?:integer, max_retained?:integer, max_telemetry_entries?:integer, pretty?:boolean} Controls.
 ---@return table result Bug-report result with `data`, `lines`, and optional buffer/path.
 function M.bug_report(opts)
     opts = opts or {}
-    local data = M.bug_report_data(opts)
-    local lines, encode_error = encode_bug_report(data, opts)
+    local data_opts = {
+        redact = opts.redact,
+        redact_paths = opts.redact_paths,
+        max_depth = opts.max_depth,
+        max_logs = opts.max_logs,
+        max_operations = opts.max_operations,
+        max_projects = opts.max_projects,
+        max_retained = opts.max_retained,
+        max_telemetry_entries = opts.max_telemetry_entries,
+        pretty = opts.pretty,
+    }
+    local data = M.bug_report_data(data_opts)
+    local encode_opts = {
+        redact = opts.redact ~= false,
+        max_depth = opts.max_depth,
+        max_logs = opts.max_logs,
+        max_operations = opts.max_operations,
+        max_projects = opts.max_projects,
+        max_retained = opts.max_retained,
+        max_telemetry_entries = opts.max_telemetry_entries,
+        pretty = opts.pretty,
+    }
+    local lines, encode_error = encode_bug_report(data, encode_opts)
     if not lines then
+        encode_error = encode_error
+            or {
+                ok = false,
+                reason = "json_encode_failed",
+                message = "Failed to encode bug report",
+            }
         encode_error.redacted = opts.redact ~= false
         return encode_error
     end

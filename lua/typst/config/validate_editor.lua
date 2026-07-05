@@ -522,6 +522,15 @@ function M.log(log)
     if type(log.max_entries) ~= "number" or log.max_entries < 0 then
         error("typst.nvim: log.max_entries must be a non-negative number")
     end
+    if type(log.file) ~= "boolean" then
+        error("typst.nvim: log.file must be a boolean")
+    end
+    if log.file_path ~= nil and type(log.file_path) ~= "string" then
+        error("typst.nvim: log.file_path must be a string or nil")
+    end
+    if type(log.file_max_bytes) ~= "number" or log.file_max_bytes < 0 then
+        error("typst.nvim: log.file_max_bytes must be a non-negative number")
+    end
 end
 
 return M

@@ -36,6 +36,33 @@ local function run_invariant_check(ctx)
     return result
 end
 
+local function run_support_report(ctx, args, label)
+    local result = require("typst").report({
+        open = args.args == "",
+        path = args.args ~= "" and args.args or nil,
+        redact = not args.bang,
+    })
+    if type(result) ~= "table" then
+        notify(
+            ctx,
+            ("Typst %s failed: invalid report result"):format(label),
+            vim.log.levels.ERROR
+        )
+        return result
+    end
+    if result.ok and result.path then
+        notify(ctx, ("Typst %s written to %s"):format(label, result.path))
+    elseif result.ok then
+        notify(ctx, ("Typst %s opened"):format(label))
+    else
+        notify(
+            ctx,
+            result.message or ("Typst %s failed"):format(label),
+            vim.log.levels.ERROR
+        )
+    end
+end
+
 function M.register(ctx)
     create("TypstCheckInvariants", function()
         run_invariant_check(ctx)
@@ -48,29 +75,25 @@ function M.register(ctx)
     create(
         "TypstBugReport",
         function(args)
-            local result = require("typst").report({
-                open = args.args == "",
-                path = args.args ~= "" and args.args or nil,
-                redact = not args.bang,
-            })
-            if result.ok and result.path then
-                notify(
-                    ctx,
-                    ("Typst bug report written to %s"):format(result.path)
-                )
-            elseif result.ok then
-                notify(ctx, "Typst bug report opened")
-            else
-                notify(
-                    ctx,
-                    result.message or "Typst bug report failed",
-                    vim.log.levels.ERROR
-                )
-            end
+            run_support_report(ctx, args, "bug report")
         end,
         vim.tbl_extend(
             "force",
             opts("Generate a redacted typst.nvim bug report", "?", "file"),
+            {
+                bang = true,
+            }
+        )
+    )
+
+    create(
+        "TypstSupportBundle",
+        function(args)
+            run_support_report(ctx, args, "support bundle")
+        end,
+        vim.tbl_extend(
+            "force",
+            opts("Generate a redacted typst.nvim support bundle", "?", "file"),
             {
                 bang = true,
             }

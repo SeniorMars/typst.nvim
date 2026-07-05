@@ -21,6 +21,24 @@ local reset_generation = 0
 -- payload changes should be additive unless the public API version changes.
 local aliases = require("typst.api.contract").event_aliases()
 
+local function provider_label(project, compiler)
+    -- Provider identity belongs to the active compiler binding, not the current
+    -- global config. setup() may reconfigure providers while an older
+    -- compile/watch is still stopping or emitting terminal events, so current
+    -- config is only a fallback when no project-local owner is recorded.
+    if type(compiler.provider_label) == "string" then
+        return compiler.provider_label
+    end
+    if
+        type(project) == "table"
+        and type(project.compiler_provider) == "table"
+        and type(project.compiler_provider.label) == "string"
+    then
+        return project.compiler_provider.label
+    end
+    return config.provider_label()
+end
+
 --- Build the payload used for Typst `User` lifecycle events.
 ---@param project table Project state whose service metadata should be exposed.
 ---@param overrides? table Event-specific payload fields.
@@ -35,7 +53,7 @@ function M.data(project, overrides)
         main = project.main,
         output = compiler.output,
         status = compiler.status,
-        provider = config.provider_label(),
+        provider = provider_label(project, compiler),
         profile = compiler.last_profile,
         cwd = compiler.last_cwd or project.root,
         command = compiler.last_command and vim.deepcopy(compiler.last_command)

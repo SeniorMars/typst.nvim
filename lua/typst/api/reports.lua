@@ -173,7 +173,6 @@ function M.install(api, notify)
         table.sort(snapshots, function(left, right)
             return (left.main or "") < (right.main or "")
         end)
-
         local lines = reports.status_all_lines(snapshots)
         if opts.open then
             local buf = reports.open_scratch_buffer(

@@ -9,6 +9,7 @@ local semantic_provider = require("typst.integrations.semantic_provider")
 local tinymist = require("typst.integrations.tinymist")
 local preview = require("typst.integrations.typst_preview")
 local project = require("typst.project")
+local project_root = require("typst.project.root")
 local project_store = require("typst.project.store")
 local artifacts_service = require("typst.project.services.artifacts")
 local compiler_service = require("typst.project.services.compiler")
@@ -133,7 +134,6 @@ local function conceal_math_capture_status()
             vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
                 "$ cal(A) + bb(R) + frak(g) + bold(x) + a <= b + a -> b + a != b + abs(x) + norm(x) + sqrt(x) $",
             })
-
             local ok_query, query =
                 pcall(vim.treesitter.query.get, "typst", "conceal")
             if not ok_query or not query then
@@ -549,6 +549,7 @@ local function project_status_line(state)
     end
 
     if compiler_state.watcher then
+        ---@type table
         local watcher = compiler_state.watcher
         fields[#fields + 1] = ("watcher_pid=%s"):format(
             active_pid(watcher) or "<unknown>"
@@ -774,6 +775,12 @@ function M.check()
             opts.project.import_scan_max_entries
         )
     )
+    local import_scan_stats = project_root._import_scan_stats()
+    ok(
+        ("Import scan stats: %s"):format(
+            project_root.import_scan_stats_summary(import_scan_stats)
+        )
+    )
     ok(
         ("Dependency capture: %s"):format(
             opts.compile.deps and "enabled" or "disabled"
@@ -790,6 +797,12 @@ function M.check()
         ("Diagnostics list: %s (%s)"):format(
             opts.diagnostics.use_quickfix and "enabled" or "manual",
             opts.diagnostics.list or "quickfix"
+        )
+    )
+    ok(
+        ("Diagnostics external paths: %s (max buffers per publish: %d)"):format(
+            opts.diagnostics.external_paths or "bufadd",
+            opts.diagnostics.max_buffers_per_publish or 0
         )
     )
     ok(

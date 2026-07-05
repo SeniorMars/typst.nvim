@@ -1,3 +1,5 @@
+local log = require("typst.core.log")
+
 local M = {}
 
 --- Send a typst.nvim notification through the default Neovim UI.
@@ -13,7 +15,15 @@ end
 ---@param level? integer `vim.log.levels` severity; defaults to INFO.
 function M.user(notify, message, level)
     if notify then
-        notify(message, level)
+        local ok, err = pcall(notify, message, level)
+        if ok then
+            return
+        end
+        log.add("warn", "notification callback failed", {
+            error = tostring(err),
+            message = message,
+        })
+        M.default(message, level)
         return
     end
     M.default(message, level)

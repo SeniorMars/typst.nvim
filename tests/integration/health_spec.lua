@@ -11,7 +11,9 @@ local function cleanup()
     pcall(function()
         typst.reset({ force = true })
     end)
-    pcall(vim.cmd, "silent! %bwipeout!")
+    pcall(function()
+        vim.cmd("silent! %bwipeout!")
+    end)
 end
 
 local function run_case(name, fn)
@@ -75,13 +77,12 @@ local function with_preview_unavailable(fn)
     local old_available = preview.available
     local old_command_available = preview.command_available
 
-    preview.available = function()
+    rawset(preview, "available", function()
         return false
-    end
-    preview.command_available = function()
+    end)
+    rawset(preview, "command_available", function()
         return false
-    end
-
+    end)
     local ok, err = xpcall(fn, debug.traceback)
 
     preview.available = old_available
@@ -99,7 +100,6 @@ run_case("native preview and project report", function()
             fallback = "view",
         },
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     typst.project.set_main(main)
@@ -108,7 +108,6 @@ run_case("native preview and project report", function()
     with_preview_unavailable(function()
         messages = capture_health()
     end)
-
     local saw_native_preview = false
     local saw_project_decision = false
     local saw_project_diagnostics = false
@@ -243,7 +242,6 @@ run_case("native preview and project report", function()
         "health should report the import-scan entry cap"
     )
 end)
-
 run_case("missing treesitter is warning-only", function()
     typst.setup({
         root = root,
@@ -254,17 +252,15 @@ run_case("missing treesitter is warning-only", function()
             fallback = "view",
         },
     })
-
     local old_get_lang = vim.treesitter.language.get_lang
     local old_query_get = vim.treesitter.query.get
 
-    vim.treesitter.language.get_lang = function()
+    rawset(vim.treesitter.language, "get_lang", function()
         error("missing typst parser")
-    end
-    vim.treesitter.query.get = function()
+    end)
+    rawset(vim.treesitter.query, "get", function()
         error("missing typst query")
-    end
-
+    end)
     local messages
     local ok, err = xpcall(function()
         with_preview_unavailable(function()
@@ -330,7 +326,6 @@ run_case("missing treesitter is warning-only", function()
         "custom compiler provider health should not require the Typst CLI"
     )
 end)
-
 run_case("compiler provider state", function()
     local provider = {
         name = "health-provider",
@@ -375,7 +370,6 @@ run_case("compiler provider state", function()
             },
         },
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
@@ -443,7 +437,6 @@ run_case("compiler provider state", function()
             provider = "typst_missing_health_provider",
         },
     })
-
     messages = capture_health()
 
     local saw_missing_provider = false
@@ -465,7 +458,6 @@ run_case("compiler provider state", function()
         "health should warn about missing string compiler providers"
     )
 end)
-
 run_case("tinymist ownership report", function()
     local old_get_clients = vim.lsp.get_clients
     local old_coc_initialized = vim.g.coc_service_initialized
@@ -502,12 +494,12 @@ run_case("tinymist ownership report", function()
         })
         typst.project.set_main(main)
 
-        vim.lsp.get_clients = function(opts)
+        rawset(vim.lsp, "get_clients", function(opts)
             if opts and opts.bufnr and opts.bufnr ~= bufnr then
                 return {}
             end
             return { tinymist_client() }
-        end
+        end)
 
         local messages = capture_health()
         assert(
@@ -569,14 +561,14 @@ run_case("tinymist ownership report", function()
             },
         })
         typst.project.set_main(main)
-        vim.lsp.get_clients = function(opts)
+        rawset(vim.lsp, "get_clients", function(opts)
             if opts and opts.bufnr and opts.bufnr ~= bufnr then
                 return {}
             end
             local client = tinymist_client()
             client.name = "tinymist_custom"
             return { client }
-        end
+        end)
 
         messages = capture_health()
         assert(
@@ -588,12 +580,12 @@ run_case("tinymist ownership report", function()
             "health output should use configured Tinymist client names"
         )
 
-        vim.lsp.get_clients = function(opts)
+        rawset(vim.lsp, "get_clients", function(opts)
             if opts and opts.bufnr and opts.bufnr ~= bufnr then
                 return {}
             end
             return { tinymist_client() }
-        end
+        end)
 
         vim.g.coc_service_initialized = 1
         typst.reset()
@@ -606,7 +598,6 @@ run_case("tinymist ownership report", function()
                 },
             },
         })
-
         messages = capture_health()
         assert(
             has_message(messages, "ok", "coc.nvim detected for Tinymist policy"),
@@ -633,7 +624,6 @@ run_case("tinymist ownership report", function()
         error(err)
     end
 end)
-
 run_case("remote browser preview host warns", function()
     typst.setup({
         root = root,
@@ -645,12 +635,10 @@ run_case("remote browser preview host warns", function()
             },
         },
     })
-
     local messages = capture_health()
     assert(
         has_message(messages, "warn", "non-loopback host"),
         "health should warn when browser preview binds beyond loopback"
     )
 end)
-
 vim.cmd("qa!")

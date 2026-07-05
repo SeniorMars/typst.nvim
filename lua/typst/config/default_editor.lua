@@ -357,6 +357,8 @@ end
 function M.log()
     return {
         max_entries = 200,
+        file = false,
+        file_max_bytes = 1024 * 1024,
     }
 end
 

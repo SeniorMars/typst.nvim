@@ -16,7 +16,6 @@ local ok, err = xpcall(function()
     vim.api.nvim_set_current_buf(bufnr)
     vim.bo[bufnr].filetype = "typst"
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "alpha" })
-
     completion_lsp.reset()
     local lsp_callback = nil
     tinymist.clients = function(client_bufnr)
@@ -102,9 +101,9 @@ local ok, err = xpcall(function()
     )
 
     local follow_callback_ran = false
-    follow.resolve = function()
+    rawset(follow, "resolve", function()
         return { kind = "label", name = "target" }
-    end
+    end)
     local follow_ok = pcall(function()
         follow.follow({
             open = false,
@@ -121,7 +120,7 @@ local ok, err = xpcall(function()
     )
 
     local process_exit_called = false
-    vim.system = function(_command, _opts, on_exit)
+    rawset(vim, "system", function(_command, _opts, on_exit)
         vim.schedule(function()
             on_exit({ code = 0, stdout = "", stderr = "" })
         end)
@@ -136,7 +135,7 @@ local ok, err = xpcall(function()
                 return { code = 0, stdout = "", stderr = "" }
             end,
         }
-    end
+    end)
     process.spawn({ "fake" }, {}, {
         on_exit = function()
             process_exit_called = true

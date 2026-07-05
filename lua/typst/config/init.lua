@@ -58,6 +58,7 @@ local known_optional_paths = {
     ["integrations.tinymist.cmd"] = true,
     ["integrations.tinymist.on_attach"] = true,
     ["lint.command"] = true,
+    ["log.file_path"] = true,
     ["picker.custom"] = true,
     ["preview.browser.app"] = true,
     ["preview.browser.commands"] = true,
@@ -432,6 +433,45 @@ end
 ---@return string[] keys Fully qualified unknown config keys.
 function M.last_unknown_keys()
     return vim.deepcopy(last_unknown_keys)
+end
+
+--- Collect unknown config paths without installing the config.
+---
+--- This is intentionally test-only so the public API does not grow around the
+--- current hand-maintained config metadata.
+---@param opts table User config fragment.
+---@return string[] keys Fully qualified unknown config keys.
+function M._collect_unknown_keys_for_tests(opts)
+    return collect_unknown_keys(
+        vim.deepcopy(materialize(opts or {})),
+        defaults_provider.values(),
+        "",
+        {}
+    ) or {}
+end
+
+---@param path string Dotted config path.
+---@return boolean known True when runtime unknown-key logic accepts the path.
+function M._known_path_for_tests(path)
+    if type(path) ~= "string" or path == "" then
+        return false
+    end
+    if known_optional_paths[path] or dynamic_config_paths[path] then
+        return true
+    end
+
+    ---@type any
+    local current_default = defaults_provider.values()
+    for segment in path:gmatch("[^%.]+") do
+        if type(current_default) ~= "table" then
+            return false
+        end
+        current_default = current_default[segment]
+        if current_default == nil then
+            return false
+        end
+    end
+    return true
 end
 
 --- Return known compile profile names in sorted order.

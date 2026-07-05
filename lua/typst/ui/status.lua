@@ -97,7 +97,6 @@ function M.snapshot(bufnr, opts)
     local output = compiler_state.output
 
     local semantic_status = semantic_provider.status(state)
-
     return add_telemetry({
         attached = true,
         bufnr = resolved_bufnr,

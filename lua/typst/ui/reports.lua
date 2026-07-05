@@ -11,6 +11,7 @@ local diagnostics_service = require("typst.project.services.diagnostics")
 local graph_service = require("typst.project.services.graph")
 local preview_cache = require("typst.preview.cache")
 local native_preview_session = require("typst.preview.native.session")
+local project_root = require("typst.project.root")
 local preview_service = require("typst.project.services.preview")
 local viewer_service = require("typst.project.services.viewer")
 local status = require("typst.ui.status")
@@ -120,7 +121,6 @@ function M.open_scratch_buffer(name, filetype, lines)
     vim.bo[buf].modifiable = false
     vim.cmd("botright split")
     vim.api.nvim_win_set_buf(0, buf)
-
     return buf
 end
 
@@ -394,6 +394,7 @@ function M.preview_status_lines(state)
         lines[#lines + 1] = ("  export: %s"):format(export_label)
     end
     if type(preview_state.last_error) == "table" then
+        ---@type table
         local err = preview_state.last_error
         lines[#lines + 1] = ("  last error: %s"):format(
             err.message or err.reason or vim.inspect(err)
@@ -599,6 +600,15 @@ function M.project_lines(state, bufnr, opts)
                 table.concat(cache_status.loaded, ", ")
             )
         end
+        local import_scan_stats = project_root._import_scan_stats()
+        lines[#lines + 1] = ("  import scan stats: %s"):format(
+            project_root.import_scan_stats_summary(import_scan_stats)
+        )
+        if import_scan_stats.last_skipped_root then
+            lines[#lines + 1] = ("    last skipped root: %s"):format(
+                util.relpath(import_scan_stats.last_skipped_root, state.root)
+            )
+        end
     end
 
     if resolution then
@@ -640,6 +650,7 @@ function M.project_lines(state, bufnr, opts)
     end
 
     if compiler_state.watcher then
+        ---@type table
         local watcher = compiler_state.watcher
         lines[#lines + 1] = ("  watcher pid: %s"):format(
             watcher.handle and watcher.handle.pid or "<unknown>"

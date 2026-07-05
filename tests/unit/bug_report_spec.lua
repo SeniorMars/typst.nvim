@@ -2,13 +2,13 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local typst = require("typst")
+local log = require("typst.core.log")
 
 typst.reset()
 typst.setup({
     root = root,
     output_dir = typst_test_cache_path("bug-report-output"),
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -33,6 +33,11 @@ assert(
 assert(
     type(result.data.projects) == "table" and #result.data.projects >= 1,
     "bug report should include project snapshots"
+)
+assert(
+    type(result.data.log_file) == "table"
+        and result.data.log_file.dropped ~= nil,
+    "bug report should include file log sink state"
 )
 assert(
     type(result.lines) == "table" and type(result.lines[1]) == "string",
@@ -99,6 +104,47 @@ assert(
     report_text(result):find("<cwd>", 1, true),
     "redacted bug report should replace the cwd with a stable token"
 )
+
+local private_log_dir = typst_test_state_path("bug-report-output/private-log")
+local private_log_path = private_log_dir .. "/typst.nvim.log.jsonl"
+typst.reset({ force = true })
+typst.setup({
+    root = root,
+    output_dir = typst_test_cache_path("bug-report-output/log-redaction"),
+    log = {
+        file = true,
+        file_path = private_log_path,
+        file_max_bytes = 4096,
+    },
+})
+log.add("info", "bug report log path redaction")
+local log_path_report = typst.report({
+    open = false,
+    echo = false,
+    redact_paths = {
+        {
+            path = private_log_dir,
+            token = "<private-log>",
+        },
+    },
+})
+assert(log_path_report.ok == true, "log path redaction report should generate")
+assert(
+    not report_text(log_path_report):find(private_log_dir, 1, true),
+    "redacted bug report should not include log_file.last_path directories"
+)
+assert(
+    report_text(log_path_report):find("<private-log>", 1, true),
+    "redacted bug report should redact log_file.last_path recursively"
+)
+
+typst.reset({ force = true })
+typst.setup({
+    root = root,
+    output_dir = typst_test_cache_path("bug-report-output"),
+})
+vim.cmd.edit(main)
+project = typst.project.set_main(main)
 
 local unredacted = typst.report({ open = false, redact = false })
 local saw_project_key = false
@@ -182,11 +228,11 @@ assert(
 )
 
 local original_encode = vim.json.encode
-vim.json.encode = function()
+rawset(vim.json, "encode", function()
     error("synthetic encode failure")
-end
+end)
 local ok_report, encode_failure = pcall(typst.report, { open = false })
-vim.json.encode = original_encode
+rawset(vim.json, "encode", original_encode)
 assert(ok_report, "bug report encode failure should not throw")
 assert(
     encode_failure.ok == false and encode_failure.reason == "json_encode_failed",
