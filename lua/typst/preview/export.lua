@@ -315,7 +315,6 @@ local function wrap_pending(export_handle, complete)
             return complete(raw)
         end,
     })
-
     return handle, handle.finish
 end
 
@@ -339,7 +338,7 @@ function M.resolve(project, target, callback, opts)
     end
 
     local opts, opts_error = export_opts(project, target, export)
-    if opts_error then
+    if opts_error or not opts then
         return failed(project, export, target, opts_error)
     end
     export.output_dir = opts.output_dir
@@ -384,6 +383,10 @@ function M.resolve(project, target, callback, opts)
 
     if completed then
         return completed_result
+            or failed(project, export, target, {
+                reason = "preview_export_failed",
+                message = "Preview export completed without a result",
+            })
     end
 
     if type(export_handle) == "table" and export_handle.pending == true then
@@ -393,6 +396,10 @@ function M.resolve(project, target, callback, opts)
     end
 
     return complete(export_handle)
+        or failed(project, export, target, {
+            reason = "preview_export_failed",
+            message = "Preview export completed without a result",
+        })
 end
 
 return M

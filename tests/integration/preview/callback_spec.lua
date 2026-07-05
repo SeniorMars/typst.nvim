@@ -4,6 +4,7 @@ vim.opt.runtimepath:prepend(root)
 local typst = require("typst")
 typst.reset()
 
+---@type any
 local callback_project = nil
 local callback_mode = nil
 
@@ -18,7 +19,6 @@ typst.setup({
         end,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -30,7 +30,6 @@ vim.api.nvim_create_autocmd("User", {
         preview_event = args.data
     end,
 })
-
 local result = typst.viewer.preview({ mode = "slide" })
 assert(result == "callback", "configured preview callback was not used")
 assert(

@@ -331,7 +331,6 @@ local function clean_impl(state, opts, notify)
         preview_artifacts_skipped = preview_clean.skipped or {},
         preview_artifacts_failed = preview_clean.failed or {},
     })
-
     notify_clean_result(
         state,
         notify,
@@ -341,7 +340,6 @@ local function clean_impl(state, opts, notify)
         skipped_temp,
         preview_clean
     )
-
     return {
         output = output,
         deleted = deleted_output,
@@ -365,13 +363,14 @@ end
 ---@return table result Clean summary with deleted output and temporary paths.
 function M.clean(state, opts, notify)
     opts = opts or {}
-    return telemetry.time("viewer.clean", function()
+    local result = telemetry.time("viewer.clean", function()
         return clean_impl(state, opts, notify)
     end, {
         all = opts.all == true,
         outputs = opts.outputs == true,
         force = opts.force == true,
     })
+    return result
 end
 
 --- Remove temporary artifacts and request output cleanup for a project.
@@ -382,11 +381,12 @@ end
 function M.clean_output(state, opts, notify)
     opts = opts or {}
     opts.all = true
-    return telemetry.time("viewer.clean_output", function()
+    local result = telemetry.time("viewer.clean_output", function()
         return clean_impl(state, opts, notify)
     end, {
         force = opts.force == true,
     })
+    return result
 end
 
 local function clean_preview_impl(state, opts, notify)
@@ -395,7 +395,6 @@ local function clean_preview_impl(state, opts, notify)
     local deleted = #(result.deleted or {})
     local skipped = #(result.skipped or {})
     local failed = #(result.failed or {})
-
     if failed > 0 then
         notify_user(
             notify,
@@ -430,11 +429,12 @@ end
 ---@return table result Clean summary for preview-owned artifacts.
 function M.clean_preview(state, opts, notify)
     opts = opts or {}
-    return telemetry.time("viewer.clean_preview", function()
+    local result = telemetry.time("viewer.clean_preview", function()
         return clean_preview_impl(state, opts, notify)
     end, {
         force = opts.force == true,
     })
+    return result
 end
 
 return M

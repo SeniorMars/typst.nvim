@@ -46,7 +46,6 @@ local function unsupported_result(viewer, action, message, extra)
         capabilities = viewer.capabilities,
         detail = result.detail,
     })
-
     return result
 end
 

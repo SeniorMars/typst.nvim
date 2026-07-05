@@ -8,7 +8,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("conceal-real-edit-output"),
 })
-
 local conceal = require("typst.conceal")
 local match_query = require("typst.conceal.match_query")
 
@@ -24,19 +23,22 @@ lines[11] = "$ alpha $"
 lines[141] = "$ beta $"
 vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
 
-local parser = vim.treesitter.get_parser(bufnr, "typst")
+local parser = assert(vim.treesitter.get_parser(bufnr, "typst"))
 parser:parse()
 
 local old_query = match_query.query
 local query_calls = {}
-match_query.query = function(query_bufnr, start_row, end_row, custom_conceal)
-    query_calls[#query_calls + 1] = {
-        start_row = start_row,
-        end_row = end_row,
-    }
-    return old_query(query_bufnr, start_row, end_row, custom_conceal)
-end
-
+rawset(
+    match_query,
+    "query",
+    function(query_bufnr, start_row, end_row, custom_conceal)
+        query_calls[#query_calls + 1] = {
+            start_row = start_row,
+            end_row = end_row,
+        }
+        return old_query(query_bufnr, start_row, end_row, custom_conceal)
+    end
+)
 local function has_source(items, source)
     for _, match in ipairs(items or {}) do
         if match.source_text == source then

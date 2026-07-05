@@ -74,6 +74,9 @@ local function mapping_matches(mapping, identity)
     end
 
     local current = mapping_identity(mapping)
+    if not current then
+        return false
+    end
     return current.lhs == identity.lhs
         and current.rhs == identity.rhs
         and current.callback == identity.callback
@@ -224,11 +227,7 @@ function M.restore(bufnr)
 
     for winid, by_buffer in pairs(window_state) do
         local win_state = by_buffer[bufnr]
-        if
-            win_state
-            and vim.api.nvim_win_is_valid(winid)
-            and vim.api.nvim_win_get_buf(winid) == bufnr
-        then
+        if win_state and vim.api.nvim_win_is_valid(winid) then
             for name, option in pairs(win_state.options or {}) do
                 if vim.wo[winid][name] == option.installed then
                     vim.wo[winid][name] = option.previous

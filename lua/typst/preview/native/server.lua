@@ -7,12 +7,23 @@ local uv = vim.uv or vim.loop
 
 local M = {}
 
+---@class TypstPreviewNativeServerState
+---@field handle any
+---@field host string
+---@field port integer
+---@field browser table?
+---@field source_map boolean?
+---@field source_map_provider string?
+---@field source_map_path string?
+---@field root string?
+---@field project_id string?
+
+---@type TypstPreviewNativeServerState?
 local server = nil
 local HEADER_LIMIT_BYTES = 64 * 1024
 local READ_TIMEOUT_MS = 5000
 local STREAM_CHUNK_BYTES = 64 * 1024
 local response_started = setmetatable({}, { __mode = "k" })
-
 local function loopback_host(host)
     return host == "127.0.0.1"
         or host == "localhost"
@@ -450,13 +461,14 @@ function M.start(browser)
         error(remote_error())
     end
 
-    if is_running(server) then
-        if server.host == host and (port == 0 or server.port == port) then
-            return server
+    local current = server
+    if current and is_running(current) then
+        if current.host == host and (port == 0 or current.port == port) then
+            return current
         end
     end
 
-    local previous = server
+    local previous = current
 
     local handle, new_err = uv.new_tcp()
     if not handle then

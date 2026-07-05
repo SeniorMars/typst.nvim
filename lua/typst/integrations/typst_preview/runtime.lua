@@ -142,7 +142,6 @@ function M.run_at_position(project, command, position)
     local ok, err = pcall(with_project_cwd, project, function()
         vim.cmd(command)
     end)
-
     if moved then
         pcall(vim.api.nvim_win_set_cursor, 0, original)
     end

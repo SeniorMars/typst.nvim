@@ -230,6 +230,7 @@ local function compact_result(result)
         opened = result.opened,
         stopped = result.stopped,
         cancelled = result.cancelled,
+        cancel_pending = result.cancel_pending,
         superseded = result.superseded,
         stale = result.stale,
         pending = result.pending,
@@ -263,7 +264,6 @@ local function retain_superseded_open(project, provider_handle, result, reason)
         table.remove(retained, 1)
     end
     preview_service.set(project, { retained_open_handles = retained })
-
     local subscribed = subscribe_on_finish(provider_handle, function(final)
         local current = preview_service.get(project) or {}
         for _, item in ipairs(current.retained_open_handles or {}) do
@@ -336,7 +336,6 @@ local function observe_pending_open_cancel(
             "open_cancel_failed"
         )
     end)
-
     if not subscribed then
         set_pending_open_cancel_unconfirmed(
             project,
@@ -457,21 +456,21 @@ local function cancel_pending_open(project, opts)
         type(provider_handle) == "table"
         and type(provider_handle.cancel) == "function"
     then
-        local ok, stopped, cancel_result =
-            pcall(provider_handle.cancel, provider_handle, { reason = reason })
-        if not ok then
-            result = {
-                ok = false,
-                opened = false,
-                stopped = false,
-                cancelled = true,
-                reason = "cancel_failed",
-                message = tostring(stopped),
+        -- Observation style and cancellation style are separate provider
+        -- contracts. Legacy dot-style on_finish does not imply dot-style
+        -- cancel; providers must opt in with cancel_style so restart/stop never
+        -- guess the wrong argument shape.
+        local stopped, cancel_result = pending_handle.cancel(
+            provider_handle,
+            { reason = reason },
+            {
+                style = provider_handle.cancel_style
+                    or provider_handle._typst_cancel_style,
             }
-        elseif
-            type(cancel_result) == "table" and cancel_result.pending == true
-        then
+        )
+        if type(cancel_result) == "table" and cancel_result.pending == true then
             result.provider_result = cancel_result
+            result.cancel_pending = true
         elseif
             stopped == false
             or (
@@ -486,6 +485,7 @@ local function cancel_pending_open(project, opts)
                 result = vim.tbl_extend("force", cancel_result, {
                     ok = false,
                     opened = false,
+                    cancel_pending = cancel_result.pending == true or nil,
                     stopped = false,
                     cancelled = true,
                     superseded = true,
@@ -1083,7 +1083,7 @@ function M.stop(project, opts)
 
     local preview_state = preview_service.get(project) or {}
     if native_active or preview_state.active_backend == "native-browser" then
-        native.stop(project, opts)
+        native.stop(project)
         state.emit_stopped(project, "native-browser", nil, project.root)
         return true
     end
@@ -1123,7 +1123,6 @@ function M.stop_for_exit(project, opts)
         exit = true,
         reason = "exit",
     }, opts or {})
-
     local ok, result = pcall(M.stop, project, opts)
     if not ok then
         result = callback_error(project, "stop", result)

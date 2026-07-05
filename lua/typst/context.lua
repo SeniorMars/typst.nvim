@@ -1,18 +1,4 @@
-local bibliography_actions = require("typst.bibliography.actions")
-local package_context = require("typst.package.context")
-local package_info = require("typst.package.info")
-local package_templates = require("typst.package.templates")
-local follow = require("typst.navigation.follow")
-local label_actions = require("typst.ui.label_actions")
-local context_completion = require("typst.ui.context_completion")
-local context_core = require("typst.ui.context_menu_core")
-local context_media = require("typst.ui.context_menu_media")
-local context_packages = require("typst.ui.context_menu_packages")
-local context_transforms = require("typst.ui.context_menu_transforms")
-local context_references = require("typst.ui.context_references")
 local log = require("typst.core.log")
-local symbol_search = require("typst.metadata.symbol_search")
-local symbol_variants = require("typst.ui.symbol_variants")
 
 local M = {}
 
@@ -21,17 +7,46 @@ local M = {}
 -- Actions are returned as data with small run closures so callers can show a
 -- menu, inspect available actions, or execute with `open = false` in tests/API.
 
+local function context_core()
+    return require("typst.ui.context_menu_core")
+end
+
+local function package_context()
+    return require("typst.package.context")
+end
+
+local function package_info()
+    return require("typst.package.info")
+end
+
+local function package_templates()
+    return require("typst.package.templates")
+end
+
+local function follow()
+    return require("typst.navigation.follow")
+end
+
+local function context_completion()
+    return require("typst.ui.context_completion")
+end
+
+local function context_transforms()
+    return require("typst.ui.context_menu_transforms")
+end
+
 ---Collect symbol-specific context actions.
 ---@param actions table[] list receiving discovered actions.
 ---@param ctx table cursor context resolved from package and query parsing.
 ---@param bufnr integer buffer number.
 local function add_symbol_actions(actions, ctx, bufnr)
-    local action = symbol_variants.action(ctx, {
+    local core = context_core()
+    local action = require("typst.ui.symbol_variants").action(ctx, {
         bufnr = bufnr,
-        replace_range = context_core.replace_range,
+        replace_range = core.replace_range,
     })
     if action then
-        context_core.add_action(actions, action)
+        core.add_action(actions, action)
     end
 end
 
@@ -42,13 +57,14 @@ end
 ---@return TypstFollowTarget|table|nil target Resolved navigation target, if any.
 function M.actions(opts)
     opts = opts or {}
-    local bufnr = context_core.normalize_bufnr(opts.bufnr)
-    local pos = context_core.current_context_pos(opts)
-    local ctx = package_context.resolve(
+    local core = context_core()
+    local bufnr = core.normalize_bufnr(opts.bufnr)
+    local pos = core.current_context_pos(opts)
+    local ctx = package_context().resolve(
         vim.tbl_extend("force", opts, { bufnr = bufnr, pos = pos })
     )
     local target = pos
-            and follow.resolve({
+            and follow().resolve({
                 bufnr = bufnr,
                 pos = pos,
                 semantic = opts.semantic,
@@ -58,18 +74,18 @@ function M.actions(opts)
     -- Resolve semantic target once and fan it out to bibliography, labels, and
     -- media actions so each action does not re-run Tinymist/index fallback.
     local actions = {}
-    local query = context_core.context_query(ctx)
-    local package = context_core.package_query(ctx, target)
+    local query = core.context_query(ctx)
+    local package = core.package_query(ctx, target)
 
     if ctx and ctx.kind == "package" then
-        context_core.add_action(actions, {
+        core.add_action(actions, {
             id = "package_info",
             title = "Open package info",
             kind = "package",
             context = ctx,
             run = function(run_opts)
                 run_opts = run_opts or {}
-                return package_info.info({
+                return package_info().info({
                     query = ctx.query,
                     open = run_opts.open,
                     open_winid = run_opts.open_winid,
@@ -79,7 +95,7 @@ function M.actions(opts)
             end,
         })
     elseif ctx and ctx.kind == "package_member" then
-        context_core.add_action(actions, {
+        core.add_action(actions, {
             id = "package_member_info",
             title = ("Show package resource for %s"):format(
                 ctx.qualified_name or ctx.query
@@ -88,7 +104,7 @@ function M.actions(opts)
             context = ctx,
             run = function(run_opts)
                 run_opts = run_opts or {}
-                return package_info.info({
+                return package_info().info({
                     bufnr = bufnr,
                     winid = opts.winid,
                     open = run_opts.open,
@@ -98,8 +114,8 @@ function M.actions(opts)
                 })
             end,
         })
-    elseif query and symbol_search.lookup(query) then
-        context_core.add_action(actions, {
+    elseif query and require("typst.metadata.symbol_search").lookup(query) then
+        core.add_action(actions, {
             id = "symbol_info",
             title = ("Show symbol info for %s"):format(query),
             kind = "symbol",
@@ -117,19 +133,20 @@ function M.actions(opts)
                 })
             end,
         })
-
-        add_symbol_actions(actions, ctx, bufnr)
+        if ctx then
+            add_symbol_actions(actions, ctx, bufnr)
+        end
     end
 
     if package and not (ctx and ctx.kind == "package") then
-        context_core.add_action(actions, {
+        core.add_action(actions, {
             id = "package_info",
             title = "Open package info",
             kind = "package",
             context = ctx,
             run = function(run_opts)
                 run_opts = run_opts or {}
-                return package_info.info({
+                return package_info().info({
                     query = package,
                     open = run_opts.open,
                     open_winid = run_opts.open_winid,
@@ -141,21 +158,25 @@ function M.actions(opts)
     end
 
     if package then
-        context_packages.add_update_action(actions, package, ctx, bufnr)
-        package_templates.add(actions, package, {
-            add_action = context_core.add_action,
-            notify = context_core.notify,
-            open_file_at = context_core.open_file_at,
+        require("typst.ui.context_menu_packages").add_update_action(
+            actions,
+            package,
+            ctx,
+            bufnr
+        )
+        package_templates().add(actions, package, {
+            add_action = core.add_action,
+            notify = core.notify,
+            open_file_at = core.open_file_at,
         })
-
-        context_core.add_action(actions, {
+        core.add_action(actions, {
             id = "package_source",
             title = "Open package source",
             kind = "source",
             context = ctx,
             run = function(run_opts)
                 run_opts = run_opts or {}
-                return package_info.source({
+                return package_info().source({
                     query = package,
                     open = run_opts.open,
                     open_winid = run_opts.open_winid,
@@ -164,15 +185,14 @@ function M.actions(opts)
                 })
             end,
         })
-
-        context_core.add_action(actions, {
+        core.add_action(actions, {
             id = "package_open",
             title = "Open package page",
             kind = "online",
             context = ctx,
             run = function(run_opts)
                 run_opts = run_opts or {}
-                return package_info.open({
+                return package_info().open({
                     query = package,
                     open = run_opts.open,
                 })
@@ -180,41 +200,44 @@ function M.actions(opts)
         })
     end
 
-    context_completion.add_color_actions(actions, bufnr, pos)
-    context_completion.add_font_actions(actions, bufnr, pos)
-    context_transforms.add_heading_actions(actions, bufnr, pos)
-    context_transforms.add_equation_actions(actions, bufnr, pos)
-    context_completion.add_signature_actions(actions, bufnr, pos)
+    context_completion().add_color_actions(actions, bufnr, pos)
+    context_completion().add_font_actions(actions, bufnr, pos)
+    context_transforms().add_heading_actions(actions, bufnr, pos)
+    context_transforms().add_equation_actions(actions, bufnr, pos)
+    context_completion().add_signature_actions(actions, bufnr, pos)
 
     if target then
-        bibliography_actions.add(actions, target, {
-            add_action = context_core.add_action,
-            notify = context_core.notify,
-            open_file_at = context_core.open_file_at,
-            open_url = context_core.open_url,
+        require("typst.bibliography.actions").add(actions, target, {
+            add_action = core.add_action,
+            notify = core.notify,
+            open_file_at = core.open_file_at,
+            open_url = core.open_url,
         })
-        label_actions.add(actions, target, bufnr, {
-            add_action = context_core.add_action,
-            notify = context_core.notify,
+        require("typst.ui.label_actions").add(actions, target, bufnr, {
+            add_action = core.add_action,
+            notify = core.notify,
         })
-        context_references.add_definition_actions(
+        require("typst.ui.context_references").add_definition_actions(
             actions,
             target,
             bufnr,
             pos,
             opts
         )
-        context_media.add_path_actions(actions, target)
-        context_media.add_image_actions(actions, target)
+        require("typst.ui.context_menu_media").add_path_actions(actions, target)
+        require("typst.ui.context_menu_media").add_image_actions(
+            actions,
+            target
+        )
 
-        context_core.add_action(actions, {
+        core.add_action(actions, {
             id = "follow",
-            title = context_core.target_title(target),
+            title = core.target_title(target),
             kind = target.kind,
             target = target,
             run = function(run_opts)
                 run_opts = run_opts or {}
-                return follow.follow({
+                return follow().follow({
                     bufnr = bufnr,
                     pos = pos,
                     semantic = opts.semantic,
@@ -226,14 +249,13 @@ function M.actions(opts)
                 })
             end,
         })
-
-        context_core.add_action(actions, {
+        core.add_action(actions, {
             id = "copy_target",
             title = ("Copy %s"):format(target.kind or "target"),
             kind = "copy",
             target = target,
             run = function()
-                return context_core.copy_target(target)
+                return core.copy_target(target)
             end,
         })
     end
@@ -273,7 +295,7 @@ function M.open(opts)
     end
 
     if #actions == 0 then
-        context_core.notify(
+        context_core().notify(
             "No Typst context actions available",
             vim.log.levels.WARN
         )
@@ -290,7 +312,6 @@ function M.open(opts)
             M.execute(action, opts.action_opts)
         end
     end)
-
     return actions, ctx, target
 end
 

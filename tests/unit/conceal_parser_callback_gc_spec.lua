@@ -11,15 +11,13 @@ matches.reset()
 
 local original_get_parser = vim.treesitter.get_parser
 local ok, err = pcall(function()
-    vim.treesitter.get_parser = function()
+    rawset(vim.treesitter, "get_parser", function()
         error("forced parser failure")
-    end
-
+    end)
     vim.cmd.enew()
     local bufnr = vim.api.nvim_get_current_buf()
     vim.bo[bufnr].filetype = "typst"
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "$ alpha $" })
-
     matches.matches(bufnr, { start_row = 0, end_row = 1 })
     assert(
         matches._parser_callback_count() == 1,
@@ -44,12 +42,12 @@ local ok, err = pcall(function()
         "reset should clear parser callback tracking"
     )
 end)
-
 vim.treesitter.get_parser = original_get_parser
 matches.reset()
 assert(ok, err)
 
 local register_calls = 0
+---@type any
 local registered_callbacks = nil
 local fake_parser = {
     register_cbs = function(_, callbacks)
@@ -62,15 +60,13 @@ local fake_parser = {
 }
 
 ok, err = pcall(function()
-    vim.treesitter.get_parser = function()
+    rawset(vim.treesitter, "get_parser", function()
         return fake_parser
-    end
-
+    end)
     vim.cmd.enew()
     local bufnr = vim.api.nvim_get_current_buf()
     vim.bo[bufnr].filetype = "typst"
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "$ beta $" })
-
     matches.matches(bufnr, { start_row = 0, end_row = 1 })
     local first_register_calls = register_calls
     assert(
@@ -169,7 +165,6 @@ ok, err = pcall(function()
         "cache registry buffer forget should release parser registrations for invalid buffers"
     )
 end)
-
 vim.treesitter.get_parser = original_get_parser
 matches.reset()
 assert(ok, err)

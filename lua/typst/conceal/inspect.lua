@@ -47,7 +47,6 @@ function M.inspect(bufnr, match)
         true,
         {}
     )
-
     return match
 end
 

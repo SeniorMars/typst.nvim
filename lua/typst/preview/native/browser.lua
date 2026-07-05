@@ -424,7 +424,6 @@ function M.follow_output(project, next_project, opts, resolved)
         output = path,
         generation = generation,
     })
-
     if route then
         session.reassign(project, next_project, {
             output = path,

@@ -15,7 +15,7 @@ function M.initial(path, bufnr, scratch, opts)
     if scratch and root_source == "buffer directory" then
         return util.normalize(vim.fn.getcwd()), "unnamed buffer cwd"
     end
-    return root, root_source
+    return root or util.normalize(vim.fn.getcwd()), root_source or "cwd"
 end
 
 M.reconcile_for_main = root_discovery.reconcile_for_main

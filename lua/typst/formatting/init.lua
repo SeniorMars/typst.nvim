@@ -367,7 +367,6 @@ local function run_command(bufnr, state, opts, provider_name, callback)
         cwd = cwd,
         provider = provider_name,
     })
-
     local reported = false
     local function report(finished)
         if reported then
@@ -406,7 +405,6 @@ local function run_command(bufnr, state, opts, provider_name, callback)
     result.command = full_command
 
     result:on_finish(report)
-
     return result
 end
 
@@ -456,7 +454,10 @@ function M.format(opts, callback)
         if type(result) == "table" and result.pending then
             return result
         end
-        if result.ok or provider_config == "tinymist" then
+        if
+            (type(result) == "table" and result.ok)
+            or provider_config == "tinymist"
+        then
             if callback then
                 callback(result)
             end

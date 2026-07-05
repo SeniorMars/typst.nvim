@@ -16,7 +16,7 @@ local function http_get(url, leaf)
     local done = false
     local failure = nil
 
-    client:connect(host, tonumber(port), function(err)
+    client:connect(host, assert(tonumber(port)), function(err)
         if err then
             failure = err
             done = true
@@ -50,7 +50,6 @@ local function http_get(url, leaf)
             )
         )
     end)
-
     assert(
         vim.wait(10000, function()
             return done
@@ -87,7 +86,6 @@ typst.providers.register("source_map", "native-server-source-map", {
         }
     end,
 })
-
 typst.setup({
     root = root,
     executable = helpers.python_command(
@@ -119,7 +117,6 @@ typst.setup({
         },
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -136,11 +133,12 @@ assert(
     "Typst compile did not finish before native server preview"
 )
 
+---@type any
 local result = typst.viewer.preview({ mode = "document" })
 assert(result and result.ok == true, "native server preview should open")
 assert(opened_url == result.url, "preview should open the reported URL")
 
-if opened_url:match("^http://") then
+if assert(opened_url):match("^http://") then
     assert(
         typst_test_preview(project).active_transport == "server",
         "native browser preview should record server transport"
@@ -240,7 +238,7 @@ if opened_url:match("^http://") then
     assert(cursor[1] == 2, "source-sync provider result should jump to line")
 else
     assert(
-        opened_url:match("^file://"),
+        assert(opened_url):match("^file://"),
         "native browser preview should use server URL or file-shell fallback"
     )
     assert(

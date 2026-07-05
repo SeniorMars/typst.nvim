@@ -180,7 +180,6 @@ function M.executable_open(project, path, viewer)
             line = 1,
             column = 1,
         })
-
         local viewer_operation = operation.run("viewer-open", command, {
             cwd = project.root,
             text = true,
@@ -196,7 +195,6 @@ function M.executable_open(project, path, viewer)
                 end
             end,
         })
-
         if
             viewer_operation.handle
             and viewer_operation.handle._typst_spawn_error
@@ -253,7 +251,7 @@ end
 ---@param project table Project state that supplies root/main paths.
 ---@param path string Output path being searched.
 ---@param opts? table Forward-search options.
----@return table context Viewer placeholder context.
+---@return table? context Viewer placeholder context.
 function M.forward_context(project, path, opts)
     local position = current_position(opts)
     if not position then
@@ -329,7 +327,6 @@ function M.jump_to_source(location, opts)
     local line = math.min(math.max(location.line, 1), line_count)
     local col = math.max(location.column - 1, 0)
     vim.api.nvim_win_set_cursor(opened.winid, { line, col })
-
     return {
         ok = true,
         path = location.path,

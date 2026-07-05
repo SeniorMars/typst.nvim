@@ -10,8 +10,7 @@ vim.bo[bufnr].filetype = "typst"
 vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
     "$ cal(A) + bb(R) + frak(g) + bold(x) + a <= b + a -> b + a != b + abs(x) + norm(x) + sqrt(x) $",
 })
-
-local parser = vim.treesitter.get_parser(bufnr, "typst")
+local parser = assert(vim.treesitter.get_parser(bufnr, "typst"))
 local tree = parser:parse()[1]
 assert(tree, "typst parser should produce a tree")
 

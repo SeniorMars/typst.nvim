@@ -6,7 +6,7 @@ local M = {}
 
 --- Return the source position for preview synchronization.
 ---@param opts? table Position options with optional line and column.
----@return table position One-based line and column.
+---@return table? position One-based line and column.
 function M.current_position(opts)
     opts = opts or {}
     if opts.line or opts.column then

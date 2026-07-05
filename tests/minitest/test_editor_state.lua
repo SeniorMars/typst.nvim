@@ -34,7 +34,6 @@ local function target_window_contract()
             },
         },
     })
-
     local fixture_dir = typst_test_root_path("fixtures/target-window-contract")
     vim.fn.mkdir(fixture_dir, "p")
     local main = fixture_dir .. "/main.typ"
@@ -51,7 +50,6 @@ local function target_window_contract()
     local source_buf = vim.api.nvim_get_current_buf()
     local project = typst.project.set_main(main)
     project_services.set_compiler(project, { output = output })
-
     local source_line = vim.api.nvim_buf_get_lines(source_buf, 0, 1, false)[1]
     local target_col = assert(source_line:find("target.typ", 1, true)) - 1
 
@@ -230,7 +228,6 @@ local function ui_open_contract()
             package_cache_prewarm = false,
         },
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
@@ -244,11 +241,10 @@ local function ui_open_contract()
     local original_jobstart = vim.fn.jobstart
     local open_calls = 0
     local ok, err = xpcall(function()
-        vim.ui.open = function()
+        rawset(vim.ui, "open", function()
             open_calls = open_calls + 1
             return nil, "ui open failed"
-        end
-
+        end)
         local object, open_err = open_helper.ui_open(output)
         assert(
             object == nil and open_err == "ui open failed",
@@ -267,6 +263,7 @@ local function ui_open_contract()
 
         local artifact = typst_test_cache_path("ui-open-output/artifact.pdf")
         vim.fn.writefile({ "artifact" }, artifact)
+        ---@type any
         local result = artifacts.open(project, {
             path = artifact,
         })
@@ -283,11 +280,11 @@ local function ui_open_contract()
             "ui.open should be exercised by helper, viewer, and artifact paths"
         )
 
-        vim.ui.open = function(target)
+        rawset(vim.ui, "open", function(target)
             return {
                 target = target,
             }
-        end
+        end)
         local opened = open_helper.url("https://example.com")
         assert(
             opened and opened.provider == "vim.ui.open",
@@ -296,13 +293,13 @@ local function ui_open_contract()
 
         local jobs = {}
         vim.ui.open = nil
-        vim.fn.executable = function(command)
+        rawset(vim.fn, "executable", function(command)
             return command == "xdg-open" and 1 or 0
-        end
-        vim.fn.jobstart = function(command, opts)
+        end)
+        rawset(vim.fn, "jobstart", function(command, opts)
             jobs[#jobs + 1] = { command = command, opts = opts }
             return 42
-        end
+        end)
         opened = open_helper.url("https://example.com/fallback", {
             commands = {
                 { "missing-open", "https://example.com/fallback" },
@@ -349,9 +346,9 @@ local function ui_open_contract()
             "named browser opener commands should include the URL"
         )
 
-        vim.fn.executable = function()
+        rawset(vim.fn, "executable", function()
             return 0
-        end
+        end)
         local failed, failed_err = open_helper.url("https://example.com/none", {
             ui = false,
             commands = {

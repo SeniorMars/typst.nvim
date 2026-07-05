@@ -31,7 +31,6 @@ vim.api.nvim_create_user_command("TypstPreviewSyncCursor", function()
     synced_buffer = vim.api.nvim_buf_get_name(0)
     synced_cwd = vim.fn.getcwd()
 end, {})
-
 local typst = require("typst")
 local project_store = require("typst.project.store")
 typst.reset()
@@ -42,7 +41,6 @@ typst.setup({
         provider = "typst-preview.nvim",
     },
 })
-
 local command = vim.api.nvim_get_commands({ builtin = false }).TypstPreview
 assert(
     command.definition
@@ -80,9 +78,7 @@ vim.api.nvim_create_autocmd("User", {
         stopped_event = args.data
     end,
 })
-
 typst.viewer.preview({ mode = "document" })
-
 assert(
     delegated_args == "document",
     "existing TypstPreview command did not receive mode"
@@ -298,21 +294,20 @@ assert(
     synced_column == 1,
     "delegated preview forward should clamp middle-byte columns before syncing"
 )
-cursor = vim.api.nvim_win_get_cursor(0)
+local cursor = vim.api.nvim_win_get_cursor(0)
 assert(
     cursor[1] == 1 and cursor[2] == 0,
     "delegated Unicode preview forward should restore the cursor"
 )
 
 typst.viewer.preview({ mode = "document" })
-
 local echoed = {}
 local old_echo = vim.api.nvim_echo
-vim.api.nvim_echo = function(chunks)
+rawset(vim.api, "nvim_echo", function(chunks)
     for _, chunk in ipairs(chunks) do
         echoed[#echoed + 1] = chunk[1]
     end
-end
+end)
 typst.ui.info()
 vim.api.nvim_echo = old_echo
 local text = table.concat(echoed, "\n")

@@ -14,7 +14,7 @@ local function http_raw(host, port, request)
     local done = false
     local failure = nil
 
-    client:connect(host, tonumber(port), function(err)
+    client:connect(host, assert(tonumber(port)), function(err)
         if err then
             failure = err
             done = true
@@ -43,7 +43,6 @@ local function http_raw(host, port, request)
         end)
         client:write(request)
     end)
-
     assert(
         vim.wait(10000, function()
             return done
@@ -68,7 +67,6 @@ typst.setup({
         },
     },
 })
-
 local source_sync_fast_event = nil
 config.unsafe_get().preview.source_maps.provider = {
     name = "fast-event-stability-test",

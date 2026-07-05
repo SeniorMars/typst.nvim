@@ -8,7 +8,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("ftplugin-idempotence-output"),
 })
-
 local file = typst_test_cache_path("ftplugin-idempotence", "main.nottyp")
 vim.fn.delete(vim.fs.dirname(file), "rf")
 vim.fn.mkdir(vim.fs.dirname(file), "p")
@@ -26,7 +25,6 @@ vim.api.nvim_create_autocmd("User", {
         attach_events = attach_events + 1
     end,
 })
-
 vim.bo.filetype = "typst"
 vim.cmd("source " .. vim.fn.fnameescape(root .. "/ftplugin/typst.lua"))
 assert(

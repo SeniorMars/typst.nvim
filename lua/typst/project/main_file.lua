@@ -22,8 +22,34 @@ local low_confidence_sources = {
     ["root heuristic main.typ"] = true,
 }
 
+local function strip_hash_comment(value)
+    local in_single = false
+    local in_double = false
+    local escaped = false
+
+    for index = 1, #value do
+        local char = value:sub(index, index)
+        if escaped then
+            escaped = false
+        elseif char == "\\" and (in_single or in_double) then
+            escaped = true
+        elseif char == '"' and not in_single then
+            in_double = not in_double
+        elseif char == "'" and not in_double then
+            in_single = not in_single
+        elseif char == "#" and not in_single and not in_double then
+            local previous = value:sub(index - 1, index - 1)
+            if index == 1 or previous:match("%s") then
+                return value:sub(1, index - 1)
+            end
+        end
+    end
+
+    return value
+end
+
 local function strip_inline_comment(value)
-    return lexical.strip_line_comment(value):gsub("%s+#.*$", "")
+    return strip_hash_comment(lexical.strip_line_comment(value))
 end
 
 local function strip_wrapping_quotes(value)

@@ -67,6 +67,7 @@ function M.record_reused(project, opts)
             not (fields.active_mode or preview.active_mode)
             or (fields.active_mode or preview.active_mode) == ""
         )
+        and opts
         and opts.mode
         and opts.mode ~= ""
     then
@@ -84,8 +85,8 @@ function M.record_reused(project, opts)
 
     fields.last_backend = fields.active_backend or preview.active_backend
     fields.last_mode = fields.active_mode or preview.active_mode
-    fields.last_command = (fields.active_command or preview.active_command)
-            and vim.deepcopy(fields.active_command or preview.active_command)
+    local command = fields.active_command or preview.active_command
+    fields.last_command = type(command) == "table" and vim.deepcopy(command)
         or nil
     fields.last_cwd = fields.active_cwd or preview.active_cwd
     preview_service.set(project, fields)
@@ -180,7 +181,6 @@ function M.clear(project, opts)
         last_cwd = cwd,
         last_mode = mode,
     })
-
     log.add("warn", "preview state cleared without backend stop", {
         main = project.main,
         backend = backend,
@@ -196,7 +196,6 @@ function M.clear(project, opts)
         lifecycle = opts.lifecycle == true,
         forced = true,
     })
-
     return true
 end
 

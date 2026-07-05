@@ -56,7 +56,6 @@ local unregister_high = rules.register({
         }
     end,
 })
-
 local match, rule = rules.resolve("conceal.test_capture", {}, {})
 assert(match and match.replacement == "h", "higher priority rule should win")
 assert(
@@ -105,7 +104,6 @@ local unregister_fallback = rules.register({
         }
     end,
 })
-
 match, rule = rules.resolve("conceal.test_fallback", {}, {})
 assert(
     match and match.replacement == "f" and fallback_called,
@@ -147,7 +145,6 @@ local unregister_after_error = rules.register({
         }
     end,
 })
-
 match, rule = rules.resolve("conceal.test_error", {}, {})
 assert(
     match and match.replacement == "e",

@@ -46,6 +46,7 @@ end
 typst.reset()
 
 local viewer_opened = nil
+---@type any
 local provider_opts = nil
 local provider_calls = 0
 local export_provider = function(_project, opts, callback)
@@ -89,13 +90,13 @@ typst.setup({
         },
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project_snapshot = typst.project.set_main(main)
 local project = assert(project_store.get(project_snapshot.key), "live project")
 local compiler_output_before = (compiler_service.get(project) or {}).output
 
+---@type any
 local viewer_result = typst.viewer.preview({ mode = "document" })
 assert(
     viewer_result == viewer_opened,
@@ -158,7 +159,6 @@ assert(
 )
 
 typst.reset({ force = true })
-
 local opened_url = nil
 typst.setup({
     root = root,
@@ -196,7 +196,6 @@ typst.setup({
         },
     },
 })
-
 vim.cmd.edit(main)
 project_snapshot = typst.project.set_main(main)
 project = assert(project_store.get(project_snapshot.key), "live project")
@@ -265,11 +264,11 @@ assert(
 
 local echoed = {}
 local old_echo = vim.api.nvim_echo
-vim.api.nvim_echo = function(chunks)
+rawset(vim.api, "nvim_echo", function(chunks)
     for _, chunk in ipairs(chunks) do
         echoed[#echoed + 1] = chunk[1]
     end
-end
+end)
 typst.ui.info()
 vim.api.nvim_echo = old_echo
 local info_text = table.concat(echoed, "\n")
@@ -340,7 +339,6 @@ end
 assert(saw_preview_health, "health should show native preview browser state")
 
 typst.reset({ force = true })
-
 local race_opened_url = nil
 local pending_exports = {}
 local race_calls = 0
@@ -411,7 +409,6 @@ typst.setup({
         },
     },
 })
-
 vim.cmd.edit(main)
 project_snapshot = typst.project.set_main(main)
 project = assert(project_store.get(project_snapshot.key), "live project")

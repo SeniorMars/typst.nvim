@@ -91,13 +91,12 @@ end
 
 local ts = require("typst.core.treesitter")
 local old_root = ts.root
-ts.root = function()
+rawset(ts, "root", function()
     return fake_root
-end
-
+end)
 local old_query_get = vim.treesitter.query.get
 local query_loads = 0
-vim.treesitter.query.get = function(lang, name)
+rawset(vim.treesitter.query, "get", function(lang, name)
     assert(lang == "typst", "conceal cache spec should request Typst queries")
     assert(
         name == "conceal",
@@ -108,14 +107,13 @@ vim.treesitter.query.get = function(lang, name)
         error("temporary missing conceal query")
     end
     return fake_query
-end
+end)
 
 local config = require("typst.config")
 config.setup({
     root = root,
     output_dir = typst_test_cache_path("conceal-cache-output"),
 })
-
 local conceal = require("typst.conceal")
 conceal.reset()
 
@@ -230,10 +228,10 @@ conceal.register("math", "phase0-custom", "∗")
 local render = require("typst.conceal.render")
 local old_window = render.window_matches
 local seen_custom_conceal = nil
-render.window_matches = function(_, _, _, custom_conceal)
+rawset(render, "window_matches", function(_, _, _, custom_conceal)
     seen_custom_conceal = custom_conceal
     return {}
-end
+end)
 conceal._window_matches(bufnr, 0, {})
 assert(
     seen_custom_conceal

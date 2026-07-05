@@ -125,7 +125,6 @@ typst.setup({
         },
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = live_project(typst.project.set_main(main))
@@ -156,7 +155,6 @@ vim.api.nvim_create_autocmd("User", {
         stopped_event = args.data
     end,
 })
-
 local result = typst.viewer.preview({ mode = "document" })
 assert(result and result.ok == true, "native browser preview should open")
 assert(
@@ -298,7 +296,6 @@ assert(
 assert(refreshes == 1, "native browser refresh assertion should run")
 
 typst.reset({ force = true })
-
 local pending_stop_url = nil
 local finish_native_colon_stop = nil
 typst.setup({
@@ -335,7 +332,6 @@ typst.setup({
         },
     },
 })
-
 vim.cmd.edit(main)
 local pending_stop_project = live_project(typst.project.set_main(main))
 done = false
@@ -383,7 +379,6 @@ assert(
 )
 
 typst.reset({ force = true })
-
 local nil_refresh_url = nil
 local nil_refresh_pending_export = nil
 local nil_refresh_export_calls = 0
@@ -461,7 +456,6 @@ typst.setup({
         },
     },
 })
-
 vim.cmd.edit(main)
 local nil_refresh_project = live_project(typst.project.set_main(main))
 local nil_refresh_open = typst.viewer.preview({ mode = "document" })
@@ -492,7 +486,6 @@ nil_refresh:on_finish(function(result, handle)
     assert(result == nil, "stopped native browser refresh should finish nil")
     assert(handle == nil_refresh, "nil refresh callback should receive handle")
 end)
-
 typst.viewer.preview_stop({ notify = false })
 assert(
     native.browser_url(nil_refresh_project) == nil,
@@ -521,7 +514,6 @@ assert(
 )
 
 typst.reset({ force = true })
-
 local failed_open_url = nil
 local viewer_opened = nil
 typst.setup({
@@ -551,7 +543,6 @@ typst.setup({
         },
     },
 })
-
 vim.cmd.edit(main)
 local fallback_project = live_project(typst.project.set_main(main))
 done = false
@@ -602,11 +593,11 @@ assert(
 local original_setreg = vim.fn.setreg
 local copied_register = nil
 local copied_value = nil
-vim.fn.setreg = function(register, value)
+rawset(vim.fn, "setreg", function(register, value)
     copied_register = register
     copied_value = value
     return 0
-end
+end)
 local ok, err = xpcall(function()
     local copied_status = typst.viewer.preview_status({
         echo = false,
@@ -637,7 +628,6 @@ assert(
 )
 
 typst.reset({ force = true })
-
 typst.setup({
     root = root,
     executable = helpers.python_command(
@@ -660,7 +650,6 @@ typst.setup({
         },
     },
 })
-
 vim.cmd.edit(main)
 local preflight_project = live_project(typst.project.set_main(main))
 done = false
@@ -693,7 +682,6 @@ assert(
 )
 
 typst.reset({ force = true })
-
 typst.setup({
     root = root,
     executable = helpers.python_command(
@@ -720,7 +708,6 @@ typst.setup({
         },
     },
 })
-
 vim.cmd.edit(main)
 local declined_project = live_project(typst.project.set_main(main))
 done = false
@@ -756,29 +743,27 @@ assert(
 )
 
 typst.reset({ force = true })
-
 local original_executable = vim.fn.executable
 local original_jobstart = vim.fn.jobstart
 local original_ui_open = vim.ui.open
 local app_jobs = {}
 local ok, err = xpcall(function()
-    vim.ui.open = function()
+    rawset(vim.ui, "open", function()
         error("selected browser app should bypass vim.ui.open")
-    end
-    vim.fn.executable = function(command)
+    end)
+    rawset(vim.fn, "executable", function(command)
         if command == "open" or command == "typst-nvim-selected-browser" then
             return 1
         end
         return original_executable(command)
-    end
-    vim.fn.jobstart = function(command, opts)
+    end)
+    rawset(vim.fn, "jobstart", function(command, opts)
         app_jobs[#app_jobs + 1] = {
             command = command,
             opts = opts,
         }
         return 2468
-    end
-
+    end)
     typst.setup({
         root = root,
         executable = helpers.python_command(
@@ -797,7 +782,6 @@ local ok, err = xpcall(function()
             },
         },
     })
-
     vim.cmd.edit(main)
     typst.project.set_main(main)
     done = false
@@ -839,7 +823,6 @@ if not ok then
 end
 
 typst.reset({ force = true })
-
 typst.providers.register("source_map", "file-shell-svg-source-map", {
     name = "file-shell-svg-source-map",
     capabilities = function()
@@ -866,7 +849,6 @@ typst.providers.register("source_map", "file-shell-svg-source-map", {
         }
     end,
 })
-
 local svg_shell_opened = nil
 local svg_export_provider = function(_project, opts, callback)
     vim.fn.writefile({
@@ -916,7 +898,6 @@ typst.setup({
         },
     },
 })
-
 vim.cmd.edit(main)
 local svg_shell_project = live_project(typst.project.set_main(main))
 done = false
@@ -933,7 +914,8 @@ assert(
 local svg_preview = typst.viewer.preview({ mode = "document" })
 assert(svg_preview and svg_preview.ok == true)
 assert(svg_shell_opened, "SVG file-shell preview should open")
-local svg_shell_path = typst_test_preview(svg_shell_project).active_shell
+local svg_shell_path =
+    assert(typst_test_preview(svg_shell_project).active_shell)
 local svg_state_path = svg_shell_path:gsub("%.html$", ".state.js")
 local svg_state_text = table.concat(vim.fn.readfile(svg_state_path), "\n")
 assert(
@@ -958,7 +940,6 @@ assert(
 )
 
 typst.reset({ force = true })
-
 local throttle_opened = nil
 typst.setup({
     root = root,
@@ -984,7 +965,6 @@ typst.setup({
         },
     },
 })
-
 vim.cmd.edit(main)
 local throttle_project = live_project(typst.project.set_main(main))
 done = false

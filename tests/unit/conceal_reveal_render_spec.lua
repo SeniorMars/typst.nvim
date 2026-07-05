@@ -8,7 +8,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("conceal-reveal-render-output"),
 })
-
 local matches = require("typst.conceal.matches")
 local render = require("typst.conceal.render")
 local reveal = require("typst.conceal.reveal")
@@ -77,9 +76,9 @@ assert(not reveal.should_reveal(left, {
 }, 0, 3), "category reveal policy should override the default policy")
 
 local original_mode = vim.api.nvim_get_mode
-vim.api.nvim_get_mode = function()
+rawset(vim.api, "nvim_get_mode", function()
     return { mode = "i" }
-end
+end)
 assert(
     not reveal.should_reveal(
         left,
@@ -97,14 +96,12 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "$ alpha + beta $" })
 vim.bo[bufnr].filetype = "typst"
 local winid = vim.api.nvim_get_current_win()
 vim.api.nvim_win_set_cursor(winid, { 1, 0 })
-
 local old_matches = matches.matches
 local calls = 0
-matches.matches = function()
+rawset(matches, "matches", function()
     calls = calls + 1
     return { left, right }
-end
-
+end)
 render.reset()
 local first = render.window_matches(bufnr, winid, {
     start_row = 0,
@@ -117,7 +114,6 @@ local second = render.window_matches(bufnr, winid, {
     end_row = 1,
     conceal_opts = { reveal = "none" },
 }, {})
-
 assert(
     #first == 2 and #second == 2,
     "render cache should keep collected matches"
@@ -128,9 +124,9 @@ assert(
 )
 
 local old_tbl_keys = vim.tbl_keys
-vim.tbl_keys = function()
+rawset(vim, "tbl_keys", function()
     error("render cache hot path should not recursively signature tables")
-end
+end)
 local ok_hot_path, hot_path = pcall(function()
     return render.window_matches(bufnr, winid, {
         start_row = 0,

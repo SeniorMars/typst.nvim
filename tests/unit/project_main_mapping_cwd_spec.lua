@@ -30,7 +30,6 @@ local ok, err = pcall(function()
             import_scan = false,
         },
     })
-
     vim.cmd.edit(vim.fn.fnameescape(base .. "/docs/chapter.typ"))
     vim.bo.filetype = "typst"
     local bufnr = vim.api.nvim_get_current_buf()
@@ -58,6 +57,5 @@ local ok, err = pcall(function()
         ":cd should not change normalized main mapping main"
     )
 end)
-
 vim.cmd("cd " .. vim.fn.fnameescape(original_cwd))
 assert(ok, err)

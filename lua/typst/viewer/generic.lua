@@ -114,7 +114,6 @@ function M.open(project, opts)
         viewer_command = viewer_state.command,
         viewer_cwd = viewer_state.cwd,
     })
-
     return path
 end
 

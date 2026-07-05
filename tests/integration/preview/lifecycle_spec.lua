@@ -9,6 +9,7 @@ typst.reset()
 local opened = 0
 local stopped = 0
 local open_mode = nil
+---@type any
 local stop_project = nil
 
 typst.setup({
@@ -27,7 +28,6 @@ typst.setup({
         end,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -46,7 +46,6 @@ vim.api.nvim_create_autocmd("User", {
         stopped_event = args.data
     end,
 })
-
 assert(
     typst.viewer.preview({ mode = "document" }) == true,
     "preview callback should open"
@@ -182,7 +181,6 @@ typst.setup({
         end,
     },
 })
-
 local chapter = root .. "/tests/fixtures/basic/chapter.typ"
 vim.cmd.edit(chapter)
 local chapter_project = typst.project.set_main(chapter)
@@ -238,7 +236,6 @@ typst.setup({
         end,
     },
 })
-
 vim.cmd.edit(main)
 project = typst.project.set_main(main)
 assert(
@@ -299,7 +296,6 @@ typst.setup({
         end,
     },
 })
-
 vim.cmd.edit(main)
 project = typst.project.set_main(main)
 assert(
@@ -350,7 +346,6 @@ typst.setup({
         end,
     },
 })
-
 vim.cmd.edit(main)
 project = typst.project.set_main(main)
 assert(
@@ -433,7 +428,6 @@ typst.setup({
         end,
     },
 })
-
 vim.cmd.edit(main)
 project = typst.project.set_main(main)
 assert(
@@ -507,7 +501,6 @@ typst.setup({
         end,
     },
 })
-
 vim.cmd.edit(main)
 project = typst.project.set_main(main)
 assert(typst.viewer.preview() == true, "preview should open before cancel test")
@@ -543,6 +536,7 @@ assert(
 typst.reset({ force = true })
 opened = 0
 stopped = 0
+---@type any
 local finish_failed_stop = nil
 
 typst.setup({
@@ -565,13 +559,13 @@ typst.setup({
         end,
     },
 })
-
 vim.cmd.edit(main)
 project = typst.project.set_main(main)
 assert(
     typst.viewer.preview({ mode = "document" }) == true,
     "preview should open before pending stop failure"
 )
+---@type any
 local failed_stop_restart = typst.viewer.preview({
     mode = "slide",
     restart = true,
@@ -629,7 +623,6 @@ typst.setup({
         end,
     },
 })
-
 vim.cmd.edit(main)
 project = typst.project.set_main(main)
 assert(
@@ -693,7 +686,6 @@ typst.setup({
         end,
     },
 })
-
 vim.cmd.edit(main)
 project = typst.project.set_main(main)
 assert(
@@ -773,7 +765,6 @@ typst.setup({
         end,
     },
 })
-
 vim.cmd.edit(main)
 project = typst.project.set_main(main)
 assert(

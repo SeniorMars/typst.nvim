@@ -87,7 +87,7 @@ end
 ---@param bufnr integer Buffer number passed to configured root callbacks.
 ---@param opts table Project configuration containing root markers and callbacks.
 ---@return string root Resolved project root path.
----@return string source Human-readable source of the root decision.
+---@return string? source Human-readable source of the root decision.
 function M.detect(path, bufnr, opts)
     local root, source = configured_root(path, bufnr, opts)
     if root then
@@ -319,7 +319,6 @@ local function import_references(line, base, root)
         comments = "space",
         raw = "space",
     })
-
     local function scan(pattern)
         local search_at = 1
         while true do
@@ -372,7 +371,6 @@ local function import_scan_key(path, root, root_source, project_opts)
     local root_mtime = root_stat.mtime or {}
     local skip_dirs = vim.deepcopy(project_opts.import_scan_skip_dirs or {})
     table.sort(skip_dirs)
-
     return table.concat({
         util.path_key(path),
         util.path_key(root),
@@ -410,6 +408,10 @@ local function store_import_scan(key, result)
     }
 end
 
+local function import_scan_return(result)
+    return result[1], result[2], result[3], result[4]
+end
+
 function M._clear_import_scan_cache()
     import_scan_cache = {}
     import_scan_stats = {
@@ -436,6 +438,25 @@ end
 
 function M._import_scan_stats()
     return vim.deepcopy(import_scan_stats)
+end
+
+---Return a compact user-facing import-scan stats label.
+---@param stats? table Import-scan stats snapshot.
+---@return string label Summary suitable for health and reports.
+function M.import_scan_stats_summary(stats)
+    stats = stats or import_scan_stats
+    return ("attempts=%d scans=%d cache_hits=%d files=%d entries=%d reads=%d last=%dms limit=%s entry_limit=%s skipped_roots=%d"):format(
+        stats.attempts or 0,
+        stats.scans or 0,
+        stats.cache_hits or 0,
+        stats.files or 0,
+        stats.entries or 0,
+        stats.reads or 0,
+        stats.last_elapsed_ms or 0,
+        tostring(stats.last_hit_limit == true),
+        tostring(stats.last_hit_entry_limit == true),
+        stats.skipped_roots or 0
+    )
 end
 
 local function import_scan_roots(root, root_source, project_opts)
@@ -479,7 +500,7 @@ function M.import_scan_main(path, root, root_source, opts)
     local key = import_scan_key(path, root, root_source, project_opts)
     local cached = cached_import_scan(key)
     if cached then
-        return unpack(cached, 1, cached.n)
+        return import_scan_return(cached)
     end
 
     -- Import scanning is a fallback for leaf files opened directly. Keep it
@@ -569,7 +590,6 @@ function M.import_scan_main(path, root, root_source, opts)
 
                     return left_rel < right_rel
                 end)
-
                 if #matches > 1 then
                     log.add("warn", "import scan found ambiguous Typst mains", {
                         path = path,
@@ -596,11 +616,10 @@ function M.import_scan_main(path, root, root_source, opts)
         max_files = max_files,
         max_entries = max_entries,
     })
-
     import_scan_stats.last_elapsed_ms =
         math.floor((uv.hrtime() - started_at) / 1000000)
     store_import_scan(key, result)
-    return unpack(result, 1, result.n)
+    return import_scan_return(result)
 end
 
 local function common_ancestor(left, right)
@@ -625,7 +644,7 @@ end
 ---@param root_source string Source label for the current root candidate.
 ---@param path string Current buffer path.
 ---@param main? string Main file resolved for the buffer.
----@param main_source string Source label for the main decision.
+---@param main_source? string Source label for the main decision.
 ---@return string root Reconciled root path.
 ---@return string source Source label for the reconciled root.
 function M.reconcile_for_main(root, root_source, path, main, main_source)
@@ -640,7 +659,8 @@ function M.reconcile_for_main(root, root_source, path, main, main_source)
     -- A main discovered from a buffer-local hint can live above or beside the
     -- current file. When the root was only guessed from the buffer directory,
     -- widen it to the common ancestor instead of compiling from the wrong root.
-    return common_ancestor(path, main), main_source .. " common root"
+    return common_ancestor(path, main),
+        (main_source or "main") .. " common root"
 end
 
 return M

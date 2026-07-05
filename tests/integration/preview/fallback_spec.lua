@@ -16,7 +16,6 @@ typst.setup({
         fallback = "view",
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -26,7 +25,6 @@ typst.compiler.compile({}, function(result)
     assert(result.code == 0, "compile failed before preview fallback test")
     done = true
 end)
-
 assert(
     vim.wait(10000, function()
         return done
@@ -41,7 +39,6 @@ vim.api.nvim_create_autocmd("User", {
         preview_event = args.data
     end,
 })
-
 typst.viewer.preview()
 assert(
     opened == typst_test_compiler(project).output,

@@ -15,7 +15,6 @@ typst.setup({
     root = project_dir,
     output_dir = project_dir,
 })
-
 local main = project_dir .. "/main.typ"
 local output = project_dir .. "/main.svg"
 vim.fn.writefile({ "= Before", "Body" }, main)
@@ -86,10 +85,10 @@ end
 local uv = vim.uv or vim.loop
 local original_fs_stat = uv.fs_stat
 local stat_count = 0
-uv.fs_stat = function(path)
+rawset(uv, "fs_stat", function(path)
     stat_count = stat_count + 1
     return original_fs_stat(path)
-end
+end)
 provider._cache_key_for_tests(large_project, request)
 uv.fs_stat = original_fs_stat
 

@@ -13,7 +13,6 @@ local function compile_current_project(message)
         assert(result.code == 0, message)
         done = true
     end)
-
     assert(
         vim.wait(10000, function()
             return done
@@ -66,7 +65,6 @@ typst.setup({
         end,
     },
 })
-
 local pending_stop_project = edit_main()
 assert(
     typst.viewer.preview({ notify = false }) == true,
@@ -103,7 +101,6 @@ typst.setup({
         end,
     },
 })
-
 local open_project = edit_main()
 local open_event = nil
 vim.api.nvim_create_autocmd("User", {
@@ -112,7 +109,6 @@ vim.api.nvim_create_autocmd("User", {
         open_event = args.data
     end,
 })
-
 local open_result = typst.viewer.preview({ notify = false })
 assert_callback_error(open_result, "open")
 assert(
@@ -142,7 +138,6 @@ typst.setup({
         end,
     },
 })
-
 local declined_project = edit_main()
 open_event = nil
 local declined_result = typst.viewer.preview({ notify = false })
@@ -180,7 +175,6 @@ typst.setup({
         end,
     },
 })
-
 local stop_project = edit_main()
 assert(
     typst.viewer.preview({ notify = false }) == true,
@@ -193,7 +187,6 @@ vim.api.nvim_create_autocmd("User", {
         stop_event = args.data
     end,
 })
-
 local stop_result = typst.viewer.preview_stop({ notify = false })
 assert_callback_error(stop_result, "stop")
 assert(
@@ -234,7 +227,6 @@ typst.setup({
         end,
     },
 })
-
 edit_main()
 compile_current_project(
     "compile failed before preview forward callback error test"
@@ -246,7 +238,6 @@ vim.api.nvim_create_autocmd("User", {
         forward_event = args.data
     end,
 })
-
 local forward_result =
     typst.viewer.view_forward({ line = 2, column = 3, notify = false })
 assert_callback_error(forward_result, "forward")
@@ -265,7 +256,6 @@ typst.setup({
         end,
     },
 })
-
 edit_main()
 local inverse_event = nil
 vim.api.nvim_create_autocmd("User", {
@@ -274,7 +264,6 @@ vim.api.nvim_create_autocmd("User", {
         inverse_event = args.data
     end,
 })
-
 local inverse_result = typst.viewer.preview_inverse({
     path = main,
     line = 2,

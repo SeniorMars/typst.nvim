@@ -25,7 +25,6 @@ typst.setup({
         },
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 local chapter = root .. "/tests/fixtures/basic/chapter.typ"
 local first_output = typst_test_cache_path("follow-buffer-first.svg")
@@ -44,7 +43,6 @@ local first_project =
 compiler_service.set(first_project, {
     output = first_output,
 })
-
 local open_result = typst.viewer.preview_open_browser()
 assert(
     open_result and open_result.ok == true,
@@ -60,7 +58,6 @@ local second_project =
 compiler_service.set(second_project, {
     output = second_output,
 })
-
 require("typst.preview.follow_buffer").on_buffer(vim.api.nvim_get_current_buf())
 
 assert(

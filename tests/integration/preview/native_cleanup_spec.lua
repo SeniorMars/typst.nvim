@@ -15,7 +15,9 @@ local function cleanup()
     pcall(function()
         server.reset()
     end)
-    pcall(vim.cmd, "silent! %bwipeout!")
+    pcall(function()
+        vim.cmd("silent! %bwipeout!")
+    end)
 end
 
 local function write_svg(path)
@@ -44,7 +46,6 @@ local ok, err = xpcall(function()
             },
         },
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     local chapter = root .. "/tests/fixtures/basic/chapter.typ"
     local first_output = typst_test_cache_path("native-cleanup/first.svg")
@@ -57,7 +58,6 @@ local ok, err = xpcall(function()
     local first_project =
         assert(project_store.get(first_snapshot.key), "live first project")
     compiler_service.set(first_project, { output = first_output })
-
     local opened = typst.viewer.preview_open_browser()
     assert(opened and opened.ok == true, "browser preview should open")
     assert(server.is_running(), "native preview server should be running")

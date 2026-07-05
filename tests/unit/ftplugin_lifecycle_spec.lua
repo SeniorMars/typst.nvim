@@ -9,7 +9,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("ftplugin-lifecycle-output"),
 })
-
 local function run_typst_ftplugin()
     vim.bo.filetype = "typst"
     vim.cmd("source " .. vim.fn.fnameescape(root .. "/ftplugin/typst.lua"))

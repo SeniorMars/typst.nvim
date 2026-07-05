@@ -300,6 +300,28 @@ function M.capabilities(project, opts)
 end
 
 function M.forward(project, position, opts)
+    if type(position) ~= "table" then
+        return {
+            ok = false,
+            reason = "invalid_position",
+            message = "Typst source-map forward search requires line and column",
+        }
+    end
+
+    local line = tonumber(position.line)
+    local column = tonumber(position.column)
+    if not line or not column then
+        return {
+            ok = false,
+            reason = "invalid_position",
+            message = "Typst source-map forward search requires line and column",
+        }
+    end
+
+    position = vim.deepcopy(position)
+    position.line = line
+    position.column = column
+
     local source_maps = source_maps_config()
     if type(source_maps.forward) == "function" then
         local result = source_maps.forward(project, position, opts or {})
@@ -493,7 +515,6 @@ function M.browser_inverse(route, params)
         event = params.event or "click",
         transport = "server",
     })
-
     local result = invoke_provider(
         project,
         { "browser_inverse", "resolve", "inverse", "run" },

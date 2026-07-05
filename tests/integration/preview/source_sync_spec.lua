@@ -6,6 +6,7 @@ local util = require("typst.core.util")
 typst.reset()
 
 local forwarded_project = nil
+---@type any
 local forwarded_position = nil
 
 typst.setup({
@@ -23,7 +24,6 @@ typst.setup({
         },
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -33,7 +33,6 @@ typst.compiler.compile({}, function(result)
     assert(result.code == 0, "compile failed before preview source-sync test")
     done = true
 end)
-
 assert(
     vim.wait(10000, function()
         return done
@@ -41,7 +40,9 @@ assert(
     "Typst compile did not finish before preview source-sync test"
 )
 
+---@type any
 local forward_event = nil
+---@type any
 local inverse_event = nil
 vim.api.nvim_create_autocmd("User", {
     pattern = "TypstPreviewForwarded",
@@ -55,7 +56,6 @@ vim.api.nvim_create_autocmd("User", {
         inverse_event = args.data
     end,
 })
-
 local capabilities = typst.viewer.preview_capabilities()
 assert(
     capabilities.forward == true,
@@ -170,7 +170,7 @@ assert(
     unicode_inverse and unicode_inverse.path == unicode_path,
     "preview inverse should accept Unicode source paths"
 )
-cursor = vim.api.nvim_win_get_cursor(0)
+local cursor = vim.api.nvim_win_get_cursor(0)
 assert(cursor[1] == 2, "preview inverse should jump to the Unicode source line")
 assert(
     cursor[2] == 0,
@@ -178,8 +178,9 @@ assert(
 )
 
 typst.reset({ force = true })
-
+---@type any
 local source_map_forward_position = nil
+---@type any
 local source_map_inverse_location = nil
 typst.setup({
     root = root,
@@ -201,7 +202,6 @@ typst.setup({
         },
     },
 })
-
 vim.cmd.edit(main)
 project = typst.project.set_main(main)
 done = false
@@ -286,28 +286,33 @@ assert(
 )
 
 typst.reset({ force = true })
-
+---@type any
 local provider_forward_request = nil
+---@type any
 local provider_inverse_request = nil
 local provider_adapter = require("typst.integrations.provider_adapter")
 local original_provider_invoke = provider_adapter.invoke
 local source_map_context_checks = 0
-provider_adapter.invoke = function(provider, methods, context, request, control)
-    if control and control.kind == "source_map" then
-        source_map_context_checks = source_map_context_checks + 1
-        assert(
-            control.args and context == control.args[1],
-            "source-map adapter context should match provider argument"
+rawset(
+    provider_adapter,
+    "invoke",
+    function(provider, methods, context, request, control)
+        if control and control.kind == "source_map" then
+            source_map_context_checks = source_map_context_checks + 1
+            assert(
+                control.args and context == control.args[1],
+                "source-map adapter context should match provider argument"
+            )
+        end
+        return original_provider_invoke(
+            provider,
+            methods,
+            context,
+            request,
+            control
         )
     end
-    return original_provider_invoke(
-        provider,
-        methods,
-        context,
-        request,
-        control
-    )
-end
+)
 
 typst.providers.register("source_map", "registered-source-map", {
     name = "registered-source-map",
@@ -329,7 +334,6 @@ typst.providers.register("source_map", "registered-source-map", {
         return request.location
     end,
 })
-
 typst.setup({
     root = root,
     output_dir = typst_test_cache_path("preview-source-map-provider-output"),
@@ -339,7 +343,6 @@ typst.setup({
         },
     },
 })
-
 vim.cmd.edit(main)
 project = typst.project.set_main(main)
 done = false

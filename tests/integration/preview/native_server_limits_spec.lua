@@ -16,7 +16,7 @@ local function http_raw(host, port, request)
     local done = false
     local failure = nil
 
-    client:connect(host, tonumber(port), function(err)
+    client:connect(host, assert(tonumber(port)), function(err)
         if err then
             failure = err
             done = true
@@ -45,7 +45,6 @@ local function http_raw(host, port, request)
         end)
         client:write(request)
     end)
-
     assert(
         vim.wait(10000, function()
             return done
@@ -64,7 +63,7 @@ local function connect_and_close(host, port)
     local done = false
     local failure = nil
 
-    client:connect(host, tonumber(port), function(err)
+    client:connect(host, assert(tonumber(port)), function(err)
         if err then
             failure = err
             done = true
@@ -102,7 +101,6 @@ typst.setup({
         },
     },
 })
-
 local remote_ok, remote_err = pcall(server.start, {
     host = "0.0.0.0",
     port = 0,
@@ -414,9 +412,9 @@ assert(
 )
 
 local original_browser_inverse = source_maps.browser_inverse
-source_maps.browser_inverse = function()
+rawset(source_maps, "browser_inverse", function()
     error("synthetic source-sync route failure")
-end
+end)
 local route_error_ok, route_error_response = pcall(
     http_raw,
     host,
@@ -539,7 +537,6 @@ session.set_route(project, {
     port = preview_server.port,
     output = output,
 })
-
 local second_project = {
     key = "native-server-limits-second",
     root = root,

@@ -289,7 +289,6 @@ function M.matches(bufnr, opts, custom_conceal)
     opts = opts or {}
     local start_row = opts.start_row or 0
     local end_row = opts.end_row or line_count(bufnr)
-
     return range_matches_cached(bufnr, start_row, end_row, custom_conceal)
 end
 

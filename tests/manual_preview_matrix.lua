@@ -163,7 +163,7 @@ vim.fn.writefile({
 
 typst.reset({ force = true })
 typst.setup({
-    root = root,
+    root = matrix_dir,
     output_dir = compile_dir,
     viewer = {
         open = function(path)
@@ -194,14 +194,12 @@ typst.setup({
         },
     },
 })
-
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
 last_result = typst.viewer.preview({ mode = "document" })
 write_report({ opened = last_result })
-
 if mode == "browser" then
-    local refresh_timer = vim.uv.new_timer()
+    local refresh_timer = assert(vim.uv.new_timer())
     refresh_timer:start(refresh_after_ms, 0, function()
         vim.schedule(function()
             local result =
@@ -215,7 +213,7 @@ if mode == "browser" then
         end)
     end)
 
-    local stop_timer = vim.uv.new_timer()
+    local stop_timer = assert(vim.uv.new_timer())
     stop_timer:start(stop_after_ms, 0, function()
         vim.schedule(function()
             local stopped = typst.viewer.preview_stop({ notify = false })

@@ -93,7 +93,7 @@ function M.forward(project, opts)
     if not ok then
         return callback_error(project, "forward", result)
     end
-    if failed_result(result) then
+    if type(result) == "table" and result.ok == false then
         return result
     end
     if result ~= false then
@@ -115,7 +115,7 @@ function M.forward(project, opts)
         })
     end
 
-    return result
+    return result == nil and true or result
 end
 
 --- Inverse-search through the configured Typst preview backend.
@@ -144,7 +144,7 @@ function M.inverse(project, opts)
         if not ok then
             return callback_error(project, "inverse", result)
         end
-        if failed_result(result) then
+        if type(result) == "table" and result.ok == false then
             return result
         end
         if result ~= false then
@@ -160,7 +160,7 @@ function M.inverse(project, opts)
                 source_sync = "inverse",
             })
         end
-        return result
+        return result == nil and true or result
     end
 
     if not capability_set.inverse then

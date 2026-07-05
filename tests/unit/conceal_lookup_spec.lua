@@ -8,7 +8,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("conceal-lookup-output"),
 })
-
 local config = require("typst.config")
 local lookup = require("typst.conceal.lookup")
 

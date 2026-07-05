@@ -10,7 +10,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("conceal-output"),
 })
-
 local fixture = root .. "/tests/fixtures/basic/conceal.typ"
 vim.cmd.edit(fixture)
 vim.bo.filetype = "typst"
@@ -238,7 +237,7 @@ vim.cmd.edit(fixture)
 vim.bo.filetype = "typst"
 
 local original_echo = vim.api.nvim_echo
-vim.api.nvim_echo = function() end
+rawset(vim.api, "nvim_echo", function() end)
 local inspected = conceal.inspect({ match = by_source["arrow.r"] })
 vim.api.nvim_echo = original_echo
 assert(
@@ -259,7 +258,6 @@ typst.setup({
         },
     },
 })
-
 local custom_buf = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_set_current_buf(custom_buf)
 vim.api.nvim_buf_set_lines(custom_buf, 0, -1, false, {
@@ -364,7 +362,7 @@ assert(
     "runtime custom conceal registration should reject multi-character replacements"
 )
 assert(
-    invalid_register_err:match("exactly one character"),
+    tostring(invalid_register_err):match("exactly one character"),
     "runtime custom conceal registration should explain the native conceal character limit"
 )
 
@@ -376,7 +374,7 @@ assert(
     "runtime custom conceal registration should reject multi-scalar combining replacements"
 )
 assert(
-    invalid_combining_err:match("exactly one character"),
+    tostring(invalid_combining_err):match("exactly one character"),
     "runtime custom conceal registration should explain the native conceal scalar limit"
 )
 
@@ -927,10 +925,10 @@ local cache_range = { start_row = 0, end_row = 1 }
 local match_query = require("typst.conceal.match_query")
 local original_query = match_query.query
 local query_calls = 0
-match_query.query = function(...)
+rawset(match_query, "query", function(...)
     query_calls = query_calls + 1
     return original_query(...)
-end
+end)
 local cached_matches = conceal.matches(cache_buf, cache_range)
 
 local primed_query_calls = query_calls
@@ -958,9 +956,9 @@ assert(edited_by_source.beta, "edited buffer should conceal new symbol text")
 
 local original_metadata_reset = metadata.reset
 local metadata_reset_calls = 0
-metadata.reset = function()
+rawset(metadata, "reset", function()
     metadata_reset_calls = metadata_reset_calls + 1
-end
+end)
 typst.conceal.refresh(cache_buf)
 metadata.reset = original_metadata_reset
 assert(
@@ -1003,7 +1001,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("conceal-runtime-output"),
 })
-
 assert(
     typst.conceal.register("math", "runtimeop", "*") == "*",
     "runtime custom conceal registration should return replacement"
@@ -1048,11 +1045,10 @@ assert(
 typst.reset()
 local original_set_decoration_provider = vim.api.nvim_set_decoration_provider
 local provider_starts = 0
-vim.api.nvim_set_decoration_provider = function(...)
+rawset(vim.api, "nvim_set_decoration_provider", function(...)
     provider_starts = provider_starts + 1
     return original_set_decoration_provider(...)
-end
-
+end)
 typst.setup({
     root = root,
     output_dir = typst_test_cache_path("conceal-lifecycle-output"),

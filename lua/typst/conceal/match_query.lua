@@ -53,7 +53,6 @@ function M.filter_overlaps(matches)
         end
         return range_size(left.source) > range_size(right.source)
     end)
-
     local filtered = {}
     local last = nil
     for _, match in ipairs(matches) do
@@ -173,7 +172,6 @@ local function register_builtin_rules()
             )
         end,
     })
-
     rules.register({
         name = "emoji",
         capture = "conceal.emoji",
@@ -183,7 +181,6 @@ local function register_builtin_rules()
             return emoji.resolve(ctx.bufnr, node, ctx.opts)
         end,
     })
-
     rules.register({
         name = "math_delimiters",
         capture = "conceal.math_delimiter",
@@ -201,7 +198,6 @@ local function register_builtin_rules()
             )
         end,
     })
-
     rules.register({
         name = "markup_delimiters",
         capture = "conceal.markup_delimiter",
@@ -222,7 +218,6 @@ local function register_builtin_rules()
             )
         end,
     })
-
     rules.register({
         name = "heading_markers",
         capture = "conceal.heading_marker",
@@ -241,7 +236,6 @@ local function register_builtin_rules()
             )
         end,
     })
-
     rules.register({
         name = "math_scripts",
         capture = "conceal.script",
@@ -251,7 +245,6 @@ local function register_builtin_rules()
             return math_rules.resolve_scripts(ctx.bufnr, node, ctx.opts)
         end,
     })
-
     rules.register({
         name = "math_fonts",
         capture = "conceal.math_call",
@@ -261,7 +254,6 @@ local function register_builtin_rules()
             return math_rules.resolve_font_call(ctx, node)
         end,
     })
-
     rules.register({
         name = "math_wrappers",
         capture = "conceal.math_call",
@@ -271,7 +263,6 @@ local function register_builtin_rules()
             return math_rules.resolve_wrapper_call(ctx, node)
         end,
     })
-
     rules.register({
         name = "math_operators",
         capture = "conceal.math_operator",
@@ -281,7 +272,6 @@ local function register_builtin_rules()
             return math_rules.resolve_operator(ctx.bufnr, node, ctx.opts)
         end,
     })
-
     rules.register({
         name = "list_markers",
         capture = "conceal.list_marker",
@@ -291,7 +281,6 @@ local function register_builtin_rules()
             return syntax.list_marker(ctx.bufnr, node, ctx.opts)
         end,
     })
-
     local function raw_delimiter(ctx, node)
         return syntax.node(
             ctx.bufnr,
@@ -311,7 +300,6 @@ local function register_builtin_rules()
         priority = 100,
         resolve = raw_delimiter,
     })
-
     rules.register({
         name = "raw_block_fences",
         capture = "conceal.raw_block_fence",
@@ -319,7 +307,6 @@ local function register_builtin_rules()
         priority = 100,
         resolve = raw_delimiter,
     })
-
     rules.register({
         name = "raw_block_languages",
         capture = "conceal.raw_block_language",
@@ -337,7 +324,6 @@ local function register_builtin_rules()
             )
         end,
     })
-
     rules.register({
         name = "label_delimiters",
         capture = "conceal.label_delimiter",
@@ -347,7 +333,6 @@ local function register_builtin_rules()
             return syntax.label_delimiters(ctx.bufnr, node, ctx.opts)
         end,
     })
-
     rules.register({
         name = "reference_markers",
         capture = "conceal.reference_marker",
@@ -369,7 +354,6 @@ local function register_builtin_rules()
             )
         end,
     })
-
     rules.register({
         name = "function_wrappers",
         capture = "conceal.function_wrapper",
@@ -430,7 +414,6 @@ function M.query(bufnr, start_row, end_row, custom_conceal)
         end_row,
         error_ranges
     )
-
     return M.filter_overlaps(matches)
 end
 

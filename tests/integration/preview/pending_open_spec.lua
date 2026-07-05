@@ -7,7 +7,9 @@ local function cleanup()
     pcall(function()
         typst.reset({ force = true })
     end)
-    pcall(vim.cmd, "silent! %bwipeout!")
+    pcall(function()
+        vim.cmd("silent! %bwipeout!")
+    end)
 end
 
 local function setup_project(open_callback)
@@ -19,7 +21,6 @@ local function setup_project(open_callback)
             open = open_callback,
         },
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     return typst.project.set_main(main)
@@ -37,7 +38,6 @@ local project = setup_project(function()
     end
     return handle
 end)
-
 local opened_events = 0
 vim.api.nvim_create_autocmd("User", {
     pattern = "TypstPreviewOpened",
@@ -45,7 +45,6 @@ vim.api.nvim_create_autocmd("User", {
         opened_events = opened_events + 1
     end,
 })
-
 local pending = typst.viewer.preview()
 assert(
     pending and pending.pending == true,
@@ -65,7 +64,7 @@ assert(
 )
 assert(opened_events == 0, "pending open should not emit opened early")
 
-finish_open({
+assert(finish_open)({
     ok = false,
     reason = "browser_failed",
     message = "browser failed",
@@ -101,10 +100,9 @@ project = setup_project(function()
     end
     return handle
 end)
-
 pending = typst.viewer.preview({ mode = "slide" })
 assert(pending and pending.pending == true, "second open should be pending")
-finish_open({
+assert(finish_open)({
     ok = true,
     opened = true,
 })
@@ -147,7 +145,6 @@ project = setup_project(function(_, opts)
     end
     return handle
 end)
-
 local first = typst.viewer.preview({ mode = "old" })
 assert(first and first.pending == true, "first restart race open should pend")
 local reused = typst.viewer.preview({ mode = "ignored" })
@@ -164,6 +161,7 @@ assert(
 assert(
     first.result.stopped == false
         and first.result.superseded == true
+        and first.result.cancel_pending == true
         and first.result.provider_result
         and first.result.provider_result.pending == true,
     "pending provider cancel should not report confirmed stopped"
@@ -224,7 +222,6 @@ project = setup_project(function()
     end
     return handle
 end)
-
 pending = typst.viewer.preview()
 assert(
     pending and pending.pending == true,
@@ -249,7 +246,7 @@ assert(
     typst_test_preview(project).opening == false,
     "stopping a pending open should clear opening"
 )
-finish_open({ ok = true, opened = true })
+assert(finish_open)({ ok = true, opened = true })
 assert(
     typst_test_preview(project).active == false,
     "late open success after stop should not reactivate preview"
@@ -264,12 +261,12 @@ opened_events = 0
 local finish_cancel = nil
 local original_notify = vim.notify
 local notifications = {}
-vim.notify = function(message, level)
+rawset(vim, "notify", function(message, level)
     notifications[#notifications + 1] = {
         message = message,
         level = level,
     }
-end
+end)
 project = setup_project(function()
     local handle = {
         pending = true,
@@ -292,11 +289,12 @@ project = setup_project(function()
     end
     return handle
 end)
-
 pending = typst.viewer.preview({ notify = false })
 stop_result = typst.viewer.preview_stop({ reason = "pending_cancel" })
 assert(
-    type(stop_result) == "table" and stop_result.stopped == false,
+    type(stop_result) == "table"
+        and stop_result.stopped == false
+        and stop_result.cancel_pending == true,
     "pending open cancel should report an unconfirmed stop"
 )
 assert(
@@ -333,23 +331,23 @@ assert(
     typst_test_preview(project).opening == false,
     "confirmed pending cancel should clear opening ownership"
 )
-finish_open({ ok = true, opened = true })
+assert(finish_open)({ ok = true, opened = true })
 assert(
     typst_test_preview(project).active == false,
     "late open after confirmed cancel should not reactivate preview"
 )
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 
 finish_open = nil
 finish_cancel = nil
 notifications = {}
 original_notify = vim.notify
-vim.notify = function(message, level)
+rawset(vim, "notify", function(message, level)
     notifications[#notifications + 1] = {
         message = message,
         level = level,
     }
-end
+end)
 open_calls = 0
 project = setup_project(function()
     open_calls = open_calls + 1
@@ -367,13 +365,13 @@ project = setup_project(function()
     end
     return handle
 end)
-
 local first_toggle_pending = typst.viewer.preview({ notify = false })
 local second_toggle_pending = typst.viewer.preview_toggle({ restart = true })
 assert(
     first_toggle_pending.result
         and first_toggle_pending.result.stopped == false
-        and first_toggle_pending.result.superseded == true,
+        and first_toggle_pending.result.superseded == true
+        and first_toggle_pending.result.cancel_pending == true,
     "toggle restart should supersede the old pending open without claiming stopped"
 )
 assert(
@@ -389,7 +387,7 @@ assert(
         ),
     "toggle restart during pending open should not say stopped"
 )
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 
 finish_open = nil
 opened_events = 0
@@ -405,7 +403,6 @@ project = setup_project(function()
     end
     return handle
 end)
-
 pending = typst.viewer.preview()
 assert(
     pending and pending.pending == true,
@@ -421,7 +418,7 @@ assert(
     pending.pending == false and pending.result and pending.result.cancelled,
     "clear_state should finish the pending open handle as cancelled"
 )
-finish_open({ ok = true, opened = true })
+assert(finish_open)({ ok = true, opened = true })
 assert(
     typst_test_preview(project).active == false,
     "late open success after clear_state should not reactivate preview"
@@ -445,7 +442,6 @@ project = setup_project(function()
     end
     return handle
 end)
-
 pending = typst.viewer.preview()
 assert(
     pending and pending.pending == true,
@@ -456,7 +452,7 @@ assert(pruned_project, "prune stale-open test should resolve live project")
 require("typst.project.store").remove(pruned_project.key)
 pruned_project._typst_project_pruned = true
 
-finish_open({ ok = true, opened = true })
+assert(finish_open)({ ok = true, opened = true })
 assert(
     pending.pending == false and pending.result and pending.result.stale == true,
     "late open completion after prune should finish as stale"
@@ -468,6 +464,82 @@ assert(
 assert(
     opened_events == 0,
     "late open completion after prune should not emit opened"
+)
+
+finish_open = nil
+local dot_cancel_opts = nil
+project = setup_project(function()
+    local handle = {
+        pending = true,
+        on_finish_style = "dot",
+        cancel_style = "dot",
+    }
+    function handle.on_finish(callback)
+        finish_open = callback
+        return handle
+    end
+    function handle.cancel(opts)
+        dot_cancel_opts = opts
+        return true, { ok = true, stopped = true }
+    end
+    return handle
+end)
+pending = typst.viewer.preview({ notify = false })
+local dot_stop = typst.viewer.preview_stop({
+    notify = false,
+    reason = "dot_stop",
+})
+assert(
+    type(dot_stop) == "table" and dot_stop.stopped == true,
+    "explicit dot-style pending-open cancel should report confirmed stop"
+)
+assert(
+    dot_cancel_opts and dot_cancel_opts.reason == "dot_stop",
+    "dot-style pending-open cancel should receive opts without self"
+)
+assert(
+    pending.pending == false
+        and pending.result
+        and pending.result.cancelled == true,
+    "dot-style pending-open cancel should finish the open handle"
+)
+
+finish_open = nil
+local unsupported_cancel_called = false
+project = setup_project(function()
+    local handle = {
+        pending = true,
+        on_finish_style = "dot",
+    }
+    function handle.on_finish(callback)
+        finish_open = callback
+        return handle
+    end
+    function handle.cancel()
+        unsupported_cancel_called = true
+        return true, { ok = true, stopped = true }
+    end
+    return handle
+end)
+pending = typst.viewer.preview({ notify = false })
+local unsupported_stop = typst.viewer.preview_stop({
+    notify = false,
+    reason = "unsupported_dot_cancel",
+})
+assert(
+    type(unsupported_stop) == "table"
+        and unsupported_stop.ok == false
+        and unsupported_stop.stopped == false
+        and unsupported_stop.reason == "dot_cancel_requires_explicit_style",
+    "dot-style observation without cancel_style should fail clearly"
+)
+assert(
+    unsupported_cancel_called == false,
+    "unsupported dot-style cancel should not call provider with guessed args"
+)
+assert(
+    typst_test_preview(project).opening == true,
+    "unsupported cancel should retain pending-open ownership"
 )
 
 cleanup()

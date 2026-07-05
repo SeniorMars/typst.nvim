@@ -67,7 +67,6 @@ typst.setup({
         font_scan_timeout_ms = 0,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/index-main.typ"
 vim.cmd.edit(main)
 typst.project.set_main(main)
@@ -141,7 +140,7 @@ assert(
 
 local selected_titles = {}
 local old_select = vim.ui.select
-vim.ui.select = function(items, opts, on_choice)
+rawset(vim.ui, "select", function(items, opts, on_choice)
     for _, item in ipairs(items) do
         selected_titles[#selected_titles + 1] = opts.format_item(item)
         if item.id == "copy_target" then
@@ -150,7 +149,7 @@ vim.ui.select = function(items, opts, on_choice)
         end
     end
     on_choice(items[1])
-end
+end)
 vim.cmd("TypstContextMenu")
 vim.ui.select = old_select
 
@@ -847,7 +846,7 @@ assert(
 )
 
 local old_index_collect = index.collect
-index.collect = function()
+rawset(index, "collect", function()
     return {
         labels = {
             {
@@ -869,7 +868,7 @@ index.collect = function()
         },
         references = {},
     }
-end
+end)
 local windows_rename_plan = context.execute(
     assert(action_by_id(label_actions, "label_rename")),
     { open = false }
@@ -1011,7 +1010,7 @@ typst.project.set_main(nonmodifiable_main)
 place_on("atomic:label")
 local nonmodifiable_actions = typst.context.open({ open = false })
 old_index_collect = index.collect
-index.collect = function()
+rawset(index, "collect", function()
     return {
         labels = {
             {
@@ -1034,7 +1033,7 @@ index.collect = function()
             },
         },
     }
-end
+end)
 vim.bo.modifiable = false
 local nonmodifiable_result = context.execute(
     assert(action_by_id(nonmodifiable_actions, "label_rename")),
@@ -1075,7 +1074,7 @@ place_on("rollback:label")
 local rollback_bufnr = vim.api.nvim_get_current_buf()
 local rollback_actions = typst.context.open({ open = false })
 old_index_collect = index.collect
-index.collect = function()
+rawset(index, "collect", function()
     return {
         labels = {
             {
@@ -1098,14 +1097,14 @@ index.collect = function()
             },
         },
     }
-end
+end)
 local original_set_lines = vim.api.nvim_buf_set_lines
-vim.api.nvim_buf_set_lines = function(bufnr, ...)
+rawset(vim.api, "nvim_buf_set_lines", function(bufnr, ...)
     if bufnr == rollback_bufnr then
         error("forced buffer apply failure")
     end
     return original_set_lines(bufnr, ...)
-end
+end)
 local rollback_result =
     context.execute(assert(action_by_id(rollback_actions, "label_rename")), {
         open = false,
@@ -1142,9 +1141,9 @@ typst.project.set_main(semantic_only_main)
 place_on("semantic:label")
 local semantic_only_actions = typst.context.open({ open = false })
 local old_get_clients = vim.lsp.get_clients
-vim.lsp.get_clients = function()
+rawset(vim.lsp, "get_clients", function()
     return {}
-end
+end)
 local semantic_only_result = context.execute(
     assert(action_by_id(semantic_only_actions, "label_rename")),
     {

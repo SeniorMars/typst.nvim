@@ -20,7 +20,6 @@ typst.setup({
         },
     },
 })
-
 local main = project_dir .. "/main.typ"
 local output = project_dir .. "/main.svg"
 local pdf_output = project_dir .. "/main.pdf"
@@ -152,8 +151,8 @@ assert(
     vim.wait(10000, function()
         local route = session.route_for_project(project)
         return service_forward.pending == false
-            and route
-            and route.forward_target
+            and route ~= nil
+            and route.forward_target ~= nil
             and route.forward_target.pending ~= true
     end, 20),
     "source-map service should publish resolved forward target"

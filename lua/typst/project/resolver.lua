@@ -22,6 +22,7 @@ function M.resolve_candidate(bufnr, resolve_opts)
         path = project_model.scratch_buffer_path(bufnr)
         scratch = true
     end
+    path = assert(path)
 
     local opts = config.unsafe_get()
     local root, root_source_label =
@@ -54,13 +55,27 @@ function M.resolve_candidate(bufnr, resolve_opts)
     if not main then
         main, main_source_label =
             main_source.configured(bufnr, path, root, opts)
+        if not scratch then
+            root, root_source_label = root_source.reconcile_for_main(
+                root,
+                root_source_label,
+                path,
+                main,
+                main_source_label
+            )
+        end
     end
 
     if not scratch and not main then
         local project_root, project_root_source
         main, main_source_label, project_root, project_root_source =
             main_source.project_file(bufnr, path)
-        if main and root_source_label == "buffer directory" then
+        if
+            main
+            and project_root
+            and project_root_source
+            and root_source_label == "buffer directory"
+        then
             root, root_source_label = project_root, project_root_source
         end
     end
@@ -86,7 +101,7 @@ function M.resolve_candidate(bufnr, resolve_opts)
         if deferred_import_scan then
             deferred_import_scan.config_generation = config.generation()
         end
-        if main then
+        if main and scan_root and scan_root_source then
             root, root_source_label = scan_root, scan_root_source
         end
     end

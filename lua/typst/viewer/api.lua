@@ -196,7 +196,7 @@ end
 ---@param state table Project state passed to the preview integration.
 ---@param opts? table Preview options.
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
----@return table|boolean result Preview backend result.
+---@return table|boolean|string|nil result Preview backend result.
 function M.preview(state, opts, notify)
     opts = opts or {}
     local result = typst_preview.open(state, opts)
@@ -219,7 +219,7 @@ end
 ---@param state table Project state passed to the preview integration.
 ---@param opts? table Preview options.
 ---@param notify? fun(message:string, level?:integer) Notification sink.
----@return table|boolean result Preview backend result.
+---@return table|boolean|string|nil result Preview backend result.
 function M.preview_open_browser(state, opts, notify)
     opts = vim.tbl_extend("force", opts or {}, {
         native = "browser",
@@ -313,7 +313,7 @@ end
 ---@param state table Project state passed to the preview integration.
 ---@param opts? table Preview stop options. Pending handles must eventually report `stopped=true` or `ok=false`.
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
----@return table|boolean|nil result Preview backend result.
+---@return table|boolean|string|nil result Preview backend result.
 function M.preview_stop(state, opts, notify)
     opts = opts or {}
     local result = typst_preview.stop(state, opts)
@@ -340,7 +340,7 @@ end
 ---@param state table Project state passed to the preview integration.
 ---@param opts? table Preview toggle options.
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
----@return table|boolean result Preview backend result.
+---@return table|boolean|string|nil result Preview backend result.
 function M.preview_toggle(state, opts, notify)
     opts = opts or {}
     local result = typst_preview.toggle(state, opts)
@@ -379,7 +379,7 @@ end
 ---@param state table Project state used to resolve source locations.
 ---@param opts? table Preview inverse-search options.
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
----@return table|boolean result Preview inverse-search result or failure payload.
+---@return table|boolean|nil result Preview inverse-search result or failure payload.
 function M.preview_inverse(state, opts, notify)
     opts = opts or {}
     local result = typst_preview.inverse(state, opts)

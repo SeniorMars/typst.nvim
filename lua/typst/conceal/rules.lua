@@ -93,7 +93,6 @@ function M.register(rule)
     end
     capture_rules[#capture_rules + 1] = entry
     sort_rules(capture_rules)
-
     return function()
         return M.unregister(entry)
     end

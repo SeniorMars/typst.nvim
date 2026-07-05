@@ -6,7 +6,6 @@ local project = require("typst.project")
 
 typst.reset({ force = true })
 typst.setup({})
-
 vim.cmd.enew()
 local bufnr = vim.api.nvim_get_current_buf()
 vim.bo[bufnr].filetype = ""

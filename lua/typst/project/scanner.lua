@@ -509,7 +509,6 @@ function M.scan_file_record(project, path)
     local discovered_seen = {}
 
     scan_file(project, path, out, seen, discovered, discovered_seen)
-
     return {
         path = path,
         data = out,

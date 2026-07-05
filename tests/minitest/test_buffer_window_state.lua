@@ -122,7 +122,6 @@ local function eval_selection_contract()
         root = root,
         output_dir = typst_test_cache_path("eval-selection-output"),
     })
-
     local captured = {}
     typst.providers.register("eval", "eval-selection-capture", {
         eval = function(_, opts)
@@ -133,7 +132,6 @@ local function eval_selection_contract()
             }
         end,
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = typst.project.set_main(main)
@@ -142,14 +140,12 @@ local function eval_selection_contract()
     local current_win = vim.api.nvim_get_current_win()
     vim.api.nvim_buf_set_lines(current_buf, 0, -1, false, { "current" })
     vim.api.nvim_win_set_cursor(0, { 1, 0 })
-
     local target_buf = vim.api.nvim_create_buf(false, true)
     vim.bo[target_buf].filetype = "typst"
     vim.api.nvim_buf_set_lines(target_buf, 0, -1, false, {
         "target-one",
         "target-two",
     })
-
     local missing_position = eval_workflow.eval_selection(project, {
         bufnr = target_buf,
         provider = "eval-selection-capture",

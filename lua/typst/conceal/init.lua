@@ -9,7 +9,6 @@ local project = require("typst.project")
 local render = require("typst.conceal.render")
 local telemetry = require("typst.core.telemetry")
 local util = require("typst.core.util")
-local windows = require("typst.core.windows")
 
 local M = {}
 
@@ -18,6 +17,7 @@ M.namespace = vim.api.nvim_create_namespace("typst.nvim.conceal")
 local provider_started = false
 local saved_conceallevel = {}
 local installed_conceallevel = {}
+local conceallevel_owner = {}
 
 -- Conceal is window-local in Neovim, but the feature is configured per Typst
 -- buffer. Track only windows where typst.nvim changed conceallevel, then restore
@@ -101,6 +101,7 @@ local function restore_conceallevel(winid)
     end
     saved_conceallevel[winid] = nil
     installed_conceallevel[winid] = nil
+    conceallevel_owner[winid] = nil
 end
 
 ---Drop stale conceallevel bookkeeping for closed windows.
@@ -109,17 +110,20 @@ local function prune_conceallevels()
         if not vim.api.nvim_win_is_valid(winid) then
             saved_conceallevel[winid] = nil
             installed_conceallevel[winid] = nil
+            conceallevel_owner[winid] = nil
         end
     end
 end
 
 local function restore_buffer_conceallevel(bufnr)
-    for _, winid in ipairs(windows.all_for_buffer(bufnr)) do
-        restore_conceallevel(winid)
+    for winid, owner in pairs(vim.deepcopy(conceallevel_owner)) do
+        if owner == bufnr then
+            restore_conceallevel(winid)
+        end
     end
 end
 
-local function maybe_set_conceallevel(winid)
+local function maybe_set_conceallevel(bufnr, winid)
     prune_conceallevels()
     local opts = conceal_config()
     if opts.conceallevel <= 0 then
@@ -132,6 +136,7 @@ local function maybe_set_conceallevel(winid)
     end
     vim.wo[winid].conceallevel = opts.conceallevel
     installed_conceallevel[winid] = opts.conceallevel
+    conceallevel_owner[winid] = bufnr
 end
 
 function M.apply(bufnr, winid)
@@ -150,7 +155,7 @@ function M.apply(bufnr, winid)
     end
 
     M.start()
-    maybe_set_conceallevel(winid)
+    maybe_set_conceallevel(bufnr, winid)
     return true
 end
 
@@ -169,7 +174,6 @@ local function render_window(winid, bufnr, topline, botline)
         end_row = end_row,
         conceal_opts = opts,
     }, custom.all())
-
     return true
 end
 
@@ -198,7 +202,6 @@ function M.start()
             return result
         end,
     })
-
     provider_started = true
 end
 
@@ -305,6 +308,7 @@ function M._forget_window(winid)
     local had_saved = saved_conceallevel[winid] ~= nil
     saved_conceallevel[winid] = nil
     installed_conceallevel[winid] = nil
+    conceallevel_owner[winid] = nil
     render.forget_window(winid)
     return had_saved
 end
@@ -324,6 +328,7 @@ function M.reset()
     end
     saved_conceallevel = {}
     installed_conceallevel = {}
+    conceallevel_owner = {}
     custom.reset()
     metadata.reset()
     provider_started = false

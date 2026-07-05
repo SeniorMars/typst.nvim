@@ -32,7 +32,6 @@ local opened_url = nil
 local source_sync_request = nil
 
 typst.reset({ force = true })
-
 typst.providers.register("source_map", "playwright-source-map", {
     name = "playwright-source-map",
     browser_inverse = function(_, request)
@@ -46,7 +45,6 @@ typst.providers.register("source_map", "playwright-source-map", {
         }
     end,
 })
-
 typst.setup({
     root = root,
     executable = helpers.python_command(
@@ -79,7 +77,6 @@ typst.setup({
         },
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local snapshot = typst.project.set_main(main)
@@ -90,7 +87,6 @@ typst.compiler.compile({ notify = false }, function(result)
     compile_result = result
     compile_done = true
 end)
-
 if not vim.wait(10000, function()
     return compile_done
 end, 20) then
@@ -127,7 +123,6 @@ write_state({
     transport = preview_state.active_transport,
     project = project.key,
 })
-
 vim.wait(60000, function()
     return vim.fn.filereadable(done_path) == 1
 end, 50)

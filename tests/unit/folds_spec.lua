@@ -7,7 +7,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("folds-output"),
 })
-
 local fixture = root .. "/tests/fixtures/basic/editing.typ"
 vim.cmd.edit(fixture)
 vim.bo.filetype = "typst"
@@ -42,10 +41,9 @@ assert(
 )
 
 local original_get_parser = vim.treesitter.get_parser
-vim.treesitter.get_parser = function()
+rawset(vim.treesitter, "get_parser", function()
     error("missing typst parser")
-end
-
+end)
 local fallback_buf = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_set_current_buf(fallback_buf)
 vim.api.nvim_buf_set_lines(fallback_buf, 0, -1, false, {
