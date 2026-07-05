@@ -39,9 +39,7 @@ vim.diagnostic.set(ns, bufnr_a, {
         severity = vim.diagnostic.severity.ERROR,
     },
 })
-
 quickfix.open(project, ns, { list = "loclist", winid = win_a })
-
 local loc_a = vim.fn.getloclist(win_a, { items = 1, winid = 1, title = 1 })
 local loc_b = vim.fn.getloclist(win_b, { items = 1, winid = 1, title = 1 })
 assert(#loc_a.items == 1, "target window loclist should receive diagnostics")

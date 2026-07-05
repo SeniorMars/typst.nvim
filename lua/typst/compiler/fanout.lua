@@ -33,6 +33,10 @@ local function diagnostic_text(result)
     return ("%s\n%s"):format(result.stderr or "", result.stdout or "")
 end
 
+local function clear_compiler_diagnostics(project)
+    diagnostics.clear(project, { source = "compiler" })
+end
+
 function M.record_compile_output(project, opts)
     return record_compile_output(project, opts)
 end
@@ -45,7 +49,7 @@ function M.compile_succeeded(project, result, opts)
         generation = opts.generation,
         producer = "compile",
     })
-    diagnostics.clear(project)
+    clear_compiler_diagnostics(project)
     compiler_dependencies.update_project(
         project,
         compiler_dependencies.take(deps_path, project.root)
@@ -66,7 +70,7 @@ function M.compile_failed(project, result, opts)
     then
         diagnostics.publish(project, diagnostic_text(result or {}))
     elseif opts.publish_diagnostics ~= false then
-        diagnostics.clear(project)
+        clear_compiler_diagnostics(project)
     end
     if opts.log ~= false then
         log.add("error", "compile failed", {
@@ -83,7 +87,7 @@ end
 function M.watch_cycle_started(project, result, opts)
     opts = opts or {}
     if opts.publish_diagnostics ~= false then
-        diagnostics.clear(project)
+        clear_compiler_diagnostics(project)
     end
     if opts.log ~= false then
         log.add("info", "watch compile cycle started", {
@@ -103,7 +107,7 @@ function M.watch_cycle_succeeded(project, watcher, result, opts)
         generation = watcher and watcher.generation,
         producer = "compile",
     })
-    diagnostics.clear(project)
+    clear_compiler_diagnostics(project)
     compiler_dependencies.refresh_watcher(project, watcher)
     log.add("info", "watch compile cycle succeeded", {
         main = project.main,
@@ -120,7 +124,7 @@ function M.watch_cycle_failed(project, result, opts)
         if diagnostics.should_publish(project) then
             diagnostics.publish(project, diagnostic_text(result or {}))
         else
-            diagnostics.clear(project)
+            clear_compiler_diagnostics(project)
         end
     end
     if opts.log ~= false then
@@ -139,7 +143,7 @@ end
 
 function M.watch_exited_success(project, result, deps_path)
     record_compile_output(project, { producer = "compile" })
-    diagnostics.clear(project)
+    clear_compiler_diagnostics(project)
     compiler_dependencies.update_project(
         project,
         compiler_dependencies.take(deps_path, project.root)
@@ -159,7 +163,7 @@ function M.watch_failed(project, result, deps_path, opts)
     then
         diagnostics.publish(project, diagnostic_text(result or {}))
     elseif opts.publish_diagnostics ~= false then
-        diagnostics.clear(project)
+        clear_compiler_diagnostics(project)
     end
     if opts.log ~= false then
         log.add("error", "watch failed", {

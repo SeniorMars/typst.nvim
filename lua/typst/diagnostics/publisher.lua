@@ -95,6 +95,7 @@ function M.publish(ctx, project, text, opts)
         scoped_quickfix_items(parse_meta and parse_meta.quickfix_items, key)
     local quickfix_items = quickfix.maybe_set(project, published, {
         extra_items = path_quickfix_items,
+        source = key,
     })
     local diagnostic_state = diagnostics_service.get(project) or {}
     diagnostic_state.quickfix_by_source = diagnostic_state.quickfix_by_source
@@ -118,7 +119,6 @@ function M.publish(ctx, project, text, opts)
             quickfix_items = #quickfix_items,
         },
     })
-
     events.emit("TypstDiagnosticsPublished", project, {
         diagnostics_count = diagnostic_total(published),
         diagnostic_buffers = vim.tbl_count(published),
@@ -127,7 +127,6 @@ function M.publish(ctx, project, text, opts)
                 and parse_meta.quickfix_only_diagnostics
             or 0,
     })
-
     return published
 end
 
@@ -135,10 +134,9 @@ function M.publish_by_buffer(ctx, project, by_buffer, opts)
     opts = opts or {}
     local key = ctx.source_key(opts.source)
     ctx.clear(project, { emit = false, source = key })
-
     local published = publish_buffers(ctx, project, key, by_buffer)
 
-    local items = quickfix.maybe_set(project, published)
+    local items = quickfix.maybe_set(project, published, { source = key })
     local diagnostic_state = diagnostics_service.get(project) or {}
     diagnostic_state.quickfix_by_source = diagnostic_state.quickfix_by_source
         or {}
@@ -158,7 +156,6 @@ function M.publish_by_buffer(ctx, project, by_buffer, opts)
         diagnostics_count = diagnostic_total(published),
         diagnostic_buffers = vim.tbl_count(published),
     })
-
     return published, items
 end
 

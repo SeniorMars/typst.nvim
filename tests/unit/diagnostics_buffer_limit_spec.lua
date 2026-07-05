@@ -13,7 +13,6 @@ typst.setup({
         max_buffers_per_publish = 2,
     },
 })
-
 local fixture_root = typst_test_cache_path("diagnostics-buffer-limit")
 vim.fn.delete(fixture_root, "rf")
 vim.fn.mkdir(fixture_root, "p")
@@ -79,7 +78,6 @@ typst.setup({
         max_buffers_per_publish = 1,
     },
 })
-
 local extra_paths = {
     fixture_root .. "/four.typ",
     fixture_root .. "/five.typ",
@@ -120,7 +118,6 @@ typst.setup({
         max_buffers_per_publish = 0,
     },
 })
-
 local unlimited = diagnostics.parse(
     project,
     table.concat({
@@ -142,7 +139,6 @@ typst.setup({
         max_buffers_per_publish = 2,
     },
 })
-
 local open_only_path = fixture_root .. "/open-only.typ"
 vim.fn.writefile({ "= File" }, open_only_path)
 assert(
@@ -178,7 +174,6 @@ typst.setup({
         use_quickfix = true,
     },
 })
-
 local quickfix_only_path = fixture_root .. "/quickfix-only.typ"
 vim.fn.writefile({ "= File" }, quickfix_only_path)
 assert(

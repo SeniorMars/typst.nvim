@@ -17,7 +17,6 @@ typst.setup({
         },
     },
 })
-
 local buf = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_set_current_buf(buf)
 vim.bo[buf].filetype = "typst"
@@ -33,7 +32,6 @@ vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
     '// #set text(font: "Commented Missing")',
     '#let font = ("Not A Text Font")',
 })
-
 local result = typst.tools.font_diagnostics({ bufnr = buf, notify = false })
 assert(result.ok, "font diagnostics should succeed")
 assert(
@@ -112,7 +110,6 @@ typst.setup({
         },
     },
 })
-
 result = typst.tools.font_diagnostics({ bufnr = buf, notify = false })
 assert(
     result.disabled == true,

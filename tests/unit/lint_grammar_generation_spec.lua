@@ -27,7 +27,6 @@ typst.setup({
         end,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 vim.bo.filetype = "typst"
@@ -39,7 +38,6 @@ end)
 lint.lint({ notify = false }, function(result)
     lint_results[#lint_results + 1] = result
 end)
-
 lint_callbacks[2]({
     provider = "lint-test",
     output = ("%s:1:1: warning: newer lint"):format(main),
@@ -48,7 +46,6 @@ lint_callbacks[1]({
     provider = "lint-test",
     output = ("%s:1:1: warning: older lint"):format(main),
 })
-
 assert(
     lint_results[1] and lint_results[1].diagnostics == 1,
     "newer lint result should publish diagnostics"
@@ -72,7 +69,6 @@ end)
 grammar.check({ notify = false }, function(result)
     grammar_results[#grammar_results + 1] = result
 end)
-
 grammar_callbacks[2]({
     provider = "grammar-test",
     output = ("%s:1:1: warning: newer grammar"):format(main),
@@ -81,7 +77,6 @@ grammar_callbacks[1]({
     provider = "grammar-test",
     output = ("%s:1:1: warning: older grammar"):format(main),
 })
-
 assert(
     grammar_results[1] and grammar_results[1].diagnostics == 1,
     "newer grammar result should publish diagnostics"

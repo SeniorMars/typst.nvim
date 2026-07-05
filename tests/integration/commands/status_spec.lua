@@ -10,7 +10,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("status-output"),
 })
-
 local detached = typst.ui.status()
 assert(
     not detached.attached,
@@ -118,7 +117,6 @@ operations.finish(live_project, retained, {
     ok = false,
     reason = "status_fixture_cleared",
 })
-
 require("typst.core.telemetry").time("status.spec", function() end)
 local telemetry_snapshot = typst.ui.status({ telemetry = true })
 assert(
@@ -149,7 +147,6 @@ typst.compiler.compile({}, function(result)
     assert(result.code == 0, "compile failed before status test")
     done = true
 end)
-
 assert(
     vim.wait(10000, function()
         return done

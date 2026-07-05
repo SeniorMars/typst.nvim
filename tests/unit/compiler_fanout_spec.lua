@@ -66,7 +66,6 @@ stub("typst.workflows.artifacts", {
         calls.record_owned = { project = project, opts = opts }
     end,
 })
-
 local ok, err = xpcall(function()
     local fanout = require("typst.compiler.fanout")
     local project = {

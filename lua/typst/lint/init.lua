@@ -115,7 +115,6 @@ local function run_system(command, opts, stdin, callback)
     pending.command = command
 
     pending:on_finish(report)
-
     return pending
 end
 
@@ -192,7 +191,6 @@ local function run_typst(state, opts, callback)
         cwd = state.root,
         main = state.main,
     })
-
     local run_opts = {
         cwd = state.root,
         timeout_ms = opts.timeout_ms or lint_config.timeout_ms,
@@ -415,7 +413,6 @@ function M.lint(opts, callback)
     opts = vim.tbl_extend("force", opts, {
         lint_generation = start_generation(state),
     })
-
     local provider_config = providers.resolve(
         "lint",
         opts.provider or config.unsafe_get().lint.provider

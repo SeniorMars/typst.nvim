@@ -77,7 +77,6 @@ function M.publish_output(state, output, opts, fields)
 
     local items = M.maybe_open_quickfix(state, by_buffer, opts)
     local count = M.diagnostic_total(by_buffer)
-
     return vim.tbl_extend("force", {
         ok = true,
         diagnostics = count,
@@ -104,7 +103,6 @@ function M.publish_by_buffer(state, by_buffer, opts, fields)
         vim.cmd("copen")
     end
     local count = M.diagnostic_total(published)
-
     return vim.tbl_extend("force", {
         ok = true,
         diagnostics = count,

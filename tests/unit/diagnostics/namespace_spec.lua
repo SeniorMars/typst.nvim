@@ -15,7 +15,6 @@ typst.setup({
         use_quickfix = false,
     },
 })
-
 local fixture_dir =
     typst_test_cache_path(("diagnostics-namespace-%d"):format(vim.uv.hrtime()))
 vim.fn.mkdir(fixture_dir, "p")
@@ -65,7 +64,6 @@ local a_lint_diagnostics =
     vim.diagnostic.get(bufnr, { namespace = namespace_a_lint })
 local a_grammar_diagnostics =
     vim.diagnostic.get(bufnr, { namespace = namespace_a_grammar })
-
 assert(
     #a_diagnostics == 1,
     "project A should publish diagnostics in its own namespace"

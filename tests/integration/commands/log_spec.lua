@@ -7,7 +7,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("log-output"),
 })
-
 local notify_core = require("typst.core.notify")
 local notifications = {}
 assert(
@@ -57,7 +56,6 @@ typst.compiler.compile({}, function(result)
     assert(result.code == 0, "compile failed before log test")
     done = true
 end)
-
 assert(
     vim.wait(10000, function()
         return done

@@ -26,7 +26,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(vim.fn.fnameescape(main))
 local project = typst.project.set_main(main)
@@ -39,10 +38,9 @@ assert(
 )
 
 local original_parse = diagnostics.parse
-diagnostics.parse = function()
+rawset(diagnostics, "parse", function()
     error("parser boom")
-end
-
+end)
 local ok, published, err = xpcall(function()
     local result, parse_err =
         diagnostics.publish(project, ("%s:1:1: error: second"):format(main))
@@ -75,9 +73,9 @@ for _, entry in ipairs(typst.ui.log()) do
 end
 assert(saw_log, "parse failure should be logged")
 
-diagnostics.parse = function()
+rawset(diagnostics, "parse", function()
     return nil
-end
+end)
 ok, published, err = xpcall(function()
     local result, parse_err =
         diagnostics.publish(project, ("%s:1:1: error: third"):format(main))
@@ -97,9 +95,9 @@ assert(
     "old diagnostics should survive nil parser output"
 )
 
-diagnostics.parse = function()
+rawset(diagnostics, "parse", function()
     error("lint parser boom")
-end
+end)
 local lint_ok, lint_result = xpcall(function()
     return lint_results.publish_output(
         project,
@@ -125,9 +123,9 @@ assert(
     "lint publish failure should return empty diagnostic tables"
 )
 
-diagnostics.parse = function()
+rawset(diagnostics, "parse", function()
     error("grammar parser boom")
-end
+end)
 local grammar_ok, grammar_result = xpcall(function()
     return typst.tools.grammar({ notify = false })
 end, debug.traceback)

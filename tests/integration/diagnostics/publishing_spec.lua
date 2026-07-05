@@ -13,7 +13,9 @@ local function cleanup()
     pcall(function()
         vim.fn.setqflist({}, "r")
     end)
-    pcall(vim.cmd, "silent! %bwipeout!")
+    pcall(function()
+        vim.cmd("silent! %bwipeout!")
+    end)
 end
 
 local function run_case(name, fn)
@@ -49,7 +51,6 @@ run_case("compiler diagnostics publish events quickfix and logs", function()
             use_quickfix = true,
         },
     })
-
     local broken = root .. "/tests/fixtures/basic/broken.typ"
     vim.cmd.edit(broken)
     local project = typst.project.set_main(broken)
@@ -74,7 +75,6 @@ run_case("compiler diagnostics publish events quickfix and logs", function()
             cleared_event = args.data
         end,
     })
-
     local compile = {
         done = false,
         result_code = nil,
@@ -166,7 +166,6 @@ run_case("compiler diagnostics publish events quickfix and logs", function()
         "compile failure stderr should include Typst output"
     )
 end)
-
 run_case("included-file diagnostics publish to owned buffers", function()
     typst.setup({
         root = root,
@@ -176,7 +175,6 @@ run_case("included-file diagnostics publish to owned buffers", function()
             use_quickfix = true,
         },
     })
-
     local main = root .. "/tests/fixtures/basic/includes-broken.typ"
     local broken = root .. "/tests/fixtures/basic/broken.typ"
     vim.cmd.edit(main)
@@ -231,7 +229,6 @@ run_case("included-file diagnostics publish to owned buffers", function()
         "project should track included-file diagnostic buffer ownership"
     )
 end)
-
 run_case("Tinymist and Coc suppress fallback diagnostics", function()
     typst.setup({
         root = root,
@@ -242,7 +239,6 @@ run_case("Tinymist and Coc suppress fallback diagnostics", function()
             use_quickfix = true,
         },
     })
-
     local broken = root .. "/tests/fixtures/basic/broken.typ"
     vim.cmd.edit(broken)
     local project = typst.project.set_main(broken)
@@ -253,11 +249,10 @@ run_case("Tinymist and Coc suppress fallback diagnostics", function()
     vim.g.coc_service_initialized = nil
 
     local ok, err = xpcall(function()
-        vim.lsp.get_clients = function(opts)
+        rawset(vim.lsp, "get_clients", function(opts)
             if opts and opts.bufnr and opts.bufnr ~= bufnr then
                 return {}
             end
-
             return {
                 {
                     id = 7,
@@ -265,7 +260,7 @@ run_case("Tinymist and Coc suppress fallback diagnostics", function()
                     offset_encoding = "utf-16",
                 },
             }
-        end
+        end)
 
         local diagnostics_config =
             require("typst.config").unsafe_get().diagnostics
@@ -286,9 +281,9 @@ run_case("Tinymist and Coc suppress fallback diagnostics", function()
         )
         diagnostics_config.source = "fallback"
 
-        vim.lsp.get_clients = function()
+        rawset(vim.lsp, "get_clients", function()
             return {}
-        end
+        end)
         vim.g.coc_service_initialized = 1
         assert(
             not diagnostics.should_publish(project),
@@ -314,7 +309,6 @@ run_case("Tinymist and Coc suppress fallback diagnostics", function()
             compile.result_code = result.code
             compile.done = true
         end)
-
         wait_for_compile(compile)
 
         assert(compile.result_code ~= 0, "expected compile failure")
@@ -337,5 +331,4 @@ run_case("Tinymist and Coc suppress fallback diagnostics", function()
         error(err)
     end
 end)
-
 vim.cmd("qa!")

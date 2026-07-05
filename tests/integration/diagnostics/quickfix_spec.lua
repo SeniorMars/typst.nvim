@@ -14,7 +14,9 @@ local function cleanup()
     pcall(function()
         vim.fn.setqflist({}, "r")
     end)
-    pcall(vim.cmd, "silent! %bwipeout!")
+    pcall(function()
+        vim.cmd("silent! %bwipeout!")
+    end)
 end
 
 local function run_case(name, fn)
@@ -48,7 +50,6 @@ run_case("TypstDiagnostics command populates owned quickfix", function()
             use_quickfix = false,
         },
     })
-
     local broken = root .. "/tests/fixtures/basic/broken.typ"
     vim.cmd.edit(broken)
     local broken_bufnr = vim.api.nvim_get_current_buf()
@@ -97,14 +98,12 @@ run_case("TypstDiagnostics command populates owned quickfix", function()
             },
         },
     })
-
     diagnostics.clear(project)
     assert(
         #vim.fn.getqflist() == 1,
         "unowned quickfix list should not be cleared"
     )
 end)
-
 run_case("TypstDiagnostics command can populate owned location list", function()
     typst.setup({
         root = root,
@@ -115,7 +114,6 @@ run_case("TypstDiagnostics command can populate owned location list", function()
             list = "loclist",
         },
     })
-
     local broken = root .. "/tests/fixtures/basic/broken.typ"
     vim.cmd.edit(broken)
     local winid = vim.api.nvim_get_current_win()
@@ -163,7 +161,6 @@ run_case("TypstDiagnostics command can populate owned location list", function()
         "clearing diagnostics should clear the owned location list"
     )
 end)
-
 run_case("clearing another project preserves owned quickfix", function()
     typst.setup({
         root = root,
@@ -173,7 +170,6 @@ run_case("clearing another project preserves owned quickfix", function()
             use_quickfix = true,
         },
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     local chapter = root .. "/tests/fixtures/basic/chapter.typ"
 
@@ -194,7 +190,6 @@ run_case("clearing another project preserves owned quickfix", function()
             },
         },
     })
-
     local before = vim.fn.getqflist({ title = 1, items = 1 })
     assert(
         before.title and before.title:match("typst%.nvim"),
@@ -234,7 +229,6 @@ run_case("clearing another project preserves owned quickfix", function()
     after = vim.fn.getqflist({ title = 1, items = 1 })
     assert(#after.items == 0, "force quickfix clear should remove items")
 end)
-
 run_case("global reset clears only typst-owned quickfix", function()
     typst.setup({
         root = root,
@@ -244,7 +238,6 @@ run_case("global reset clears only typst-owned quickfix", function()
             use_quickfix = true,
         },
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local main_bufnr = vim.api.nvim_get_current_buf()
@@ -279,7 +272,6 @@ run_case("global reset clears only typst-owned quickfix", function()
             },
         },
     })
-
     typst.reset({ force = true })
     local after = vim.fn.getqflist({ title = 1, items = 1 })
     assert(
@@ -291,7 +283,6 @@ run_case("global reset clears only typst-owned quickfix", function()
         "global reset should preserve user quickfix items"
     )
 end)
-
 run_case("global reset preserves replaced user location list", function()
     typst.setup({
         root = root,
@@ -302,7 +293,6 @@ run_case("global reset preserves replaced user location list", function()
             list = "loclist",
         },
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local winid = vim.api.nvim_get_current_win()
@@ -368,7 +358,6 @@ run_case("global reset preserves replaced user location list", function()
             },
         },
     })
-
     typst.reset({ force = true })
     loclist = vim.fn.getloclist(winid, { title = 1, items = 1 })
     assert(
@@ -384,5 +373,4 @@ run_case("global reset preserves replaced user location list", function()
         "global reset should drop stale typst.nvim location-list ownership"
     )
 end)
-
 vim.cmd("qa!")

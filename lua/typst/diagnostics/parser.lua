@@ -283,6 +283,10 @@ function M.parse(project, text, opts)
             return
         end
 
+        -- Default `bufadd` mode intentionally creates unloaded buffers so
+        -- vim.diagnostic can own external-path diagnostics. This is bounded by
+        -- max_buffers_per_publish; use quickfix-only/open-files-only to avoid
+        -- hidden buffers on large or remote projects.
         local existing = vim.fn.bufnr(path)
         if
             existing <= 0

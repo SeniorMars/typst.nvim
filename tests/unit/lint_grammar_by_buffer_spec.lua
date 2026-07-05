@@ -10,7 +10,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("lint-grammar-by-buffer-output"),
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local bufnr = vim.api.nvim_get_current_buf()
@@ -61,7 +60,6 @@ local grammar_result = typst.tools.grammar({
         end,
     },
 })
-
 assert(grammar_result.ok == true, "grammar by_buffer result should be ok")
 assert(
     grammar_result.published == true,

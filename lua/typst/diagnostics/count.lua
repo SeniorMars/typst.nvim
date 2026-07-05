@@ -43,7 +43,6 @@ local function visible_text(text)
     text = text:gsub("#[%a_][%w_%.%-]*", " ")
     text = text:gsub("[%[%]{}()%*_=#]", " ")
     text = text:gsub("[%s]+", " ")
-
     return vim.trim(text)
 end
 

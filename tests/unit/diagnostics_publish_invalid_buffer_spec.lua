@@ -13,7 +13,6 @@ typst.setup({
         use_quickfix = true,
     },
 })
-
 local project = {
     key = "diagnostics-invalid-buffer",
     root = root,

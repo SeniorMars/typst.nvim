@@ -25,12 +25,12 @@ local project = {
 
 local original_readfile = vim.fn.readfile
 local read_count = 0
-vim.fn.readfile = function(target, ...)
+rawset(vim.fn, "readfile", function(target, ...)
     if target == file then
         read_count = read_count + 1
     end
     return original_readfile(target, ...)
-end
+end)
 
 local ok, err = xpcall(function()
     local by_buffer = parser.parse(
@@ -153,7 +153,7 @@ end, debug.traceback)
 vim.fn.readfile = original_readfile
 
 if not ok then
-    vim.api.nvim_err_writeln(err)
+    vim.api.nvim_echo({ { tostring(err), "ErrorMsg" } }, true, {})
     vim.cmd("cquit")
 end
 

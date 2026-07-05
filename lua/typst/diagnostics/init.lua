@@ -15,6 +15,7 @@ local global_namespaces = {
 }
 local source_buffers
 local rebuild_diagnostic_buffers
+local rebuild_or_clear_quickfix
 
 local function source_key(source)
     if type(source) ~= "string" or source == "" then
@@ -76,6 +77,12 @@ function M.namespace_for(project, source)
                 key
             )
         )
+    end
+    local diagnostic_state = diagnostics_service.get(project)
+    if diagnostic_state then
+        diagnostic_state.namespace_sources = diagnostic_state.namespace_sources
+            or {}
+        diagnostic_state.namespace_sources[namespaces[key]] = key
     end
 
     if key == default_source then
@@ -145,9 +152,10 @@ end
 --- Replace the Typst-owned quickfix list with diagnostics.
 ---@param project table Project state that owns the quickfix list.
 ---@param by_buffer table<integer, table[]> Diagnostics grouped by buffer.
+---@param opts? table Quickfix options.
 ---@return table[] items Quickfix items that were set.
-function M.set_quickfix(project, by_buffer)
-    return quickfix.set(project, by_buffer)
+function M.set_quickfix(project, by_buffer, opts)
+    return quickfix.set(project, by_buffer, opts)
 end
 
 --- Convert diagnostics grouped by buffer into sorted quickfix items.
@@ -170,6 +178,7 @@ function M.quickfix(project, opts)
         extra_items = diagnostic_state.quickfix_by_source
                 and diagnostic_state.quickfix_by_source[key]
             or nil,
+        source = key,
     })
     return quickfix.open(project, M.namespace_for(project, key), open_opts)
 end
@@ -216,6 +225,27 @@ rebuild_diagnostic_buffers = function(project)
     diagnostics_service.set(project, { buffers = diagnostic_buffers })
 end
 
+rebuild_or_clear_quickfix = function(project, key)
+    if not quickfix.owns(project, { source = key }) then
+        return false
+    end
+
+    local diagnostic_state = diagnostics_service.get(project) or {}
+    local source_remaining = next(
+        ((diagnostic_state.by_source or {})[key] or {})
+    ) ~= nil or next(
+        ((diagnostic_state.quickfix_by_source or {})[key] or {})
+    ) ~= nil
+    if not source_remaining then
+        return quickfix.clear(project, { source = key })
+    end
+
+    return quickfix.rebuild(project, M.namespace_for(project, key), {
+        source = key,
+        extra_items = (diagnostic_state.quickfix_by_source or {})[key],
+    })
+end
+
 --- Clear all project-owned diagnostics from one buffer.
 ---@param project table Project state whose diagnostic namespaces own the buffer.
 ---@param bufnr integer Buffer whose diagnostics should be reset.
@@ -229,7 +259,9 @@ function M.clear_buffer(project, bufnr, opts)
 
     local keys = source_keys(project, opts.source)
     local had_diagnostics = false
-    local owned_list = quickfix.owns(project)
+    local owned_list = quickfix.owns(project, opts.source and {
+        source = source_key(opts.source),
+    } or nil)
 
     for _, key in ipairs(keys) do
         local buffers = source_buffers(project, key)
@@ -246,9 +278,10 @@ function M.clear_buffer(project, bufnr, opts)
     rebuild_diagnostic_buffers(project)
 
     local diagnostic_state = diagnostics_service.get(project) or {}
-    local remaining = next(diagnostic_state.buffers or {}) ~= nil
-    if owned_list and not remaining then
-        quickfix.clear(project)
+    if owned_list then
+        for _, key in ipairs(keys) do
+            rebuild_or_clear_quickfix(project, key)
+        end
     end
 
     if opts.emit ~= false and (had_diagnostics or owned_list) then
@@ -269,7 +302,9 @@ function M.clear(project, opts)
     opts = opts or {}
     local keys = source_keys(project, opts.source)
     local had_diagnostics = false
-    local owned_list = quickfix.owns(project)
+    local owned_list = quickfix.owns(project, opts.source and {
+        source = source_key(opts.source),
+    } or nil)
 
     for _, key in ipairs(keys) do
         local buffers = source_buffers(project, key)
@@ -294,7 +329,11 @@ function M.clear(project, opts)
     rebuild_diagnostic_buffers(project)
 
     if owned_list then
-        quickfix.clear(project)
+        if opts.source then
+            quickfix.clear(project, { source = source_key(opts.source) })
+        else
+            quickfix.clear(project)
+        end
     end
 
     if opts.emit ~= false and (had_diagnostics or owned_list) then
