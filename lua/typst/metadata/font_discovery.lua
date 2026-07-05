@@ -108,7 +108,6 @@ local function typst_font_names(timeout_ms)
             retry_at = ok and nil or (uv.now() + math.max(timeout_ms, 1000)),
         }
     end)
-
     return {}
 end
 

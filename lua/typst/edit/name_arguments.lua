@@ -126,7 +126,6 @@ local function apply_named_argument_edits(bufnr, group, positional)
     table.sort(edits, function(left, right)
         return left.start > right.start
     end)
-
     for _, edit in ipairs(edits) do
         text = text:sub(1, edit.start)
             .. edit.replacement

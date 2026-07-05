@@ -68,7 +68,7 @@ end
 local function install_tinymist_mock(bufnr)
     local callbacks = {}
     local original_get_clients = vim.lsp.get_clients
-    vim.lsp.get_clients = function(opts)
+    rawset(vim.lsp, "get_clients", function(opts)
         if not opts or opts.bufnr ~= bufnr then
             return {}
         end
@@ -85,8 +85,7 @@ local function install_tinymist_mock(bufnr)
                 end,
             },
         }
-    end
-
+    end)
     return callbacks,
         function()
             vim.lsp.get_clients = original_get_clients
@@ -160,7 +159,6 @@ local function run_cmp_popup()
             include_fonts = false,
         },
     })
-
     local bufnr = setup_buffer()
     local callbacks, restore_lsp = install_tinymist_mock(bufnr)
     local source_name = "typst_nvim_popup_cmp"
@@ -263,7 +261,6 @@ local function run_blink_popup()
             include_fonts = false,
         },
     })
-
     local bufnr = setup_buffer()
     local callbacks, restore_lsp = install_tinymist_mock(bufnr)
     local source_name = "typst_nvim_popup_blink"
@@ -293,7 +290,6 @@ local function run_blink_popup()
             },
         },
     })
-
     blink.show()
     assert(
         vim.wait(1000, function()

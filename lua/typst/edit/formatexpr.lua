@@ -54,7 +54,6 @@ local function unsafe_prose_line(bufnr, row, line)
         raw = "space",
         comments = "space",
     })
-
     return code:match("^%s*$")
         or code:match("^%s*=")
         or code:match("^%s*#")

@@ -45,9 +45,38 @@ assert(
     "release gates should link lifecycle and stability policy docs"
 )
 
+for _, rel in ipairs({
+    "docs/services.md",
+    "docs/event-ordering.md",
+    "docs/cache-invalidation.md",
+    "docs/autocmd-lifecycle.md",
+    "docs/stable-core-decisions.md",
+}) do
+    assert(
+        release_gates:find(rel, 1, true),
+        "release gates should link " .. rel
+    )
+end
+
+local decisions = read("docs/stable-core-decisions.md")
+for _, text in ipairs({
+    "Diagnostics External Paths",
+    "Native Preview Output",
+    "Output Locks",
+    "Event Payload Compatibility",
+    "Tinymist Boundary",
+    "Compatibility Functions",
+}) do
+    assert(
+        decisions:find(text, 1, true),
+        "stable-core decisions should include: " .. text
+    )
+end
+
 local checklist = read("docs/stable-core-checklist.md")
 assert(
-    checklist:find(":TypstBugReport", 1, true),
+    checklist:find(":TypstBugReport", 1, true)
+        and checklist:find(":TypstSupportBundle", 1, true),
     "stable-core checklist should require bug-report artifacts"
 )
 

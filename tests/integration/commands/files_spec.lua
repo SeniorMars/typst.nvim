@@ -7,7 +7,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("files-output"),
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 local chapter = root .. "/tests/fixtures/basic/chapter.typ"
 local appendix = root .. "/tests/fixtures/basic/appendix.typ"
@@ -20,7 +19,6 @@ typst.compiler.compile({}, function(result)
     assert(result.code == 0, "compile failed before files test")
     done = true
 end)
-
 assert(
     vim.wait(10000, function()
         return done

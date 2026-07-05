@@ -26,6 +26,7 @@ local budgets = {
     large_toc_p95 = 1500 * scale,
     large_toc_follow_coalescing = 200 * scale,
     large_picker_p95 = 2000 * scale,
+    large_conceal_first_render = 3000 * scale,
     large_conceal_redraw_p95 = 500 * scale,
     large_bibliography_diagnostics = 3000 * scale,
 }
@@ -56,6 +57,16 @@ local function has_item(items, predicate)
     return false
 end
 
+local function has_compatible_typst_conceal_query(bufnr)
+    local ok_parser, parser = pcall(vim.treesitter.get_parser, bufnr, "typst")
+    if not ok_parser or not parser then
+        return false
+    end
+
+    local ok_query, query = pcall(vim.treesitter.query.get, "typst", "conceal")
+    return ok_query and query ~= nil
+end
+
 vim.fn.delete(fixture_root, "rf")
 vim.fn.mkdir(fixture_root .. "/chapters", "p")
 
@@ -66,6 +77,7 @@ local main_lines = {
     "= Large Project Fixture <sec:large-root>",
     "",
     "#cite(<ref-001>)",
+    "Text $ alpha + arrow.r + RR + x_1 + y^2 $ end.",
 }
 
 for i = 2, 72 do
@@ -84,6 +96,7 @@ for i = 1, 72 do
             i
         ),
         ("#cite(<ref-%03d>)"):format(i),
+        "Text $ alpha + arrow.r + RR + x_1 + y^2 $ end.",
         "",
         ("== Nested Section %03d <sec:large-%03d-nested>"):format(i, i),
         ("#let local-value-%03d = %d"):format(i, i),
@@ -119,7 +132,6 @@ typst.setup({
         package_cache_ttl_ms = 60000,
     },
 })
-
 local package_completion = require("typst.completion.packages")
 local package_provider = require("typst.package")
 package_completion.reset()
@@ -170,7 +182,6 @@ perf.record_metric(spec_name, {
     ratio = package_scan_batch.p95_ms / budgets.large_package_scan_batch_p95,
     samples = package_scan_batch.sample_count,
 })
-
 vim.cmd.edit(vim.fn.fnameescape(main))
 vim.bo.filetype = "typst"
 local project = assert(typst.project.attach(0), "large fixture should attach")
@@ -208,10 +219,10 @@ local nav_toc = require("typst.navigation.toc")
 local old_is_open = nav_toc.is_open
 local old_follow = nav_toc.follow
 local follow_calls = 0
-nav_toc.is_open = function(attached)
+rawset(nav_toc, "is_open", function(attached)
     return attached == project
-end
-nav_toc.follow = function(attached, follow_bufnr)
+end)
+rawset(nav_toc, "follow", function(attached, follow_bufnr)
     assert(attached == project, "large TOC follow should keep project context")
     assert(
         follow_bufnr == vim.api.nvim_get_current_buf(),
@@ -219,7 +230,7 @@ nav_toc.follow = function(attached, follow_bufnr)
     )
     follow_calls = follow_calls + 1
     return true
-end
+end)
 local follow_ok, follow_err = xpcall(function()
     telemetry.reset()
     assert_budget("large_toc_follow_coalescing", function()
@@ -266,6 +277,20 @@ assert(
     "large picker p95 fixture should expose project items"
 )
 
+conceal.refresh(vim.api.nvim_get_current_buf())
+local first_conceal_matches = assert_budget(
+    "large_conceal_first_render",
+    function()
+        return conceal.matches(vim.api.nvim_get_current_buf())
+    end
+)
+if has_compatible_typst_conceal_query(vim.api.nvim_get_current_buf()) then
+    assert(
+        #first_conceal_matches > 0,
+        "large conceal first render should produce matches"
+    )
+end
+
 assert_p95("large_conceal_redraw_p95", 5, function()
     return conceal._window_matches(
         vim.api.nvim_get_current_buf(),
@@ -291,7 +316,6 @@ perf.record_metric(spec_name, {
     ratio = conceal_window_metric.p95_ms / budgets.large_conceal_redraw_p95,
     samples = conceal_window_metric.sample_count,
 })
-
 local completion_items = assert_budget("large_completion", function()
     return typst.completion.complete({
         base = "local-fn-07",

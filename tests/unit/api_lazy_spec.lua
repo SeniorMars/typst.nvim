@@ -43,7 +43,6 @@ typst.setup({
         package_cache_prewarm = false,
     },
 })
-
 for _, module_name in ipairs({
     "typst.package",
     "typst.bibliography",
@@ -105,7 +104,6 @@ typst.setup({
         package_cache_prewarm = false,
     },
 })
-
 assert(
     type(typst.package.info) == "function",
     "lazy package namespace should still expose functions"

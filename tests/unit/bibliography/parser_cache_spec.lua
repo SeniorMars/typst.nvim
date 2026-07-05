@@ -31,7 +31,7 @@ vim.fn.writefile(large_lines, large_path)
 
 local ok, err = xpcall(function()
     parser.reset()
-    uv.fs_stat = function(target)
+    rawset(uv, "fs_stat", function(target)
         if target == path then
             return {
                 size = signature,
@@ -42,8 +42,8 @@ local ok, err = xpcall(function()
             }
         end
         return original_fs_stat(target)
-    end
-    vim.fn.readfile = function(target, ...)
+    end)
+    rawset(vim.fn, "readfile", function(target, ...)
         if target == path then
             reads = reads + 1
             return vim.deepcopy(lines)
@@ -52,7 +52,7 @@ local ok, err = xpcall(function()
             large_reads = large_reads + 1
         end
         return original_readfile(target, ...)
-    end
+    end)
 
     local first = parser.parse_bibtex_file(path)
     assert(

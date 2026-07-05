@@ -218,7 +218,6 @@ function M.items(opts, base)
         end
         return a.word < b.word
     end)
-
     return items
 end
 

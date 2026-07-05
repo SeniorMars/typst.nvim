@@ -8,7 +8,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("tinymist-interactive-async-output"),
 })
-
 local tinymist = require("typst.integrations.tinymist")
 local tinymist_async = require("typst.integrations.tinymist.async")
 local semantic = require("typst.integrations.semantic")
@@ -16,6 +15,7 @@ local selection_lsp = require("typst.edit.textobject_lsp")
 
 local original_get_clients = vim.lsp.get_clients
 local handlers = {}
+---@type any[]
 local requests = {}
 local request_id = 0
 local command_executions = 0
@@ -87,12 +87,12 @@ local ok, err = xpcall(function()
         end,
     }
 
-    vim.lsp.get_clients = function(opts)
+    rawset(vim.lsp, "get_clients", function(opts)
         if opts and opts.bufnr == bufnr then
             return { fake_client }
         end
         return {}
-    end
+    end)
 
     local params_error_result = nil
     local params_error = tinymist_async.request(
@@ -121,7 +121,9 @@ local ok, err = xpcall(function()
     )
 
     vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    ---@type any
     local rename_result = nil
+    ---@type any
     local pending = tinymist.rename(bufnr, "new", {
         callback = function(result)
             rename_result = result
@@ -145,7 +147,9 @@ local ok, err = xpcall(function()
     )
 
     vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    ---@type any
     local action_result = nil
+    ---@type any
     pending = tinymist.structural_action("heading_promote", {
         bufnr = bufnr,
         patterns = { "promote" },
@@ -179,7 +183,9 @@ local ok, err = xpcall(function()
     )
 
     vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    ---@type any
     local references_result = nil
+    ---@type any
     pending = semantic.references({
         root = root,
         main = main,
@@ -215,7 +221,9 @@ local ok, err = xpcall(function()
     )
 
     vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    ---@type any
     local selection_result = nil
+    ---@type any
     pending = selection_lsp.selection_range(bufnr, "inner", {
         callback = function(result)
             selection_result = result
@@ -414,6 +422,7 @@ local ok, err = xpcall(function()
     vim.api.nvim_buf_set_lines(normalizer_bufnr, 0, -1, false, { "#let x = 1" })
     vim.bo[normalizer_bufnr].filetype = "typst"
 
+    ---@type any
     local normalizer_result = nil
     local normalizer_client = {
         name = "tinymist-test",

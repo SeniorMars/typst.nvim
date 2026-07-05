@@ -7,7 +7,7 @@ typst.reset()
 local grammar_calls = 0
 local original_notify = vim.notify
 
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 
 typst.setup({
     root = root,
@@ -32,7 +32,6 @@ typst.setup({
         end,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local bufnr = vim.api.nvim_get_current_buf()
@@ -156,15 +155,15 @@ assert(
 
 local original_system = vim.system
 local timeout_kills = 0
-vim.system = function()
+rawset(vim, "system", function()
     return {
         kill = function()
             timeout_kills = timeout_kills + 1
             return true
         end,
     }
-end
-
+end)
+---@type any
 local grammar_timeout_result = nil
 local grammar_timeout = typst.tools.grammar({
     notify = false,
@@ -208,5 +207,5 @@ assert(
 )
 vim.system = original_system
 
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 vim.cmd("qa!")

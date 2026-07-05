@@ -66,13 +66,18 @@ local function counted_argument_range(bufnr, group, part, opts)
     end
 
     local end_index = start_index + count - 1
-    if end_index > #children then
+    if type(children) ~= "table" or end_index > #children then
         return false
     end
 
-    local start_range =
-        ts.trim_whitespace(bufnr, ts.range(children[start_index]))
-    local end_range = ts.trim_whitespace(bufnr, ts.range(children[end_index]))
+    local start_child = children[start_index]
+    local end_child = children[end_index]
+    if not start_child or not end_child then
+        return false
+    end
+
+    local start_range = ts.trim_whitespace(bufnr, ts.range(start_child))
+    local end_range = ts.trim_whitespace(bufnr, ts.range(end_child))
     if not start_range or not end_range then
         return false
     end

@@ -10,7 +10,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("info-output"),
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -21,7 +20,6 @@ typst.compiler.compile({}, function(result)
     assert(result.code == 0, "compile failed before info test")
     done = true
 end)
-
 assert(
     vim.wait(10000, function()
         return done
@@ -57,16 +55,15 @@ assert(
 
 local captured = {}
 local original_echo = vim.api.nvim_echo
-vim.api.nvim_echo = function(chunks)
+rawset(vim.api, "nvim_echo", function(chunks)
     for _, chunk in ipairs(chunks) do
         captured[#captured + 1] = chunk[1]
     end
-end
+end)
 
 local ok, err = pcall(function()
     typst.ui.info()
 end)
-
 vim.api.nvim_echo = original_echo
 assert(ok, err)
 
@@ -112,18 +109,16 @@ local lease = assert(
 )
 local record = assert(operations.begin(live_project, "export"))
 operations.retain(live_project, record, { orphaned = true, reason = "test" })
-
 captured = {}
-vim.api.nvim_echo = function(chunks)
+rawset(vim.api, "nvim_echo", function(chunks)
     for _, chunk in ipairs(chunks) do
         captured[#captured + 1] = chunk[1]
     end
-end
+end)
 
 ok, err = pcall(function()
     typst.ui.info()
 end)
-
 vim.api.nvim_echo = original_echo
 assert(ok, err)
 
@@ -159,16 +154,15 @@ assert(
 )
 
 captured = {}
-vim.api.nvim_echo = function(chunks)
+rawset(vim.api, "nvim_echo", function(chunks)
     for _, chunk in ipairs(chunks) do
         captured[#captured + 1] = chunk[1]
     end
-end
+end)
 
 ok, err = pcall(function()
     typst.ui.info()
 end)
-
 vim.api.nvim_echo = original_echo
 assert(ok, err)
 

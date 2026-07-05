@@ -62,7 +62,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 local bufnr = vim.api.nvim_create_buf(true, false)
 vim.api.nvim_buf_set_name(bufnr, base .. "/examples/standalone.typ")
 vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "= Example" })
@@ -96,7 +95,6 @@ compiler_api.compile(project, {}, nil, function(message, level)
         level = level,
     }
 end)
-
 assert(
     notifications[1]
         and notifications[1].level == vim.log.levels.WARN
@@ -110,7 +108,6 @@ compiler_api.compile(project, {}, nil, function(message, level)
         level = level,
     }
 end)
-
 local warnings = 0
 for _, notification in ipairs(notifications) do
     if notification.level == vim.log.levels.WARN then

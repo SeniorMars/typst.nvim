@@ -22,14 +22,12 @@ typst.setup({
         font_scan_timeout_ms = 0,
     },
 })
-
 local old_package_cache_path = vim.env.TYPST_PACKAGE_CACHE_PATH
 vim.env.TYPST_PACKAGE_CACHE_PATH = root .. "/tests/fixtures/packages"
 require("typst.completion.packages").prewarm({
     force = true,
     schedule = false,
 })
-
 local function find_item(items, word)
     for _, item in ipairs(items) do
         if item.word == word then
@@ -272,15 +270,14 @@ local halo_emoji = assert_item(
 assert(halo_emoji.menu == "[Typst emoji]", "emoji completion should be labeled")
 
 local package_validation_calls = 0
-registry_scan.root_signatures = function(...)
+rawset(registry_scan, "root_signatures", function(...)
     package_validation_calls = package_validation_calls + 1
     return original_root_signatures(...)
-end
-registry_scan.scan_roots = function(...)
+end)
+rawset(registry_scan, "scan_roots", function(...)
     package_validation_calls = package_validation_calls + 1
     return original_scan_roots(...)
-end
-
+end)
 local package_items = typst.completion.complete({
     base = "@preview/ce",
     context = "markup",
@@ -468,10 +465,10 @@ assert_item(
 
 local old_metadata_catalog = metadata.catalog
 local old_metadata_stdlib_item = metadata.stdlib_item
-metadata.catalog = function()
+rawset(metadata, "catalog", function()
     return { version = "synthetic-color-metadata" }
-end
-metadata.stdlib_item = function(path)
+end)
+rawset(metadata, "stdlib_item", function(path)
     if path == "color" then
         return {
             members = {
@@ -493,7 +490,7 @@ metadata.stdlib_item = function(path)
         }
     end
     return old_metadata_stdlib_item(path)
-end
+end)
 
 local metadata_color_ok, metadata_color_err = pcall(function()
     assert_item(
@@ -759,18 +756,16 @@ local index_project = typst.project.attach(index_buf)
 assert(index_project, "fixture project should attach")
 local unicode_completion_row = vim.api.nvim_buf_line_count(index_buf)
 vim.api.nvim_buf_set_lines(index_buf, -1, -1, false, { "αβ tinymist" })
-
 local original_get_clients = vim.lsp.get_clients
 local original_coc_initialized = vim.g.coc_service_initialized
 local completion_module = require("typst.completion")
 local completion_request_count = 0
 local completion_callbacks = {}
 local cancelled_completion_requests = {}
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if not opts or opts.bufnr ~= index_buf then
         return {}
     end
-
     return {
         {
             name = "tinymist",
@@ -873,7 +868,7 @@ vim.lsp.get_clients = function(opts)
                                             line = params.position.line,
                                             character = params.position.character,
                                         },
-                                        ["end"] = {
+                                        ["end)"] = {
                                             line = params.position.line,
                                             character = params.position.character,
                                         },
@@ -924,8 +919,7 @@ vim.lsp.get_clients = function(opts)
             end,
         },
     }
-end
-
+end)
 local pending_tinymist_items = typst.completion.complete({
     base = "tinymist",
     context = "markup",
@@ -1459,7 +1453,7 @@ assert(
     citation_item.user_data.typst.kind == "citation",
     "bibliography key completion should preserve citation kind"
 )
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if opts and opts.bufnr == index_buf then
         return {
             {
@@ -1468,7 +1462,7 @@ vim.lsp.get_clients = function(opts)
         }
     end
     return {}
-end
+end)
 assert(
     not find_item(
         typst.completion.complete({
@@ -1565,7 +1559,7 @@ assert_item(
 )
 
 local original_index_collect = index.collect
-index.collect = function()
+rawset(index, "collect", function()
     return {
         project = {
             main = "C:/Users/Charlie/Project/main.typ",
@@ -1598,14 +1592,14 @@ index.collect = function()
         glossary_entries = {},
         paths = {},
     }
-end
+end)
 local windows_items = typst.completion.complete({
     base = "windows",
     context = "markup",
     bufnr = index_buf,
     limit = 20,
 })
-index.collect = original_index_collect
+rawset(index, "collect", original_index_collect)
 assert_item(
     windows_items,
     "windows-card",

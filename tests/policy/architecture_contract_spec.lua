@@ -25,7 +25,6 @@ assert_not_required("lua/typst/project/resolver.lua", {
     "typst.diagnostics.publisher",
     "typst.resources.outputs",
 })
-
 for _, path in
     ipairs(vim.fn.globpath("lua/typst/diagnostics", "**/*.lua", false, true))
 do

@@ -10,7 +10,6 @@ typst.reset({ force = true })
 typst.setup({
     root_markers = {},
 })
-
 local function notification_counter()
     local calls = {}
     return calls,
@@ -121,25 +120,23 @@ assert(
     "public project snapshots should expose the live project instance token"
 )
 project.update_dependencies(attached_live, { main, chapter })
-
 local operations = require("typst.project.services.operations")
 local original_compile = operations.compile
 local original_watch = operations.watch
 local original_stop = operations.stop
 local captured_stable = {}
-operations.compile = function(state, opts)
+rawset(operations, "compile", function(state, opts)
     captured_stable.compile = { state = state, opts = opts }
     return { ok = true, operation = "compile" }
-end
-operations.watch = function(state, opts)
+end)
+rawset(operations, "watch", function(state, opts)
     captured_stable.watch = { state = state, opts = opts }
     return { ok = true, operation = "watch" }
-end
-operations.stop = function(state)
+end)
+rawset(operations, "stop", function(state)
     captured_stable.stop = { state = state }
     return { stopped = true, idle = true }
-end
-
+end)
 local compile_snapshot_result =
     typst.compiler.compile({ project = attached, notify = false })
 local watch_snapshot_result =
@@ -221,13 +218,14 @@ assert(
 local original_compile_selected =
     require("typst.project.services.operations").compile_selected
 local captured_selected = nil
-require("typst.project.services.operations").compile_selected = function(
-    state,
-    opts
+rawset(
+    require("typst.project.services.operations"),
+    "compile_selected",
+    function(state, opts)
+        captured_selected = { state = state, opts = opts }
+        return { ok = true }
+    end
 )
-    captured_selected = { state = state, opts = opts }
-    return { ok = true }
-end
 local selected_ok, selected_err = typst.compiler.compile_selected({
     project = attached,
     notify = false,
@@ -235,8 +233,11 @@ local selected_ok, selected_err = typst.compiler.compile_selected({
     line1 = 1,
     line2 = 1,
 })
-require("typst.project.services.operations").compile_selected =
+rawset(
+    require("typst.project.services.operations"),
+    "compile_selected",
     original_compile_selected
+)
 assert(selected_ok and selected_ok.ok == true, selected_err)
 assert(
     captured_selected and captured_selected.state == attached_live,
@@ -257,22 +258,22 @@ local view_state = nil
 local forward_state = nil
 local inverse_state = nil
 local preview_inverse_state = nil
-viewer_api.view = function(state)
+rawset(viewer_api, "view", function(state)
     view_state = state
     return { ok = true, opened = true }
-end
-viewer_api.view_forward = function(state)
+end)
+rawset(viewer_api, "view_forward", function(state)
     forward_state = state
     return { ok = true, forwarded = true }
-end
-viewer_api.view_inverse = function(state)
+end)
+rawset(viewer_api, "view_inverse", function(state)
     inverse_state = state
     return { ok = true, path = chapter }
-end
-viewer_api.preview_inverse = function(state)
+end)
+rawset(viewer_api, "preview_inverse", function(state)
     preview_inverse_state = state
     return { ok = true, path = chapter }
-end
+end)
 local view = typst.viewer.view({ project = attached, notify = false })
 local forward = typst.viewer.view_forward({
     project = attached,
@@ -386,14 +387,14 @@ vim.bo.filetype = "typst"
 typst.project.set_main(main)
 local inverse_called_for_untracked_path = false
 local preview_inverse_called_for_untracked_path = false
-viewer_api.view_inverse = function()
+rawset(viewer_api, "view_inverse", function()
     inverse_called_for_untracked_path = true
     return { ok = true }
-end
-viewer_api.preview_inverse = function()
+end)
+rawset(viewer_api, "preview_inverse", function()
     preview_inverse_called_for_untracked_path = true
     return { ok = true }
-end
+end)
 local focused_unknown_inverse, focused_unknown_err = typst.viewer.view_inverse({
     path = readable_untracked,
     notify = false,

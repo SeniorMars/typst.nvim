@@ -7,7 +7,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("tinymist-actions-output"),
 })
-
 local fixture = root .. "/tests/fixtures/basic/editing.typ"
 vim.cmd.edit(fixture)
 vim.bo.filetype = "typst"
@@ -18,6 +17,7 @@ local original_get_clients = vim.lsp.get_clients
 local original_notify = vim.notify
 local bufnr = vim.api.nvim_get_current_buf()
 local command_executed = nil
+---@type any
 local requested_params = nil
 local function run_action(name, opts)
     local action_result
@@ -34,7 +34,7 @@ local function run_action(name, opts)
     return action_result or pending
 end
 
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 
 local fake_client = {
     id = 42,
@@ -53,15 +53,14 @@ function fake_client:exec_cmd(command)
     command_executed = command.command
 end
 
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if opts and opts.bufnr and opts.bufnr ~= bufnr then
         return {}
     end
     return { fake_client }
-end
+end)
 
 vim.api.nvim_buf_set_lines(bufnr, 0, 1, false, { "== One #strong[Two]" })
-
 local function workspace_edit(replacement)
     return {
         changes = {
@@ -78,7 +77,7 @@ local function workspace_edit(replacement)
     }
 end
 
-fake_client.request = function(_, method, params, callback)
+rawset(fake_client, "request", function(_, method, params, callback)
     assert(
         method == "textDocument/codeAction",
         "unexpected Tinymist method: " .. method
@@ -91,15 +90,16 @@ fake_client.request = function(_, method, params, callback)
         },
     })
     return true, 1
-end
-
+end)
 vim.api.nvim_win_set_cursor(0, { 1, 1 })
+---@type any
 local direct_result =
     tinymist.structural_action("heading_promote", { bufnr = bufnr })
 assert(
     not direct_result.ok and direct_result.reason == "async_required",
     "direct Tinymist structural action should require a callback"
 )
+---@type any
 local result = run_action("heading_promote", { bufnr = bufnr })
 assert(result.ok, "promote heading action was not applied")
 assert(
@@ -112,7 +112,7 @@ assert(
     "trigger kind missing"
 )
 
-fake_client.request = function(_, method, _, callback)
+rawset(fake_client, "request", function(_, method, _, callback)
     assert(
         method == "textDocument/codeAction",
         "unexpected Tinymist method: " .. method
@@ -127,28 +127,32 @@ fake_client.request = function(_, method, _, callback)
         },
     })
     return true, 2
-end
-
-result = run_action("heading_demote", { bufnr = bufnr })
-assert(result.ok, "demote heading command action was not applied")
+end)
+---@type any
+local demote_result = run_action("heading_demote", { bufnr = bufnr })
+assert(demote_result.ok, "demote heading command action was not applied")
 assert(
     command_executed == "tinymist.demoteHeading",
     "Tinymist command was not executed"
 )
 
-fake_client.request = function(_, _, _, callback)
+rawset(fake_client, "request", function(_, _, _, callback)
     callback(nil, {
         {
             title = "Unrelated action",
         },
     })
     return true, 3
-end
+end)
+---@type any
+local equation_result = run_action("equation_block", { bufnr = bufnr })
+assert(not equation_result.ok, "unmatched action should fail")
+assert(
+    equation_result.reason == "no_action",
+    "unmatched action should report no_action"
+)
 
-result = run_action("equation_block", { bufnr = bufnr })
-assert(not result.ok, "unmatched action should fail")
-assert(result.reason == "no_action", "unmatched action should report no_action")
-
+---@type any
 local typst_result = typst.edit.convert_equation("inline", { bufnr = bufnr })
 assert(
     not typst_result.ok and typst_result.reason == "no_equation",
@@ -159,7 +163,7 @@ local hidden_bufnr = vim.api.nvim_create_buf(false, true)
 vim.bo[hidden_bufnr].filetype = "typst"
 vim.api.nvim_buf_set_lines(hidden_bufnr, 0, -1, false, { "== Hidden" })
 local hidden_requests = 0
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if opts and opts.bufnr == hidden_bufnr then
         return { fake_client }
     end
@@ -167,8 +171,8 @@ vim.lsp.get_clients = function(opts)
         return {}
     end
     return { fake_client }
-end
-fake_client.request = function(_, _, _, callback)
+end)
+rawset(fake_client, "request", function(_, _, _, callback)
     hidden_requests = hidden_requests + 1
     callback(nil, {
         {
@@ -180,7 +184,8 @@ fake_client.request = function(_, _, _, callback)
         },
     })
     return true, 4
-end
+end)
+---@type any
 local hidden_without_range =
     run_action("heading_promote", { bufnr = hidden_bufnr })
 assert(
@@ -192,6 +197,7 @@ assert(
     hidden_requests == 0,
     "hidden noncurrent buffer action should not borrow the current cursor"
 )
+---@type any
 local hidden_with_range = run_action("heading_promote", {
     bufnr = hidden_bufnr,
     range = {
@@ -206,6 +212,6 @@ assert(
 assert(hidden_requests == 1, "explicit hidden-buffer range should request LSP")
 
 vim.lsp.get_clients = original_get_clients
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 
 vim.cmd("qa!")

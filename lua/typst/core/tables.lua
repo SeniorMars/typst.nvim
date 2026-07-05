@@ -27,5 +27,4 @@ function M.is_list(value)
 end
 
 M.unpack = table.unpack or rawget(_G, "unpack")
-
 return M

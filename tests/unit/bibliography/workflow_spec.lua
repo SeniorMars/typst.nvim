@@ -62,7 +62,6 @@ typst.setup({
         attachment_paths = { "attachments/{key}.pdf" },
     },
 })
-
 vim.cmd.edit(main)
 vim.bo.filetype = "typst"
 local project = assert(typst.project.attach(0), "bibliography fixture attaches")
@@ -178,7 +177,6 @@ assert(
 )
 vim.api.nvim_win_set_buf(0, original_buf)
 vim.api.nvim_buf_delete(cite_buf, { force = true })
-
 local fallback_refs = fixture_dir .. "/fallback-source.bib"
 local unrelated_refs = fixture_dir .. "/fallback-unrelated.bib"
 vim.fn.writefile({
@@ -198,7 +196,7 @@ vim.fn.writefile({
 local index = require("typst.index")
 local original_collect = index.collect
 local fallback_ok, fallback_err = xpcall(function()
-    index.collect = function()
+    rawset(index, "collect", function()
         return {
             bibliography_paths = {},
             citations = {
@@ -219,8 +217,7 @@ local fallback_ok, fallback_err = xpcall(function()
                 },
             },
         }
-    end
-
+    end)
     local fallback_status = typst.bibliography.status({ project = project })
     assert(fallback_status.ok, "fallback bibliography status should succeed")
     assert(

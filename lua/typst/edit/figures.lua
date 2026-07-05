@@ -118,7 +118,6 @@ local function find_figure_call(bufnr, opts)
             best = node
         end
     end)
-
     return best
 end
 

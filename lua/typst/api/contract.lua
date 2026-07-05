@@ -130,7 +130,6 @@ local compile_payload = vim.list_extend(vim.deepcopy(common_project_payload), {
     "idle",
     "forced",
 })
-
 local setup_payload =
     { "provider", "did_setup", "first_setup", "reconfigure", "setup_once" }
 local config_changed_payload = {
@@ -328,7 +327,6 @@ event_payloads.TypstViewForwarded =
         "column",
         "viewer_backend",
     })
-
 local compatibility_events = {
     "TypstArtifactCreated",
     "TypstArtifactsCleaned",

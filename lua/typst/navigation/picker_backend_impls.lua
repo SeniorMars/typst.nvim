@@ -27,7 +27,6 @@ local function ui_select(items, opts, handlers)
             helpers.open_item(handlers, choice, opts)
         end
     end)
-
     return {
         ok = true,
         backend = "ui_select",
@@ -91,7 +90,6 @@ local function telescope(items, opts, handlers)
             end,
         })
         :find()
-
     return {
         ok = true,
         backend = "telescope",

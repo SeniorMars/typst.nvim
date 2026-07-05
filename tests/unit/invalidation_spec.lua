@@ -8,7 +8,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("invalidation-output"),
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -18,7 +17,6 @@ local seen = {}
 local unsubscribe = typst.invalidation.subscribe(project, "*", function(event)
     seen[#seen + 1] = event
 end)
-
 local baseline_generation = typst.invalidation.generation(project)
 local baseline_buffer_changed =
     typst.invalidation.generation(project, "buffer_changed")

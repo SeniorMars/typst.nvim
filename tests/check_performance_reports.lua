@@ -23,6 +23,7 @@ local required = {
         "large_package_refresh",
         "large_package_completion",
         "large_toc_follow_coalescing",
+        "large_conceal_first_render",
         "large_conceal_window_matches_telemetry_p95",
         "large_bibliography_diagnostics",
     },

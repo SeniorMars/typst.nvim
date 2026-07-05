@@ -87,7 +87,6 @@ function M.collect(report_root)
         end
         return tostring(left.spec) < tostring(right.spec)
     end)
-
     local run_names = vim.tbl_keys(runs)
     table.sort(run_names)
     return {

@@ -17,7 +17,9 @@ local function effective_count(opts)
 end
 
 function M.undojoin()
-    pcall(vim.cmd, "undojoin")
+    pcall(function()
+        vim.cmd("undojoin")
+    end)
 end
 
 function M.counted(opts, apply)

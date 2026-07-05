@@ -169,7 +169,6 @@ local function set_quickfix(bufnr, diagnostics)
         title = "typst.nvim: font diagnostics",
         items = items,
     })
-
     return items
 end
 

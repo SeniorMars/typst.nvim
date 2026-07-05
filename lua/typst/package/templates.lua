@@ -69,7 +69,6 @@ function M.add(actions, package, helpers)
             return context_info(ctx)
         end,
     })
-
     helpers.add_action(actions, {
         id = "template_source",
         title = "Open template source",
@@ -82,7 +81,6 @@ function M.add(actions, package, helpers)
             return helpers.open_file_at(ctx.entrypoint, 1, 0, opts)
         end,
     })
-
     helpers.add_action(actions, {
         id = "template_init",
         title = "Initialize template",

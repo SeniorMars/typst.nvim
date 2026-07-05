@@ -5,7 +5,6 @@ local context = require("typst.completion.context")
 
 local bufnr = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "plain" })
-
 local calls = 0
 local callbacks = {
     parameter_value = function()

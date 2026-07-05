@@ -13,6 +13,8 @@ local reason_events = {
     manual = "manual",
 }
 
+---@param project TypstProject|table?
+---@return TypstProject?
 local function live_project(project)
     if type(project) == "table" and project.mutable == false then
         return require("typst.project.context").live(project)
@@ -20,6 +22,8 @@ local function live_project(project)
     return project
 end
 
+---@param project TypstProject|table?
+---@return TypstProjectInvalidationService?
 local function ensure_bus(project)
     project = live_project(project)
     if type(project) ~= "table" then
@@ -47,6 +51,9 @@ end
 
 local function notify(project, event, payload)
     local bus = ensure_bus(project)
+    if not bus then
+        return
+    end
     local subscribers = bus.subscribers[event]
     if type(subscribers) ~= "table" then
         return
@@ -65,7 +72,7 @@ local function notify(project, event, payload)
 end
 
 --- Emit a project invalidation event and update generation counters.
----@param project table Project state whose invalidation bus should emit.
+---@param project TypstProject|table? Project state whose invalidation bus should emit.
 ---@param event? string Event key; defaults to `changed`.
 ---@param payload? table Event payload merged with project metadata.
 ---@return table? payload Emitted payload, or nil for invalid projects.
@@ -76,7 +83,7 @@ function M.emit(project, event, payload)
     end
 
     event = event or "changed"
-    local bus = ensure_bus(project)
+    local bus = assert(ensure_bus(project))
     bus.generation = (bus.generation or 0) + 1
     bus.counters[event] = (bus.counters[event] or 0) + 1
 
@@ -99,7 +106,7 @@ function M.emit(project, event, payload)
 end
 
 --- Emit an invalidation event derived from a human-readable reason.
----@param project table Project state whose invalidation bus should emit.
+---@param project TypstProject|table? Project state whose invalidation bus should emit.
 ---@param reason string Human-readable invalidation reason.
 ---@param payload? table Event payload merged with reason/project metadata.
 ---@return table? payload Emitted payload, or nil for invalid projects.
@@ -114,7 +121,7 @@ function M.emit_reason(project, reason, payload)
 end
 
 --- Subscribe to project invalidation events.
----@param project table Project state whose invalidation bus is observed.
+---@param project TypstProject|table? Project state whose invalidation bus is observed.
 ---@param event? string Event key, or `*`/nil for all events.
 ---@param callback fun(payload:table, project:table) Subscriber callback.
 ---@return fun() unsubscribe Function that removes the subscriber.
@@ -128,7 +135,7 @@ function M.subscribe(project, event, callback)
     end
 
     event = event or "*"
-    local bus = ensure_bus(project)
+    local bus = assert(ensure_bus(project))
     bus.subscribers[event] = bus.subscribers[event] or {}
 
     local id = subscription_id()
@@ -142,7 +149,7 @@ function M.subscribe(project, event, callback)
 end
 
 --- Return the invalidation generation counter for a project.
----@param project table Project state whose invalidation bus is inspected.
+---@param project TypstProject|table? Project state whose invalidation bus is inspected.
 ---@param event? string Event-specific counter to read.
 ---@return integer generation Current generation count.
 function M.generation(project, event)
@@ -151,7 +158,7 @@ function M.generation(project, event)
         return 0
     end
 
-    local bus = ensure_bus(project)
+    local bus = assert(ensure_bus(project))
     if event then
         return bus.counters[event] or 0
     end
@@ -159,7 +166,7 @@ function M.generation(project, event)
 end
 
 --- Return a summary of invalidation state for reports/tests.
----@param project table Project state whose invalidation bus is inspected.
+---@param project TypstProject|table? Project state whose invalidation bus is inspected.
 ---@return table snapshot Invalidation generation, counters, and last payload.
 function M.snapshot(project)
     project = live_project(project)
@@ -171,7 +178,7 @@ function M.snapshot(project)
         }
     end
 
-    local bus = ensure_bus(project)
+    local bus = assert(ensure_bus(project))
     return {
         generation = bus.generation or 0,
         counters = vim.deepcopy(bus.counters or {}),
@@ -180,7 +187,7 @@ function M.snapshot(project)
 end
 
 --- Reset invalidation counters and subscribers for a project.
----@param project table Project state whose invalidation bus should reset.
+---@param project TypstProject|table? Project state whose invalidation bus should reset.
 function M.reset(project)
     project = live_project(project)
     if type(project) ~= "table" then

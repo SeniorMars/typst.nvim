@@ -19,6 +19,7 @@ function M.install(api, notify)
         return ctx.project, nil
     end
 
+    ---@return any, any?
     local function render_fragment(opts, callback)
         opts = opts or {}
         local state, err = project_or_error(opts, "render.fragment")
@@ -33,6 +34,7 @@ function M.install(api, notify)
         )
     end
 
+    ---@return any, any?
     local function render_equation(opts, callback)
         opts = opts or {}
         local state, err = project_or_error(opts, "render.equation")
@@ -47,6 +49,7 @@ function M.install(api, notify)
         )
     end
 
+    ---@return any, any?
     local function render_image(opts)
         opts = opts or {}
         local state, err = project_or_error(opts, "render.image")
@@ -61,6 +64,7 @@ function M.install(api, notify)
         )
     end
 
+    ---@return any, any?
     local function render_page(opts, callback)
         opts = opts or {}
         local state, err = project_or_error(opts, "render.page")
@@ -75,6 +79,7 @@ function M.install(api, notify)
         )
     end
 
+    ---@return any, any?
     local function render_cache_clear(opts)
         opts = opts or {}
         if opts.project == nil and opts.root == nil then
@@ -89,6 +94,7 @@ function M.install(api, notify)
         return require("typst.workflows.render").cache_clear(opts, notify)
     end
 
+    ---@return any
     local function render_cache_entries()
         return require("typst.workflows.render").cache_entries()
     end

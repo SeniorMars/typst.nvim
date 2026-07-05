@@ -15,7 +15,7 @@ vim.fn.writefile({ "<old>" }, original)
 
 local original_rename = uv.fs_rename
 local ok, err = xpcall(function()
-    uv.fs_rename = function(src, dst)
+    rawset(uv, "fs_rename", function(src, dst)
         if src == temp and dst == original then
             return nil, "forced replacement failure"
         end
@@ -23,7 +23,7 @@ local ok, err = xpcall(function()
             return nil, "forced restore failure"
         end
         return original_rename(src, dst)
-    end
+    end)
 
     local applied, result = transaction.apply({
         {
@@ -34,25 +34,26 @@ local ok, err = xpcall(function()
             backup_path = backup,
         },
     })
-
+    ---@type any
+    local payload = result
     assert(not applied, "failed replacement should fail the transaction")
     assert(
-        result.reason == "write_failed",
+        payload.reason == "write_failed",
         "failure should report write_failed"
     )
     assert(
-        result.message == "forced replacement failure",
+        payload.message == "forced replacement failure",
         "failure should report the replacement error"
     )
-    assert(result.recovery, "failure should include recovery paths")
+    assert(payload.recovery, "failure should include recovery paths")
     assert(
-        result.recovery.original == original
-            and result.recovery.backup == backup
-            and result.recovery.temporary == temp,
+        payload.recovery.original == original
+            and payload.recovery.backup == backup
+            and payload.recovery.temporary == temp,
         "recovery paths should identify original, backup, and temporary files"
     )
     assert(
-        result.recovery.restore_error == "forced restore failure",
+        payload.recovery.restore_error == "forced restore failure",
         "recovery should report restore failure"
     )
     assert(

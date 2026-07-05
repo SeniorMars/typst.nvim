@@ -22,10 +22,14 @@ end
 function M.current(opts)
     opts = opts or {}
     local bufnr = buffer.normalize_bufnr(opts.bufnr)
-    local winid = valid_win(opts.winid) and opts.winid
+    local candidate_winid = valid_win(opts.winid) and opts.winid
         or vim.api.nvim_get_current_win()
-    if valid_win(winid) and vim.api.nvim_win_get_buf(winid) ~= bufnr then
-        winid = nil
+    local winid
+    if
+        valid_win(candidate_winid)
+        and vim.api.nvim_win_get_buf(candidate_winid) == bufnr
+    then
+        winid = candidate_winid
     end
 
     local path = buffer_path(bufnr)
@@ -33,7 +37,6 @@ function M.current(opts)
     local file_dir = path and util.dirname(path)
         or (project and project.main and util.dirname(project.main))
         or vim.fn.getcwd()
-
     return {
         bufnr = bufnr,
         winid = winid,

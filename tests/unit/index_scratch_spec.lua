@@ -10,7 +10,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("index-scratch-output"),
 })
-
 local function contains(items, predicate)
     for _, item in ipairs(items or {}) do
         if predicate(item) then
@@ -29,7 +28,6 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
     "#let local-card(body) = body",
     "// TODO: index unsaved buffers",
 })
-
 local project =
     assert(typst.project.attach(bufnr), "scratch index fixture should attach")
 local live_project = assert(require("typst.project.store").get(project.key))

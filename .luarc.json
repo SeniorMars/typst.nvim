@@ -1,0 +1,27 @@
+{
+  "Lua.runtime.version": "LuaJIT",
+  "Lua.runtime.path": [
+    "lua/?.lua",
+    "lua/?/init.lua",
+    "?.lua",
+    "?/init.lua"
+  ],
+  "Lua.workspace.checkThirdParty": "Disable",
+  "Lua.workspace.ignoreDir": [
+    ".git",
+    ".deps",
+    "graphify-out"
+  ],
+  "Lua.diagnostics.globals": [
+    "vim",
+    "describe",
+    "it",
+    "before_each",
+    "after_each",
+    "typst_test_root_path",
+    "typst_test_cache_path",
+    "typst_test_tmp_path",
+    "typst_test_state_path"
+  ],
+  "Lua.telemetry.enable": false
+}

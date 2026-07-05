@@ -274,6 +274,7 @@ local function async_format(bufnr, client, request_params, opts, callback)
     local started_tick = vim.api.nvim_buf_get_changedtick(bufnr)
     local generation = next_format_generation(bufnr, opts)
     local timer = nil
+    local pending
 
     local function cancel_request()
         if request_id and type(client.cancel_request) == "function" then
@@ -302,26 +303,28 @@ local function async_format(bufnr, client, request_params, opts, callback)
 
     if timeout_ms and timeout_ms > 0 then
         timer = uv.new_timer()
-        timer:start(timeout_ms, 0, function()
-            schedule(function()
-                if completed then
-                    return
-                end
-                if drop_stale() then
-                    return
-                end
-                cancel_request()
-                finish({
-                    ok = false,
-                    reason = "timeout",
-                    provider = "tinymist",
-                    client = client.name,
-                    message = ("Tinymist formatting timed out after %dms"):format(
-                        timeout_ms
-                    ),
-                })
+        if timer then
+            timer:start(timeout_ms, 0, function()
+                schedule(function()
+                    if completed then
+                        return
+                    end
+                    if drop_stale() then
+                        return
+                    end
+                    cancel_request()
+                    finish({
+                        ok = false,
+                        reason = "timeout",
+                        provider = "tinymist",
+                        client = client.name,
+                        message = ("Tinymist formatting timed out after %dms"):format(
+                            timeout_ms
+                        ),
+                    })
+                end)
             end)
-        end)
+        end
     end
 
     local request_start = lsp_request.start(
@@ -378,7 +381,6 @@ local function async_format(bufnr, client, request_params, opts, callback)
             }
     end
 
-    local pending
     pending = {
         ok = false,
         pending = true,
@@ -428,7 +430,14 @@ function M.format(bufnr, opts, callback)
             if callback and type(client.request) == "function" then
                 local pending, failure =
                     async_format(bufnr, client, request_params, opts, callback)
-                return pending or failure
+                return pending
+                    or failure
+                    or {
+                        ok = false,
+                        reason = "request_failed",
+                        provider = "tinymist",
+                        message = "Tinymist formatting request did not return a result",
+                    }
             end
             return async_required("textDocument/formatting")
         end

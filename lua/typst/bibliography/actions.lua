@@ -68,7 +68,6 @@ function M.add(actions, target, handlers)
             )
         end,
     })
-
     add_action(actions, {
         id = "copy_citation_key",
         title = "Copy citation key",
@@ -80,7 +79,6 @@ function M.add(actions, target, handlers)
             return target.name
         end,
     })
-
     add_action(actions, {
         id = "citation_preview",
         title = "Preview citation",
@@ -99,7 +97,6 @@ function M.add(actions, target, handlers)
             return preview
         end,
     })
-
     add_action(actions, {
         id = "citation_rename",
         title = ("Rename citation key %s"):format(target.name or ""),
@@ -144,7 +141,6 @@ function M.add(actions, target, handlers)
             return plan
         end,
     })
-
     local fields = citation_fields(target)
     local url = fields.url
     if url then

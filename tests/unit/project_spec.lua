@@ -12,7 +12,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 local chapter = root .. "/tests/fixtures/basic/chapter.typ"
 local state_store = require("typst.core.state")
@@ -143,9 +142,9 @@ assert(
 local project_module = require("typst.project")
 local original_commit_attach = project_module.commit_attach
 local rollback_ok, rollback_err = xpcall(function()
-    project_module.commit_attach = function()
+    rawset(project_module, "commit_attach", function()
         error("forced commit failure")
-    end
+    end)
     local ok = pcall(function()
         typst.project.set_main(chapter, nil, { persist = true })
     end)
@@ -206,7 +205,6 @@ assert(
 vim.cmd.edit(chapter)
 bufnr = vim.api.nvim_get_current_buf()
 project = typst.project.set_main(main, nil, { persist = true })
-
 vim.cmd.edit(chapter)
 vim.b.typst_main = main
 local resolved = typst.project.get(0)
@@ -277,7 +275,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 local lifecycle = require("typst.core.lifecycle")
 local diagnostics = require("typst.diagnostics")
 local fixture_root = vim.fn.tempname()
@@ -297,7 +294,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 local attach_events = 0
 vim.api.nvim_create_autocmd("User", {
     pattern = "TypstProjectAttach",
@@ -305,13 +301,11 @@ vim.api.nvim_create_autocmd("User", {
         attach_events = attach_events + 1
     end,
 })
-
 local original_apply = lifecycle.apply_buffer_features
 local transaction_ok, transaction_err = xpcall(function()
-    lifecycle.apply_buffer_features = function()
+    rawset(lifecycle, "apply_buffer_features", function()
         error("attach feature boom")
-    end
-
+    end)
     local failed = typst.project.attach(transaction_bufnr)
     assert(failed == nil, "failed buffer feature setup should abort attach")
     assert(
@@ -328,7 +322,7 @@ local transaction_ok, transaction_err = xpcall(function()
     )
 
     local saw_committed_state = false
-    lifecycle.apply_buffer_features = function(target_bufnr)
+    rawset(lifecycle, "apply_buffer_features", function(target_bufnr)
         if
             target_bufnr == transaction_bufnr
             and registry.get(transaction_bufnr)
@@ -336,7 +330,7 @@ local transaction_ok, transaction_err = xpcall(function()
             saw_committed_state = true
         end
         return original_apply(target_bufnr)
-    end
+    end)
     local first = assert(
         typst.project.attach(transaction_bufnr),
         "attach should succeed after feature setup is restored"
@@ -389,7 +383,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("detach-output"),
 })
-
 local detach_main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(detach_main)
 
@@ -400,7 +393,6 @@ vim.api.nvim_create_autocmd("User", {
         detached_event = args.data
     end,
 })
-
 local detach_project = typst.project.set_main(detach_main)
 local live_detach_project = assert(project_store.get(detach_project.key))
 local detach_bufnr = vim.api.nvim_get_current_buf()

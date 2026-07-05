@@ -13,13 +13,11 @@ typst.setup({
         import_scan = false,
     },
 })
-
 local before = vim.tbl_count(project_registry.all())
 vim.cmd.enew()
 local dashboard = vim.api.nvim_get_current_buf()
 vim.bo[dashboard].filetype = ""
 vim.api.nvim_buf_set_lines(dashboard, 0, -1, false, { "dashboard" })
-
 local dashboard_project = project_context.resolve({ bufnr = dashboard }, {
     create = true,
 })

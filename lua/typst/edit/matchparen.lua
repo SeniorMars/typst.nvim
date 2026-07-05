@@ -52,7 +52,6 @@ local function scan_line(tokens, line, row)
         comments = "space",
         raw = "space",
     })
-
     for index = 1, #code_line do
         local char = code_line:sub(index, index)
         local kind = bracket_pairs[char] and "open"

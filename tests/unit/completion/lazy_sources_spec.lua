@@ -74,7 +74,7 @@ vim.api.nvim_set_current_buf(bufnr)
 
 local original_dir = vim.fs.dir
 local ok, err = xpcall(function()
-    vim.fs.dir = function(path)
+    rawset(vim.fs, "dir", function(path)
         assert(path == scan_root, "path completion should scan buffer dir")
         local done = false
         return function()
@@ -84,7 +84,7 @@ local ok, err = xpcall(function()
             done = true
             return "chapter.typ", "file"
         end
-    end
+    end)
 
     items = completion.complete({
         context = "path",

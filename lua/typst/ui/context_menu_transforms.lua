@@ -22,7 +22,6 @@ function M.add_heading_actions(actions, bufnr, pos)
             )
         end,
     })
-
     core.add_action(actions, {
         id = "heading_demote",
         title = "Demote heading",

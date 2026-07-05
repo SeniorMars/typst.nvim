@@ -107,7 +107,6 @@ function M.insert(kind, opts)
     target_row, target_col =
         edit_context.clamp_position(ctx.bufnr, target_row, target_col)
     local cursor_moved = edit_context.set_cursor(ctx, target_row, target_col)
-
     return {
         ok = true,
         action = "insert",

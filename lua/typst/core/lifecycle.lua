@@ -280,7 +280,6 @@ function M.register_autocmds()
             require("typst.resources.supervisor").stop_for_exit_all()
         end,
     })
-
     vim.api.nvim_create_autocmd("WinClosed", {
         group = group,
         callback = function(args)

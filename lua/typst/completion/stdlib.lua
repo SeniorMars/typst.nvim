@@ -154,7 +154,6 @@ local function stdlib_items(base, context, catalog, limit)
         end
         return a.menu < b.menu
     end)
-
     return items
 end
 

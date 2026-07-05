@@ -42,7 +42,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("architecture-boundaries-output"),
 })
-
 local architecture_doc =
     table.concat(vim.fn.readfile(root .. "/docs/architecture.md"), "\n")
 for _, phrase in ipairs({

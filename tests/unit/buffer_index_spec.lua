@@ -24,11 +24,10 @@ assert(
 
 local original_list_bufs = vim.api.nvim_list_bufs
 local list_bufs_calls = 0
-vim.api.nvim_list_bufs = function(...)
+rawset(vim.api, "nvim_list_bufs", function(...)
     list_bufs_calls = list_bufs_calls + 1
     error("hot path should not rescan all buffers")
-end
-
+end)
 local ok, err = xpcall(function()
     assert(
         buffer.loaded_buffer_for_path(first) == bufnr,
@@ -99,7 +98,6 @@ assert(
     "multimap lookup should prune invalid duplicate buffers"
 )
 vim.api.nvim_buf_delete(duplicate_a, { force = true })
-
 buffer.reset()
 
 local bibliography_edit = require("typst.bibliography.edit")

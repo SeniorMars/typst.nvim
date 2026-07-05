@@ -208,7 +208,7 @@ local ok, err = xpcall(function()
         return self.closed
     end
 
-    vim.system = function(command)
+    rawset(vim, "system", function(command)
         taskkill_calls[#taskkill_calls + 1] = command
         graceful_windows.closed = true
         return {
@@ -216,8 +216,7 @@ local ok, err = xpcall(function()
                 return { code = 0 }
             end,
         }
-    end
-
+    end)
     local stopped, result = process.shutdown(
         graceful_windows,
         { timeout_ms = 1, kill_timeout_ms = 1 }
@@ -240,7 +239,7 @@ local ok, err = xpcall(function()
         pid = 42003,
         closed = false,
     }
-    vim.system = function(command)
+    rawset(vim, "system", function(command)
         taskkill_calls[#taskkill_calls + 1] = command
         normal_stop_windows.closed = true
         return {
@@ -248,7 +247,7 @@ local ok, err = xpcall(function()
                 return { code = 0 }
             end,
         }
-    end
+    end)
     local tree_ok, tree_err, tree_mode =
         process.terminate_tree_signal(normal_stop_windows, 15)
     assert(tree_ok, tree_err or "normal Windows stop should target tree")
@@ -271,7 +270,7 @@ local ok, err = xpcall(function()
             return true
         end,
     }
-    vim.system = function(command, _, callback)
+    rawset(vim, "system", function(command, _, callback)
         taskkill_calls[#taskkill_calls + 1] = command
         callback({ code = 1, stderr = "denied" })
         return {
@@ -279,7 +278,7 @@ local ok, err = xpcall(function()
                 return { code = 1 }
             end,
         }
-    end
+    end)
     tree_ok, tree_err, tree_mode =
         process.terminate_tree_signal(taskkill_nonzero_windows, 15)
     assert(tree_ok, tree_err or "taskkill launch should still be targeted")
@@ -304,7 +303,7 @@ local ok, err = xpcall(function()
             return true
         end,
     }
-    vim.system = function(command, _, callback)
+    rawset(vim, "system", function(command, _, callback)
         taskkill_calls[#taskkill_calls + 1] = command
         callback({ code = 1, stderr = "not found" })
         return {
@@ -312,7 +311,7 @@ local ok, err = xpcall(function()
                 return { code = 1 }
             end,
         }
-    end
+    end)
     tree_ok, tree_err, tree_mode =
         process.terminate_tree_signal(taskkill_after_exit_windows, 15)
     assert(tree_ok, tree_err or "taskkill launch should still be targeted")
@@ -334,9 +333,9 @@ local ok, err = xpcall(function()
             return true
         end,
     }
-    vim.system = function()
+    rawset(vim, "system", function()
         error("taskkill missing")
-    end
+    end)
     tree_ok, tree_err, tree_mode =
         process.terminate_tree_signal(taskkill_spawn_failure, 9)
     assert(
@@ -362,7 +361,7 @@ local ok, err = xpcall(function()
         return self.closed
     end
 
-    vim.system = function(command)
+    rawset(vim, "system", function(command)
         taskkill_calls[#taskkill_calls + 1] = command
         if command[#command] == "/F" then
             forced_windows.closed = true
@@ -372,7 +371,7 @@ local ok, err = xpcall(function()
                 return { code = 0 }
             end,
         }
-    end
+    end)
 
     stopped, result = process.shutdown(
         forced_windows,
@@ -414,7 +413,7 @@ local wait_callbacks = 0
 local wait_cleanups = 0
 
 ok, err = xpcall(function()
-    vim.system = function()
+    rawset(vim, "system", function()
         return {
             pid = 43001,
             wait = function()
@@ -424,8 +423,7 @@ ok, err = xpcall(function()
                 return true
             end,
         }
-    end
-
+    end)
     local handle = process.spawn({ "fake" }, {}, {
         cleanup = function(result)
             wait_cleanups = wait_cleanups + 1
@@ -436,7 +434,6 @@ ok, err = xpcall(function()
             assert(result.code == 0, "wait callback should receive result")
         end,
     })
-
     assert(
         not handle:is_closing(),
         "fresh process wrapper should not be closed before exit"
@@ -467,7 +464,7 @@ ok, err = xpcall(function()
             kill_calls[#kill_calls + 1] = { pid = pid, signal = signal }
             return 0
         end
-        vim.system = function(_, _, on_exit)
+        rawset(vim, "system", function(_, _, on_exit)
             return {
                 pid = 43002,
                 is_closing = function()
@@ -490,7 +487,7 @@ ok, err = xpcall(function()
                     return true
                 end,
             }
-        end
+        end)
 
         local shutdown_handle = process.spawn({ "fake-shutdown" }, {}, {
             cleanup = function(result)
@@ -544,7 +541,7 @@ ok, err = xpcall(function()
         local wrapped_timeout_waits = 0
         local wrapped_timeout_callbacks = 0
         kill_calls = {}
-        vim.system = function()
+        rawset(vim, "system", function()
             return {
                 pid = 43003,
                 wait = function(_, timeout_ms)
@@ -559,8 +556,7 @@ ok, err = xpcall(function()
                     return true
                 end,
             }
-        end
-
+        end)
         local wrapped_timeout_handle = process.spawn(
             { "fake-shutdown-timeout" },
             {},
@@ -622,10 +618,9 @@ local cleanups = 0
 local spawn_errors = 0
 
 ok, err = xpcall(function()
-    vim.system = function()
+    rawset(vim, "system", function()
         error("spawn boom")
-    end
-
+    end)
     local handle = process.spawn({ "missing-executable" }, { cwd = root }, {
         on_spawn_error = function(result)
             spawn_errors = spawn_errors + 1
@@ -651,7 +646,6 @@ ok, err = xpcall(function()
             assert(result.cwd == root, "spawn failure should preserve cwd")
         end,
     })
-
     assert(
         handle:is_closing(),
         "spawn-error handle should behave like a closed process"
@@ -685,7 +679,9 @@ local invalid_cleanups = 0
 local invalid_spawns = 0
 
 ok, err = xpcall(function()
-    local handle = process.spawn("typst --version", { cwd = root }, {
+    ---@type any
+    local invalid_command = "typst --version"
+    local handle = process.spawn(invalid_command, { cwd = root }, {
         on_spawn_error = function(result)
             invalid_spawns = invalid_spawns + 1
             assert(
@@ -712,7 +708,6 @@ ok, err = xpcall(function()
             )
         end,
     })
-
     assert(handle:is_closing(), "invalid command should return closed handle")
     assert(
         handle:wait().reason == "invalid_command",

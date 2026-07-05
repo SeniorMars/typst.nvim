@@ -70,7 +70,6 @@ function M.info(opts)
         id = result.id,
         provider = result.provider,
     })
-
     if opts.open == false then
         return result
     end
@@ -128,8 +127,8 @@ function M.readme(opts)
     if opts.open == false then
         return {
             path = path,
-            text = result.readme,
-            package = result.package,
+            text = result and result.readme or nil,
+            package = result and result.package or nil,
         }
     end
     return opened

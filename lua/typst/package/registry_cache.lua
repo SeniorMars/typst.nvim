@@ -127,6 +127,9 @@ local function start_watcher(cache, cache_key, roots, ttl_ms, dir)
     end
 
     local handle = uv.new_fs_event()
+    if not handle then
+        return nil
+    end
     local started = pcall(function()
         handle:start(dir, {}, function(err)
             if err then
@@ -141,7 +144,6 @@ local function start_watcher(cache, cache_key, roots, ttl_ms, dir)
             end)
         end)
     end)
-
     if not started then
         close_watcher({ handle = handle })
         return nil
@@ -246,7 +248,6 @@ local function package_cache_entry(records, signatures)
         end
         return left.key < right.key
     end)
-
     return {
         signatures = signatures,
         records = cached_records,
@@ -308,7 +309,6 @@ local function filter_by_prefix(entry, prefix, max)
     table.sort(matches, function(left, right)
         return left.order < right.order
     end)
-
     local records = {}
     for _, match in ipairs(matches) do
         records[#records + 1] = match.record

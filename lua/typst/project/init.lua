@@ -36,7 +36,6 @@ local function record_resolution(project, bufnr, path, resolution)
         root_source = "unknown",
         main_source = "unknown",
     }, resolution or {})
-
     project.resolutions[bufnr] = resolution
     project.last_resolution = resolution
     project.root_source = resolution.root_source
@@ -354,7 +353,12 @@ function M.snapshot(state_or_bufnr, opts)
         return context.snapshot(state_or_bufnr, opts)
     end
 
-    return context.snapshot(M.get(state_or_bufnr), opts)
+    ---@cast state_or_bufnr integer
+    local state = M.get(state_or_bufnr)
+    if not state then
+        return nil
+    end
+    return context.snapshot(state, opts)
 end
 
 --- Return public snapshots for all registered projects.

@@ -10,7 +10,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("tinymist-format-async-output"),
 })
-
 local original_get_clients = vim.lsp.get_clients
 local request_handlers = {}
 local request_count = 0
@@ -53,20 +52,20 @@ local ok, err = xpcall(function()
         end,
     }
 
-    vim.lsp.get_clients = function(opts)
+    rawset(vim.lsp, "get_clients", function(opts)
         assert(opts.bufnr == bufnr, "Tinymist lookup should be buffer-scoped")
         return { fake_client }
-    end
-
+    end)
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "Original" })
+    ---@type any
     local changed_result = nil
+    ---@type any
     local pending = formatting.format({
         notify = false,
         provider = "tinymist",
     }, function(result)
         changed_result = result
     end)
-
     assert(pending.pending, "Tinymist formatting should run asynchronously")
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "User edit" })
     request_handlers[1](nil, {
@@ -90,14 +89,15 @@ local ok, err = xpcall(function()
     )
 
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "Original" })
+    ---@type any
     local applied_result = nil
+    ---@type any
     pending = formatting.format({
         notify = false,
         provider = "tinymist",
     }, function(result)
         applied_result = result
     end)
-
     assert(pending.pending, "second Tinymist format should return pending")
     request_handlers[2](nil, {
         {
@@ -134,7 +134,6 @@ local ok, err = xpcall(function()
     }, function(result)
         newer_result = result
     end)
-
     request_handlers[4](nil, {
         {
             range = {
@@ -181,7 +180,6 @@ local ok, err = xpcall(function()
     requests.format(bufnr, { timeout_ms = 0 }, function(result)
         direct_newer_result = result
     end)
-
     request_handlers[direct_older_index](nil, {
         {
             range = {

@@ -17,7 +17,6 @@ function M.setup()
             },
         },
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local main_bufnr = vim.api.nvim_get_current_buf()

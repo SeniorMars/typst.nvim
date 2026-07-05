@@ -5,6 +5,7 @@ local resource_markdown = require("typst.package.resource_markdown")
 local util = require("typst.core.util")
 local windows = require("typst.core.windows")
 
+---@type integer?
 local resources_buf = nil
 local state_by_buf = {}
 
@@ -15,12 +16,13 @@ local function valid_buf(bufnr)
     return bufnr and vim.api.nvim_buf_is_valid(bufnr)
 end
 
+---@return integer
 local function ensure_buffer()
     if valid_buf(resources_buf) then
-        return resources_buf
+        return assert(resources_buf)
     end
 
-    resources_buf = vim.api.nvim_create_buf(false, true)
+    resources_buf = assert(vim.api.nvim_create_buf(false, true))
     vim.bo[resources_buf].buftype = "nofile"
     vim.bo[resources_buf].bufhidden = "hide"
     vim.bo[resources_buf].swapfile = false
@@ -76,7 +78,6 @@ local function apply_keymaps(bufnr)
         nowait = true,
         desc = "Close Typst package resources",
     })
-
     vim.keymap.set("n", "<CR>", function()
         local state = state_by_buf[bufnr]
         if not state or not state.results then
@@ -94,7 +95,6 @@ local function apply_keymaps(bufnr)
         silent = true,
         desc = "Open Typst package resource result",
     })
-
     vim.keymap.set("n", "s", function()
         local state = state_by_buf[bufnr]
         local source = state and state.result and state.result.source
@@ -106,7 +106,6 @@ local function apply_keymaps(bufnr)
         silent = true,
         desc = "Open Typst package source",
     })
-
     vim.keymap.set("n", "m", function()
         local state = state_by_buf[bufnr]
         local manual = state
@@ -134,7 +133,6 @@ local function apply_keymaps(bufnr)
         silent = true,
         desc = "Open Typst package manual",
     })
-
     local function open_link(name)
         return function()
             local state = state_by_buf[bufnr]

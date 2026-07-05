@@ -8,7 +8,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("index-tinymist-output"),
 })
-
 local workdir = typst_test_cache_path("index-tinymist")
 vim.fn.mkdir(workdir, "p")
 local main = workdir .. "/main.typ"
@@ -115,12 +114,12 @@ function fake_client:supports_method()
 end
 
 local old_get_clients = vim.lsp.get_clients
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if opts and opts.bufnr == bufnr then
         return { fake_client }
     end
     return {}
-end
+end)
 
 local function has_source(items, source_kind)
     for _, item in ipairs(items or {}) do

@@ -14,15 +14,13 @@ typst.setup({
         include_fonts = false,
     },
 })
-
 local bufnr = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_set_current_buf(bufnr)
 vim.bo[bufnr].filetype = "typst"
 vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "#tinymist" })
-
 local original_get_clients = vim.lsp.get_clients
 local callbacks = {}
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if not opts or opts.bufnr ~= bufnr then
         return {}
     end
@@ -39,7 +37,7 @@ vim.lsp.get_clients = function(opts)
             end,
         },
     }
-end
+end)
 
 local function maybe_require(module)
     local ok, value = pcall(require, module)
@@ -74,7 +72,6 @@ if cmp then
             return true
         end,
     })
-
     if type(cmp.register_source) == "function" then
         pcall(cmp.register_source, "typst_nvim_frontend_smoke", source)
     end
@@ -115,7 +112,6 @@ if blink then
             return true
         end,
     })
-
     assert(type(source.enabled) == "function", "blink source needs enabled()")
     assert(
         type(source.get_completions) == "function",

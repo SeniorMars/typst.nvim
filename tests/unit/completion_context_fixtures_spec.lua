@@ -17,13 +17,11 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
     "$ alpha",
     "plain",
 })
-
 local original_find_containing = treesitter.find_containing
 local ok, err = pcall(function()
-    treesitter.find_containing = function(_, _, pos)
+    rawset(treesitter, "find_containing", function(_, _, pos)
         return pos and pos[1] == 7 and {}
-    end
-
+    end)
     local callbacks = {
         parameter = function(_, row)
             return row == 5
@@ -63,7 +61,6 @@ local ok, err = pcall(function()
         )
     end
 end)
-
 treesitter.find_containing = original_find_containing
 assert(ok, err)
 

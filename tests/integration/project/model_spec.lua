@@ -18,7 +18,6 @@ typst.setup({
         },
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 local chapter = root .. "/tests/fixtures/basic/chapter.typ"
 local appendix = root .. "/tests/fixtures/basic/appendix.typ"
@@ -38,7 +37,6 @@ typst.compiler.compile({}, function(result)
     assert(result.code == 0, "main project compile failed")
     compiled = true
 end)
-
 assert(
     vim.wait(10000, function()
         return compiled
@@ -80,7 +78,6 @@ typst.compiler.compile({ profile = "nodeps" }, function(result)
     assert(result.code == 0, "deps-disabled profile compile failed")
     nodeps_compiled = true
 end)
-
 assert(
     vim.wait(10000, function()
         return nodeps_compiled
@@ -106,17 +103,17 @@ assert(
     "deps-disabled compile should preserve previously captured appendix dependency"
 )
 assert(
-    project_services.graph(main_project).dependency_sources[appendix]
+    assert(project_services.graph(main_project)).dependency_sources[appendix]
         == "compiler",
     "dependency graph should record compiler-discovered appendix dependencies"
 )
 
 local stale = root .. "/tests/fixtures/basic/stale.typ"
-local graph = project_services.graph(main_project)
+local graph = assert(project_services.graph(main_project))
 graph.dependencies[stale] = true
 graph.files[stale] = true
 project_registry.update_dependencies(main_project, { main })
-graph = project_services.graph(main_project)
+graph = assert(project_services.graph(main_project))
 
 assert(
     not graph.dependencies[stale],

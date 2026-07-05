@@ -11,7 +11,6 @@ typst.setup({
         use_quickfix = true,
     },
 })
-
 local workdir = typst_test_cache_path("coordinate-unicode")
 vim.fn.mkdir(workdir, "p")
 local main = workdir .. "/main.typ"
@@ -82,6 +81,7 @@ fake_client.request = function(_, method, params, callback, request_bufnr)
 end
 
 local requests = require("typst.integrations.tinymist.requests")
+---@type any
 local rename_result = nil
 requests.rename(bufnr, "renamed:label", {
     client = fake_client,
@@ -103,6 +103,7 @@ assert(
     "Tinymist rename should convert byte column to UTF-16"
 )
 
+---@type any
 local references_result = nil
 requests.references(bufnr, {
     client = fake_client,

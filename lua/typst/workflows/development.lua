@@ -74,7 +74,6 @@ local function profile_command(project, output, timings, run_config, opts)
             "--timings",
             timings,
         })
-
     for _, arg in ipairs(run_config.compile.extra_args or {}) do
         command[#command + 1] = arg
     end
@@ -270,7 +269,6 @@ function M.profile(project, opts, callback, notify)
             end
         end,
     })
-
     return result
 end
 
@@ -398,7 +396,6 @@ local function run_default_tool(kind, project, opts, callback, notify)
             end
         end,
     })
-
     return result
 end
 

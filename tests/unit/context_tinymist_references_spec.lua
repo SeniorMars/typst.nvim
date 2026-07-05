@@ -9,7 +9,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("context-tinymist-references-output"),
 })
-
 local context = require("typst.context")
 
 local workdir = typst_test_cache_path("context-tinymist-references")
@@ -119,12 +118,12 @@ fake_client.request = function(_, method, params, callback, request_bufnr)
 end
 
 local old_get_clients = vim.lsp.get_clients
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if opts and opts.bufnr == bufnr then
         return { fake_client }
     end
     return {}
-end
+end)
 
 place_on("target-func")
 local actions = typst.context.open({ open = false, semantic = false })
@@ -154,6 +153,7 @@ util.loaded_buffer_for_path = original_loaded_buffer_for_path
 vim.lsp.get_clients = old_get_clients
 assert(refs_ok, pending)
 assert(pending and pending.pending, "definition references should be async")
+---@type any
 local refs = callback_refs
 
 assert(
@@ -169,23 +169,23 @@ assert(
     "semantic definition references should be filtered to the current project files"
 )
 assert(
-    refs[1].user_data.provider == "tinymist",
+    assert(refs[1]).user_data.provider == "tinymist",
     "semantic reference items should report Tinymist provider"
 )
 assert(
-    refs[1].user_data.semantic == true,
+    assert(refs[1]).user_data.semantic == true,
     "semantic reference items should be marked semantic"
 )
 assert(
-    refs[1].text:find("#let target%-func", 1, false),
+    assert(refs[1]).text:find("#let target%-func", 1, false),
     "first semantic reference should include declaration text"
 )
 assert(
-    refs[2].text:find("#target%-func", 1, false),
+    assert(refs[2]).text:find("#target%-func", 1, false),
     "second semantic reference should include call text"
 )
 assert(
-    refs[3].filename:find("users", 1, true),
+    assert(refs[3]).filename:find("users", 1, true),
     "Windows-equivalent semantic references should survive project filtering"
 )
 

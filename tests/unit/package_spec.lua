@@ -102,7 +102,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("package-output"),
 })
-
 local function place_on(needle)
     for row, line in ipairs(vim.api.nvim_buf_get_lines(0, 0, -1, false)) do
         local col = line:find(needle, 1, true)
@@ -243,14 +242,14 @@ assert(
 local original_root_signatures = registry_scan.root_signatures
 local original_scan_roots = registry_scan.scan_roots
 local scan_calls = 0
-registry_scan.root_signatures = function(...)
+rawset(registry_scan, "root_signatures", function(...)
     scan_calls = scan_calls + 1
     error("memory-only package read should not calculate root signatures")
-end
-registry_scan.scan_roots = function(...)
+end)
+rawset(registry_scan, "scan_roots", function(...)
     scan_calls = scan_calls + 1
     error("memory-only package read should not scan package roots")
-end
+end)
 local ok_memory_only, memory_only_prefix_records =
     pcall(package_provider.cached_packages, {
         roots = { package_cache_dir },

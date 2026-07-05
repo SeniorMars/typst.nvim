@@ -13,7 +13,6 @@ typst.setup({
         path_scan_cache_ms = 1000,
     },
 })
-
 local completion = require("typst.completion")
 local completion_match = require("typst.completion.match")
 local config = require("typst.config")
@@ -79,14 +78,14 @@ local function wait_for_directory_signature_change(dir)
             local after_mtime = after and after.mtime or {}
             return after_mtime.sec ~= before_mtime.sec
                 or after_mtime.nsec ~= before_mtime.nsec
-                or (before and after.size ~= before.size)
+                or (before ~= nil and after.size ~= before.size)
         end, 10),
         "test directory signature should change"
     )
 end
 
 local ok, err = xpcall(function()
-    vim.fs.dir = function(path)
+    rawset(vim.fs, "dir", function(path)
         scans = scans + 1
         assert(path == scan_root, "path completion should scan the file dir")
         local index = 0
@@ -97,7 +96,7 @@ local ok, err = xpcall(function()
                 return entry[1], entry[2]
             end
         end
-    end
+    end)
 
     paths.reset()
     local first = complete("")
@@ -147,7 +146,7 @@ local ok, err = xpcall(function()
     })
     paths.reset()
     local yielded = 0
-    vim.fs.dir = function(path)
+    rawset(vim.fs, "dir", function(path)
         scans = scans + 1
         assert(path == scan_root, "path completion should scan the file dir")
         local index = 0
@@ -159,7 +158,7 @@ local ok, err = xpcall(function()
             yielded = yielded + 1
             return ("entry-%05d.typ"):format(index), "file"
         end
-    end
+    end)
     local capped = complete("")
     assert(
         yielded == 3,
@@ -176,7 +175,7 @@ local ok, err = xpcall(function()
             path_scan_cache_ms = 0,
         },
     })
-    vim.fs.dir = function(path)
+    rawset(vim.fs, "dir", function(path)
         scans = scans + 1
         assert(path == scan_root, "path completion should scan the file dir")
         local index = 0
@@ -187,7 +186,7 @@ local ok, err = xpcall(function()
                 return entry[1], entry[2]
             end
         end
-    end
+    end)
     paths.reset()
     complete("")
     complete("")

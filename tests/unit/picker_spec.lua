@@ -13,7 +13,6 @@ typst.setup({
         provider = "ui_select",
     },
 })
-
 local main = root .. "/tests/fixtures/basic/index-main.typ"
 vim.cmd.edit(main)
 vim.bo.filetype = "typst"
@@ -21,7 +20,6 @@ assert(typst.project.attach(0), "picker fixture should attach")
 
 local all_items =
     typst.picker.items({ kind = "all", toc_backend = "treesitter" })
-
 local function has_item(kind, matcher)
     for _, item in ipairs(all_items) do
         if item.kind == kind and matcher(item) then
@@ -81,7 +79,7 @@ assert(
 )
 
 local old_index_collect = index.collect
-index.collect = function()
+rawset(index, "collect", function()
     return {
         headings = {
             {
@@ -104,7 +102,7 @@ index.collect = function()
             },
         },
     }
-end
+end)
 local windows_picker_items = typst.picker.items({
     project = {
         root = "C:/Users/Charlie/Project",
@@ -171,12 +169,11 @@ assert(
 local old_select = vim.ui.select
 local selected_prompt = nil
 local formatted = nil
-vim.ui.select = function(items, opts, on_choice)
+rawset(vim.ui, "select", function(items, opts, on_choice)
     selected_prompt = opts.prompt
     formatted = opts.format_item(items[1])
     on_choice(items[1])
-end
-
+end)
 vim.api.nvim_win_set_cursor(0, { 8, 0 })
 local result = typst.picker.open({
     kind = "labels",
@@ -194,7 +191,7 @@ assert(
     "ui_select picker should pass prompt through"
 )
 assert(
-    formatted:find("[label] sec:intro", 1, true),
+    assert(formatted):find("[label] sec:intro", 1, true),
     "ui_select picker should format items"
 )
 assert(
@@ -211,7 +208,6 @@ local custom = typst.picker.open({
         return { ok = true, backend = "test" }
     end,
 })
-
 assert(
     custom.ok and custom.backend == "test",
     "custom picker should return provider result"

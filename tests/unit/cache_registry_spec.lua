@@ -6,6 +6,7 @@ local registry = require("typst.core.cache_registry")
 
 local status = registry.status()
 assert(#status.entries > 0, "cache registry should expose registered entries")
+---@type any
 local stats = registry.stats()
 assert(stats.total == #status.entries, "cache stats should count entries")
 assert(stats.loaded == #status.loaded, "cache stats should count loaded")

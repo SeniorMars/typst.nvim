@@ -13,7 +13,6 @@ typst.setup({
         extra_args = { "--font-path", root },
     },
 })
-
 local generation_before = config.generation()
 config.setup(config.get())
 assert(
@@ -1182,7 +1181,6 @@ for _, case in ipairs(invalid_configs) do
     local ok, err = pcall(function()
         typst.setup(case.opts)
     end)
-
     assert(not ok, "invalid config should fail validation")
     assert(tostring(err):match(case.message), tostring(err))
     assert(
@@ -1582,7 +1580,6 @@ local ok, err = pcall(function()
         },
     })
 end)
-
 assert(ok, err)
 assert(
     config.get().output_dir == "",

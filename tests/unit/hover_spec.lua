@@ -8,7 +8,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("hover-output"),
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 vim.bo.filetype = "typst"
@@ -29,7 +28,7 @@ local original_hover = vim.lsp.buf.hover
 local hover_calls = 0
 local expected_hover_bufnr = nil
 
-vim.lsp.buf.hover = function()
+rawset(vim.lsp.buf, "hover", function()
     if expected_hover_bufnr then
         assert(
             vim.api.nvim_get_current_buf() == expected_hover_bufnr,
@@ -37,15 +36,15 @@ vim.lsp.buf.hover = function()
         )
     end
     hover_calls = hover_calls + 1
-end
+end)
 
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     assert(
         opts and opts.bufnr == bufnr,
         "hover should query clients for the requested buffer"
     )
     return {}
-end
+end)
 assert(
     typst.navigation.hover({ bufnr = bufnr }) == false,
     "hover should report false without attached LSP clients"
@@ -55,7 +54,7 @@ assert(
     "hover should not call native LSP hover without a client"
 )
 
-vim.lsp.get_clients = function()
+rawset(vim.lsp, "get_clients", function()
     return {
         {
             name = "tinymist",
@@ -64,7 +63,7 @@ vim.lsp.get_clients = function()
             end,
         },
     }
-end
+end)
 assert(
     typst.navigation.hover({ bufnr = bufnr }) == true,
     "hover should delegate to native LSP hover"
@@ -86,7 +85,7 @@ assert(hover_calls == 2, "noncurrent-buffer hover should call native LSP hover")
 vim.api.nvim_set_current_buf(bufnr)
 expected_hover_bufnr = nil
 
-vim.lsp.get_clients = function()
+rawset(vim.lsp, "get_clients", function()
     return {
         {
             name = "no-hover",
@@ -95,7 +94,7 @@ vim.lsp.get_clients = function()
             end,
         },
     }
-end
+end)
 assert(
     typst.navigation.hover({ bufnr = bufnr }) == false,
     "hover should ignore clients without hover support"

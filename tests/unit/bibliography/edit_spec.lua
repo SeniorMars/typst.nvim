@@ -8,7 +8,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("bibliography-edit-output"),
 })
-
 local bibliography = typst.bibliography
 
 local bib = vim.api.nvim_create_buf(false, true)
@@ -20,7 +19,6 @@ vim.api.nvim_buf_set_lines(bib, 0, -1, false, {
     "title = {Fixture},",
     "}",
 })
-
 assert(
     bibliography.foldexpr(1, bib) == ">1",
     "BibTeX entry starts should open folds"
@@ -57,7 +55,6 @@ vim.api.nvim_buf_set_lines(yaml, 0, -1, false, {
     "author:",
     "- Doe, Jane",
 })
-
 assert(
     bibliography.foldexpr(1, yaml) == ">1",
     "Hayagriva top-level entries should open folds"

@@ -9,7 +9,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("symbol-output"),
 })
-
 local symbol = typst.symbol.info({ query = "arrow.r", open = false })
 assert(
     symbol and symbol.kind == "symbol",

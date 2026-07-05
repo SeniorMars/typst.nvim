@@ -18,7 +18,6 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
     "#let z = 3",
     "```",
 })
-
 local ok_parser, parser = pcall(vim.treesitter.get_parser, bufnr, "typst")
 if not ok_parser or not parser then
     assert(not required, "SeniorMars Typst parser is required but unavailable")
@@ -26,6 +25,7 @@ if not ok_parser or not parser then
     vim.cmd("qa!")
 end
 
+parser = assert(parser)
 local tree = parser:parse()[1]
 assert(tree, "Typst parser did not return a syntax tree")
 

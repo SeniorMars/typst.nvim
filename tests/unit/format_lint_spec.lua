@@ -8,7 +8,7 @@ local format_calls = 0
 local lint_calls = 0
 local original_notify = vim.notify
 
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 
 typst.setup({
     root = root,
@@ -46,7 +46,6 @@ typst.setup({
         end,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local bufnr = vim.api.nvim_get_current_buf()
@@ -55,7 +54,6 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
     "= Main",
     "#let body=[unformatted]",
 })
-
 local format_result = typst.tools.format({ notify = false })
 assert(format_result.ok, "format provider should succeed")
 assert(format_result.changed, "format should report changed buffer text")
@@ -86,7 +84,6 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
     "",
     math_paragraph,
 })
-
 local prose_result =
     typst.tools.format({ notify = false, provider = "prose", width = 44 })
 assert(prose_result.ok, "prose formatter should succeed")
@@ -176,15 +173,14 @@ vim.diagnostic.set(unrelated_namespace, bufnr, {
         severity = vim.diagnostic.severity.ERROR,
     },
 })
-vim.lsp.get_clients = function()
+rawset(vim.lsp, "get_clients", function()
     return {
         {
             id = 91001,
             name = "tinymist",
         },
     }
-end
-
+end)
 local tinymist_lint = typst.tools.lint({
     notify = false,
     provider = "tinymist",
@@ -209,15 +205,15 @@ vim.diagnostic.reset(unrelated_namespace, bufnr)
 
 local original_system = vim.system
 local timeout_kills = 0
-vim.system = function()
+rawset(vim, "system", function()
     return {
         kill = function()
             timeout_kills = timeout_kills + 1
             return true
         end,
     }
-end
-
+end)
+---@type any
 local format_timeout_result = nil
 local format_timeout = typst.tools.format({
     notify = false,
@@ -239,6 +235,7 @@ assert(
     "format command timeout should be classified as timeout"
 )
 
+---@type any
 local lint_timeout_result = nil
 local lint_timeout = typst.tools.lint({
     notify = false,
@@ -276,7 +273,6 @@ assert(
     "async format command should be cancellable"
 )
 pending_format.cancel({ timeout_ms = 1, kill_timeout_ms = 1 })
-
 local pending_lint = typst.tools.lint({
     notify = false,
     provider = "command",
@@ -295,5 +291,5 @@ assert(
 )
 vim.system = original_system
 
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 vim.cmd("qa!")

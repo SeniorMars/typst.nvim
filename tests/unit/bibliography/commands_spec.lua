@@ -68,7 +68,6 @@ typst.setup({
         end,
     },
 })
-
 vim.cmd.edit(main)
 vim.bo.filetype = "typst"
 local project =

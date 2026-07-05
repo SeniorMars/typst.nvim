@@ -151,15 +151,27 @@ local function decorate_report_colors(bufnr, swatches)
         return
     end
     for _, swatch in ipairs(swatches or {}) do
-        pcall(
-            vim.api.nvim_buf_add_highlight,
-            bufnr,
-            namespace,
-            swatch.group,
-            swatch.row,
-            0,
-            1
-        )
+        if vim.hl and vim.hl.range then
+            pcall(
+                vim.hl.range,
+                bufnr,
+                namespace,
+                swatch.group,
+                { swatch.row, 0 },
+                { swatch.row, 1 }
+            )
+        else
+            local add_highlight = vim.api["nvim_buf_add_" .. "highlight"]
+            pcall(
+                add_highlight,
+                bufnr,
+                namespace,
+                swatch.group,
+                swatch.row,
+                0,
+                1
+            )
+        end
     end
 end
 
@@ -328,7 +340,7 @@ end
 ---@param _ table Project argument kept for API symmetry.
 ---@param opts? table Code-action options; `callback` enables Tinymist requests.
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
----@return table result Pending request or failure payload.
+---@return table|nil result Pending request or failure payload.
 function M.code_action(_, opts, notify)
     opts = opts or {}
     local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
@@ -432,7 +444,7 @@ end
 --- Request Typst document color information and render a report buffer.
 ---@param project table Project state used for provider fallback context.
 ---@param opts? table Color-info options; `callback` enables Tinymist requests.
----@return table result Provider result, pending request, or failure payload.
+---@return table|nil result Provider result, pending request, or failure payload.
 function M.color_info(project, opts)
     opts = opts or {}
     local provider_result = provider_run("color_info", project, opts)
@@ -469,7 +481,6 @@ function M.color_info(project, opts)
         local report_buf =
             open_lines("typst.nvim colors", "typstsemantic", lines, opts)
         decorate_report_colors(report_buf, swatches)
-
         return {
             ok = true,
             colors = colors,
@@ -503,7 +514,7 @@ end
 ---@param _ table Project argument kept for API symmetry.
 ---@param opts? table Presentation options; pass `index`/`execute` to apply one.
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
----@return table result Pending request or failure payload.
+---@return table|nil result Pending request or failure payload.
 function M.color_presentation(_, opts, notify)
     opts = opts or {}
     local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
@@ -636,7 +647,7 @@ end
 --- Request Typst document links and render a report buffer.
 ---@param project table Project state used for provider fallback context.
 ---@param opts? table Document-link options; `callback` enables Tinymist requests.
----@return table result Provider result, pending request, or failure payload.
+---@return table|nil result Provider result, pending request, or failure payload.
 function M.document_links(project, opts)
     opts = opts or {}
     local provider_result = provider_run("document_links", project, opts)
@@ -694,7 +705,7 @@ end
 ---@param project table Project state used for provider fallback context.
 ---@param opts? table Code-lens options; `execute`/`index` runs one lens.
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
----@return table result Provider result, pending request, or failure payload.
+---@return table|nil result Provider result, pending request, or failure payload.
 function M.code_lens(project, opts, notify)
     opts = opts or {}
     local provider_result = provider_run("code_lens", project, opts)
@@ -784,7 +795,7 @@ end
 --- Request Typst workspace symbols and render a report buffer.
 ---@param project table Project state used to find an attached Tinymist client.
 ---@param opts? table Workspace-symbol options; `callback` enables Tinymist requests.
----@return table result Provider result, pending request, or failure payload.
+---@return table|nil result Provider result, pending request, or failure payload.
 function M.workspace_symbols(project, opts)
     opts = opts or {}
     local provider_result = provider_run("workspace_symbols", project, opts)
@@ -829,7 +840,7 @@ end
 --- Request Typst references and render a report buffer.
 ---@param project table Project state used for report path display.
 ---@param opts? table Reference options; `callback` enables Tinymist requests.
----@return table result Provider result, pending request, or failure payload.
+---@return table|nil result Provider result, pending request, or failure payload.
 function M.references(project, opts)
     opts = opts or {}
     local provider_result = provider_run("references", project, opts)
@@ -877,7 +888,7 @@ end
 --- Request a Tinymist rename without applying edits and open the edit preview.
 ---@param project table Project state used for provider fallback context.
 ---@param opts? table Rename options; requires `new_name`/`name` and callback.
----@return table result Provider result, pending request, or failure payload.
+---@return table|nil result Provider result, pending request, or failure payload.
 function M.rename_preview(project, opts)
     opts = opts or {}
     local provider_result = provider_run("rename_preview", project, opts)
@@ -929,6 +940,14 @@ function M.rename_preview(project, opts)
         new_name,
         vim.tbl_extend("force", opts, { apply = false })
     )
+    if type(result) ~= "table" then
+        return {
+            ok = false,
+            reason = "rename_unavailable",
+            provider = "tinymist",
+            message = "Tinymist rename did not return a result",
+        }
+    end
     if result.ok and opts.open ~= false then
         local lines = {
             "typst.nvim rename preview",
@@ -949,7 +968,7 @@ end
 --- Request LSP selection ranges for the current cursor position.
 ---@param _? table Project argument kept for API symmetry.
 ---@param opts? table Selection-range options; `callback` enables Tinymist requests.
----@return table result Pending request or failure payload.
+---@return table|nil result Pending request or failure payload.
 function M.selection_expand(_, opts)
     opts = opts or {}
     local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
@@ -964,7 +983,7 @@ end
 ---@param _? table Project argument kept for API symmetry.
 ---@param opts? table On-enter options; `callback` enables Tinymist requests.
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification sink.
----@return table result Pending request or failure payload.
+---@return table|nil result Pending request or failure payload.
 function M.on_enter(_, opts, notify)
     opts = opts or {}
     local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()

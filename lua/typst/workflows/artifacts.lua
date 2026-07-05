@@ -472,7 +472,6 @@ local function typst_command_for(project, spec, path)
             or cfg.output_format
             or "pdf",
     })
-
     for _, arg in ipairs(cfg.compile.extra_args or {}) do
         args[#args + 1] = arg
     end
@@ -706,11 +705,12 @@ local function provider_export(project, opts, callback, notify, planned)
         main = project.main,
     })
     if not leases then
+        lease_err = lease_err or {}
         return {
             ok = false,
             pending = false,
-            reason = lease_err.reason,
-            message = lease_err.message,
+            reason = lease_err.reason or "lease_failed",
+            message = lease_err.message or "Failed to acquire export leases",
             duplicate_output = lease_err.duplicate_output,
             active_output = lease_err.active_output or lease_err.path,
         }
@@ -896,7 +896,7 @@ function M.export(project, opts, callback, notify)
             callback(result, providers.project_context(project))
         end
     end
-    result.cancel = function(cancel_opts, callback)
+    result.cancel = function(cancel_opts, cancel_callback)
         result.cancel_requested = true
         result.cancelled = true
         result.pending = #result.operations > 0
@@ -924,8 +924,8 @@ function M.export(project, opts, callback, notify)
             stopped = stopped,
             results = cancel_results,
         }
-        if type(callback) == "function" then
-            callback(stopped, result.cancel_result)
+        if type(cancel_callback) == "function" then
+            cancel_callback(stopped, result.cancel_result)
         end
         if
             #result.operations == 0
@@ -956,10 +956,11 @@ function M.export(project, opts, callback, notify)
         main = project.main,
     })
     if not leases then
+        lease_err = lease_err or {}
         result.ok = false
         result.pending = false
-        result.reason = lease_err.reason
-        result.message = lease_err.message
+        result.reason = lease_err.reason or "lease_failed"
+        result.message = lease_err.message or "Failed to acquire export leases"
         result.duplicate_output = lease_err.duplicate_output
         result.active_output = lease_err.active_output or lease_err.path
         return result
@@ -1102,7 +1103,6 @@ function M.export(project, opts, callback, notify)
                 finish_export_callback()
             end
         end)
-
         artifact.operation = artifact_operation
         artifact.handle = artifact_operation.handle
         result.operations[#result.operations + 1] = artifact_operation
@@ -1123,11 +1123,11 @@ end
 ---@return table[] artifacts Sorted artifact records.
 function M.artifacts(project, opts)
     opts = opts or {}
-    local artifact_state = artifacts_service.get(project) or {}
+    local artifacts_state = artifacts_service.get(project) or {}
     local compiler_state = compiler_service.get(project) or {}
     local artifacts =
-        vim.tbl_map(public_artifact_copy, artifact_state.items or {})
-    local output = artifact_state.output or compiler_state.output
+        vim.tbl_map(public_artifact_copy, artifacts_state.items or {})
+    local output = artifacts_state.output or compiler_state.output
     if #artifacts == 0 and output then
         artifacts[1] = {
             id = ("%s:output"):format(project.key or project.main),
@@ -1371,20 +1371,18 @@ function M.clean(project, opts, notify)
         )
     end
 
-    local artifact_state = artifacts_service.get(project) or {}
+    local artifacts_state = artifacts_service.get(project) or {}
     artifacts_service.set(project, {
         items = vim.tbl_filter(function(artifact)
             return not vim.tbl_contains(deleted, artifact.path)
-        end, artifact_state.items or {}),
+        end, artifacts_state.items or {}),
     })
-
     events.emit("TypstArtifactsCleaned", project, {
         deleted = deleted,
         failed = failed,
         skipped = skipped,
         producer = opts.producer,
     })
-
     return {
         ok = #failed == 0 and #skipped == 0,
         deleted = deleted,

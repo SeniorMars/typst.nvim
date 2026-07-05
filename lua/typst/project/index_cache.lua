@@ -98,7 +98,7 @@ function M.reset(project)
         close_watchers(index)
     end
 
-    services.set_graph(project, services.graph(project) or {})
+    services.graph(project)
     services.ensure(project).index = {
         project = project,
         files = {},
@@ -227,6 +227,9 @@ local function start_file_watcher(project_index, key, path)
     end
 
     local handle = uv.new_fs_event()
+    if not handle then
+        return nil
+    end
     local started = pcall(function()
         handle:start(path, {}, function(err)
             if err then
@@ -241,7 +244,6 @@ local function start_file_watcher(project_index, key, path)
             end)
         end)
     end)
-
     if not started then
         close_watcher({ handle = handle })
         return nil

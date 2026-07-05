@@ -18,6 +18,7 @@
 ---@field _typst_project_pruned boolean? Registry prune marker used during detach.
 ---@field _typst_project_pruned_reason string? Reason recorded when pruned.
 ---@field _typst_project_pruned_event_emitted boolean? Project-pruned event guard.
+---@field [string] any
 
 ---@class TypstCompilerResult
 ---@field ok boolean?
@@ -49,6 +50,7 @@
 ---@field watch_status string?
 ---@field last_cycle_status string?
 ---@field external_lock boolean?
+---@field [string] any
 
 ---@class TypstProviderResult
 ---@field ok boolean?
@@ -59,10 +61,12 @@
 ---@field client string?
 ---@field method string?
 ---@field pending boolean?
+---@field cancel_pending boolean? A cancel request is still settling with the provider.
 ---@field stopped boolean?
 ---@field forced boolean?
 ---@field orphaned boolean?
 ---@field stale boolean?
+---@field [string] any
 
 ---@class typst.ProviderResult: TypstProviderResult
 
@@ -77,6 +81,7 @@
 ---@field cancel? fun(self_or_opts: TypstProviderPendingHandle|table?, opts?:table):boolean, TypstProviderResult?
 ---@field stop? fun(self_or_opts: TypstProviderPendingHandle|table?, opts?:table):boolean, TypstProviderResult?
 ---@field kill? fun(self_or_opts: TypstProviderPendingHandle|table?, opts?:table):boolean, TypstProviderResult?
+---@field [string] any
 
 ---@class typst.ProviderCancelHandle: TypstProviderPendingHandle
 
@@ -91,6 +96,7 @@
 ---@field services TypstProjectServices?
 ---@field last_command string[]?
 ---@field last_cwd string?
+---@field [string] any
 
 ---@class TypstProviderInvokeControl
 ---@field kind string?
@@ -127,20 +133,21 @@
 ---@field compile fun(project:TypstProject|TypstProviderContext|table, callback?:fun(result:TypstCompilerResult), run_config?:TypstCompilerRunConfig|table):TypstProviderPendingHandle|TypstCompilerResult|unknown
 ---@field start fun(project:TypstProject|TypstProviderContext|table, callback?:fun(result:TypstCompilerResult), run_config?:TypstCompilerRunConfig|table):TypstProviderPendingHandle|TypstCompilerResult|unknown
 ---@field stop fun(project:TypstProject|TypstProviderContext|table, callback?:fun(result:TypstCompilerResult)):TypstProviderPendingHandle|TypstCompilerResult|unknown
+---@field stop_for_exit? fun(project:TypstProject|TypstProviderContext|table, opts?:table):TypstProviderPendingHandle|TypstCompilerResult|unknown
 ---@field status fun(project:TypstProject|table):string?
 ---@field output fun(project:TypstProject|TypstProviderContext|table, run_config?:TypstCompilerRunConfig|table):string?
 ---@field name string?
 
 ---@class TypstProjectServices
----@field operations TypstProjectOperationsService
----@field compiler TypstProjectCompilerService
----@field diagnostics TypstProjectDiagnosticsService
----@field preview TypstProjectPreviewService
----@field artifacts TypstProjectArtifactsService
----@field graph TypstProjectGraphService
----@field index TypstProjectIndexService
----@field viewer TypstProjectViewerService
----@field invalidation TypstProjectInvalidationService
+---@field operations TypstProjectOperationsService?
+---@field compiler TypstProjectCompilerService?
+---@field diagnostics TypstProjectDiagnosticsService?
+---@field preview TypstProjectPreviewService?
+---@field artifacts TypstProjectArtifactsService?
+---@field graph TypstProjectGraphService?
+---@field index TypstProjectIndexService?
+---@field viewer TypstProjectViewerService?
+---@field invalidation TypstProjectInvalidationService?
 
 ---@class TypstProjectServicePatch
 ---@field clear string[]?
@@ -151,18 +158,21 @@
 ---@field kind string
 ---@field generation integer
 ---@field started_at integer
+---@field finished boolean?
 ---@field retained_at integer?
 ---@field handle any?
 ---@field result table?
+---@field [string] any
 
 ---@class TypstProjectOperationsService
 ---@field active_by_id table<integer, TypstProjectOperationRecord>
----@field active_by_kind table<string, table<integer, TypstProjectOperationRecord>>
+---@field active_by_kind table<string, table<integer, true>>
 ---@field retained_by_id table<integer, TypstProjectOperationRecord>
----@field retained_by_kind table<string, table<integer, TypstProjectOperationRecord>>
+---@field retained_by_kind table<string, table<integer, true>>
 ---@field generations table<string, integer>
 ---@field last table<string, table>
 ---@field next_id integer
+---@field [string] any
 
 ---@class TypstProjectCompilerService
 ---@field status string
@@ -182,6 +192,14 @@
 ---@field watch_cycle integer?
 ---@field watch_cycle_status string?
 ---@field last_cycle_generation integer?
+---@field active_compile_deps_path string?
+---@field restart_handle table?
+---@field stop_for_exit boolean?
+---@field provider_label string?
+---@field last_provider_label string?
+---@field provider_builtin boolean?
+---@field provider_external boolean?
+---@field [string] any
 
 ---@class TypstCompilerState: TypstProjectCompilerService
 
@@ -203,14 +221,17 @@
 ---@field watch_cycle integer?
 ---@field watch_cycle_status string?
 ---@field last_cycle_generation integer?
+---@field [string] any
 
 ---@class TypstProjectDiagnosticsService
 ---@field buffers table<integer, true>
 ---@field last table?
+---@field [string] any
 
 ---@class TypstProjectDiagnosticsServicePatch: TypstProjectServicePatch
 ---@field buffers table<integer, true>?
 ---@field last table?
+---@field [string] any
 
 ---@class TypstProjectPreviewService
 ---@field active boolean
@@ -222,14 +243,25 @@
 ---@field active_transport string?
 ---@field active_shell string?
 ---@field active_server_port integer?
+---@field active_command string[]?
+---@field active_cwd string?
 ---@field last_backend string?
 ---@field last_url string?
 ---@field last_output string?
 ---@field last_export table?
+---@field last_command string[]?
+---@field last_cwd string?
 ---@field last_error table?
 ---@field last_result table?
+---@field stop_prune_reason string?
 ---@field stopping boolean?
 ---@field status string?
+---@field opening boolean?
+---@field open_handle table?
+---@field open_generation integer?
+---@field last_mode string?
+---@field retained_open_handles table[]?
+---@field [string] any
 
 ---@class TypstProjectPreviewServicePatch: TypstProjectServicePatch
 ---@field active boolean?
@@ -241,36 +273,53 @@
 ---@field active_transport string?
 ---@field active_shell string?
 ---@field active_server_port integer?
+---@field active_command string[]?
+---@field active_cwd string?
 ---@field last_backend string?
 ---@field last_url string?
 ---@field last_output string?
 ---@field last_export table?
+---@field last_command string[]?
+---@field last_cwd string?
 ---@field last_error table?
 ---@field last_result table?
+---@field stop_prune_reason string?
 ---@field stopping boolean?
 ---@field status string?
+---@field opening boolean?
+---@field open_handle table?
+---@field open_generation integer?
+---@field last_mode string?
+---@field retained_open_handles table[]?
+---@field [string] any
 
 ---@class TypstProjectArtifactsService
 ---@field items table[]
+---@field owned table?
 ---@field output string?
 ---@field last table?
+---@field [string] any
 
 ---@class TypstProjectArtifactsServicePatch: TypstProjectServicePatch
 ---@field items table[]?
+---@field owned table?
 ---@field output string?
 ---@field last table?
+---@field [string] any
 
 ---@class TypstProjectGraphService
 ---@field files table<string, table|boolean>
----@field file_sources table<string, table|string>
+---@field file_sources table<string, string>
 ---@field dependencies table<string, table|boolean>
----@field dependency_sources table<string, table|string>
+---@field dependency_sources table<string, string>
+---@field [string] any
 
 ---@class TypstProjectGraphServicePatch: TypstProjectServicePatch
 ---@field files table<string, table|boolean>?
----@field file_sources table<string, table|string>?
+---@field file_sources table<string, string>?
 ---@field dependencies table<string, table|boolean>?
----@field dependency_sources table<string, table|string>?
+---@field dependency_sources table<string, string>?
+---@field [string] any
 
 ---@class TypstProjectIndexService
 ---@field files table<string, table>
@@ -278,10 +327,23 @@
 ---@field graph table
 ---@field generation integer?
 ---@field dirty_reason string?
+---@field [string] any
 
----@class TypstProjectViewerService: table
+---@class TypstProjectViewerService
+---@field provider string?
+---@field backend string?
+---@field command string[]?
+---@field cwd string?
+---@field stats table?
+---@field [string] any
 
 ---@class TypstProjectViewerServicePatch: TypstProjectServicePatch
+---@field provider string?
+---@field backend string?
+---@field command string[]?
+---@field cwd string?
+---@field stats table?
+---@field [string] any
 
 ---@class TypstProjectInvalidationService
 ---@field generation integer
@@ -289,6 +351,7 @@
 ---@field subscribers table
 ---@field history table
 ---@field last table?
+---@field [string] any
 
 ---@class TypstProjectInvalidationServicePatch: TypstProjectServicePatch
 ---@field generation integer?
@@ -296,6 +359,7 @@
 ---@field subscribers table?
 ---@field history table?
 ---@field last table?
+---@field [string] any
 
 ---@class TypstWatchCycle
 ---@field id integer
@@ -306,11 +370,13 @@
 ---@field finished boolean
 ---@field finish_timer userdata?
 ---@field pending_error_reason string?
+---@field [string] any
 
 ---@class TypstWatchRestart
 ---@field callback fun(result:TypstCompilerResult)?
 ---@field opts table?
 ---@field run_config TypstCompilerRunConfig|table?
+---@field restart_handle table?
 
 ---@class TypstWatchStreamChunk
 ---@field stream '"stdout"'|'"stderr"'
@@ -328,6 +394,7 @@
 ---@field deps_path string?
 ---@field deps_signature string?
 ---@field stopping boolean?
+---@field restart_handle table?
 ---@field exit_cleanup boolean?
 ---@field stop_callbacks fun(result:TypstCompilerResult)[]?
 ---@field restart_pending TypstWatchRestart?
@@ -354,6 +421,7 @@
 ---@field structured_output_seen boolean?
 ---@field unrecognized_status_lines integer?
 ---@field last_unrecognized_status_line string?
+---@field [string] any
 
 ---@class TypstStoppingCompile
 ---@field handle any

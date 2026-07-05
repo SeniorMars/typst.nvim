@@ -323,7 +323,6 @@ function M.items(opts, base)
         end
         return a.kind == "d"
     end)
-
     return items
 end
 

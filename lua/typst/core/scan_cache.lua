@@ -11,7 +11,7 @@ function M.new()
 end
 
 --- Build a deterministic signature from scalar invalidation parts.
----@param parts table[]|table|string|number|boolean|nil Signature input.
+---@param parts any[]|table|string|number|boolean|nil Signature input.
 ---@return string signature Stable signature string.
 function M.signature(parts)
     if type(parts) ~= "table" then

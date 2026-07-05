@@ -11,6 +11,7 @@ local M = {
     variants = variants.list,
 }
 
+---@type integer?
 local symbol_buf = nil
 local state_by_buf = {}
 
@@ -28,12 +29,13 @@ local function valid_buf(bufnr)
     return bufnr and vim.api.nvim_buf_is_valid(bufnr)
 end
 
+---@return integer
 local function ensure_buffer()
     if valid_buf(symbol_buf) then
-        return symbol_buf
+        return assert(symbol_buf)
     end
 
-    symbol_buf = vim.api.nvim_create_buf(false, true)
+    symbol_buf = assert(vim.api.nvim_create_buf(false, true))
     vim.bo[symbol_buf].buftype = "nofile"
     vim.bo[symbol_buf].bufhidden = "hide"
     vim.bo[symbol_buf].swapfile = false

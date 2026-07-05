@@ -160,7 +160,6 @@ typst.setup({
         end,
     },
 })
-
 assert(
     seen.TypstEventInitPre and seen.TypstEventInitPre[1],
     "TypstEventInitPre should be emitted"
@@ -624,14 +623,14 @@ local compile_calls = 0
 local compile_callbacks = 0
 local alias_saw_no_compile = false
 local primary_saw_event = false
+---@type any
 local deferred_handle = nil
 
-compiler_api.compile = function(_, _, callback)
+rawset(compiler_api, "compile", function(_, _, callback)
     compile_calls = compile_calls + 1
-    callback({ code = 0, ok = true })
+    callback({ code = 0, ok = true }, project)
     return { ok = true, code = 0 }
-end
-
+end)
 local ok, err = xpcall(function()
     vim.api.nvim_create_autocmd("User", {
         pattern = "TypstProjectAttach",
@@ -654,14 +653,12 @@ local ok, err = xpcall(function()
             )
         end,
     })
-
     vim.api.nvim_create_autocmd("User", {
         pattern = "TypstEventProjectAttach",
         callback = function()
             alias_saw_no_compile = compile_calls == 0
         end,
     })
-
     events.emit("TypstProjectAttach", reentrant_project)
 
     assert(primary_saw_event, "primary event should run inside event context")

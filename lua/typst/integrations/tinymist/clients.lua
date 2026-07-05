@@ -158,6 +158,13 @@ local function executable_available(command)
         and vim.fn.executable(executable) == 1
 end
 
+local function nonempty_copy(value)
+    if type(value) ~= "table" or next(value) == nil then
+        return nil
+    end
+    return vim.deepcopy(value)
+end
+
 local function start_config(bufnr, project)
     local tinymist = tinymist_config()
     local command = start_command()
@@ -167,9 +174,13 @@ local function start_config(bufnr, project)
         root_dir = project and project.root or vim.fn.getcwd(),
         filetypes = { "typst" },
         single_file_support = true,
-        settings = vim.deepcopy(tinymist.settings or {}),
-        init_options = vim.deepcopy(tinymist.init_options or {}),
     }
+
+    -- Empty Lua tables can serialize through LSP as arrays. Omit optional maps
+    -- unless users configured actual fields so Tinymist receives object-shaped
+    -- settings/init options.
+    config.settings = nonempty_copy(tinymist.settings)
+    config.init_options = nonempty_copy(tinymist.init_options)
 
     if tinymist.capabilities ~= nil then
         config.capabilities = vim.deepcopy(tinymist.capabilities)

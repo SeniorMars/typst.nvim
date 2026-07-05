@@ -14,7 +14,6 @@ typst.setup({
         command = vim.v.progpath,
     },
 })
-
 local original_spawn = process.spawn
 local spawned = {}
 
@@ -24,7 +23,7 @@ local function flush_scheduled()
     end, 1, false)
 end
 
-process.spawn = function(command, opts, handlers)
+rawset(process, "spawn", function(command, opts, handlers)
     local handle = {
         command = command,
         opts = opts,
@@ -47,8 +46,7 @@ process.spawn = function(command, opts, handlers)
 
     spawned[#spawned + 1] = handle
     return handle
-end
-
+end)
 local ok, err = xpcall(function()
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
@@ -56,12 +54,13 @@ local ok, err = xpcall(function()
     typst.project.set_main(main)
 
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "Original" })
+    ---@type any
     local changed_result = nil
     local generation_before = formatting._generation(bufnr)
+    ---@type any
     local pending = formatting.format({ notify = false }, function(result)
         changed_result = result
     end)
-
     assert(pending.pending, "format command should run asynchronously")
     assert(
         formatting._generation(bufnr) == generation_before + 1,
@@ -96,7 +95,6 @@ local ok, err = xpcall(function()
     formatting.format({ notify = false }, function(result)
         second_result = result
     end)
-
     local first = spawned[2]
     local second = spawned[3]
     second:finish({ code = 0, stdout = "Second\n", stderr = "" })
@@ -155,7 +153,6 @@ vim.api.nvim_buf_set_lines(prose, 0, -1, false, {
     "This is a deliberately long prose line",
     "that should become a wrapped paragraph.",
 })
-
 assert(
     formatexpr.formatexpr(1, 2, prose) == 0,
     "prose formatexpr should handle plain paragraphs"
@@ -175,7 +172,6 @@ vim.api.nvim_buf_set_lines(comments, 0, -1, false, {
     "/// This is a deliberately long doc",
     "/// comment that should stay prefixed.",
 })
-
 assert(
     formatexpr.formatexpr(1, 2, comments) == 0,
     "comment formatexpr should handle line comments"
@@ -194,7 +190,6 @@ vim.bo[source].textwidth = 30
 vim.api.nvim_buf_set_lines(source, 0, -1, false, {
     "#let value = (alpha, beta, gamma)",
 })
-
 assert(
     formatexpr.formatexpr(1, 1, source) == 1,
     "formatexpr should decline source-like code"

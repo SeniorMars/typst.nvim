@@ -49,6 +49,7 @@ local cache = {
     maps = nil,
 }
 
+---@return string[]
 local function fallback_names(values)
     local names = {}
     local seen = {}
@@ -64,6 +65,7 @@ local function fallback_names(values)
     return names
 end
 
+---@return string[]
 local function sorted_names_from_members(item, predicate)
     local names = {}
     local seen = {}
@@ -79,7 +81,11 @@ local function sorted_names_from_members(item, predicate)
     return names
 end
 
+---@return string[]
 local function color_names(catalog)
+    if type(catalog) ~= "table" then
+        return fallback_names(fallback_color_names)
+    end
     if cache.version ~= catalog.version then
         cache.version = catalog.version
         cache.names = nil
@@ -98,16 +104,20 @@ local function color_names(catalog)
             end
         )
     end)
-
-    if not ok or #names == 0 then
+    if not ok or type(names) ~= "table" or #names == 0 then
         names = fallback_names(fallback_color_names)
     end
 
+    ---@cast names string[]
     cache.names = names
     return names
 end
 
+---@return string[]
 local function color_map_names(catalog)
+    if type(catalog) ~= "table" then
+        return fallback_names(fallback_color_maps)
+    end
     if cache.version ~= catalog.version then
         cache.version = catalog.version
         cache.names = nil
@@ -126,11 +136,11 @@ local function color_map_names(catalog)
             end
         )
     end)
-
-    if not ok or #names == 0 then
+    if not ok or type(names) ~= "table" or #names == 0 then
         names = fallback_names(fallback_color_maps)
     end
 
+    ---@cast names string[]
     cache.maps = names
     return names
 end
@@ -168,6 +178,8 @@ function M.items(opts, base, catalog)
 
     local items = {}
     local seen = {}
+    local catalog_version = type(catalog) == "table" and catalog.version
+        or "fallback"
     local function add(word, fields)
         completion_items.add_unique(items, seen, word, function(value)
             return item(value, fields)
@@ -177,19 +189,19 @@ function M.items(opts, base, catalog)
     for _, name in ipairs(color_names(catalog)) do
         add(name, {
             provider = "stdlib",
-            source = ("Bundled Typst %s color"):format(catalog.version),
+            source = ("Bundled Typst %s color"):format(catalog_version),
         })
         add("color." .. name, {
             provider = "stdlib",
             source = ("Bundled Typst %s color type member"):format(
-                catalog.version
+                catalog_version
             ),
         })
     end
     for _, name in ipairs(color_map_names(catalog)) do
         add("color.map." .. name, {
             provider = "stdlib",
-            source = ("Bundled Typst %s color map"):format(catalog.version),
+            source = ("Bundled Typst %s color map"):format(catalog_version),
             map = true,
         })
     end
@@ -203,7 +215,6 @@ function M.items(opts, base, catalog)
         end
         return a.menu < b.menu
     end)
-
     return items
 end
 

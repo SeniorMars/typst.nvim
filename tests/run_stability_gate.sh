@@ -23,6 +23,9 @@ specs=(
   tests/policy/architecture_contract_spec.lua
   tests/unit/output_locks_policy_spec.lua
   tests/unit/diagnostics_buffer_limit_spec.lua
+  tests/unit/diagnostics_source_isolation_spec.lua
+  tests/unit/diagnostics_quickfix_source_rebuild_spec.lua
+  tests/unit/quickfix_nil_project_clear_spec.lua
   tests/unit/provider_adapter_late_duplicate_spec.lua
   tests/unit/provider_adapter_invalid_handle_spec.lua
   tests/unit/operation_process_tree_cancel_spec.lua

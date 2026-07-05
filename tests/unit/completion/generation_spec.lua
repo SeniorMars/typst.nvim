@@ -12,15 +12,13 @@ typst.setup({
         include_fonts = false,
     },
 })
-
 local bufnr = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_set_current_buf(bufnr)
 vim.bo[bufnr].filetype = "typst"
 vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "#tinymist" })
-
 local original_get_clients = vim.lsp.get_clients
 local callbacks = {}
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if not opts or opts.bufnr ~= bufnr then
         return {}
     end
@@ -50,7 +48,7 @@ vim.lsp.get_clients = function(opts)
             end,
         },
     }
-end
+end)
 
 local refreshes = {}
 local source = typst.completion.cmp_source({
@@ -65,7 +63,6 @@ local source = typst.completion.cmp_source({
         }
     end,
 })
-
 source:complete({
     context = {
         bufnr = bufnr,
@@ -75,7 +72,6 @@ source:complete({
 }, function(result)
     refreshes[#refreshes + 1] = result
 end)
-
 source:complete({
     context = {
         bufnr = bufnr,
@@ -85,7 +81,6 @@ source:complete({
 }, function(result)
     refreshes[#refreshes + 1] = result
 end)
-
 assert(#refreshes == 2, "cmp source should respond immediately twice")
 callbacks[1]("tinymist-fresh")
 assert(
@@ -108,7 +103,6 @@ source:complete({
 }, function(result)
     refreshes[#refreshes + 1] = result
 end)
-
 assert(
     vim.tbl_filter(function(item)
         return item.word == "tinymist-fresh"

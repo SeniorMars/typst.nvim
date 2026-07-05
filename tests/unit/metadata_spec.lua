@@ -9,7 +9,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("metadata-output"),
 })
-
 local function item_name(item)
     if type(item) == "table" then
         return item.canonical
@@ -52,6 +51,7 @@ local function find_variant(items, canonical)
     end
 end
 
+---@type any
 local catalog = metadata.catalog()
 local available_versions = metadata.available_versions()
 assert(
@@ -290,6 +290,7 @@ assert(
     "emoji completion should use sorted prefix ranges and limits"
 )
 
+---@type any
 local stdlib = metadata.stdlib()
 assert(
     stdlib == catalog.stdlib,
@@ -487,6 +488,7 @@ assert(
     "unknown constant types should return an empty list"
 )
 
+---@type any
 local shorthands = metadata.shorthands()
 assert(
     shorthands.markup.source_to_glyph["..."] == "…",
@@ -577,7 +579,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("metadata-output"),
 })
-
 catalog = nil
 arrow = nil
 arrow_r = nil

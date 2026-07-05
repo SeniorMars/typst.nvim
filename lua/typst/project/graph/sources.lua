@@ -103,7 +103,6 @@ function M.add(project, path, source)
         return nil
     end
     M.add_to_graph(graph, path, source)
-    graph_service.set(project, graph)
     return graph
 end
 

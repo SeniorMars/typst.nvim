@@ -84,6 +84,9 @@ end
 
 local function markup_body(bufnr, node)
     local text = node_text(bufnr, node)
+    if type(text) ~= "string" then
+        return nil
+    end
     if #text < 2 then
         return nil
     end

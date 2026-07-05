@@ -365,6 +365,11 @@ function M.install(api, notify, normalize_bufnr)
             passive = true,
         })
         if not state then
+            err = err
+                or {
+                    reason = "no_project",
+                    message = "No Typst project is attached",
+                }
             return {
                 ok = false,
                 reason = err.reason,

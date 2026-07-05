@@ -28,7 +28,6 @@ typst.setup({
         import_scan_max_files = 20,
     },
 })
-
 vim.cmd.edit(vim.fn.fnameescape(leaf))
 vim.bo.filetype = "typst"
 local bufnr = vim.api.nvim_get_current_buf()
@@ -48,7 +47,6 @@ vim.api.nvim_create_autocmd("User", {
             vim.deepcopy(args.data or {})
     end,
 })
-
 local background_attached =
     assert(typst.project.attach(bufnr), "background fixture should attach")
 assert(
@@ -62,7 +60,7 @@ assert(
 assert(
     vim.wait(1000, function()
         local state = registry.get(bufnr)
-        return state
+        return state ~= nil
             and util.same_path(state.main, main)
             and state.resolution_pending == nil
     end),
@@ -93,7 +91,6 @@ typst.setup({
         import_scan_max_files = 20,
     },
 })
-
 vim.cmd.edit(vim.fn.fnameescape(leaf))
 vim.bo.filetype = "typst"
 bufnr = vim.api.nvim_get_current_buf()
@@ -110,7 +107,6 @@ vim.api.nvim_create_autocmd("User", {
         attach_events[#attach_events + 1] = vim.deepcopy(args.data or {})
     end,
 })
-
 local attached = assert(typst.project.attach(bufnr), "buffer should attach")
 local live_attached = assert(project_store.get(attached.key))
 assert(
@@ -261,9 +257,9 @@ local path_changed_cleared = vim.wait(1000, function()
     local state = registry.get(bufnr)
     local resolution = state and state.resolutions and state.resolutions[bufnr]
         or nil
-    return state
+    return state ~= nil
         and state.resolution_pending == nil
-        and resolution
+        and resolution ~= nil
         and resolution.import_scan_status == "path_changed"
 end)
 assert(
@@ -329,9 +325,11 @@ assert(
     "command fixture should start with pending import scan"
 )
 local original_notify = vim.notify
-vim.notify = function() end
-local command_ok, command_err = pcall(vim.cmd, "TypstCompile")
-vim.notify = original_notify
+rawset(vim, "notify", function() end)
+local command_ok, command_err = pcall(function()
+    vim.cmd("TypstCompile")
+end)
+rawset(vim, "notify", original_notify)
 assert(command_ok, tostring(command_err))
 assert(
     command_calls[1] and util.same_path(command_calls[1].main, main),
@@ -368,9 +366,11 @@ assert(
     "watch fixture should start with pending import scan"
 )
 original_notify = vim.notify
-vim.notify = function() end
-local watch_ok, watch_err = pcall(vim.cmd, "TypstWatch")
-vim.notify = original_notify
+rawset(vim, "notify", function() end)
+local watch_ok, watch_err = pcall(function()
+    vim.cmd("TypstWatch")
+end)
+rawset(vim, "notify", original_notify)
 assert(watch_ok, tostring(watch_err))
 assert(
     command_calls[1]
@@ -411,9 +411,11 @@ assert(
     "preview fixture should start with pending import scan"
 )
 original_notify = vim.notify
-vim.notify = function() end
-local preview_ok, preview_err = pcall(vim.cmd, "TypstPreview document")
-vim.notify = original_notify
+rawset(vim, "notify", function() end)
+local preview_ok, preview_err = pcall(function()
+    vim.cmd("TypstPreview document")
+end)
+rawset(vim, "notify", original_notify)
 assert(preview_ok, tostring(preview_err))
 assert(
     preview_calls[1]
@@ -450,9 +452,11 @@ assert(
     "TOC fixture should start with pending import scan"
 )
 original_notify = vim.notify
-vim.notify = function() end
-local toc_ok, toc_err = pcall(vim.cmd, "TypstToc")
-vim.notify = original_notify
+rawset(vim, "notify", function() end)
+local toc_ok, toc_err = pcall(function()
+    vim.cmd("TypstToc")
+end)
+rawset(vim, "notify", original_notify)
 assert(toc_ok, tostring(toc_err))
 local toc_state = registry.get(bufnr)
 assert(
@@ -496,9 +500,11 @@ assert(
     "picker fixture should start with pending import scan"
 )
 original_notify = vim.notify
-vim.notify = function() end
-local pick_ok, pick_err = pcall(vim.cmd, "TypstPick")
-vim.notify = original_notify
+rawset(vim, "notify", function() end)
+local pick_ok, pick_err = pcall(function()
+    vim.cmd("TypstPick")
+end)
+rawset(vim, "notify", original_notify)
 assert(pick_ok, tostring(pick_err))
 local pick_state = registry.get(bufnr)
 assert(
@@ -593,7 +599,7 @@ vim.api.nvim_create_autocmd("User", {
     end,
 })
 original_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 local event_pending = assert(
     typst.project.attach(bufnr),
     "buffer should attach before event watch"
@@ -605,7 +611,7 @@ assert(
 local event_watch_ok = vim.wait(1000, function()
     return watch_calls[1] and util.same_path(watch_calls[1].main, event_main)
 end)
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 vim.api.nvim_del_augroup_by_id(event_watch_group)
 assert(
     pending_attach_seen,

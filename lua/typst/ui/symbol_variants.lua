@@ -92,7 +92,6 @@ function M.action(ctx, opts)
                     return ("%s  %s"):format(variant, glyph or "")
                 end,
             }, apply_variant)
-
             return M.list(name)
         end,
     }

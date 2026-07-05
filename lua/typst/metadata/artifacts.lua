@@ -156,7 +156,7 @@ function M.load_versions()
 end
 
 local function newest_available()
-    local versions = M.load_versions()
+    local versions = M.load_versions() or {}
     return semver.newest(versions)
 end
 
@@ -197,12 +197,11 @@ function M.detect_typst_version(executable)
         end
         version_detection_cache[key] = version or false
     end)
-
     return nil
 end
 
 function M.choose_version(requested)
-    local versions = M.load_versions()
+    local versions = M.load_versions() or {}
     if not requested then
         return newest_available(), true
     end

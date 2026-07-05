@@ -43,7 +43,6 @@ local function find_math_equation_call(bufnr, opts)
             best = node
         end
     end)
-
     return best
 end
 

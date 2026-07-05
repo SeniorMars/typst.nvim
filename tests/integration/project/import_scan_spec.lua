@@ -10,7 +10,9 @@ local function cleanup()
     pcall(function()
         typst.reset({ force = true })
     end)
-    pcall(vim.cmd, "silent! %bwipeout!")
+    pcall(function()
+        vim.cmd("silent! %bwipeout!")
+    end)
 end
 
 cleanup()
@@ -44,7 +46,6 @@ local ok, err = xpcall(function()
             import_scan_max_files = 260,
         },
     })
-
     vim.cmd.edit(vim.fn.fnameescape(leaf))
     vim.bo.filetype = "typst"
     local bufnr = vim.api.nvim_get_current_buf()
@@ -71,7 +72,7 @@ local ok, err = xpcall(function()
 
     local resolved = vim.wait(1000, function()
         local current = registry.get(bufnr)
-        return current and util.same_path(current.main, main)
+        return current ~= nil and util.same_path(current.main, main)
     end, 10)
     assert(resolved, "deferred import scan should resolve the importing main")
     project = assert(registry.get(bufnr), "deferred scan should keep project")
@@ -102,7 +103,7 @@ local ok, err = xpcall(function()
     )
     resolved = vim.wait(1000, function()
         local current = registry.get(bufnr)
-        return current and util.same_path(current.main, main)
+        return current ~= nil and util.same_path(current.main, main)
     end, 10)
     assert(
         resolved,
@@ -157,7 +158,6 @@ local ok, err = xpcall(function()
             import_scan_max_entries = 12,
         },
     })
-
     vim.cmd.edit(vim.fn.fnameescape(capped_leaf))
     vim.bo.filetype = "typst"
     bufnr = vim.api.nvim_get_current_buf()
@@ -176,7 +176,7 @@ local ok, err = xpcall(function()
     )
     local capped_finished = vim.wait(1000, function()
         local current = registry.get(bufnr)
-        return current and current.resolution_pending == nil
+        return current ~= nil and current.resolution_pending == nil
     end, 10)
     assert(capped_finished, "entry-capped deferred scan should settle")
     capped_project =
@@ -230,7 +230,6 @@ local ok, err = xpcall(function()
             import_scan_skip_dirs = { "heavy" },
         },
     })
-
     vim.cmd.edit(vim.fn.fnameescape(skipped_leaf))
     vim.bo.filetype = "typst"
     bufnr = vim.api.nvim_get_current_buf()
@@ -245,7 +244,7 @@ local ok, err = xpcall(function()
     )
     local skipped_resolved = vim.wait(1000, function()
         local current = registry.get(bufnr)
-        return current and util.same_path(current.main, skipped_main)
+        return current ~= nil and util.same_path(current.main, skipped_main)
     end, 10)
     assert(
         skipped_resolved,

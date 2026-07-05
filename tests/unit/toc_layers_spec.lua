@@ -9,14 +9,12 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("toc-layers-output"),
 })
-
 local main = root .. "/tests/fixtures/basic/index-main.typ"
 vim.cmd.edit(main)
 local project =
     assert(typst.project.attach(0), "layered TOC fixture should attach")
 
 local items = toc.collect(project, { backend = "treesitter" })
-
 local function has_layer(layer, matcher)
     for _, item in ipairs(items) do
         if item.layer == layer and (not matcher or matcher(item)) then
@@ -243,7 +241,6 @@ typst.setup({
         follow_delay_ms = 10,
     },
 })
-
 main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd("edit! " .. vim.fn.fnameescape(main))
 typst.project.set_main(main)
@@ -258,11 +255,10 @@ local calls = 0
 local followed_bufnr = nil
 local expected_project_key = project.key
 
-nav_toc.is_open = function(attached)
+rawset(nav_toc, "is_open", function(attached)
     return open and attached and attached.key == expected_project_key
-end
-
-nav_toc.follow = function(attached, follow_bufnr)
+end)
+rawset(nav_toc, "follow", function(attached, follow_bufnr)
     assert(
         attached and attached.key == expected_project_key,
         "debounced follow should keep project context"
@@ -270,8 +266,7 @@ nav_toc.follow = function(attached, follow_bufnr)
     calls = calls + 1
     followed_bufnr = follow_bufnr
     return true
-end
-
+end)
 local function cursor_moved()
     vim.api.nvim_exec_autocmds("CursorMoved", {
         buffer = bufnr,

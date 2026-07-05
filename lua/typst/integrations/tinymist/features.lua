@@ -142,7 +142,7 @@ end
 ---@param method string LSP method name.
 ---@param opts? table Request options; accepts `params`, `params_for_client`, and `normalize`.
 ---@param callback? fun(result:table) Callback that receives the normalized result.
----@return table result Pending handle or immediate failure payload.
+---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.request(bufnr, method, opts, callback)
     bufnr = normalize_bufnr(bufnr)
     opts = opts or {}
@@ -185,7 +185,7 @@ end
 --- Request document highlights for the current or supplied position.
 ---@param bufnr? integer Buffer to query.
 ---@param opts? table Request options; `callback` is required.
----@return table result Pending handle or immediate failure payload.
+---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.document_highlight(bufnr, opts)
     opts = opts or {}
     local target = normalize_bufnr(bufnr)
@@ -215,7 +215,7 @@ end
 --- Request document links for a buffer.
 ---@param bufnr? integer Buffer to query.
 ---@param opts? table Request options; `callback` is required.
----@return table result Pending handle or immediate failure payload.
+---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.document_links(bufnr, opts)
     opts = opts or {}
     return M.request(bufnr, "textDocument/documentLink", {
@@ -239,7 +239,7 @@ end
 --- Request LSP folding ranges for a buffer.
 ---@param bufnr? integer Buffer to query.
 ---@param opts? table Request options; `callback` is required.
----@return table result Pending handle or immediate failure payload.
+---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.folding_ranges(bufnr, opts)
     opts = opts or {}
     return M.request(bufnr, "textDocument/foldingRange", {
@@ -263,7 +263,7 @@ end
 --- Request signature help at the current or supplied position.
 ---@param bufnr? integer Buffer to query.
 ---@param opts? table Request options; `callback` is required.
----@return table result Pending handle or immediate failure payload.
+---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.signature_help(bufnr, opts)
     opts = opts or {}
     local target = normalize_bufnr(bufnr)
@@ -286,7 +286,7 @@ end
 --- Request document colors for a buffer.
 ---@param bufnr? integer Buffer to query.
 ---@param opts? table Request options; `callback` is required.
----@return table result Pending handle or immediate failure payload.
+---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.document_color(bufnr, opts)
     opts = opts or {}
     return M.request(bufnr, "textDocument/documentColor", {
@@ -310,7 +310,7 @@ end
 --- Request color presentations for one color literal range.
 ---@param bufnr? integer Buffer to query.
 ---@param opts? table Request options with `color`, `range`, and required `callback`.
----@return table result Pending handle or immediate failure payload.
+---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.color_presentation(bufnr, opts)
     opts = opts or {}
     local target = normalize_bufnr(bufnr)
@@ -364,7 +364,7 @@ end
 --- Request code lenses for a buffer.
 ---@param bufnr? integer Buffer to query.
 ---@param opts? table Request options; `callback` is required.
----@return table result Pending handle or immediate failure payload.
+---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.code_lens(bufnr, opts)
     opts = opts or {}
     return M.request(bufnr, "textDocument/codeLens", {
@@ -388,7 +388,7 @@ end
 --- Request semantic selection ranges for one or more positions.
 ---@param bufnr? integer Buffer to query.
 ---@param opts? table Request options; accepts `position`, `pos`, or `positions`.
----@return table result Pending handle or immediate failure payload.
+---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.selection_range(bufnr, opts)
     opts = opts or {}
     local target = normalize_bufnr(bufnr)
@@ -418,7 +418,7 @@ end
 --- Request Tinymist's experimental Enter handling without applying edits.
 ---@param bufnr? integer Buffer to query.
 ---@param opts? table Request options; accepts `position` or `pos`.
----@return table result Pending handle or immediate failure payload.
+---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.on_enter(bufnr, opts)
     opts = opts or {}
     local target = normalize_bufnr(bufnr)

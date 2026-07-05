@@ -6,6 +6,20 @@ local symbol_metadata = require("typst.metadata.symbols")
 
 local M = {}
 
+---@class TypstMetadataCatalog
+---@field kind string
+---@field version string
+---@field requested_version string?
+---@field version_mismatch boolean?
+---@field manifest table
+---@field artifacts table
+---@field symbols table?
+---@field emojis table?
+---@field stdlib table?
+---@field shorthands table?
+---@field [string] any
+
+---@type { catalog: TypstMetadataCatalog? }
 local cache = {
     catalog = nil,
 }
@@ -21,6 +35,8 @@ local validate_artifact_count = metadata_artifacts.validate_artifact_count
 local artifact_file = metadata_artifacts.artifact_file
 local artifact_cache = metadata_artifacts.artifact_cache
 
+---@param version string
+---@return table
 local function shorthands_view(version)
     local artifacts = artifact_cache(version)
     if artifacts.shorthands then
@@ -103,6 +119,7 @@ local function shorthands_view(version)
     return view
 end
 
+---@param catalog TypstMetadataCatalog
 local function install_catalog_maps(catalog)
     catalog.symbols =
         symbol_metadata.map(catalog.version, "symbols", "symbol", "sym")
@@ -111,9 +128,11 @@ local function install_catalog_maps(catalog)
 end
 
 function M.available_versions()
-    return vim.deepcopy(metadata_artifacts.load_versions())
+    return vim.deepcopy(metadata_artifacts.load_versions() or {})
 end
 
+---@param opts? table
+---@return TypstMetadataCatalog
 function M.catalog(opts)
     opts = opts or {}
     local requested = opts.version or config.unsafe_get().metadata_version

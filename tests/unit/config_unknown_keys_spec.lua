@@ -10,18 +10,17 @@ log.clear()
 local original_notify = vim.notify
 local notifications = {}
 local notify_ok, notify_err = xpcall(function()
-    vim.notify = function(message, level)
+    rawset(vim, "notify", function(message, level)
         notifications[#notifications + 1] = {
             message = message,
             level = level,
         }
-    end
+    end)
     typst.setup({
         diagnostic = {
             source = "always",
         },
     })
-
     local unknown = config.last_unknown_keys()
     assert(
         vim.tbl_contains(unknown, "diagnostic"),
@@ -47,20 +46,20 @@ local notify_ok, notify_err = xpcall(function()
         "unknown config keys should be visible through vim.notify"
     )
 end, debug.traceback)
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 assert(notify_ok, notify_err)
 
 local notify_failure_ok, notify_failure_err = xpcall(function()
-    vim.notify = function()
+    rawset(vim, "notify", function()
         error("synthetic notify failure")
-    end
+    end)
     typst.setup({
         diagnostic = {
             source = "always",
         },
     })
 end, debug.traceback)
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 assert(
     notify_failure_ok,
     notify_failure_err

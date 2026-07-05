@@ -90,7 +90,6 @@ local function local_function_parameters(bufnr, name, call)
             }
         end
     end)
-
     if not best then
         return nil, "no_parameter_metadata"
     end

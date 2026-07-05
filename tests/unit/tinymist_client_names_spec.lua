@@ -12,11 +12,10 @@ typst.setup({
         },
     },
 })
-
 local original_get_clients = vim.lsp.get_clients
 local original_start = vim.lsp.start
 local ok, err = pcall(function()
-    vim.lsp.get_clients = function()
+    rawset(vim.lsp, "get_clients", function()
         return {
             {
                 id = 10,
@@ -26,8 +25,7 @@ local ok, err = pcall(function()
                 },
             },
         }
-    end
-
+    end)
     assert(
         #clients.clients(0) == 0,
         "custom Tinymist client names should not match by default"
@@ -41,7 +39,6 @@ local ok, err = pcall(function()
             },
         },
     })
-
     local matched = clients.clients(0)
     assert(
         #matched == 1 and matched[1].name == "tinymist_custom",
@@ -50,10 +47,10 @@ local ok, err = pcall(function()
 
     local started_clients = {}
     local start_count = 0
-    vim.lsp.get_clients = function()
+    rawset(vim.lsp, "get_clients", function()
         return started_clients
-    end
-    vim.lsp.start = function(config, opts)
+    end)
+    rawset(vim.lsp, "start", function(config, opts)
         start_count = start_count + 1
         started_clients[1] = {
             id = start_count,
@@ -67,8 +64,7 @@ local ok, err = pcall(function()
             "typst.nvim-started tinymist client should be reusable even with custom names"
         )
         return start_count
-    end
-
+    end)
     typst.setup({
         integrations = {
             tinymist = {
@@ -78,7 +74,6 @@ local ok, err = pcall(function()
             },
         },
     })
-
     local project = {
         root = vim.fn.getcwd(),
     }
@@ -97,7 +92,6 @@ local ok, err = pcall(function()
         "ensure should not start duplicate Tinymist clients"
     )
 end)
-
 vim.lsp.get_clients = original_get_clients
 vim.lsp.start = original_start
 assert(ok, err)

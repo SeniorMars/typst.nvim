@@ -27,5 +27,4 @@ treesitter.walk(nodes[1], function(node)
     visited = visited + 1
     assert(node == nodes[visited], "walk should preserve preorder traversal")
 end)
-
 assert(visited == depth, "iterative Tree-sitter walk should visit deep trees")

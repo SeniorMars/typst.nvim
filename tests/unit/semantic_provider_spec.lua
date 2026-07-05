@@ -45,7 +45,6 @@ providers.register("semantic", "unit-semantic-diagnostics", {
         return project.main:find("main%.typ$") ~= nil
     end,
 })
-
 typst.reset()
 typst.setup({
     root = root,
@@ -62,7 +61,6 @@ typst.setup({
         },
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 typst.project.set_main(main)
@@ -138,7 +136,6 @@ typst.setup({
         },
     },
 })
-
 vim.cmd.edit(main)
 typst.project.set_main(main)
 project = assert(typst.project.get(0), "project should reattach")

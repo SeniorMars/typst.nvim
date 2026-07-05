@@ -43,7 +43,6 @@ typst.setup({
     root = fixture_dir,
     output_dir = typst_test_cache_path("bibliography-diagnostics-output"),
 })
-
 vim.cmd.edit(main)
 vim.bo.filetype = "typst"
 local project = assert(
@@ -179,7 +178,6 @@ assert(
     "clearing one bibliography project should leave others intact"
 )
 typst.bibliography.clear_diagnostics({ project = other_project })
-
 vim.cmd("TypstBibliographyDiagnostics")
 local command_qf = vim.fn.getqflist({ title = 1, items = 1 })
 assert(

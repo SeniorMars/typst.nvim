@@ -70,7 +70,7 @@ function M.parameter_info(bufnr, row, col)
     local call = parameter_parse.function_call_context(bufnr, row, col)
     local result = M.function_result(bufnr, call and call.name or nil, row)
     result = M.result_for_call_context(result, call)
-    if result and result.kind == "function" then
+    if call and result and result.kind == "function" then
         return {
             name = call.name,
             result = result,
@@ -108,7 +108,7 @@ function M.value_info(bufnr, row, col)
     local result = M.function_result(bufnr, call and call.name or nil, row)
     result = M.result_for_call_context(result, call)
     local param = M.find_parameter(result, parameter_name)
-    if param then
+    if call and param then
         return {
             name = call.name,
             result = result,
@@ -165,7 +165,6 @@ call_signature = function(bufnr, pos)
     end
 
     result = M.result_for_call_context(result, { set_rule = set_rule })
-
     return {
         call = call,
         group = call_argument_group(call),

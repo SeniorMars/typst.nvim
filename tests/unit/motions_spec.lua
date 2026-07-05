@@ -7,7 +7,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("motions-output"),
 })
-
 local fixture = root .. "/tests/fixtures/basic/editing.typ"
 vim.cmd.edit(fixture)
 vim.bo.filetype = "typst"
@@ -30,7 +29,7 @@ assert(
 
 vim.api.nvim_win_set_cursor(0, { 1, 0 })
 assert(motions.next_heading_end(), "next heading end motion failed")
-cursor = vim.api.nvim_win_get_cursor(0)
+local cursor = vim.api.nvim_win_get_cursor(0)
 assert(
     cursor[1] == 1 and cursor[2] == 17,
     "next heading end did not jump to the first heading end"
@@ -78,7 +77,7 @@ assert(
 
 vim.api.nvim_win_set_cursor(0, { 1, 0 })
 assert(motions.next_equation(), "next equation motion failed")
-local cursor = vim.api.nvim_win_get_cursor(0)
+cursor = vim.api.nvim_win_get_cursor(0)
 assert(
     cursor[1] == 3 and cursor[2] == 5,
     "next equation did not jump to inline math"
@@ -242,7 +241,6 @@ vim.api.nvim_buf_set_lines(scratch, 0, -1, false, {
     "Beta",
     "// second comment",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 0 })
 assert(motions.next_comment(), "next comment motion failed")
 cursor = vim.api.nvim_win_get_cursor(0)

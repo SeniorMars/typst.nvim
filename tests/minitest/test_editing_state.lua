@@ -18,7 +18,6 @@ local function insert_helpers_contract()
             },
         },
     })
-
     local function reset_buffer(line, col)
         vim.cmd("enew!")
         vim.bo.filetype = "typst"
@@ -159,9 +158,8 @@ local function matchparen_contract()
         root = root,
         output_dir = typst_test_cache_path("matchparen-output"),
     })
-
     local original_notify = vim.notify
-    vim.notify = function() end
+    rawset(vim, "notify", function() end)
 
     local ok, err = xpcall(function()
         local main = root .. "/tests/fixtures/basic/editing.typ"
@@ -191,7 +189,6 @@ local function matchparen_contract()
             "Don't hide (value)",
             "Price \\$5 and $ a $",
         })
-
         local matchparen = require("typst.edit.matchparen")
 
         vim.api.nvim_win_set_cursor(0, { 1, 7 })
@@ -322,7 +319,6 @@ local function matchparen_contract()
         vim.bo[highlight_buf].filetype = "typst"
         vim.api.nvim_buf_set_lines(highlight_buf, 0, -1, false, { "[alpha]" })
         vim.api.nvim_win_set_cursor(0, { 1, 0 })
-
         typst.project.attach(highlight_buf)
         assert(
             highlight.is_enabled(highlight_buf),
@@ -388,7 +384,7 @@ local function matchparen_contract()
         )
     end, debug.traceback)
 
-    vim.notify = original_notify
+    rawset(vim, "notify", original_notify)
 
     if not ok then
         error(err)

@@ -9,7 +9,6 @@ local opened = project_helper.open_typst_project({
         ["main.typ"] = "= Helper root",
     },
 })
-
 assert(
     opened.project.root == opened.root,
     "helper-created projects should set up typst.nvim with the generated root"

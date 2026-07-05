@@ -231,7 +231,6 @@ local function refresh_universe_index(paths, max, cache_key, ttl_ms)
         end
         return semver.less(left.version, right.version)
     end)
-
     scan_cache.put(universe_cache.store, cache_key, records, {
         ttl_ms = ttl_ms,
         now_ms = now_ms(),

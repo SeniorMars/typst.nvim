@@ -1,10 +1,13 @@
 local ok, minitest = pcall(require, "mini.test")
 if not ok then
-    vim.api.nvim_err_writeln(
-        "mini.test is required for this runner. "
-            .. "Set TYPST_NVIM_TEST_MINI to a mini.nvim checkout, "
-            .. "or add mini.nvim to TYPST_NVIM_TEST_EXTRA_RTP."
-    )
+    vim.api.nvim_echo({
+        {
+            "mini.test is required for this runner. "
+                .. "Set TYPST_NVIM_TEST_MINI to a mini.nvim checkout, "
+                .. "or add mini.nvim to TYPST_NVIM_TEST_EXTRA_RTP.",
+            "ErrorMsg",
+        },
+    }, true, {})
     vim.cmd("cquit")
 end
 
@@ -30,7 +33,9 @@ end
 
 local files = collect_files()
 if #files == 0 then
-    vim.api.nvim_err_writeln("No mini.test files found under tests/minitest")
+    vim.api.nvim_echo({
+        { "No mini.test files found under tests/minitest", "ErrorMsg" },
+    }, true, {})
     vim.cmd("cquit")
 end
 
@@ -48,5 +53,4 @@ minitest.setup({
     },
     script_path = "",
 })
-
 minitest.run()

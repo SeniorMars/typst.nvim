@@ -6,7 +6,7 @@ local M = {}
 ---@class TypstCommandOptions
 ---@field desc string
 ---@field nargs any
----@field complete fun(argLead:string, cmdline:string, cursorPos:integer):string[]|nil|string[]|nil
+---@field complete? string|fun(argLead:string, cmdline:string, cursorPos:integer):string[]|nil
 ---@field bang boolean|nil
 ---@field range boolean|nil
 ---@field force boolean|nil
@@ -14,7 +14,7 @@ local M = {}
 --- Build common options for a user command.
 ---@param desc string Command description.
 ---@param nargs? string|integer Argument count accepted by `nvim_create_user_command`.
----@param complete? fun(argLead:string, cmdline:string, cursorPos:integer):string[]|nil Completion callback.
+---@param complete? string|fun(argLead:string, cmdline:string, cursorPos:integer):string[]|nil Completion callback or Neovim completion mode.
 ---@return TypstCommandOptions opts Command option table.
 function M.opts(desc, nargs, complete)
     return {
@@ -72,10 +72,13 @@ function M.create(name, callback, opts)
         return
     end
 
+    local command_opts = vim.deepcopy(opts)
+    command_opts.force = nil
+    ---@cast command_opts vim.api.keyset.user_command
     vim.api.nvim_create_user_command(
         name,
         command_callback(name, callback),
-        opts
+        command_opts
     )
 end
 

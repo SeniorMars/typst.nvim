@@ -13,13 +13,11 @@ typst.setup({
         output_format = "svg",
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 typst.project.set_main(main)
 local main_bufnr = vim.api.nvim_get_current_buf()
 typst.render.cache_clear({ force = true })
-
 local event = nil
 vim.api.nvim_create_autocmd("User", {
     pattern = "TypstRenderCreated",
@@ -27,7 +25,7 @@ vim.api.nvim_create_autocmd("User", {
         event = args.data
     end,
 })
-
+---@type any
 local rendered = nil
 local run = typst.render.equation(
     { expression = "alpha + beta", open = false },
@@ -70,6 +68,7 @@ assert(
     "stdin equation render should not write a wrapper source"
 )
 
+---@type any
 local file_mode_result = nil
 local file_mode_run = typst.render.equation({
     expression = "gamma",
@@ -117,7 +116,8 @@ vim.fn.delete(typst_test_cache_path("render-cache/manifest.json"))
 package.loaded["typst.workflows.render"] = nil
 local reloaded_render = require("typst.workflows.render")
 local render_cache = require("typst.workflows.render.cache")
-local project = require("typst.project").get(0)
+local project = assert(require("typst.project").get(0))
+---@type any
 local unmanifested_result = nil
 local unmanifested_run = reloaded_render.equation(
     project,
@@ -182,6 +182,7 @@ assert(
 )
 
 typst.render.cache_clear()
+---@type any
 local first_evicted = nil
 typst.render.equation(
     { expression = "gamma", open = false, cache = { max_entries = 1 } },
@@ -196,6 +197,7 @@ assert(
     "first bounded cache render did not finish"
 )
 local first_evicted_path = first_evicted.path
+---@type any
 local second_evicted = nil
 typst.render.equation(
     { expression = "delta", open = false, cache = { max_entries = 1 } },
@@ -233,6 +235,7 @@ local function render_cache_manifest_entries()
 end
 
 typst.render.cache_clear()
+---@type any
 local ttl_old = nil
 typst.render.equation(
     { expression = "alpha + gamma", open = false, cache = { ttl_ms = 1 } },
@@ -249,6 +252,7 @@ assert(
 vim.wait(20, function()
     return false
 end, 20)
+---@type any
 local ttl_new = nil
 typst.render.equation(
     { expression = "alpha + delta", open = false, cache = { ttl_ms = 1 } },
@@ -275,6 +279,7 @@ assert(
 )
 
 typst.render.cache_clear()
+---@type any
 local byte_first = nil
 typst.render.equation(
     { expression = "beta + gamma", open = false },
@@ -290,6 +295,7 @@ assert(
 )
 local byte_budget =
     math.max(1, ((vim.uv or vim.loop).fs_stat(byte_first.path).size * 2) - 1)
+---@type any
 local byte_second = nil
 typst.render.equation({
     expression = "beta + delta",
@@ -322,6 +328,7 @@ assert(vim.fn.writefile({
 }, image) == 0, "failed to write image")
 vim.api.nvim_buf_set_lines(0, 0, 1, false, { '#image("phase4-image.svg")' })
 vim.api.nvim_win_set_cursor(0, { 1, 9 })
+---@type any
 local image_result = typst.render.image({ open = false })
 assert(image_result.ok, "render_image should resolve image under cursor")
 assert(image_result.kind == "image", "image preview should report image kind")
@@ -353,6 +360,7 @@ assert(
     vim.tbl_contains(typst.providers.names("render"), "phase4-display"),
     "render provider should be listed"
 )
+---@type any
 local displayed = typst.render.image({
     bufnr = main_bufnr,
     path = image,
@@ -367,6 +375,7 @@ assert(
 
 local old_kitty = vim.env.KITTY_WINDOW_ID
 vim.env.KITTY_WINDOW_ID = "unit-test"
+---@type any
 local terminal_displayed = typst.render.image({
     bufnr = main_bufnr,
     path = image,
@@ -383,6 +392,7 @@ assert(
     "terminal display should create a buffer"
 )
 
+---@type any
 local kitty_path_transfer = typst.render.image({
     bufnr = main_bufnr,
     path = image,
@@ -399,6 +409,7 @@ assert(
     "kitty display should use file transfer instead of inline image bytes"
 )
 
+---@type any
 local oversized_terminal = typst.render.image({
     bufnr = main_bufnr,
     path = image,
@@ -416,10 +427,11 @@ assert(
 
 local old_system = vim.system
 local system_calls = 0
-vim.system = function(command)
+rawset(vim, "system", function(command)
     system_calls = system_calls + 1
     return old_system(command)
-end
+end)
+---@type any
 local inline_terminal = typst.render.image({
     bufnr = main_bufnr,
     path = image,
@@ -449,6 +461,7 @@ typst.providers.register("render", "phase4-render", {
         }
     end,
 })
+---@type any
 local provider_page = typst.render.page({
     bufnr = main_bufnr,
     provider = "phase4-render",
@@ -482,7 +495,9 @@ typst.providers.register("render", "phase4-pending-render", {
         }
     end,
 })
+---@type any
 local pending_provider_done = nil
+---@type any
 local pending_provider_page = typst.render.page({
     bufnr = main_bufnr,
     provider = "phase4-pending-render",
@@ -517,6 +532,7 @@ typst.providers.register("render", "phase4-failing-render", {
         }
     end,
 })
+---@type any
 local failing_provider_page = typst.render.page({
     bufnr = main_bufnr,
     provider = "phase4-failing-render",
@@ -527,6 +543,7 @@ assert(
     "failing render provider result should not open a preview buffer"
 )
 
+---@type any
 local async_rendered = nil
 local async_render_calls = 0
 typst.providers.register("render", "phase4-async-render", {
@@ -549,6 +566,7 @@ typst.providers.register("render", "phase4-async-render", {
         }
     end,
 })
+---@type any
 local async_render_pending = typst.render.page(
     { bufnr = main_bufnr, provider = "phase4-async-render", open = false },
     function(result)
@@ -559,6 +577,7 @@ assert(
     async_render_pending.ok and async_render_pending.pending,
     "async render provider should return pending"
 )
+---@type any
 local blocked_render = typst.render.page({
     bufnr = main_bufnr,
     provider = "phase4-async-render",
@@ -587,6 +606,7 @@ local process = require("typst.core.process")
 local original_system = process.system
 local original_spawn = process.spawn
 local page_runs = 0
+---@type any
 local changed_page_path = nil
 local page_cache_ok, page_cache_err = xpcall(function()
     vim.api.nvim_set_current_buf(main_bufnr)
@@ -609,14 +629,13 @@ local page_cache_ok, page_cache_err = xpcall(function()
         }
     end
 
-    process.spawn = function(command, _opts, handlers)
+    rawset(process, "spawn", function(command, _opts, handlers)
         return fake_page_render(command, handlers and handlers.on_exit)
-    end
-
-    process.system = function(command, _opts, on_exit)
+    end)
+    rawset(process, "system", function(command, _opts, on_exit)
         return fake_page_render(command, on_exit)
-    end
-
+    end)
+    ---@type any
     local first_page = nil
     local first_run = typst.render.page({ open = false }, function(result)
         first_page = result
@@ -636,6 +655,7 @@ local page_cache_ok, page_cache_err = xpcall(function()
         "first fake page render should run once"
     )
 
+    ---@type any
     local cached_page = typst.render.page({ open = false })
     assert(
         cached_page.ok and cached_page.cached,
@@ -647,6 +667,7 @@ local page_cache_ok, page_cache_err = xpcall(function()
     )
     assert(page_runs == 1, "cached page render should not spawn a process")
 
+    ---@type any
     local extra_arg_page = nil
     local extra_arg_run = typst.render.page({
         open = false,
@@ -673,6 +694,7 @@ local page_cache_ok, page_cache_err = xpcall(function()
         extra_arg_page.path ~= first_page.path,
         "different render extra_args should use a distinct cache key"
     )
+    ---@type any
     local cached_extra_arg_page = typst.render.page({
         open = false,
         extra_args = { "--input", "variant=extra" },
@@ -693,6 +715,7 @@ local page_cache_ok, page_cache_err = xpcall(function()
         false,
         { "= Changed page cache content" }
     )
+    ---@type any
     local changed_page = nil
     typst.render.page({ open = false }, function(result)
         changed_page = result

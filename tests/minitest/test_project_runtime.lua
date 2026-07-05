@@ -13,7 +13,6 @@ local function project_attach_status_contract()
         root = root,
         output_dir = typst_test_cache_path("api-runtime-output"),
     })
-
     local attach_event = nil
     vim.api.nvim_create_autocmd("User", {
         pattern = "TypstProjectAttach",
@@ -21,7 +20,6 @@ local function project_attach_status_contract()
             attach_event = args.data
         end,
     })
-
     local main = root .. "/tests/fixtures/basic/main.typ"
     vim.cmd.edit(main)
     local project = assert(typst.project.attach(0), "Typst attach returned nil")
@@ -77,7 +75,6 @@ local function format_callback_contract()
         root = root,
         output_dir = typst_test_cache_path("api-runtime-output"),
     })
-
     local reports_api = require("typst.api.reports")
     local operations = require("typst.project.services.operations")
 
@@ -86,12 +83,11 @@ local function format_callback_contract()
     local notify_count = 0
     local saved_callback = nil
 
-    operations.format = function(_, _, callback)
+    rawset(operations, "format", function(_, _, callback)
         saved_callback = callback
         callback({ ok = true, changed = false, provider = "test-format" })
         return { pending = true }
-    end
-
+    end)
     local ok, err = xpcall(function()
         local api = {
             project = {
@@ -104,7 +100,6 @@ local function format_callback_contract()
         reports_api.install(api, function()
             notify_count = notify_count + 1
         end)
-
         local result = api.tools.format({
             notify = false,
             project = { root = root },
@@ -112,19 +107,17 @@ local function format_callback_contract()
             callback_count = callback_count + 1
             assert(done.ok, "first formatter completion should be delivered")
         end)
-
         assert(
             result.pending,
             "wrapper should return the pending operation handle"
         )
         assert(callback_count == 1, "synchronous completion should run once")
 
-        saved_callback({
+        assert(saved_callback)({
             ok = false,
             reason = "duplicate",
             message = "duplicate completion",
         })
-
         assert(
             callback_count == 1,
             "later duplicate completion should not reach user callback"

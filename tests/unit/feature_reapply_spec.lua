@@ -245,9 +245,9 @@ local ok, err = xpcall(function()
         match_highlight = counts.match_highlight,
         syntax = counts.syntax,
     }
-    core_windows.all_for_buffer = function()
+    rawset(core_windows, "all_for_buffer", function()
         return { 999999 }
-    end
+    end)
     local stale_window_apply =
         lifecycle.apply_buffer_features_all_windows(bufnr, { force = true })
     core_windows.all_for_buffer = originals.all_for_buffer
@@ -335,12 +335,12 @@ local ok, err = xpcall(function()
         },
     }
     project_services.ensure(fake_project)
-    project.get = function(query_bufnr)
+    rawset(project, "get", function(query_bufnr)
         if query_bufnr == bufnr then
             return fake_project
         end
         return originals.project_get(query_bufnr)
-    end
+    end)
 
     local attached_counts = {
         syntax = counts.syntax,
@@ -368,7 +368,7 @@ local ok, err = xpcall(function()
         "syntax should not reapply while the project signature is stable"
     )
 
-    local project_index = project_services.index(fake_project)
+    local project_index = assert(project_services.index(fake_project))
     project_index.generation = (project_index.generation or 0) + 1
     local indexed = lifecycle.apply_buffer_features(bufnr)
     assert(
@@ -403,7 +403,6 @@ local setup_ok, setup_err = xpcall(function()
             next_heading = "]h",
         },
     })
-
     local bufnr = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_set_current_buf(bufnr)
     vim.api.nvim_buf_set_name(bufnr, root .. "/tests/fixtures/basic/main.typ")
@@ -418,11 +417,10 @@ local setup_ok, setup_err = xpcall(function()
     )
 
     local indent_apply_count = 0
-    indent.apply = function(...)
+    rawset(indent, "apply", function(...)
         indent_apply_count = indent_apply_count + 1
         return originals.indent(...)
-    end
-
+    end)
     typst.setup({
         root = root,
         output_dir = typst_test_cache_path("setup-reapply-output"),
@@ -430,7 +428,6 @@ local setup_ok, setup_err = xpcall(function()
             enabled = false,
         },
     })
-
     assert(
         not has_buffer_map(bufnr, "n", "]h"),
         "setup should remove stale typst.nvim-owned mappings from attached buffers"

@@ -15,7 +15,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("property-fuzz-output"),
 })
-
 local workdir = typst_test_cache_path("property-fuzz")
 vim.fn.mkdir(workdir, "p")
 
@@ -164,7 +163,6 @@ for index = 1, 60 do
             assert(entry.lnum >= 1, "BibTeX line number should be one-based")
         end
     end)
-
     assert_no_throw("Hayagriva parser fuzz", function()
         local entries = bibliography_parser.parse_hayagriva_lines({
             ("key%d:"):format(index),

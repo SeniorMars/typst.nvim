@@ -7,7 +7,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("tinymist-command-workflows-output"),
 })
-
 local original_get_clients = vim.lsp.get_clients
 local original_notify = vim.notify
 local bufnr
@@ -207,13 +206,13 @@ local ok, err = xpcall(function()
         error("unexpected Tinymist method: " .. method)
     end
 
-    vim.lsp.get_clients = function(opts)
+    rawset(vim.lsp, "get_clients", function(opts)
         if opts and opts.bufnr and opts.bufnr ~= bufnr then
             return {}
         end
         return { fake_client }
-    end
-    vim.notify = function() end
+    end)
+    rawset(vim, "notify", function() end)
 
     assert(
         require("typst.integrations.tinymist.features").supports(
@@ -324,10 +323,10 @@ local ok, err = xpcall(function()
 end, debug.traceback)
 
 vim.lsp.get_clients = original_get_clients
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 
 if not ok then
-    vim.api.nvim_err_writeln(err)
+    vim.api.nvim_echo({ { tostring(err), "ErrorMsg" } }, true, {})
     vim.cmd("cquit")
 end
 

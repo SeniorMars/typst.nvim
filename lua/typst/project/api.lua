@@ -125,7 +125,6 @@ function M.create(opts)
     function api.clear_cache(cache_opts)
         cache_opts = cache_opts or {}
         local cleared = cache_registry.clear({ bufnr = cache_opts.bufnr })
-
         log.add("info", "caches cleared", {
             bufnr = cache_opts.bufnr,
             metadata = cleared.metadata == true,
@@ -137,7 +136,6 @@ function M.create(opts)
             treesitter = cleared.treesitter == true,
             conceal = cleared.conceal == true,
         })
-
         if cache_opts.notify ~= false then
             notify(
                 "Cleared Typst metadata, completion, package, symbol, import-scan, Tree-sitter, project index, and conceal caches"

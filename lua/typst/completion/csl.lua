@@ -74,13 +74,18 @@ local function local_files(opts, completion_config)
         return {}
     end
 
-    local root = opts.project and opts.project.root or nil
+    local project = type(opts.project) == "table" and opts.project or nil
+    local root = project and project.root or nil
     if not root and opts.bufnr then
         local collected = index.collect({
             bufnr = opts.bufnr,
-            project = opts.project,
+            project = project,
         })
-        root = collected and collected.project and collected.project.root or nil
+        local collected_project = type(collected) == "table"
+                and type(rawget(collected, "project")) == "table"
+                and rawget(collected, "project")
+            or nil
+        root = collected_project and collected_project.root or nil
     end
     root = root or vim.fn.getcwd()
 
@@ -118,17 +123,19 @@ local function local_files(opts, completion_config)
             type = "file",
             limit = completion_config.csl_scan_max,
         })
-
         table.sort(files)
         return files
     end)
 end
 
+---@param opts? {bufnr?:integer, project?:TypstProject|table, include_csl_styles?:boolean}
 function M.items(opts, base, catalog)
+    opts = opts or {}
+    ---@type table
     local completion_config = config.unsafe_get().completion
     if
         opts.include_csl_styles == false
-        or completion_config.include_csl_styles == false
+        or completion_config["include_csl_styles"] == false
     then
         return {}
     end
@@ -164,7 +171,6 @@ function M.items(opts, base, catalog)
         end
         return a.menu < b.menu
     end)
-
     return items
 end
 

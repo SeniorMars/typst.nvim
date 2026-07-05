@@ -73,7 +73,6 @@ vim.api.nvim_create_autocmd("User", {
     pattern = "TSUpdate",
     callback = configure_typst_parser_source,
 })
-
 local parser_roots = {}
 if vim.env.TYPST_NVIM_TEST_PARSER and vim.env.TYPST_NVIM_TEST_PARSER ~= "" then
     parser_roots[#parser_roots + 1] = vim.env.TYPST_NVIM_TEST_PARSER

@@ -322,7 +322,6 @@ local function command_for(template, destination, opts)
         vim.list_extend(util.command_prefix(config.unsafe_get().executable), {
             "init",
         })
-
     for _, arg in ipairs(opts.extra_args or {}) do
         command[#command + 1] = arg
     end
@@ -433,7 +432,6 @@ function M.init(opts, callback, notify)
             end
         end,
     })
-
     return result
 end
 

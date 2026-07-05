@@ -16,7 +16,6 @@ typst.setup({
         font_scan_timeout_ms = 0,
     },
 })
-
 local old_package_cache_path = vim.env.TYPST_PACKAGE_CACHE_PATH
 vim.env.TYPST_PACKAGE_CACHE_PATH = root .. "/tests/fixtures/packages"
 
@@ -164,7 +163,6 @@ perf.record_metric(spec_name, {
     budget_ms = budgets.viewer_clean,
     ratio = clean_metric.last_ms / budgets.viewer_clean,
 })
-
 perf.write(spec_name)
 vim.env.TYPST_PACKAGE_CACHE_PATH = old_package_cache_path
 vim.cmd("qa!")

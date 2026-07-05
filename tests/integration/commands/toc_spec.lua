@@ -23,7 +23,6 @@ typst.setup({
         },
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd("edit! " .. vim.fn.fnameescape(main))
 local project = typst.project.set_main(main)
@@ -34,7 +33,6 @@ typst.compiler.compile({}, function(result)
     assert(result.code == 0, "compile failed before TOC test")
     done = true
 end)
-
 assert(
     vim.wait(10000, function()
         return done
@@ -58,7 +56,7 @@ assert(
 )
 
 local old_index_collect = index.collect
-index.collect = function()
+rawset(index, "collect", function()
     return {
         headings = {
             {
@@ -81,7 +79,7 @@ index.collect = function()
             },
         },
     }
-end
+end)
 local windows_toc = toc_module.collect({
     root = "C:/Users/Charlie/Project",
     main = "C:/Users/Charlie/Project/main.typ",
@@ -95,7 +93,7 @@ assert(
     "TOC sorting should treat Windows-equivalent paths as the project main"
 )
 
-index.collect = function()
+rawset(index, "collect", function()
     return {
         headings = {
             {
@@ -120,7 +118,7 @@ index.collect = function()
             },
         },
     }
-end
+end)
 local windows_project = {
     key = "windows-toc",
     root = "C:/Users/Charlie/Project",
@@ -231,7 +229,7 @@ assert(
             vim.api.nvim_buf_get_lines(toc_buf, 0, -1, false),
             "\n"
         )
-        return toc_text:find("Live Refresh", 1, true)
+        return toc_text:find("Live Refresh", 1, true) ~= nil
             and vim.api.nvim_get_current_win() == source_win
     end, 10),
     "open TOC should auto-refresh after source edits without stealing focus"

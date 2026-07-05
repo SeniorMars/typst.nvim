@@ -39,7 +39,6 @@ local function params(bufnr, client, opts)
         diagnostics = {},
         triggerKind = vim.lsp.protocol.CodeActionTriggerKind.Invoked,
     }, opts.context or {})
-
     return {
         textDocument = text_document,
         range = range,
@@ -202,7 +201,7 @@ function M.find_code_action(bufnr, action_name, opts)
         return M.code_actions(bufnr, request_opts)
     end
 
-    for _, candidate in ipairs(M.code_actions(bufnr, opts)) do
+    for _, candidate in ipairs(M.code_actions(bufnr, opts) or {}) do
         if matches_patterns(candidate.action, patterns) then
             return candidate
         end
@@ -249,7 +248,6 @@ function M.apply_code_action(candidate, opts)
         title = action.title,
         command = command and command.command or nil,
     })
-
     return action
 end
 
@@ -308,7 +306,6 @@ local function apply_code_action_async(candidate, opts, callback)
             title = action_result.title,
             command = command and command.command or nil,
         })
-
         callback({
             ok = true,
             provider = "tinymist",

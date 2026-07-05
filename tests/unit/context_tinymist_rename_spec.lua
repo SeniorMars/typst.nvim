@@ -7,7 +7,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("context-tinymist-rename-output"),
 })
-
 local context = require("typst.context")
 
 local workdir = typst_test_cache_path("context-tinymist-rename")
@@ -85,12 +84,12 @@ fake_client.request = function(_, method, params, callback, request_bufnr)
 end
 
 local old_get_clients = vim.lsp.get_clients
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if opts and opts.bufnr == bufnr then
         return { fake_client }
     end
     return {}
-end
+end)
 
 place_on("old:label")
 local actions = typst.context.open({ open = false })
@@ -102,7 +101,6 @@ local result = context.execute(assert(action_by_id(actions, "label_rename")), {
         callback_result = callback_value
     end,
 })
-
 vim.lsp.get_clients = old_get_clients
 
 assert(result and result.pending, "label rename should use async Tinymist")

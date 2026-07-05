@@ -10,7 +10,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("index-output"),
 })
-
 local main = root .. "/tests/fixtures/basic/index-main.typ"
 vim.cmd.edit(main)
 local project = assert(typst.project.attach(0), "index fixture should attach")
@@ -669,7 +668,7 @@ for _, item in ipairs(collected.todos or {}) do
     )
 end
 
-local project_index = project_services.index(live_project)
+local project_index = assert(project_services.index(live_project))
 local stats = project_index and project_index.stats
 assert(
     stats and stats.file_misses > 0,
@@ -684,6 +683,7 @@ assert(
     "project index should record aggregate collection misses"
 )
 
+---@type any
 local main_record = assert(
     project_index.files[util.path_key(main)],
     "project index should expose a persistent per-file entry for the main file"
@@ -727,6 +727,7 @@ assert(
 )
 
 local refs_bib = util.normalize(root .. "/tests/fixtures/basic/refs.bib")
+---@type any
 local refs_record = assert(
     project_index.bibliographies[util.path_key(refs_bib)],
     "project index should expose persistent bibliography entries"
@@ -770,32 +771,29 @@ local semantic_project = require("typst.project.semantic")
 local original_merge_workspace_symbols =
     semantic_project.merge_workspace_symbols
 local saw_semantic_traversal = false
-semantic_project.merge_workspace_symbols = function(
-    merge_project,
-    out,
-    seen,
-    opts,
-    traversal,
-    helpers
-)
-    if opts and opts.include_tinymist == true then
-        assert(
-            type(traversal) == "table"
-                and type(traversal.visited) == "table"
-                and type(traversal.initial_paths) == "table",
-            "Tinymist semantic overlay should receive traversal context"
+rawset(
+    semantic_project,
+    "merge_workspace_symbols",
+    function(merge_project, out, seen, opts, traversal, helpers)
+        if opts and opts.include_tinymist == true then
+            assert(
+                type(traversal) == "table"
+                    and type(traversal.visited) == "table"
+                    and type(traversal.initial_paths) == "table",
+                "Tinymist semantic overlay should receive traversal context"
+            )
+            saw_semantic_traversal = true
+        end
+        return original_merge_workspace_symbols(
+            merge_project,
+            out,
+            seen,
+            opts,
+            traversal,
+            helpers
         )
-        saw_semantic_traversal = true
     end
-    return original_merge_workspace_symbols(
-        merge_project,
-        out,
-        seen,
-        opts,
-        traversal,
-        helpers
-    )
-end
+)
 local semantic = typst.index.collect({
     project = project,
     include_tinymist = true,
@@ -904,7 +902,7 @@ local raw_path_project = {
 }
 project_services.ensure(raw_path_project)
 typst.index.collect({ project = raw_path_project })
-local raw_path_index = project_services.index(raw_path_project)
+local raw_path_index = assert(project_services.index(raw_path_project))
 assert(
     raw_path_index.files[util.path_key(raw_path_project.main)],
     "project index file entries should be stored by canonical path key"
@@ -1154,7 +1152,7 @@ assert(
     "disk-signature imported file should remain unloaded"
 )
 
-local disk_index = project_services.index(live_disk_project)
+local disk_index = assert(project_services.index(live_disk_project))
 local disk_collect_misses = disk_index.stats.collect_misses
 vim.fn.writefile({ "= New changed content <sec:disk-new>" }, disk_lib)
 local disk_updated = typst.index.collect({ project = disk_project })
@@ -1289,7 +1287,6 @@ typst.setup({
         },
     },
 })
-
 local index_cache = require("typst.project.index_cache")
 local cap_dir = typst_test_cache_path("index-watch-cap")
 vim.fn.mkdir(cap_dir, "p")

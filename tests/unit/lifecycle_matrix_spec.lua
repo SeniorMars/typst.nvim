@@ -22,7 +22,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("lifecycle-matrix-output"),
 })
-
 local function attach_project(name)
     local file = ("%s/%s.typ"):format(fixture_dir, name)
     vim.fn.writefile({ "= " .. name }, file)
@@ -213,7 +212,7 @@ typst_test_compiler(stop_project).process = {
 }
 
 local original_compiler_stop = compiler.stop
-compiler.stop = function(state, callback)
+rawset(compiler, "stop", function(state, callback)
     callback({
         code = 1,
         stale = false,
@@ -221,8 +220,7 @@ compiler.stop = function(state, callback)
         error = "simulated stop failure",
     })
     return state.process
-end
-
+end)
 local handled = lifecycle.stop_before_prune(
     stop_project,
     "stopping compiler in lifecycle failure test",
@@ -261,7 +259,7 @@ typst_test_compiler(mixed_project).process = {
 typst_test_compiler(mixed_project).status = "watching"
 
 local original_mixed_compiler_stop = compiler.stop
-compiler.stop = function(state, callback)
+rawset(compiler, "stop", function(state, callback)
     typst_test_compiler(state).process = nil
     typst_test_compiler(state).watcher = nil
     typst_test_compiler(state).status = "idle"
@@ -271,8 +269,7 @@ compiler.stop = function(state, callback)
         stopped = true,
     })
     return nil
-end
-
+end)
 local mixed_handled = lifecycle.stop_before_prune(
     mixed_project,
     "stopping compiler after preview failure in lifecycle matrix test",
@@ -308,7 +305,6 @@ preview_service.set(mixed_project, {
 project_registry.prune(mixed_project, "test cleanup")
 
 typst.reset({ force = true })
-
 local prune_pending_stop_calls = 0
 typst.setup({
     root = root,
@@ -323,7 +319,6 @@ typst.setup({
         end,
     },
 })
-
 local preview_prune_project, preview_prune_bufnr =
     attach_project("preview-prune-pending")
 assert(
@@ -366,7 +361,6 @@ assert(
 )
 
 typst.reset({ force = true })
-
 local reset_pending_stop_calls = 0
 typst.setup({
     root = root,
@@ -381,14 +375,12 @@ typst.setup({
         end,
     },
 })
-
 local preview_reset_project = attach_project("preview-reset-pending")
 assert(
     typst.viewer.preview({ mode = "document" }) == true,
     "pending reset preview should open"
 )
 local preview_reset_summary = typst.reset({ keep_telemetry = true })
-
 assert(
     preview_reset_summary and preview_reset_summary.ok == false,
     "pending preview reset should report a retained resource"
@@ -415,7 +407,6 @@ assert(
 )
 
 typst.reset({ force = true })
-
 typst.setup({
     root = root,
     output_dir = typst_test_cache_path("lifecycle-native-prune-output"),
@@ -423,7 +414,6 @@ typst.setup({
         native = "browser",
     },
 })
-
 local native_prune_project, native_prune_bufnr =
     attach_project("preview-native-prune")
 record_active_preview(native_prune_project, "native-browser")
@@ -447,7 +437,6 @@ assert(
 )
 
 typst.reset({ force = true })
-
 typst.setup({
     root = root,
     output_dir = typst_test_cache_path("lifecycle-native-reset-output"),
@@ -455,11 +444,9 @@ typst.setup({
         native = "browser",
     },
 })
-
 local native_reset_project = attach_project("preview-native-reset")
 record_active_preview(native_reset_project, "native-browser")
 local native_reset_summary = typst.reset({ keep_telemetry = true })
-
 assert(
     native_reset_summary and native_reset_summary.ok == true,
     "native preview reset should stop cleanly"
@@ -470,7 +457,6 @@ assert(
 )
 
 typst.reset({ force = true })
-
 local delegated_stop_calls = 0
 local delegated_stop_buffer = nil
 local delegated_stop_cwd = nil
@@ -528,7 +514,6 @@ assert(
 )
 
 typst.reset({ force = true })
-
 delegated_stop_calls = 0
 delegated_stop_buffer = nil
 delegated_stop_cwd = nil
@@ -546,7 +531,6 @@ record_active_preview(delegated_reset_project, "typst-preview.nvim", {
     "TypstPreview document",
 })
 local delegated_reset_summary = typst.reset({ keep_telemetry = true })
-
 assert(
     delegated_reset_summary and delegated_reset_summary.ok == true,
     "delegated preview reset should stop cleanly"
@@ -569,7 +553,6 @@ assert(
 )
 
 typst.reset({ force = true })
-
 local stop_started = false
 local stop_callback_registry_count = nil
 local provider = {
@@ -609,7 +592,6 @@ typst.setup({
         provider = provider,
     },
 })
-
 local reset_main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(reset_main)
 local reset_project = typst.project.set_main(reset_main)
@@ -646,7 +628,6 @@ typst.setup({
         deps = false,
     },
 })
-
 local exit_main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(exit_main)
 typst.project.set_main(exit_main)
@@ -654,6 +635,7 @@ local exit_snapshot = assert(typst.project.attach(0), "project should attach")
 local exit_project = assert(project_store.get(exit_snapshot.key))
 
 local cancel_opts = nil
+---@type any
 local exit_record = operations.begin(exit_project, "render_fragment")
 exit_record.handle = {
     cancel = function(self_or_opts, maybe_opts)
@@ -663,13 +645,12 @@ exit_record.handle = {
 }
 
 vim.api.nvim_exec_autocmds("VimLeavePre", { modeline = false })
-
 assert(
     cancel_opts and cancel_opts.reason == "exit",
     "exit should cancel operations"
 )
 assert(
-    not project_services.operations(exit_project).active_by_id[exit_record.id],
+    not assert(project_services.operations(exit_project)).active_by_id[exit_record.id],
     "exit-cancelled operation should be removed from active records"
 )
 

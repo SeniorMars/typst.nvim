@@ -53,7 +53,6 @@ typst.setup({
         provider = provider,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 telemetry.reset()
@@ -136,7 +135,6 @@ local compile_result = nil
 local compile_handle = typst.compiler.compile({}, function(result)
     compile_result = result
 end)
-
 assert(
     compile_handle.kind == "compile",
     "service provider compile handle should be returned"
@@ -161,7 +159,6 @@ assert(
 )
 
 callbacks.compile({ code = 0, stale = false })
-
 assert(compile_result and compile_result.code == 0, "compile should finish")
 assert(
     project.services.operations.active_by_kind.compile == nil,
@@ -205,6 +202,7 @@ assert(
     "compiler service should mirror idle status after stop"
 )
 
+---@type any
 local snapshot = require("typst.project.context").snapshot(project)
 assert(
     snapshot.services.operations.last.compile.result.code == 0,
@@ -216,7 +214,9 @@ assert(
 )
 
 local operations = require("typst.project.services.operations")
+---@type any
 local first_render = operations.begin(project, "render")
+---@type any
 local second_render = operations.begin(project, "render")
 assert(
     first_render.id ~= second_render.id,
@@ -257,8 +257,10 @@ assert(
     "operation cancellation summary should honor a confirmed finish after waiting"
 )
 
+---@type any
 local uncancellable_record = operations.begin(project, "export")
 uncancellable_record.handle = { pending = true, raw = true }
+---@type any
 local uncancellable_summary = operations.cancel_project(project, { skip = {} })
 assert(
     uncancellable_summary.uncancellable == 1
@@ -266,27 +268,31 @@ assert(
     "operation cancellation should retain unsupported live handles"
 )
 assert(
-    project.services.operations.active_by_id[uncancellable_record.id] == nil
-        and project.services.operations.retained_by_id[uncancellable_record.id]
+    assert(project.services.operations).active_by_id[uncancellable_record.id]
+            == nil
+        and assert(project.services.operations).retained_by_id[uncancellable_record.id]
             ~= nil,
     "uncancellable handles should leave active records and remain retained"
 )
 assert(
-    project.services.operations.retained_by_id[uncancellable_record.id].result.reason
+    assert(project.services.operations).retained_by_id[uncancellable_record.id].result.reason
         == "uncancellable_handle",
     "uncancellable retained operations should expose a recovery reason"
 )
 
+---@type any
 local false_handle_record = operations.begin(project, "export")
 false_handle_record.handle = false
+---@type any
 local false_handle_summary = operations.cancel_project(project, { skip = {} })
 assert(
     false_handle_summary.stale == 1 and false_handle_summary.uncancellable == 0,
     "false operation handles should be cleared as stale records"
 )
 assert(
-    project.services.operations.active_by_id[false_handle_record.id] == nil
-        and project.services.operations.retained_by_id[false_handle_record.id]
+    assert(project.services.operations).active_by_id[false_handle_record.id]
+            == nil
+        and assert(project.services.operations).retained_by_id[false_handle_record.id]
             == nil,
     "false operation handles should not be retained as live work"
 )

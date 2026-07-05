@@ -228,7 +228,6 @@ function M.install(api, notify, normalize_bufnr)
         follow = follow,
         hover = hover,
     })
-
     api.diagnostics = {
         quickfix = diagnostics,
         errors = errors,

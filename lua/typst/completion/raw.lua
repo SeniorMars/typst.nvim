@@ -132,7 +132,6 @@ function M.items(opts, base)
     table.sort(items, function(a, b)
         return a.word < b.word
     end)
-
     return items
 end
 

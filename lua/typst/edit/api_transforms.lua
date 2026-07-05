@@ -64,6 +64,10 @@ local function structural_action_with_local_fallback(
         return finish(queued)
     end
 
+    if not result then
+        return local_action(opts)
+    end
+
     if result.pending then
         return result
     end
@@ -94,6 +98,13 @@ function M.attach(api, notify)
                     end,
                 })
             )
+            if not result then
+                return {
+                    ok = false,
+                    reason = "unavailable",
+                    message = "Tinymist structural action unavailable",
+                }
+            end
             if result.provider ~= "tinymist" and not result.pending then
                 structural_notify(notify, action_name, result)
             end
@@ -174,7 +185,7 @@ function M.attach(api, notify)
                 return finish(queued)
             end
 
-            if tinymist_result.pending then
+            if tinymist_result and tinymist_result.pending then
                 return tinymist_result
             end
 

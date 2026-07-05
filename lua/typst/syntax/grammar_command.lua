@@ -142,7 +142,6 @@ local function run_system(command, opts, stdin, callback)
     pending.command = command
 
     pending:on_finish(report)
-
     return pending
 end
 
@@ -241,7 +240,6 @@ function M.run(
         cwd = state.root,
         main = state.main,
     })
-
     local stdin = nil
     if provider_uses_stdin(provider_name, grammar_config, opts) then
         stdin = buffer_text(bufnr)

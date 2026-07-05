@@ -24,7 +24,6 @@ local function setup_project(source_dir)
     mkdir(project_root)
     local main = project_root .. "/main.typ"
     write(main, { "= Clean safety" })
-
     typst.reset()
     typst.setup({
         root = project_root,
@@ -42,7 +41,6 @@ end
 local dangerous_root, dangerous_project = setup_project(".")
 local root_marker = dangerous_root .. "/keep.txt"
 write(root_marker, { "must survive" })
-
 local root_clean =
     typst.viewer.clean({ bufnr = vim.api.nvim_get_current_buf() })
 assert(
@@ -71,7 +69,6 @@ local user_dir = user_root .. "/fragments"
 mkdir(user_dir)
 local user_file = user_dir .. "/left-alone.typ"
 write(user_file, { "temporary but not owned" })
-
 local user_clean =
     typst.viewer.clean({ bufnr = vim.api.nvim_get_current_buf() })
 assert(

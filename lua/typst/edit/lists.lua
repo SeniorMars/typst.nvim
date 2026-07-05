@@ -198,7 +198,6 @@ function M.toggle(kind, opts)
         start_row = start_row,
         end_row = end_row,
     })
-
     edit_repeat.set((":TypstToggleList %s<CR>"):format(kind))
     notify_result(result, opts)
     return result

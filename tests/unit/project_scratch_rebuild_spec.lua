@@ -11,7 +11,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("scratch-rebuild-output"),
 })
-
 local function contains(items, predicate)
     for _, item in ipairs(items or {}) do
         if predicate(item) then
@@ -28,7 +27,6 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
     "= Scratch Rebuild <scratch:rebuild>",
     "Unsaved text should survive graph rebuild.",
 })
-
 local project =
     assert(typst.project.attach(bufnr), "scratch buffer should attach")
 local resolution =

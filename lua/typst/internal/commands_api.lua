@@ -15,7 +15,6 @@ function M.create(opts)
     require("typst.api.workflows").install(api, notify, normalize_bufnr)
     require("typst.api.render").install(api, notify)
     require("typst.api.navigation").install(api, notify, normalize_bufnr)
-
     return api
 end
 

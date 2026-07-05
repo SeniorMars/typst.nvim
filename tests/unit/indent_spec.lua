@@ -7,7 +7,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("indent-output"),
 })
-
 local indent = require("typst.edit.indent")
 local main = root .. "/tests/fixtures/basic/editing.typ"
 vim.cmd.edit(main)
@@ -40,7 +39,6 @@ vim.api.nvim_buf_set_lines(0, 0, -1, false, {
     "inside",
     ")",
 })
-
 assert(indent.indent(1) == 0, "top-level line should not indent")
 assert(indent.indent(2) == 2, "line after an opening group should indent")
 assert(indent.indent(3) == 2, "sibling argument should keep group indentation")
@@ -68,17 +66,16 @@ assert(
 
 local original_get_lines = vim.api.nvim_buf_get_lines
 local full_buffer_scans = 0
-vim.api.nvim_buf_get_lines = function(
-    bufnr,
-    start_row,
-    end_row,
-    strict_indexing
-)
-    if start_row == 0 and end_row == -1 then
-        full_buffer_scans = full_buffer_scans + 1
+rawset(
+    vim.api,
+    "nvim_buf_get_lines",
+    function(bufnr, start_row, end_row, strict_indexing)
+        if start_row == 0 and end_row == -1 then
+            full_buffer_scans = full_buffer_scans + 1
+        end
+        return original_get_lines(bufnr, start_row, end_row, strict_indexing)
     end
-    return original_get_lines(bufnr, start_row, end_row, strict_indexing)
-end
+)
 
 vim.api.nvim_buf_set_lines(0, -1, -1, false, { "" })
 for _ = 1, 5 do

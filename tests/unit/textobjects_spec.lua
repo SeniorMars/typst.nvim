@@ -7,7 +7,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("textobjects-output"),
 })
-
 local fixture = root .. "/tests/fixtures/basic/editing.typ"
 vim.cmd.edit(fixture)
 vim.bo.filetype = "typst"
@@ -465,11 +464,10 @@ assert(
 
 local original_get_clients = vim.lsp.get_clients
 local selection_request_count = 0
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if not opts or opts.bufnr ~= scratch then
         return {}
     end
-
     return {
         {
             name = "tinymist",
@@ -525,7 +523,7 @@ vim.lsp.get_clients = function(opts)
             end,
         },
     }
-end
+end)
 
 local function async_range(kind, part, opts)
     local resolved
@@ -586,7 +584,6 @@ vim.api.nvim_win_set_buf(other_win, other)
 vim.api.nvim_win_set_cursor(other_win, { 2, 3 })
 vim.api.nvim_set_current_win(current_win)
 vim.api.nvim_win_set_cursor(current_win, { 10, 0 })
-
 assert(
     ts.range_text(
         other,

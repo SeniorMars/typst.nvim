@@ -15,7 +15,7 @@ vim.fn.writefile({ "= Existing" }, destination .. "/main.typ")
 
 local original_rename = uv.fs_rename
 local ok, err = xpcall(function()
-    uv.fs_rename = function(src, dst)
+    rawset(uv, "fs_rename", function(src, dst)
         if src:find("typst%-nvim%-staging", 1, false) then
             return nil, "forced staging move failure"
         end
@@ -23,7 +23,7 @@ local ok, err = xpcall(function()
             return nil, "forced backup restore failure"
         end
         return original_rename(src, dst)
-    end
+    end)
 
     local result = template_files.copy_dir(source, destination, {
         overwrite = true,

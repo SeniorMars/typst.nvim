@@ -16,12 +16,10 @@ typst.setup({
         import_scan = false,
     },
 })
-
 vim.cmd.enew()
 local bufnr = vim.api.nvim_get_current_buf()
 vim.bo[bufnr].filetype = "typst"
 vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "= Dirty ticks" })
-
 assert(typst.project.attach(bufnr), "buffer should attach")
 vim.api.nvim_buf_set_lines(bufnr, 1, 1, false, { "Body" })
 vim.api.nvim_exec_autocmds("TextChanged", { buffer = bufnr, modeline = false })
@@ -130,24 +128,24 @@ local original_forget = attachments.forget
 local original_key_for_buffer = project_store.key_for_buffer
 local original_get = project_store.get
 local stale_ok, stale_err = xpcall(function()
-    attachments.forget = function(target_bufnr, key)
+    rawset(attachments, "forget", function(target_bufnr, key)
         if target_bufnr == stale_bufnr and key == stale_key then
             stale_forgets = stale_forgets + 1
         end
         return original_forget(target_bufnr, key)
-    end
-    project_store.key_for_buffer = function(target_bufnr)
+    end)
+    rawset(project_store, "key_for_buffer", function(target_bufnr)
         if target_bufnr == stale_bufnr then
             return stale_key
         end
         return original_key_for_buffer(target_bufnr)
-    end
-    project_store.get = function(key)
+    end)
+    rawset(project_store, "get", function(key)
         if key == stale_key then
             return nil
         end
         return original_get(key)
-    end
+    end)
 
     raw_project.commit_attach({
         root = stale_dir,
@@ -203,19 +201,23 @@ local apply_all_calls = 0
 local original_apply_all = core_lifecycle.apply_buffer_features_all_windows
 local original_apply = core_lifecycle.apply_buffer_features
 local reapply_ok, reapply_err = xpcall(function()
-    core_lifecycle.apply_buffer_features_all_windows = function(
-        target_bufnr,
-        opts
-    )
-        if target_bufnr == reapply_bufnr and opts and opts.force == true then
-            apply_all_calls = apply_all_calls + 1
+    rawset(
+        core_lifecycle,
+        "apply_buffer_features_all_windows",
+        function(target_bufnr, opts)
+            if
+                target_bufnr == reapply_bufnr
+                and opts
+                and opts.force == true
+            then
+                apply_all_calls = apply_all_calls + 1
+            end
+            return true
         end
-        return true
-    end
-    core_lifecycle.apply_buffer_features = function()
+    )
+    rawset(core_lifecycle, "apply_buffer_features", function()
         error("single-window reapply path should not be used")
-    end
-
+    end)
     lifecycle_buffers.reapply_attached_buffers()
 end, debug.traceback)
 core_lifecycle.apply_buffer_features_all_windows = original_apply_all

@@ -84,14 +84,13 @@ local function validate_custom_compiler_provider()
         self.killed[#self.killed + 1] = signal
     end
 
-    vim.system = function(_cmd, _opts, callback)
+    rawset(vim, "system", function(_cmd, _opts, callback)
         system_callback = callback
         return fake_handle
-    end
-    vim.schedule = function(callback)
+    end)
+    rawset(vim, "schedule", function(callback)
         callback()
-    end
-
+    end)
     local ok, err = xpcall(function()
         dofile(root .. "/docs/examples/custom-compiler-provider.lua")
         local providers = require("typst.integrations.providers")

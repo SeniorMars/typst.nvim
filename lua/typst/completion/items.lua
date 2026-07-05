@@ -32,25 +32,23 @@ end
 ---@return boolean added True when an item was appended.
 function M.add_unique(items, seen, word, make_item, opts)
     opts = opts or {}
-    if opts.trim ~= false then
-        word = M.trim(word)
-    end
-    if type(word) ~= "string" or word == "" then
+    local candidate = opts.trim ~= false and M.trim(word) or word
+    if type(candidate) ~= "string" or candidate == "" then
         return false
     end
 
-    local key = opts.key ~= nil and opts.key or word
+    local key = opts.key ~= nil and opts.key or candidate
     if seen[key] then
         return false
     end
 
     local matcher = opts.match or completion_match.prefix
-    if not matcher(opts.match_word or word, opts.base) then
+    if not matcher(opts.match_word or candidate, opts.base) then
         return false
     end
 
     seen[key] = true
-    items[#items + 1] = make_item(word)
+    items[#items + 1] = make_item(candidate)
     return true
 end
 

@@ -10,7 +10,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("follow-output"),
 })
-
 vim.cmd.enew()
 local dashboard_bufnr = vim.api.nvim_get_current_buf()
 vim.bo[dashboard_bufnr].filetype = ""
@@ -74,49 +73,42 @@ assert_target("index-lib.typ", "path", function(target)
         "import path target should point at index-lib.typ"
     )
 end)
-
 assert_target("@preview/cetz:0.3.4", "package", function(target)
     assert(
         target.spec == "@preview/cetz:0.3.4",
         "package target should preserve exact package spec"
     )
 end)
-
 assert_target("diagram.svg", "path", function(target)
     assert(
         target.path:match("diagram%.svg$"),
         "image target should point at diagram.svg"
     )
 end)
-
 assert_target("refs.bib", "path", function(target)
     assert(
         target.path:match("refs%.bib$"),
         "bibliography target should point at refs.bib"
     )
 end)
-
 assert_target("refs.yml", "path", function(target)
     assert(
         target.path:match("refs%.yml$"),
         "Hayagriva bibliography target should point at refs.yml"
     )
 end)
-
 assert_target("data.json", "path", function(target)
     assert(
         target.path:match("data%.json$"),
         "read target should point at data.json"
     )
 end)
-
 assert_target("https://example.com/typst", "url", function(target)
     assert(
         target.url == "https://example.com/typst",
         "URL target should preserve the URL"
     )
 end)
-
 assert_no_target(
     "@fake-comment",
     "comment shorthand references should not resolve follow targets"
@@ -166,28 +158,24 @@ assert_target("@sec:intro", "label", function(target)
     assert(target.path == main, "label target should point at the main fixture")
     assert(target.lnum == 1, "label target should point at the label line")
 end)
-
 assert_target("@apostrophe:label", "label", function(target)
     assert(
         target.name == "apostrophe:label",
         "contractions should not hide later follow targets"
     )
 end)
-
 assert_target("@doe2020", "citation", function(target)
     assert(
         target.path:match("refs%.bib$"),
         "citation target should point at the bibliography file"
     )
 end)
-
 assert_target("@yaml2022", "citation", function(target)
     assert(
         target.path:match("refs%.yml$"),
         "Hayagriva citation target should point at the bibliography file"
     )
 end)
-
 local ambiguous_dir = typst_test_cache_path("follow-ambiguous")
 vim.fn.mkdir(ambiguous_dir, "p")
 local ambiguous_main = ambiguous_dir .. "/main.typ"
@@ -217,7 +205,6 @@ assert_target("@same-key", "label", function(target)
         "ambiguous shorthand reference should resolve to the label definition"
     )
 end)
-
 assert_target("cite(<same-key>)", "citation", function(target)
     assert(
         target.name == "same-key",
@@ -228,7 +215,6 @@ assert_target("cite(<same-key>)", "citation", function(target)
         "explicit cite target should resolve to bibliography entry"
     )
 end)
-
 local csl_dir = typst_test_cache_path("follow-csl")
 vim.fn.mkdir(csl_dir, "p")
 local csl_main = csl_dir .. "/main.typ"
@@ -284,7 +270,6 @@ assert_target("local-card[Body]", "definition", function(target)
         "local function target should point at the main fixture"
     )
 end)
-
 assert_target("helper-func[Imported]", "definition", function(target)
     assert(
         target.imported_name == "helper-func",
@@ -295,7 +280,6 @@ assert_target("helper-func[Imported]", "definition", function(target)
         "direct import target should point at imported source"
     )
 end)
-
 assert_target("helper-alias[Aliased import]", "definition", function(target)
     assert(
         target.name == "helper-alias",
@@ -310,7 +294,6 @@ assert_target("helper-alias[Aliased import]", "definition", function(target)
         "aliased import target should point at imported source"
     )
 end)
-
 assert_target("exported-value", "definition", function(target)
     assert(
         target.imported_name == "exported-value",
@@ -321,7 +304,6 @@ assert_target("exported-value", "definition", function(target)
         "wildcard import target should point at imported source"
     )
 end)
-
 assert_target("lib.helper-func", "definition", function(target)
     assert(
         target.name == "lib.helper-func",
@@ -332,7 +314,6 @@ assert_target("lib.helper-func", "definition", function(target)
         "module member target should point at imported source"
     )
 end)
-
 assert_target("hidden.hidden-value", "definition", function(target)
     assert(
         target.name == "hidden.hidden-value",
@@ -343,7 +324,6 @@ assert_target("hidden.hidden-value", "definition", function(target)
         "module-only target should point at imported source"
     )
 end)
-
 assert_target("reexported-helper[Reexported]", "definition", function(target)
     assert(
         target.imported_name == "reexported-helper",
@@ -354,7 +334,6 @@ assert_target("reexported-helper[Reexported]", "definition", function(target)
         "re-export target should point at the leaf source"
     )
 end)
-
 assert_target(
     "reexported-alias[Reexported alias]",
     "definition",
@@ -380,7 +359,6 @@ assert_target("reexported.reexported-helper", "definition", function(target)
         "module re-export target should point at the leaf source"
     )
 end)
-
 assert_target("reexported.reexported-alias", "definition", function(target)
     assert(
         target.name == "reexported.reexported-alias",
@@ -395,7 +373,6 @@ assert_target("reexported.reexported-alias", "definition", function(target)
         "module aliased re-export target should point at the leaf source"
     )
 end)
-
 local unicode_dir = typst_test_cache_path("follow-unicode")
 vim.fn.mkdir(unicode_dir, "p")
 local unicode_main = unicode_dir .. "/main.typ"
@@ -409,7 +386,7 @@ typst.project.set_main(unicode_main)
 local unicode_bufnr = vim.api.nvim_get_current_buf()
 local original_get_clients = vim.lsp.get_clients
 local requested_position = nil
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if opts and opts.bufnr == unicode_bufnr then
         return {
             {
@@ -438,7 +415,7 @@ vim.lsp.get_clients = function(opts)
         }
     end
     return {}
-end
+end)
 
 local unicode_target = nil
 local unicode_pending = typst.navigation.follow({
@@ -502,7 +479,6 @@ assert_target("@scratch:label", "label", function(target)
         "scratch label target should keep the scratch index key"
     )
 end)
-
 local scratch_opened = typst.navigation.follow()
 assert(
     scratch_opened and scratch_opened.kind == "label",
@@ -527,13 +503,11 @@ assert_target("scratch-func[Body]", "definition", function(target)
         "scratch definition target should keep the scratch index key"
     )
 end)
-
 vim.cmd.enew()
 local windows_bufnr = vim.api.nvim_get_current_buf()
 vim.bo[windows_bufnr].filetype = "typst"
 vim.api.nvim_buf_set_lines(windows_bufnr, 0, -1, false, { "windows-card()" })
 vim.api.nvim_win_set_cursor(0, { 1, 0 })
-
 local windows_project = {
     root = "C:/Users/Charlie/Project",
     main = "C:/Users/Charlie/Project/main.typ",
@@ -541,14 +515,14 @@ local windows_project = {
 local old_project_get = project_registry.get
 local old_project_resolve = project_registry.resolve
 local old_index_collect = index.collect
-project_registry.get = function(bufnr)
+rawset(project_registry, "get", function(bufnr)
     return bufnr == windows_bufnr and windows_project or old_project_get(bufnr)
-end
-project_registry.resolve = function(bufnr)
+end)
+rawset(project_registry, "resolve", function(bufnr)
     return bufnr == windows_bufnr and windows_project
         or old_project_resolve(bufnr)
-end
-index.collect = function()
+end)
+rawset(index, "collect", function()
     return {
         imported_bindings = {
             {
@@ -570,8 +544,7 @@ index.collect = function()
         labels = {},
         citations = {},
     }
-end
-
+end)
 local windows_target = assert(
     typst.navigation.follow({ open = false }),
     "follow should resolve imported bindings from Windows-equivalent main paths"
@@ -623,15 +596,15 @@ if uv.fs_symlink(canonical_target, linked_target) then
     local saved_project_get = project_registry.get
     local saved_project_resolve = project_registry.resolve
     local saved_index_collect = index.collect
-    project_registry.get = function(bufnr)
+    rawset(project_registry, "get", function(bufnr)
         return bufnr == symlink_bufnr and symlink_project
             or saved_project_get(bufnr)
-    end
-    project_registry.resolve = function(bufnr)
+    end)
+    rawset(project_registry, "resolve", function(bufnr)
         return bufnr == symlink_bufnr and symlink_project
             or saved_project_resolve(bufnr)
-    end
-    index.collect = function()
+    end)
+    rawset(index, "collect", function()
         return {
             labels = {
                 {
@@ -647,8 +620,7 @@ if uv.fs_symlink(canonical_target, linked_target) then
             definitions = {},
             imported_bindings = {},
         }
-    end
-
+    end)
     place_on("@linked-label")
     local symlink_target = assert(
         typst.navigation.follow({ open = false }),

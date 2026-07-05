@@ -20,16 +20,14 @@ local function restore()
 end
 
 vim.g.typst_nvim_disable_tinymist_autostart = nil
-vim.lsp.get_clients = function()
+rawset(vim.lsp, "get_clients", function()
     return {}
-end
-
+end)
 local starts = {}
-vim.lsp.start = function(config, opts)
+rawset(vim.lsp, "start", function(config, opts)
     starts[#starts + 1] = { config = config, opts = opts }
     return #starts
-end
-
+end)
 local attached_client = nil
 local function on_attach() end
 
@@ -58,7 +56,6 @@ typst.setup({
         },
     },
 })
-
 local bufnr = vim.api.nvim_create_buf(false, true)
 local started, reason = tinymist.ensure(bufnr, { root = root })
 assert(started and reason == "started", "auto mode should start Tinymist")
@@ -153,10 +150,18 @@ assert(
     starts[1].config.cmd[1] == "nvim",
     "Tinymist path should build the LSP command"
 )
+assert(
+    starts[1].config.settings == nil,
+    "empty Tinymist settings should be omitted from LSP config"
+)
+assert(
+    starts[1].config.init_options == nil,
+    "empty Tinymist init_options should be omitted from LSP config"
+)
 
 starts = {}
 vim.g.coc_service_initialized = 1
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if opts and opts.bufnr == bufnr then
         return {
             {
@@ -166,7 +171,7 @@ vim.lsp.get_clients = function(opts)
         }
     end
     return {}
-end
+end)
 typst.reset()
 typst.setup({
     root = root,
@@ -194,18 +199,18 @@ assert(
 vim.g.coc_service_initialized = true
 assert(tinymist.coc_active(), "boolean Coc initialized flag should be detected")
 vim.g.coc_service_initialized = nil
-vim.fn.exists = function(name)
+rawset(vim.fn, "exists", function(name)
     if name == "*CocAction" then
         return 1
     end
     return 0
-end
+end)
 assert(tinymist.coc_active(), "CocAction function should be detected")
 vim.fn.exists = old_exists
 
-vim.lsp.get_clients = function()
+rawset(vim.lsp, "get_clients", function()
     return {}
-end
+end)
 typst.reset()
 typst.setup({
     root = root,
@@ -223,7 +228,7 @@ assert(
 )
 assert(#starts == 1, "start mode should call vim.lsp.start")
 
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if opts and opts.bufnr == bufnr then
         return {
             {
@@ -233,7 +238,7 @@ vim.lsp.get_clients = function(opts)
         }
     end
     return {}
-end
+end)
 assert(
     tinymist.available(bufnr) == true,
     "start mode should allow native Tinymist even when coc.nvim is active"
@@ -244,12 +249,12 @@ attached_client = {
     id = 99,
     name = "tinymist",
 }
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if opts and opts.bufnr == bufnr then
         return { attached_client }
     end
     return {}
-end
+end)
 typst.reset()
 typst.setup({
     root = root,
@@ -311,10 +316,9 @@ assert(
     "method client selection should reject unsupported methods"
 )
 attached_client = nil
-vim.lsp.get_clients = function()
+rawset(vim.lsp, "get_clients", function()
     return {}
-end
-
+end)
 for _, mode in ipairs({ "detect", "off" }) do
     starts = {}
     typst.reset()

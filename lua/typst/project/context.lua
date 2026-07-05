@@ -204,7 +204,7 @@ function M.snapshot(project, opts)
         }
     end
 
-    local service_snapshot = services.snapshot(project)
+    local service_snapshot = services.snapshot(project) or {}
     out.invalidation = service_snapshot.invalidation
 
     out.services = service_snapshot

@@ -112,7 +112,6 @@ local function publish_output(state, output, opts, fields)
 
     local items = maybe_open_quickfix(state, by_buffer, opts)
     local count = diagnostic_total(by_buffer)
-
     return vim.tbl_extend("force", {
         ok = true,
         diagnostics = count,
@@ -139,7 +138,6 @@ local function publish_by_buffer(state, by_buffer, opts, fields)
         vim.cmd("copen")
     end
     local count = diagnostic_total(published)
-
     return vim.tbl_extend("force", {
         ok = true,
         diagnostics = count,
@@ -253,7 +251,6 @@ function M.check(opts, callback)
             or (current_file ~= "" and current_file or state.main),
         grammar_generation = start_generation(state),
     })
-
     local provider_config = providers.resolve(
         "grammar",
         run_opts.provider or config.unsafe_get().grammar.provider

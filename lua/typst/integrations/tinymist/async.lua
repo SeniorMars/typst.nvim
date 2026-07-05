@@ -205,6 +205,7 @@ function M.request(bufnr, method, params_for_client, opts, callback, normalize)
             local request_id = nil
             local timer = nil
             local guard = capture_guard(bufnr, method, opts)
+            local pending
 
             local function cancel_request()
                 if request_id and type(client.cancel_request) == "function" then
@@ -227,27 +228,29 @@ function M.request(bufnr, method, params_for_client, opts, callback, normalize)
 
             if timeout_ms and timeout_ms > 0 then
                 timer = uv.new_timer()
-                timer:start(timeout_ms, 0, function()
-                    schedule(function()
-                        if completed then
-                            return
-                        end
-                        -- Ask the client to cancel before reporting timeout;
-                        -- finish() will ignore any later LSP callback.
-                        cancel_request()
-                        finish({
-                            ok = false,
-                            reason = "timeout",
-                            provider = "tinymist",
-                            client = client.name,
-                            method = method,
-                            message = ("Tinymist %s timed out after %dms"):format(
-                                method,
-                                timeout_ms
-                            ),
-                        })
+                if timer then
+                    timer:start(timeout_ms, 0, function()
+                        schedule(function()
+                            if completed then
+                                return
+                            end
+                            -- Ask the client to cancel before reporting timeout;
+                            -- finish() will ignore any later LSP callback.
+                            cancel_request()
+                            finish({
+                                ok = false,
+                                reason = "timeout",
+                                provider = "tinymist",
+                                client = client.name,
+                                method = method,
+                                message = ("Tinymist %s timed out after %dms"):format(
+                                    method,
+                                    timeout_ms
+                                ),
+                            })
+                        end)
                     end)
-                end)
+                end
             end
 
             local start = lsp_request.start(
@@ -341,7 +344,6 @@ function M.request(bufnr, method, params_for_client, opts, callback, normalize)
                 return result
             end
 
-            local pending
             pending = {
                 ok = false,
                 pending = true,

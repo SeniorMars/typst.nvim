@@ -9,17 +9,15 @@ typst.setup({
         follow_buffer = false,
     },
 })
-
 vim.cmd.enew()
 local bufnr = vim.api.nvim_get_current_buf()
 vim.bo[bufnr].filetype = "typst"
 
 local schedule_calls = 0
 local original_schedule = vim.schedule
-vim.schedule = function(_)
+rawset(vim, "schedule", function(_)
     schedule_calls = schedule_calls + 1
-end
-
+end)
 local ok, err = xpcall(function()
     vim.api.nvim_exec_autocmds("BufEnter", {
         group = "typst_nvim_preview_follow_buffer",

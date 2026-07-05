@@ -7,7 +7,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("tinymist-features-output"),
 })
-
 local features = require("typst.integrations.tinymist.features")
 local tinymist = require("typst.integrations.tinymist")
 
@@ -23,7 +22,6 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
     '#paint(rgb("#ff0000"))',
 })
 vim.api.nvim_win_set_cursor(0, { 2, 8 })
-
 local range = {
     start = { line = 1, character = 7 },
     ["end"] = { line = 1, character = 23 },
@@ -110,12 +108,12 @@ local fake_client = {
     end,
 }
 
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if opts and opts.bufnr == bufnr then
         return { fake_client }
     end
     return {}
-end
+end)
 
 local function request_with_callback(fn)
     local result = nil
@@ -144,6 +142,7 @@ local ok, err = xpcall(function()
         "top-level Tinymist module should expose feature supports()"
     )
 
+    ---@type any
     local no_callback = features.document_links(bufnr, {})
     assert(
         no_callback.reason == "async_required",
@@ -229,7 +228,10 @@ local ok, err = xpcall(function()
         "document_color should normalize colors"
     )
 
+    ---@type any
+    ---@type any
     local missing_range = nil
+    ---@type any
     local missing_range_result = features.color_presentation(bufnr, {
         color = { red = 1, green = 0, blue = 0, alpha = 1 },
         callback = function(result)

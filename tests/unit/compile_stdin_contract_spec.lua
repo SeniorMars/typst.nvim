@@ -13,7 +13,6 @@ local ok, err = pcall(function()
         },
     })
 end)
-
 assert(not ok, "compile.stdin should not be accepted as public config")
 assert(
     tostring(err):find("compile.stdin is internal", 1, true),

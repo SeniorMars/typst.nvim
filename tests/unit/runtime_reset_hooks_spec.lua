@@ -73,7 +73,6 @@ typst.setup({
         follow_buffer = true,
     },
 })
-
 assert(
     init_events[1] and init_events[1].first_setup == true,
     "first setup should identify first_setup events"
@@ -184,7 +183,6 @@ assert(
     "runtime setup should install methods on a fresh API facade after reset"
 )
 runtime_setup.reset({ force = true })
-
 local unsafe_configure = runtime_setup.configure({})
 assert(
     unsafe_configure

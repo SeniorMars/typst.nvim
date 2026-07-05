@@ -8,7 +8,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("transform-output"),
 })
-
 local function edit(lines)
     local bufnr = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_set_current_buf(bufnr)
@@ -32,7 +31,6 @@ edit({
     "plain text",
     "#table.cell[item]",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 9 })
 local result = typst.edit.change_function("emph", { notify = false })
 assert(result.ok, result.message or "Typst change_function failed")
@@ -108,9 +106,9 @@ assert(
 vim.api.nvim_buf_set_lines(0, 4, 5, false, { "#emph[last]" })
 vim.api.nvim_win_set_cursor(0, { 5, 6 })
 local original_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 vim.cmd("TypstChangeFunction strong")
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 assert(
     line(5) == "#strong[last]",
     "TypstChangeFunction command should edit the surrounding call"
@@ -131,7 +129,6 @@ edit({
     "#box[first]",
     "#emph[second]",
 })
-
 typst.project.attach(0)
 vim.api.nvim_win_set_cursor(0, { 1, 5 })
 result = typst.edit.change_function("strong", { notify = false })
@@ -150,9 +147,9 @@ assert(
 )
 vim.api.nvim_win_set_cursor(0, { 2, 6 })
 original_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 vim.cmd("normal .")
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 assert(
     line(2) == "#strong[second]",
     "dot-repeat should replay the last Typst structural edit"
@@ -165,7 +162,6 @@ edit({
     "====== Deep",
     "plain text",
 })
-
 vim.api.nvim_win_set_cursor(0, { 2, 1 })
 result = typst.edit.promote_heading({ notify = false })
 assert(result.ok, result.message or "Typst promote_heading failed")
@@ -202,9 +198,9 @@ assert(
 
 vim.api.nvim_win_set_cursor(0, { 1, 1 })
 local heading_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 vim.cmd("TypstDemoteHeading")
-vim.notify = heading_notify
+rawset(vim, "notify", heading_notify)
 assert(
     line(1) == "== Top",
     "TypstDemoteHeading command should increase the heading marker level"
@@ -239,7 +235,6 @@ edit({
     "$ x + y $",
     "plain text",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 6 })
 result = typst.edit.change_delimiter("block", { notify = false })
 assert(result.ok, result.message or "Typst change_delimiter block failed")
@@ -298,7 +293,6 @@ assert(
 edit({
     "[body]",
 })
-
 vim.fn.setreg("a", "keep-register")
 vim.api.nvim_win_set_cursor(0, { 1, 2 })
 result = typst.edit.surround_delete_delimiter(nil, { notify = false })
@@ -320,12 +314,11 @@ assert(
 edit({
     "#let z = { q }",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 12 })
 original_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 vim.cmd("TypstChangeDelimiter equation")
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 assert(
     line(1) == "#let z = $ q $",
     "TypstChangeDelimiter command should change delimiters by target"
@@ -336,7 +329,6 @@ edit({
     "second",
     "third",
 })
-
 vim.fn.setreg("a", "visual-register")
 result = typst.edit.surround_content({
     line1 = 1,
@@ -383,7 +375,6 @@ assert(
 edit({
     "#rect(width: 1pt, height: 2pt, [body])",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 10 })
 result = typst.edit.split_arguments({ notify = false })
 assert(result.ok, result.message or "Typst split_arguments failed")
@@ -416,12 +407,11 @@ assert(
 edit({
     "#pad(x: 1pt, y: 2pt)",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 8 })
 original_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 vim.cmd("TypstToggleArguments")
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 assert(
     line(1) == "#pad(",
     "TypstToggleArguments command should split inline argument lists"
@@ -445,7 +435,6 @@ edit({
     "  y: 2pt,",
     ")",
 })
-
 vim.api.nvim_win_set_cursor(0, { 2, 4 })
 result = typst.edit.toggle_arguments({ notify = false })
 assert(result.ok, result.message or "Typst toggle_arguments join failed")
@@ -457,7 +446,6 @@ assert(
 edit({
     "#strong[body]",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 9 })
 result = typst.edit.split_arguments({ notify = false })
 assert(
@@ -472,7 +460,6 @@ edit({
     "  ],",
     ")",
 })
-
 vim.api.nvim_win_set_cursor(0, { 2, 3 })
 result = typst.edit.join_arguments({ notify = false })
 assert(
@@ -490,7 +477,6 @@ edit({
     "  y: 2pt",
     ")",
 })
-
 vim.api.nvim_win_set_cursor(0, { 2, 4 })
 result = typst.edit.add_trailing_comma({ notify = false })
 assert(result.ok, result.message or "Typst add_trailing_comma failed")
@@ -520,9 +506,9 @@ assert(
 )
 
 original_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 vim.cmd("TypstToggleTrailingComma remove")
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 assert(
     line(3) == "  y: 2pt",
     "TypstToggleTrailingComma command should accept remove mode"
@@ -535,7 +521,6 @@ edit({
     "  ]",
     ")",
 })
-
 vim.api.nvim_win_set_cursor(0, { 2, 3 })
 result = typst.edit.toggle_trailing_comma("add", { notify = false })
 assert(
@@ -561,7 +546,6 @@ assert(
 edit({
     "#pad(x: 1pt, y: 2pt)",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 8 })
 result = typst.edit.toggle_trailing_comma("add", { notify = false })
 assert(
@@ -573,7 +557,6 @@ edit({
     "#let alert(body, fill: red, stroke: none) = body",
     "#alert([Hi], blue, stroke: black)",
 })
-
 vim.api.nvim_win_set_cursor(0, { 2, 8 })
 result = typst.edit.name_arguments({ notify = false })
 assert(result.ok, result.message or "Typst name_arguments failed")
@@ -605,7 +588,6 @@ edit({
     "#let glyph(first, second) = first",
     '#glyph("α", [β])',
 })
-
 vim.api.nvim_win_set_cursor(0, { 2, 9 })
 result = typst.edit.name_arguments({ notify = false })
 assert(
@@ -624,12 +606,11 @@ edit({
     "  blue,",
     ")",
 })
-
 vim.api.nvim_win_set_cursor(0, { 3, 3 })
 original_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 vim.cmd("TypstNameArguments")
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 assert(
     line(3) == "  body: [Hi],",
     "TypstNameArguments command should name multiline content arguments"
@@ -642,7 +623,6 @@ assert(
 edit({
     '#figure(image("diagram.svg"))',
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 10 })
 result = typst.edit.name_arguments({ notify = false })
 assert(
@@ -653,7 +633,6 @@ assert(
 edit({
     "#unknown-helper(1)",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 10 })
 result = typst.edit.name_arguments({ notify = false })
 assert(
@@ -665,7 +644,6 @@ edit({
     "#let collect(first, ..rest) = first",
     "#collect(1, 2)",
 })
-
 vim.api.nvim_win_set_cursor(0, { 2, 10 })
 result = typst.edit.name_arguments({ notify = false })
 assert(
@@ -682,7 +660,6 @@ edit({
     "#cite(<doe2020>)",
     "plain text",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 10 })
 result = typst.edit.toggle_label({ notify = false })
 assert(
@@ -783,7 +760,6 @@ edit({
     "$",
     "Text $z$ tail.",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 2 })
 result = typst.edit.convert_equation("block", { notify = false })
 assert(result.ok, result.message or "Typst convert_equation block failed")
@@ -837,7 +813,6 @@ assert(
 edit({
     "$ x + y $",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 3 })
 result = typst.edit.toggle_equation_numbering("toggle", { notify = false })
 assert(result.ok, result.message or "Typst toggle_equation_numbering failed")
@@ -867,7 +842,6 @@ assert(
 edit({
     "#math.equation($ z $)",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 18 })
 result = typst.edit.toggle_equation_numbering("off", { notify = false })
 assert(
@@ -882,12 +856,11 @@ assert(
 edit({
     "$ q = r $",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 3 })
 original_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 vim.cmd("TypstToggleEquationNumbering off")
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 assert(
     line(1) == "#math.equation(numbering: none, $ q = r $)",
     "TypstToggleEquationNumbering command should support forced off mode"
@@ -896,7 +869,6 @@ assert(
 edit({
     "`raw`",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 2 })
 result = typst.edit.convert_raw("block", { notify = false })
 assert(result.ok, result.message or "Typst convert_raw block failed")
@@ -917,7 +889,6 @@ edit({
     "let x = 1",
     "```",
 })
-
 vim.api.nvim_win_set_cursor(0, { 2, 1 })
 result = typst.edit.convert_raw("inline", { notify = false })
 assert(
@@ -936,7 +907,6 @@ assert(
 edit({
     "Text `x` tail.",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 6 })
 result = typst.edit.convert_raw("block", { notify = false })
 assert(result.ok, result.message or "Typst convert_raw prose split failed")
@@ -961,7 +931,6 @@ edit({
     "b",
     "```",
 })
-
 vim.api.nvim_win_set_cursor(0, { 2, 0 })
 result = typst.edit.convert_raw("inline", { notify = false })
 assert(
@@ -976,12 +945,11 @@ assert(
 edit({
     "`cmd`",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 2 })
 original_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 vim.cmd("TypstConvertRaw block")
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 assert(
     line(1) == "```",
     "TypstConvertRaw command should convert inline raw text"
@@ -995,7 +963,6 @@ assert(line(3) == "```", "TypstConvertRaw command should close raw blocks")
 edit({
     'image("diagram.svg")',
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 1 })
 result = typst.edit.toggle_figure({ notify = false })
 assert(result.ok, result.message or "Typst toggle_figure wrap failed")
@@ -1018,7 +985,6 @@ edit({
     "  first line",
     "  second line",
 })
-
 result =
     typst.edit.toggle_figure({ start_row = 0, end_row = 1, notify = false })
 assert(result.ok, result.message or "Typst toggle_figure range wrap failed")
@@ -1042,7 +1008,6 @@ assert(
 edit({
     "#figure([Hi], caption: [Cap])",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 11 })
 result = typst.edit.toggle_figure({ notify = false })
 assert(result.ok, result.message or "Typst toggle_figure grouped unwrap failed")
@@ -1055,12 +1020,11 @@ edit({
     "Alpha",
     "Beta",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 1 })
 original_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 vim.cmd("1,2TypstToggleFigure")
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 assert(
     line(1) == "#figure[",
     "TypstToggleFigure command should wrap command ranges"
@@ -1082,7 +1046,6 @@ edit({
     "Alpha",
     "Beta",
 })
-
 result =
     typst.edit.surround_content({ start_row = 0, end_row = 1, notify = false })
 assert(result.ok, result.message or "Typst surround_content failed")
@@ -1100,7 +1063,6 @@ assert(line(4) == "]", "TypstSurroundContent should close content brackets")
 edit({
     "  x + y",
 })
-
 result = typst.edit.surround_equation({ notify = false })
 assert(result.ok, result.message or "Typst surround_equation failed")
 assert(
@@ -1119,7 +1081,6 @@ assert(
 edit({
     "body",
 })
-
 result = typst.edit.surround_function("quote", { notify = false })
 assert(result.ok, result.message or "Typst surround_function failed")
 assert(
@@ -1138,7 +1099,6 @@ assert(
 edit({
     "  name",
 })
-
 result = typst.edit.surround_strong({ notify = false })
 assert(result.ok, result.message or "Typst surround_strong failed")
 assert(
@@ -1149,7 +1109,6 @@ assert(
 edit({
     "  name",
 })
-
 result = typst.edit.surround_emph({ notify = false })
 assert(result.ok, result.message or "Typst surround_emph failed")
 assert(
@@ -1160,11 +1119,10 @@ assert(
 edit({
     "value",
 })
-
 original_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 vim.cmd("1TypstSurround block")
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 assert(line(1) == "{", "TypstSurround command should open a code block")
 assert(
     line(2) == "value",
@@ -1176,11 +1134,10 @@ edit({
     "first",
     "second",
 })
-
 original_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 vim.cmd("1,2TypstSurround function emph")
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 assert(
     line(1) == "#emph[",
     "TypstSurround function command should open a named call"
@@ -1201,7 +1158,6 @@ assert(
 edit({
     "image",
 })
-
 result = typst.edit.surround_figure({ notify = false })
 assert(result.ok, result.message or "Typst surround_figure failed")
 assert(
@@ -1222,7 +1178,6 @@ edit({
     "",
     "  - nested bullet",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 1 })
 result = typst.edit.toggle_bullet_list({ notify = false })
 assert(result.ok, result.message or "Typst toggle_bullet_list failed")
@@ -1274,9 +1229,9 @@ assert(
 assert(line(5) == "", "TypstToggleList should leave blank lines unchanged")
 
 original_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 vim.cmd("5,6TypstToggleList numbered")
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 assert(
     line(5) == "",
     "TypstToggleList command range should preserve blank lines"
@@ -1431,9 +1386,9 @@ assert(
 )
 
 original_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 vim.cmd("TypstToggleLineBreak")
 vim.cmd("TypstCreateFunction emph")
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 
 vim.cmd("qa!")

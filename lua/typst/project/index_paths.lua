@@ -224,7 +224,6 @@ function M.scan_imports(
             start_col or line:find("#import", 1, true) or 1
         ),
     })
-
     queue_local_typst_file(resolved, queue, queued)
 
     local alias = suffix:match("^%s*as%s+([%w_%-]+)")

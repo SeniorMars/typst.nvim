@@ -34,7 +34,6 @@ local function fold_block(lines)
         end
     end
     flush()
-
     return table.concat(parts, "\n")
 end
 

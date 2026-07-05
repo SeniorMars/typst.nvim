@@ -61,7 +61,7 @@ local ok, err = xpcall(function()
     assert(changed, "first dependency replacement should mark graph changed")
     project_model.rebuild_files(project)
 
-    local graph = project_services.graph(project)
+    local graph = assert(project_services.graph(project))
     assert(graph.dependencies[asset], "asset should remain a dependency")
     assert(
         not graph.files[asset],
@@ -113,7 +113,6 @@ local ok, err = xpcall(function()
         data,
         refs,
     })
-
     local files = index_files.initial_files(indexed_project)
     local by_key = {}
     for _, path in ipairs(files) do

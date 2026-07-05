@@ -160,7 +160,6 @@ local function set_quickfix(project, entries, opts)
         title = toc_state.title(project),
         items = qf_items,
     })
-
     if opts.open ~= false then
         vim.cmd("copen")
         apply_quickfix_mappings(project, opts)
@@ -176,9 +175,10 @@ end
 
 function M.open(project, opts)
     opts = opts or {}
-    local source_bufnr = vim.api.nvim_get_current_buf()
-    if toc_state.is_toc_buffer(source_bufnr) then
-        source_bufnr = nil
+    local current_bufnr = vim.api.nvim_get_current_buf()
+    local source_bufnr
+    if not toc_state.is_toc_buffer(current_bufnr) then
+        source_bufnr = current_bufnr
     end
     local items = M.collect(project, opts)
     local state = toc_state.for_project(project)

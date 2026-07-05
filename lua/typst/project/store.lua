@@ -111,13 +111,20 @@ end
 ---@param reason? string Human-readable prune reason.
 ---@return boolean? pruned True when the project was removed.
 function M.prune(state, reason)
+    ---@type TypstProject?
+    local resolved
     if type(state) == "string" then
-        state = M.get(state)
+        resolved = M.get(state)
+    elseif type(state) == "table" then
+        resolved = state
+    end
+    if not resolved then
+        return false
     end
 
-    local pruned = M.prune_if_empty(state, reason or "manual prune")
+    local pruned = M.prune_if_empty(resolved, reason or "manual prune")
     if pruned then
-        M.emit_project_pruned(state, reason or "manual prune")
+        M.emit_project_pruned(resolved, reason or "manual prune")
     end
     return pruned
 end

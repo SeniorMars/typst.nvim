@@ -80,7 +80,6 @@ local function normalize_symbol(name, record, catalog, opts)
         },
         raw = record,
     })
-
     return result
 end
 
@@ -183,7 +182,6 @@ function M.search(query, opts)
         return (left.qualified_name or left.name)
             < (right.qualified_name or right.name)
     end)
-
     return results
 end
 

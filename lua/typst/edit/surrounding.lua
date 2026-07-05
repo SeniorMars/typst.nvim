@@ -124,7 +124,6 @@ function M.wrap_figure(bufnr, opts)
         false,
         replacement
     )
-
     return ok({
         action = "figure_wrap",
         message = "Wrapped Typst content in a figure",
@@ -316,7 +315,7 @@ function M.surround(kind, opts)
         end
     end
 
-    if result.ok then
+    if result and result.ok then
         if kind == "function" then
             edit_repeat.set(
                 (":TypstSurroundFunction %s<CR>"):format(result.name)
@@ -325,6 +324,12 @@ function M.surround(kind, opts)
             edit_repeat.set((":TypstSurround %s<CR>"):format(kind))
         end
     end
+    result = result
+        or {
+            ok = false,
+            reason = "surround_failed",
+            message = "Unable to surround Typst selection",
+        }
     notify_result(result, opts)
     return result
 end

@@ -259,9 +259,10 @@ end
 function M.resolve(opts)
     opts = opts or {}
     local bufnr = follow_context.normalize_bufnr(opts.bufnr)
-    return telemetry.time("navigation.follow.resolve", function()
+    local target = telemetry.time("navigation.follow.resolve", function()
         return static_target(bufnr, opts)
     end)
+    return target
 end
 
 --- Resolve and optionally open the target under the cursor.
@@ -292,7 +293,6 @@ function M.follow(opts)
     end
 
     call_user_callback(user_callback, target)
-
     return target
 end
 

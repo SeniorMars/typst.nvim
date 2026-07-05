@@ -7,7 +7,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("tinymist-execute-command-output"),
 })
-
 local semantic = require("typst.integrations.semantic")
 local tinymist = require("typst.integrations.tinymist")
 
@@ -18,8 +17,11 @@ vim.cmd.edit(main)
 vim.bo.filetype = "typst"
 local bufnr = vim.api.nvim_get_current_buf()
 
+---@type any
 local exec_command = nil
+---@type any
 local exec_context = nil
+---@type any
 local exec_callback = nil
 local exec_client = {
     id = 123,
@@ -30,12 +32,12 @@ local exec_client = {
     end,
 }
 
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if opts and opts.bufnr == bufnr then
         return { exec_client }
     end
     return {}
-end
+end)
 
 local ok, err = xpcall(function()
     local direct =
@@ -82,9 +84,11 @@ local ok, err = xpcall(function()
         "explicit arguments should override command table arguments"
     )
 
+    ---@type any
     local request_params = nil
     local request_method = nil
     local request_bufnr = nil
+    ---@type any
     local request_callback_result = nil
     local request_client = {
         id = 456,
@@ -154,6 +158,7 @@ local ok, err = xpcall(function()
         "fire-and-forget command should still request executeCommand"
     )
 
+    ---@type any
     local fallback_request_params = nil
     local exec_fallback_client = {
         id = 457,
@@ -202,7 +207,9 @@ local ok, err = xpcall(function()
         "exec_cmd failure fallback should normalize callback result"
     )
 
+    ---@type any
     local invalid_callback = nil
+    ---@type any
     local invalid = tinymist.execute_command({}, nil, {
         bufnr = bufnr,
         callback = function(result)
@@ -215,6 +222,7 @@ local ok, err = xpcall(function()
         "invalid commands should fail before touching clients"
     )
 
+    ---@type any
     local unsupported = tinymist.execute_command("tinymist.nope", nil, {
         bufnr = bufnr,
         client = {
@@ -230,10 +238,12 @@ local ok, err = xpcall(function()
         "clients without exec_cmd or executeCommand support should fail explicitly"
     )
 
-    vim.lsp.get_clients = function()
+    rawset(vim.lsp, "get_clients", function()
         return {}
-    end
+    end)
+    ---@type any
     local no_client_callback = nil
+    ---@type any
     local no_client =
         tinymist.execute_command("tinymist.showTemplateGallery", nil, {
             bufnr = bufnr,
@@ -286,12 +296,12 @@ local ok, err = xpcall(function()
         end,
     }
 
-    vim.lsp.get_clients = function(opts)
+    rawset(vim.lsp, "get_clients", function(opts)
         if opts and opts.bufnr == bufnr then
             return { lens_client }
         end
         return {}
-    end
+    end)
 
     local code_lens_result = nil
     local code_lens_pending = semantic.code_lens({

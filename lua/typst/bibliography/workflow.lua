@@ -392,7 +392,6 @@ function M.preview(opts)
         "organization",
         "location",
     })
-
     if author then
         pieces[#pieces + 1] = year and ("%s (%s)"):format(author, year)
             or author
@@ -797,7 +796,6 @@ function M.rename_plan(opts)
         end
         return a.path < b.path
     end)
-
     return {
         kind = "bibliography_key_rename",
         key = old_key,

@@ -151,6 +151,7 @@ local public_commands = {
     "TypstConvertRaw",
     "TypstDoctor",
     "TypstBugReport",
+    "TypstSupportBundle",
     "TypstLog",
 }
 
@@ -179,23 +180,27 @@ end
 local command_util = require("typst.ui.commands.util")
 local notified = nil
 local old_notify = vim.notify
-vim.notify = function(message, level, opts)
+rawset(vim, "notify", function(message, level, opts)
     notified = {
         message = message,
         level = level,
         opts = opts,
     }
-end
+end)
 
 local command_name = "TypstBoundaryBoomTest"
+---@type TypstCommandOptions
+local boundary_command_opts = {
+    desc = "test command error boundary",
+}
 command_util.create(command_name, function()
     error("typst.nvim: expected command failure")
-end, {
-    desc = "test command error boundary",
-})
+end, boundary_command_opts)
 
-local command_ok = pcall(vim.cmd, command_name)
-vim.notify = old_notify
+local command_ok = pcall(function()
+    vim.cmd(command_name)
+end)
+rawset(vim, "notify", old_notify)
 
 assert(command_ok, "command error boundary should prevent raw command errors")
 assert(notified, "command failure should notify the user")
@@ -247,6 +252,7 @@ local ok, err = xpcall(function()
     vim.cmd("TypstCheckInvariants")
     vim.cmd("TypstDoctor")
     vim.cmd("TypstBugReport")
+    vim.cmd("TypstSupportBundle")
     vim.cmd("TypstTelemetry")
 end, debug.traceback)
 
@@ -279,7 +285,6 @@ require("typst.ui.commands.compiler").register({
         },
     },
 })
-
 local compile_ss_command = vim.api.nvim_get_commands({})["TypstCompileSS"]
 assert(
     compile_ss_command

@@ -10,7 +10,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("toc-tinymist-output"),
 })
-
 local tinymist = require("typst.integrations.tinymist")
 local main = root .. "/tests/fixtures/basic/main.typ"
 local chapter = root .. "/tests/fixtures/basic/chapter.typ"
@@ -42,46 +41,50 @@ function fake_client:supports_method()
     return true
 end
 
-fake_client.request = function(_, method, params, callback, request_bufnr)
-    assert(
-        method == "textDocument/documentSymbol",
-        "unexpected Tinymist method: " .. method
-    )
-    assert(
-        params.textDocument,
-        "document symbols should include document params"
-    )
-    request_count = request_count + 1
-    requested_bufnr = request_bufnr
-    callback(nil, {
-        {
-            name = "Main",
-            kind = vim.lsp.protocol.SymbolKind.String,
-            selectionRange = {
-                start = { line = 0, character = 3 },
-                ["end"] = { line = 0, character = 9 },
-            },
-            children = {
-                {
-                    name = "Nested",
-                    kind = vim.lsp.protocol.SymbolKind.String,
-                    selectionRange = {
-                        start = { line = 2, character = 0 },
-                        ["end"] = { line = 2, character = 8 },
+rawset(
+    fake_client,
+    "request",
+    function(_, method, params, callback, request_bufnr)
+        assert(
+            method == "textDocument/documentSymbol",
+            "unexpected Tinymist method: " .. method
+        )
+        assert(
+            params.textDocument,
+            "document symbols should include document params"
+        )
+        request_count = request_count + 1
+        requested_bufnr = request_bufnr
+        callback(nil, {
+            {
+                name = "Main",
+                kind = vim.lsp.protocol.SymbolKind.String,
+                selectionRange = {
+                    start = { line = 0, character = 3 },
+                    ["end"] = { line = 0, character = 9 },
+                },
+                children = {
+                    {
+                        name = "Nested",
+                        kind = vim.lsp.protocol.SymbolKind.String,
+                        selectionRange = {
+                            start = { line = 2, character = 0 },
+                            ["end"] = { line = 2, character = 8 },
+                        },
                     },
                 },
             },
-        },
-    })
-    return true, request_count
-end
+        })
+        return true, request_count
+    end
+)
 
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if opts and opts.bufnr and opts.bufnr ~= main_bufnr then
         return {}
     end
     return { fake_client }
-end
+end)
 
 local symbols_result
 local pending = tinymist.document_symbols(main_bufnr, {
@@ -121,7 +124,7 @@ assert(
 )
 assert(#items >= 1, "synchronous TOC should fall back to indexed headings")
 
-fake_client.request = function(_, method, _, callback, request_bufnr)
+rawset(fake_client, "request", function(_, method, _, callback, request_bufnr)
     assert(
         method == "textDocument/documentSymbol",
         "unexpected Tinymist method: " .. method
@@ -142,7 +145,7 @@ fake_client.request = function(_, method, _, callback, request_bufnr)
         },
     })
     return true, request_count
-end
+end)
 
 symbols_result = nil
 tinymist.document_symbols(main_bufnr, {
@@ -180,12 +183,12 @@ if uv.fs_symlink(canonical_main, linked_main) then
         main = util.normalize(canonical_main),
         bufs = {},
     }
-    vim.lsp.get_clients = function(opts)
+    rawset(vim.lsp, "get_clients", function(opts)
         if opts and opts.bufnr == linked_bufnr then
             return { fake_client }
         end
         return {}
-    end
+    end)
 
     assert(
         tinymist.available_for_project(symlink_project) == true,

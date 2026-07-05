@@ -22,7 +22,6 @@ local code = lexical.mask_lines(lines, {
     comments = "space",
     raw = "space",
 })
-
 assert(
     code[1]:find("@apostrophe%-ref"),
     "contractions should not hide later references"

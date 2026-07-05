@@ -98,7 +98,6 @@ function M.add(actions, target, bufnr, handlers)
             return target.name
         end,
     })
-
     add_action(actions, {
         id = "label_references",
         title = ("List references to %s"):format(target.name),
@@ -121,7 +120,6 @@ function M.add(actions, target, bufnr, handlers)
             )
         end,
     })
-
     add_action(actions, {
         id = "label_rename",
         title = ("Rename label %s"):format(target.name),

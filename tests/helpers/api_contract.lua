@@ -10,7 +10,6 @@ function M.setup(output_dir)
         root = root,
         output_dir = output_dir or typst_test_cache_path("api-contract-output"),
     })
-
     return root, typst
 end
 

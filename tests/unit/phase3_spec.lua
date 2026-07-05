@@ -37,7 +37,6 @@ typst.providers.register("export", "phase3-export", {
         }
     end,
 })
-
 typst.providers.register("export", "phase3-async-export", {
     export = function(project, opts, callback)
         calls.async_export = calls.async_export + 1
@@ -66,7 +65,6 @@ typst.providers.register("export", "phase3-async-export", {
         }
     end,
 })
-
 typst.providers.register("export", "phase3-undeclared-export", {
     export = function(project, opts)
         local artifact = typst_test_cache_path("phase3/undeclared.")
@@ -87,7 +85,6 @@ typst.providers.register("export", "phase3-undeclared-export", {
         }
     end,
 })
-
 typst.providers.register("eval", "phase3-eval", {
     eval = function(_, opts)
         calls.eval = calls.eval + 1
@@ -97,7 +94,6 @@ typst.providers.register("eval", "phase3-eval", {
         }
     end,
 })
-
 typst.providers.register("init", "phase3-init", {
     init = function(opts)
         calls.init = calls.init + 1
@@ -108,7 +104,6 @@ typst.providers.register("init", "phase3-init", {
         }
     end,
 })
-
 for _, kind in ipairs({ "profile", "test", "bench", "coverage" }) do
     typst.providers.register(kind, "phase3-" .. kind, {
         run = function(_, opts)
@@ -143,7 +138,6 @@ typst.providers.register("semantic", "phase3-semantic", {
         }
     end,
 })
-
 assert(
     vim.tbl_contains(typst.providers.names("export"), "phase3-export"),
     "export provider should be listed"
@@ -195,7 +189,6 @@ typst.setup({
         },
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -280,6 +273,7 @@ assert(
     ":TypstExport profile-level provider artifact should clean"
 )
 
+---@type any
 local async_exported = nil
 local async_pending = typst.artifact.export(
     { provider = "phase3-async-export", format = "svg" },
@@ -380,10 +374,10 @@ assert(
 
 local old_select = vim.ui.select
 local selected_prompt = nil
-vim.ui.select = function(items, opts, on_choice)
+rawset(vim.ui, "select", function(items, opts, on_choice)
     selected_prompt = opts.prompt
     on_choice(items[1])
-end
+end)
 local selected_init = typst.template.init({
     provider = "phase3-init",
     select = true,
@@ -438,7 +432,7 @@ assert(calls.semantic == 1, "semantic provider should be called once")
 
 local old_get_clients = vim.lsp.get_clients
 local semantic_source_buf = vim.api.nvim_get_current_buf()
-vim.lsp.get_clients = function()
+rawset(vim.lsp, "get_clients", function()
     return {
         {
             name = "tinymist",
@@ -475,7 +469,8 @@ vim.lsp.get_clients = function()
             end,
         },
     }
-end
+end)
+---@type any
 local semantic_colors = nil
 local semantic_color_pending = typst.semantic.color_info({
     open = true,
@@ -518,7 +513,7 @@ assert(
 )
 
 old_get_clients = vim.lsp.get_clients
-vim.lsp.get_clients = function()
+rawset(vim.lsp, "get_clients", function()
     return {
         {
             name = "tinymist",
@@ -541,7 +536,8 @@ vim.lsp.get_clients = function()
             end,
         },
     }
-end
+end)
+---@type any
 local code_lens = nil
 local code_lens_pending = typst.semantic.code_lens({
     open = false,
@@ -569,6 +565,7 @@ assert(
 local fake_tinymist =
     helpers.python_command(root .. "/tests/fixtures/fake-tinymist-dev.py")
 local util = require("typst.core.util")
+---@type any
 local default_test = nil
 local default_test_run = typst.development.test({
     executable = fake_tinymist,
@@ -601,6 +598,7 @@ assert(
     "default test should pass user args"
 )
 
+---@type any
 local default_coverage = nil
 local coverage_path =
     typst_test_cache_path("tinymist coverage/coverage with spaces.json")
@@ -640,6 +638,7 @@ assert(
 )
 
 vim.fn.delete(util.coverage_output_dir(), "rf")
+---@type any
 local unreported_coverage = nil
 typst.development.coverage({
     executable = {
@@ -680,6 +679,7 @@ assert(
 
 local fake_crityp =
     helpers.python_command(root .. "/tests/fixtures/fake-crityp.py")
+---@type any
 local default_bench = nil
 typst.development.bench({
     executable = fake_crityp,

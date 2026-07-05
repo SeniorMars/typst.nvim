@@ -9,7 +9,6 @@ assert(
 
 local bufnr = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "$alpha$" })
-
 local original_get_node = vim.treesitter.get_node
 local original_root = ts.root
 local original_walk = ts.walk
@@ -75,19 +74,17 @@ function fake_cursor_root:named_descendant_for_range(row, col)
     return leaf_node
 end
 
-ts.root = function(root_bufnr)
+rawset(ts, "root", function(root_bufnr)
     assert(
         root_bufnr == bufnr,
         "node-at-position should use the requested buffer"
     )
     return fake_cursor_root
-end
-
-ts.walk = function(...)
+end)
+rawset(ts, "walk", function(...)
     walked = true
     return original_walk(...)
-end
-
+end)
 local ok, err = xpcall(function()
     local found = ts.find_containing(bufnr, { "equation", "math" }, { 0, 2 })
     assert(
@@ -105,7 +102,7 @@ ts.root = original_root
 ts.walk = original_walk
 
 if not ok then
-    vim.api.nvim_err_writeln(err)
+    vim.api.nvim_echo({ { tostring(err), "ErrorMsg" } }, true, {})
     vim.cmd("cquit")
 end
 
@@ -129,16 +126,15 @@ function heading_b:range()
 end
 
 local fake_root = {}
-ts.root = function(root_bufnr)
+rawset(ts, "root", function(root_bufnr)
     assert(root_bufnr == bufnr, "collect should parse the requested buffer")
     return fake_root
-end
-ts.walk = function(_, callback)
+end)
+rawset(ts, "walk", function(_, callback)
     collect_walks = collect_walks + 1
     callback(heading_a)
     callback(heading_b)
-end
-
+end)
 local cache_ok, cache_err = xpcall(function()
     ts.forget(bufnr)
     local first = ts.collect(bufnr, "heading")
@@ -168,7 +164,7 @@ ts.walk = original_collect_walk
 ts.forget(bufnr)
 
 if not cache_ok then
-    vim.api.nvim_err_writeln(cache_err)
+    vim.api.nvim_echo({ { tostring(cache_err), "ErrorMsg" } }, true, {})
     vim.cmd("cquit")
 end
 

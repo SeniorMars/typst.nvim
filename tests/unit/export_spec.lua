@@ -10,7 +10,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("export-spec-output"),
 })
-
 local lease_existing_path =
     typst_test_cache_path("export-lease-existing/existing.pdf")
 vim.fn.mkdir(vim.fn.fnamemodify(lease_existing_path, ":h"), "p")
@@ -59,7 +58,7 @@ local function mock_output_path(command)
     return output
 end
 
-process.spawn = function(command, opts, handlers)
+rawset(process, "spawn", function(command, opts, handlers)
     local handle = {
         command = command,
         opts = opts,
@@ -93,7 +92,7 @@ process.spawn = function(command, opts, handlers)
 
     spawned[#spawned + 1] = handle
     return handle
-end
+end)
 
 local function flush_scheduled()
     vim.wait(20, function()
@@ -523,7 +522,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("artifact-selection"),
 })
-
 local artifact_main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(artifact_main)
 local artifact_project = typst.project.set_main(artifact_main)
@@ -553,7 +551,6 @@ artifact_services.set_artifacts(artifact_live_project, {
         },
     },
 })
-
 local ambiguous = typst.artifact.open({ edit = true })
 assert(
     not ambiguous.ok and ambiguous.reason == "ambiguous_artifact",
@@ -567,13 +564,13 @@ assert(
 local original_select = vim.ui.select
 local original_open = vim.ui.open
 local selected_prompt = nil
-vim.ui.select = function(items, _, callback)
+rawset(vim.ui, "select", function(items, _, callback)
     selected_prompt = items
     callback(items[1])
-end
-vim.ui.open = function()
+end)
+rawset(vim.ui, "open", function()
     return { wait = function() end }
-end
+end)
 vim.cmd("TypstArtifactOpen")
 vim.ui.select = original_select
 vim.ui.open = original_open

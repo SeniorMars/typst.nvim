@@ -281,7 +281,7 @@ function M.resolve(opts)
     local bufnr = normalize_bufnr(opts.bufnr)
     local package, package_range = package_at_position(bufnr, opts)
     package = trim(package)
-    if package then
+    if package and package_range then
         return {
             kind = "package",
             query = package,
@@ -298,7 +298,7 @@ function M.resolve(opts)
 
     local token, range = token_at_position(bufnr, opts)
     token = trim(token)
-    if not token then
+    if not token or not range then
         return nil
     end
 

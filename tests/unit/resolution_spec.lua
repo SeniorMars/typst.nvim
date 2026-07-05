@@ -17,7 +17,6 @@ typst.setup({
     end,
     output_dir = typst_test_cache_path("resolution-output"),
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 local chapter = root .. "/tests/fixtures/basic/chapter.typ"
 local appendix = root .. "/tests/fixtures/basic/appendix.typ"
@@ -68,7 +67,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 vim.cmd.edit(vim.fn.fnameescape(callback_error_chapter))
 vim.b.typst_main = nil
 local fallback_after_callback_error = typst.project.get(0)
@@ -101,7 +99,6 @@ typst.setup({
     end,
     output_dir = typst_test_cache_path("resolution-output"),
 })
-
 vim.b.typst_main = appendix
 typst.project.detach(0)
 local buffer_local = typst.project.get(0)
@@ -124,7 +121,6 @@ typst.setup({
     },
     output_dir = typst_test_cache_path("resolution-output"),
 })
-
 vim.cmd.edit(chapter)
 vim.b.typst_main = nil
 local mapped = typst.project.get(0)
@@ -150,7 +146,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 vim.cmd.edit(chapter)
 vim.b.typst_main = nil
 local standalone = typst.project.get(0)
@@ -194,7 +189,6 @@ typst.setup({
     },
     output_dir = typst_test_cache_path("resolution-output"),
 })
-
 vim.cmd.edit(chapter)
 vim.b.typst_main = nil
 local mapped_root = typst.project.get(0)
@@ -234,7 +228,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 vim.cmd.edit(vim.fn.fnameescape(multi_main))
 vim.b.typst_main = nil
 local multi_main_project = typst.project.get(0)
@@ -306,7 +299,6 @@ typst.setup({
     root_markers = {},
     output_dir = typst_test_cache_path("resolution-output"),
 })
-
 vim.cmd.edit(vim.fn.fnameescape(directive_chapter))
 vim.b.typst_main = nil
 local directive_project = typst.project.get(0)
@@ -348,7 +340,6 @@ typst.setup({
     root_markers = {},
     output_dir = typst_test_cache_path("resolution-output"),
 })
-
 vim.cmd.edit(vim.fn.fnameescape(project_file_chapter))
 vim.b.typst_main = nil
 local project_file_project = typst.project.get(0)
@@ -401,7 +392,6 @@ typst.setup({
         import_scan_max_depth = 2,
     },
 })
-
 vim.cmd.edit(vim.fn.fnameescape(scan_chapter))
 vim.b.typst_main = nil
 local scan_project = typst.project.get(0)
@@ -447,7 +437,6 @@ typst.setup({
         import_scan_max_depth = 1,
     },
 })
-
 vim.cmd.edit(vim.fn.fnameescape(dot_scan_leaf))
 vim.b.typst_main = nil
 local dot_scan_project = typst.project.get(0)
@@ -482,7 +471,6 @@ typst.setup({
         import_scan_max_depth = 2,
     },
 })
-
 vim.cmd.edit(vim.fn.fnameescape(ambiguous_chapter))
 vim.b.typst_main = nil
 local ambiguous_project = typst.project.get(0)
@@ -514,7 +502,6 @@ typst.setup({
         import_scan_max_depth = 0,
     },
 })
-
 vim.cmd.edit(vim.fn.fnameescape(exact_limit_leaf))
 vim.b.typst_main = nil
 typst.project.get(0)
@@ -543,7 +530,6 @@ typst.setup({
         import_scan_max_depth = 0,
     },
 })
-
 vim.cmd.edit(vim.fn.fnameescape(limit_leaf))
 vim.b.typst_main = nil
 typst.project.get(0)
@@ -581,7 +567,6 @@ typst.setup({
         import_scan_max_depth = 2,
     },
 })
-
 vim.cmd.edit(vim.fn.fnameescape(unicode_chapter))
 vim.b.typst_main = nil
 local unicode_project = typst.project.get(0)
@@ -675,7 +660,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 vim.cmd.edit(vim.fn.fnameescape(scan_chapter))
 vim.b.typst_main = nil
 local no_scan_project = typst.project.get(0)

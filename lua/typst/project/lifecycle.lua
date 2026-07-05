@@ -376,7 +376,7 @@ local function attach_impl(api, bufnr)
         return state
     end
 
-    log.add("warn", candidate)
+    log.add("warn", "failed to attach Typst project", { candidate = candidate })
     return nil
 end
 
@@ -578,7 +578,6 @@ function M.reload_state(api, reload_opts, notify)
     end
 
     require("typst.core.cache_registry").reload({ bufnr = bufnr })
-
     local state = M.attach(api, bufnr)
     if not state then
         error("typst.nvim: failed to reload Typst state for current buffer")

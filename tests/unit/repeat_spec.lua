@@ -7,11 +7,10 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("repeat-output"),
 })
-
 local edit_repeat = require("typst.edit.repeat")
 local mappings = require("typst.edit.mappings")
 local original_notify = vim.notify
-vim.notify = function() end
+rawset(vim, "notify", function() end)
 
 local function edit(lines)
     local bufnr = vim.api.nvim_create_buf(false, true)
@@ -30,7 +29,6 @@ edit({
     "#strong[one]",
     "#strong[two]",
 })
-
 assert(
     vim.fn.maparg(".", "n") ~= "",
     "Typst repeat mapping should be installed by default"
@@ -64,7 +62,6 @@ edit({
     "#strong[one]",
     "#strong[two]",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 9 })
 result = typst.edit.change_function("emph", { notify = false })
 assert(
@@ -84,7 +81,6 @@ edit({
     "#strong[two]",
     "",
 })
-
 vim.api.nvim_win_set_cursor(0, { 1, 9 })
 result = typst.edit.change_function("emph", { notify = false })
 assert(
@@ -102,5 +98,5 @@ assert(
     "stale Typst repeat should not replay after another buffer edit"
 )
 
-vim.notify = original_notify
+rawset(vim, "notify", original_notify)
 vim.cmd("qa!")

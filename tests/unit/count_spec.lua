@@ -7,7 +7,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("count-output"),
 })
-
 local sample = {
     "= Main Heading",
     "Plain words here.",
@@ -112,11 +111,11 @@ assert(
 
 local echoed = {}
 local original_echo = vim.api.nvim_echo
-vim.api.nvim_echo = function(chunks)
+rawset(vim.api, "nvim_echo", function(chunks)
     for _, chunk in ipairs(chunks) do
         echoed[#echoed + 1] = chunk[1]
     end
-end
+end)
 
 vim.cmd("1,2TypstCount")
 vim.api.nvim_echo = original_echo
@@ -176,11 +175,11 @@ assert(
 )
 
 echoed = {}
-vim.api.nvim_echo = function(chunks)
+rawset(vim.api, "nvim_echo", function(chunks)
     for _, chunk in ipairs(chunks) do
         echoed[#echoed + 1] = chunk[1]
     end
-end
+end)
 
 vim.cmd("TypstCount!")
 vim.api.nvim_echo = original_echo

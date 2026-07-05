@@ -153,7 +153,6 @@ function M.plan(bufnr, target, new_name)
         end
         return a.path < b.path
     end)
-
     return {
         kind = "label_rename",
         provider = "syntax",

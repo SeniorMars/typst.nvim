@@ -57,7 +57,6 @@ local function command_for(project, expression, opts)
         "--in",
         opts.context or project.main,
     })
-
     if opts.target then
         command[#command + 1] = "--target"
         command[#command + 1] = opts.target
@@ -164,7 +163,6 @@ function M.eval(project, opts, callback, notify)
             end
         end,
     })
-
     return result
 end
 
@@ -174,6 +172,8 @@ local function valid_window_for_buffer(winid, bufnr)
         and vim.api.nvim_win_get_buf(winid) == bufnr
 end
 
+---@return integer? line1
+---@return integer? line2
 local function explicit_range(opts)
     local line1 = tonumber(opts.line1)
     local line2 = tonumber(opts.line2)
@@ -182,6 +182,8 @@ local function explicit_range(opts)
     end
 end
 
+---@return integer? line1
+---@return integer? line2
 local function current_visual_range(bufnr)
     if bufnr ~= vim.api.nvim_get_current_buf() then
         return nil, nil

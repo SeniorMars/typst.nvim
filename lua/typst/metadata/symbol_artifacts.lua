@@ -203,7 +203,6 @@ function M.record(artifact, name, kind, prefix)
             end
         end,
     })
-
     artifact.records[name] = symbol
     return symbol
 end

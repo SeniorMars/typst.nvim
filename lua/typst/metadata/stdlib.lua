@@ -109,7 +109,6 @@ function M.constants_by_type(version, type_name, opts)
     table.sort(result, function(left, right)
         return left.path < right.path
     end)
-
     index.constants_by_type[cache_key] = result
     return vim.deepcopy(result)
 end

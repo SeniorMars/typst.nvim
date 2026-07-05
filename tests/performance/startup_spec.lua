@@ -37,7 +37,6 @@ setup_once("setup.default", {
         package_cache_prewarm = false,
     },
 })
-
 setup_once("setup.optional_features", {
     root = root,
     output_dir = typst_test_cache_path("startup-optional-output"),
@@ -64,7 +63,6 @@ setup_once("setup.optional_features", {
         follow_cursor = true,
     },
 })
-
 local path = perf.write(spec_name)
 print(("startup benchmark report: %s"):format(path))
 

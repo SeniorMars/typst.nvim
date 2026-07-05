@@ -18,7 +18,6 @@ typst.setup({
         },
     },
 })
-
 local main = root .. "/tests/fixtures/basic/index-main.typ"
 vim.cmd.edit(main)
 local project =
@@ -73,7 +72,6 @@ assert(
 )
 
 local matches = typst.syntax.package_matches({ bufnr = 0 })
-
 local function find_match(name, package_key, list)
     for _, match in ipairs(list or matches) do
         if match.name == name and match.package_key == package_key then

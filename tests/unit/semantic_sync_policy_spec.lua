@@ -73,7 +73,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("semantic-request-failure-output"),
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local bufnr = vim.api.nvim_get_current_buf()
@@ -82,25 +81,23 @@ local live_project = assert(project_store.get(project.key), "live project")
 
 local old_document_symbols = tinymist_symbols.document_symbols
 local old_workspace_symbols = tinymist_symbols.workspace_symbols
-tinymist_symbols.document_symbols = function()
+rawset(tinymist_symbols, "document_symbols", function()
     error("document symbols startup failed")
-end
-tinymist_symbols.workspace_symbols = function()
+end)
+rawset(tinymist_symbols, "workspace_symbols", function()
     error("workspace symbols startup failed")
-end
-
+end)
 typst.index.collect({
     project = project,
     include_tinymist = true,
     tinymist_timeout_ms = 10,
 })
-
 local cleared = vim.wait(1000, function()
     local semantic = (services.index(live_project) or {}).semantic or {}
     local document_cache = semantic.document and semantic.document[bufnr] or nil
     local workspace_cache = semantic.workspace or nil
-    return document_cache
-        and workspace_cache
+    return document_cache ~= nil
+        and workspace_cache ~= nil
         and document_cache.pending == false
         and workspace_cache.pending == false
 end, 5)

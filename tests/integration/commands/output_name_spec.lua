@@ -9,7 +9,6 @@ typst.setup({
     output_name = "custom-main",
     output_format = "pdf",
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -27,7 +26,6 @@ typst.compiler.compile({}, function(result)
     assert(result.code == 0, "compile failed with configured output_name")
     done = true
 end)
-
 assert(
     vim.wait(10000, function()
         return done

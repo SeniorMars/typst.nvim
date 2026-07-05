@@ -12,7 +12,6 @@ typst.setup({
         scan_cache_ttl_ms = 1000,
     },
 })
-
 local completion_csl = require("typst.completion.csl")
 local completion_raw = require("typst.completion.raw")
 local core_cache = require("typst.core.cache")
@@ -97,13 +96,13 @@ local ok, err = xpcall(function()
     )
 
     local runtime_scans = 0
-    vim.api.nvim_get_runtime_file = function(pattern)
+    rawset(vim.api, "nvim_get_runtime_file", function(pattern)
         runtime_scans = runtime_scans + 1
         if pattern == "parser/*.so" then
             return { root .. "/parser/cachedraw.so" }
         end
         return {}
-    end
+    end)
 
     completion_raw.reset()
     local raw_first = completion_raw.items({}, "cached")
@@ -179,19 +178,17 @@ local ok, err = xpcall(function()
             scan_cache_ttl_ms = 1000,
         },
     })
-
     local csl_root = typst_test_cache_path("completion-scan-cache")
     vim.fn.mkdir(csl_root, "p")
     local csl_path = csl_root .. "/cached-style.csl"
     vim.fn.writefile({ "<style/>" }, csl_path)
 
     local csl_scans = 0
-    vim.fs.find = function(_, opts)
+    rawset(vim.fs, "find", function(_, opts)
         csl_scans = csl_scans + 1
         assert(opts.path == csl_root, "CSL scan should use the project root")
         return { csl_path }
-    end
-
+    end)
     completion_csl.reset()
     local csl_opts = {
         project = {
@@ -266,7 +263,7 @@ vim.api.nvim_get_runtime_file = original_runtime_file
 vim.fs.find = original_find
 
 if not ok then
-    vim.api.nvim_err_writeln(err)
+    vim.api.nvim_echo({ { tostring(err), "ErrorMsg" } }, true, {})
     vim.cmd("cquit")
 end
 

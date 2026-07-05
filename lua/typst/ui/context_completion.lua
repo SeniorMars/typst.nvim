@@ -132,7 +132,7 @@ end
 function M.add_color_actions(actions, bufnr, pos)
     local token = token_at(bufnr, pos)
     local item = token and exact_completion_item("color", token.text, bufnr)
-    if not item then
+    if not token or not item then
         return
     end
 

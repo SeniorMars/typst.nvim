@@ -36,6 +36,9 @@ startup-benchmark:
 windows-edge:
   bash tests/run_windows_edge.sh
 
+luals:
+  bash tests/run_luals.sh
+
 frontend-smoke:
   bash tests/run_frontend_smoke.sh
 

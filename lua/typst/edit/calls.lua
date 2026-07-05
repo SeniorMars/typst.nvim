@@ -212,7 +212,6 @@ function M.find_named_call(bufnr, name, opts)
             best = node
         end
     end)
-
     return best
 end
 

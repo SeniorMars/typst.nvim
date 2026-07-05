@@ -261,7 +261,6 @@ local function command_for(project, source_path, output, opts)
         "--format",
         opts.format or render_config(opts).output_format or "svg",
     })
-
     if opts.page then
         command[#command + 1] = "--pages"
         command[#command + 1] = tostring(opts.page)
@@ -469,7 +468,6 @@ local function evict_cache(options)
     table.sort(entries, function(left, right)
         return left.used_at < right.used_at
     end)
-
     local count = #entries
     local max_entries = options.max_entries
         or render_cache.DEFAULT_OPTIONS.max_entries
@@ -687,7 +685,6 @@ local function render_source(project, kind, source, opts, callback, notify)
             end
         end,
     })
-
     return result
 end
 
@@ -937,7 +934,6 @@ function M.page(project, opts, callback, notify)
             end
         end,
     })
-
     return result
 end
 

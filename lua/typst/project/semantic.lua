@@ -226,7 +226,6 @@ local function schedule_reference_request(
             })
         end)
     end)
-
     return cache
 end
 
@@ -274,7 +273,16 @@ local function merge_reference_cache(
         return
     end
 
-    for _, location in ipairs(cache.result.references or {}) do
+    if type(cache) ~= "table" then
+        return
+    end
+
+    local result = cache.result
+    if type(result) ~= "table" then
+        return
+    end
+
+    for _, location in ipairs(result.references or {}) do
         semantic_items.add_reference(out, seen, context.name, location)
     end
 end

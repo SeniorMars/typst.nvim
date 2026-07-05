@@ -153,7 +153,6 @@ function M.prune_manifest(dir, manifest, options, now)
     table.sort(entries, function(left, right)
         return left.used_at < right.used_at
     end)
-
     local count = #entries
     local max_entries = options.max_entries or M.DEFAULT_OPTIONS.max_entries
     local max_bytes = options.max_bytes or M.DEFAULT_OPTIONS.max_bytes

@@ -13,7 +13,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 local fixture_root = typst_test_cache_path("project-public-snapshot")
 vim.fn.delete(fixture_root, "rf")
 vim.fn.mkdir(fixture_root, "p")
@@ -42,7 +41,6 @@ live.resolutions[bufnr] =
             value = "live-resolution",
         },
     })
-
 local function mutate_snapshot(snapshot, label)
     assert(type(snapshot) == "table", label .. " snapshot should be a table")
     assert(

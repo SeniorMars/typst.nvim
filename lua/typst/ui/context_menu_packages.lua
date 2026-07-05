@@ -86,7 +86,6 @@ function M.add_update_action(actions, package, ctx, bufnr)
                     )
                 end,
             }, apply_version)
-
             return versions
         end,
     })

@@ -438,9 +438,10 @@ end
 ---@param opts? table Completion options such as buffer, base, context, and limit.
 ---@return table[] items Completion items in typst.nvim's internal item shape.
 function M.complete(opts)
-    return telemetry.time("completion.complete", function()
+    local items = telemetry.time("completion.complete", function()
         return complete_impl(opts)
     end)
+    return items
 end
 
 --- Neovim omnifunc adapter for typst.nvim completions.

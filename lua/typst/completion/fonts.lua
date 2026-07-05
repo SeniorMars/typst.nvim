@@ -89,7 +89,6 @@ local function typst_font_families(completion_config)
             )),
         }
     end)
-
     return {}
 end
 
@@ -153,7 +152,6 @@ function M.items(opts, base)
         end
         return a.menu < b.menu
     end)
-
     return items
 end
 

@@ -14,7 +14,6 @@ typst.setup({
         source = "fallback",
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 typst.project.set_main(main)
@@ -25,12 +24,12 @@ local client = {
 }
 
 local old_get_clients = vim.lsp.get_clients
-vim.lsp.get_clients = function(opts)
+rawset(vim.lsp, "get_clients", function(opts)
     if opts and opts.bufnr and opts.bufnr ~= bufnr then
         return {}
     end
     return { client }
-end
+end)
 
 local snapshot = typst.ui.status()
 assert(
@@ -52,16 +51,15 @@ assert(
 
 local captured = {}
 local original_echo = vim.api.nvim_echo
-vim.api.nvim_echo = function(chunks)
+rawset(vim.api, "nvim_echo", function(chunks)
     for _, chunk in ipairs(chunks) do
         captured[#captured + 1] = chunk[1]
     end
-end
+end)
 
 local ok, err = pcall(function()
     typst.ui.info()
 end)
-
 vim.api.nvim_echo = original_echo
 vim.lsp.get_clients = old_get_clients
 assert(ok, err)
@@ -118,12 +116,12 @@ if symlink_ok then
     end
 
     old_get_clients = vim.lsp.get_clients
-    vim.lsp.get_clients = function(opts)
+    rawset(vim.lsp, "get_clients", function(opts)
         if opts and opts.bufnr == linked_bufnr then
             return { workspace_client }
         end
         return {}
-    end
+    end)
 
     local project = {
         main = util.normalize(canonical_main),
@@ -166,10 +164,9 @@ typst.setup({
 })
 vim.cmd.edit(main)
 typst.project.set_main(main)
-vim.lsp.get_clients = function()
+rawset(vim.lsp, "get_clients", function()
     return { client }
-end
-
+end)
 local disabled_project = typst.project.get(0)
 assert(
     tinymist.available_for_project(disabled_project) == false,

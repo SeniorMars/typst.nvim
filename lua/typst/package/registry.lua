@@ -84,7 +84,6 @@ local function typst_info(opts)
 
     local command = util.command_prefix(executable)
     vim.list_extend(command, { "info", "--format", "json" })
-
     info_pending = true
     local job = operation.run("package-info", command, { text = true }, {
         timeout_ms = 1500,
@@ -111,7 +110,6 @@ local function typst_info(opts)
             retry_at = now_ms() + failure_delay_ms(count),
         }
     end)
-
     return nil
 end
 

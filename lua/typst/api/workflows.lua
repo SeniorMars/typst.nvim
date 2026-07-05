@@ -116,6 +116,7 @@ function M.install(api, notify, normalize_bufnr)
         return require("typst.workflows.templates").templates(opts or {})
     end
 
+    ---@return any, any?
     local function profile(opts, callback)
         opts = opts or {}
         local state, err = project_or_error(opts, "development.profile")
@@ -130,6 +131,7 @@ function M.install(api, notify, normalize_bufnr)
         )
     end
 
+    ---@return any, any?
     local function test(opts, callback)
         opts = opts or {}
         local state, err = project_or_error(opts, "development.test")
@@ -144,6 +146,7 @@ function M.install(api, notify, normalize_bufnr)
         )
     end
 
+    ---@return any, any?
     local function bench(opts, callback)
         opts = opts or {}
         local state, err = project_or_error(opts, "development.bench")
@@ -158,6 +161,7 @@ function M.install(api, notify, normalize_bufnr)
         )
     end
 
+    ---@return any, any?
     local function coverage(opts, callback)
         opts = opts or {}
         local state, err = project_or_error(opts, "development.coverage")

@@ -207,7 +207,9 @@ function M.jump(kind, direction, opts)
         ctx.winid == vim.api.nvim_get_current_win()
         and vim.fn.mode(1) == "n"
     then
-        pcall(vim.cmd, "normal! m'")
+        pcall(function()
+            vim.cmd("normal! m'")
+        end)
     end
     return edit_context.set_cursor(ctx, row, col)
 end

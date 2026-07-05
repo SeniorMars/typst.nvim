@@ -9,7 +9,9 @@ suite="${TYPST_NVIM_PROVIDER_SUITE:-all}"
 compiler_specs=(
   tests/unit/provider_contract_spec.lua
   tests/unit/provider_sdk_matrix_spec.lua
+  tests/unit/pending_handle_spec.lua
   tests/unit/provider_adapter_spec.lua
+  tests/unit/provider_adapter_cancel_style_spec.lua
   tests/unit/provider_adapter_late_duplicate_spec.lua
   tests/unit/provider_adapter_invalid_handle_spec.lua
   tests/integration/compiler/provider_spec.lua

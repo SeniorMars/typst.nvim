@@ -25,6 +25,7 @@ local function project_file_items(state)
         local key = normalized and util.path_key(normalized) or nil
         if
             normalized
+            and key
             and not seen[key]
             and vim.fn.filereadable(normalized) == 1
         then
@@ -52,7 +53,6 @@ local function project_file_items(state)
         end
         return util.relpath(left, state.root) < util.relpath(right, state.root)
     end)
-
     return vim.tbl_map(function(path)
         local key = util.path_key(path)
         local kind = util.same_path(path, state.main) and "main"
@@ -89,7 +89,6 @@ local function open_index_qf(title, items, map_item, opts)
         title = title,
         items = qf_items,
     })
-
     if opts.open ~= false and #qf_items > 0 then
         vim.cmd("copen")
     end
@@ -107,7 +106,6 @@ function M.files(state, opts, notify, log)
         ),
         items = items,
     })
-
     if opts.open ~= false and #items > 0 then
         vim.cmd("copen")
     end

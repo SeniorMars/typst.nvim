@@ -7,7 +7,6 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("api-docs-contract-output"),
 })
-
 local function read_doc(path)
     return table.concat(vim.fn.readfile(root .. "/" .. path), "\n")
 end

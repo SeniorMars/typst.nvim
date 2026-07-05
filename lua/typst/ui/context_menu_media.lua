@@ -63,7 +63,6 @@ function M.add_image_actions(actions, target)
             return core.open_file_at(info.path, nil, nil, run_opts or {})
         end,
     })
-
     core.add_action(actions, {
         id = "image_preview",
         title = "Preview image",

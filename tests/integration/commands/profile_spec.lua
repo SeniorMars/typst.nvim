@@ -17,7 +17,6 @@ typst.setup({
         },
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -27,7 +26,6 @@ typst.compiler.compile({ profile = "draft" }, function(result)
     assert(result.code == 0, "profile compile failed")
     done = true
 end)
-
 assert(
     vim.wait(10000, function()
         return done
@@ -77,7 +75,6 @@ assert(
 local ok, err = pcall(function()
     typst.compiler.compile({ profile = "missing" })
 end)
-
 assert(not ok, "unknown compile profile should fail")
 assert(tostring(err):match("unknown compile profile"), tostring(err))
 

@@ -15,8 +15,7 @@ T["loads typst.nvim in an isolated child"] = function()
             root = vim.fn.getcwd(),
             output_dir = typst_test_cache_path("minitest-child-output"),
         })
-
-        vim.cmd.edit("tests/fixtures/basic/main.typ")
+vim.cmd.edit("tests/fixtures/basic/main.typ")
         vim.bo.filetype = "typst"
         typst.project.set_main(vim.api.nvim_buf_get_name(0))
     ]])

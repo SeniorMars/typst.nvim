@@ -270,7 +270,6 @@ function M.lookup(query)
             or nil,
         manuals = manuals,
     })
-
     return {
         id = ("package.%s.%s.%s"):format(
             package.namespace,

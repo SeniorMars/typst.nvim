@@ -80,9 +80,9 @@ vim.api.nvim_buf_set_lines(highlight_buf, 0, -1, false, {
     "#let z = 3",
     "```",
 })
-
-local highlight_parser = vim.treesitter.get_parser(highlight_buf, "typst")
-local highlight_tree = highlight_parser:parse()[1]
+local highlight_parser =
+    assert(vim.treesitter.get_parser(highlight_buf, "typst"))
+local highlight_tree = assert(highlight_parser:parse()[1])
 
 local highlight_captures =
     collect_captures(highlights, highlight_tree, highlight_buf)
@@ -121,8 +121,8 @@ vim.cmd.edit(fixture)
 vim.bo.filetype = "typst"
 local fixture_buf = vim.api.nvim_get_current_buf()
 
-local parser = vim.treesitter.get_parser(fixture_buf, "typst")
-local tree = parser:parse()[1]
+local parser = assert(vim.treesitter.get_parser(fixture_buf, "typst"))
+local tree = assert(parser:parse()[1])
 
 local syntax_highlight_captures =
     collect_captures(highlights, tree, fixture_buf)
@@ -274,8 +274,9 @@ vim.api.nvim_buf_set_lines(malformed_buf, 0, -1, false, {
     "#let broken = [",
     "#figure([Body], caption: [Missing",
 })
-local malformed_parser = vim.treesitter.get_parser(malformed_buf, "typst")
-local malformed_tree = malformed_parser:parse()[1]
+local malformed_parser =
+    assert(vim.treesitter.get_parser(malformed_buf, "typst"))
+local malformed_tree = assert(malformed_parser:parse()[1])
 local malformed_captures =
     collect_captures(highlights, malformed_tree, malformed_buf)
 assert(
@@ -289,8 +290,8 @@ vim.bo[comment_buf].filetype = "typst"
 vim.api.nvim_buf_set_lines(comment_buf, 0, -1, false, {
     "/* block comment */",
 })
-local comment_parser = vim.treesitter.get_parser(comment_buf, "typst")
-local comment_tree = comment_parser:parse()[1]
+local comment_parser = assert(vim.treesitter.get_parser(comment_buf, "typst"))
+local comment_tree = assert(comment_parser:parse()[1])
 local block_comment_metadata = capture_metadata(
     highlights,
     comment_tree,
@@ -498,9 +499,9 @@ vim.api.nvim_buf_set_lines(markdown_buf, 0, -1, false, {
     "#let this_is_not_typst = true",
     "```",
 })
-
-local markdown_parser = vim.treesitter.get_parser(markdown_buf, "markdown")
-local markdown_tree = markdown_parser:parse()[1]
+local markdown_parser =
+    assert(vim.treesitter.get_parser(markdown_buf, "markdown"))
+local markdown_tree = assert(markdown_parser:parse()[1])
 local markdown_captures =
     collect_captures(markdown_injections, markdown_tree, markdown_buf)
 

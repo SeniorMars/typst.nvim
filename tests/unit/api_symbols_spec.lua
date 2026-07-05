@@ -273,7 +273,6 @@ assert_namespace(typst.project, {
     "reload_state",
     "clear_cache",
 })
-
 assert_namespace(typst.compiler, {
     "compile",
     "compile_selected",
@@ -284,7 +283,6 @@ assert_namespace(typst.compiler, {
     "status",
     "current_output",
 })
-
 assert_namespace(typst.viewer, {
     "view",
     "view_forward",
@@ -301,7 +299,6 @@ assert_namespace(typst.viewer, {
     "preview_toggle",
     "preview_inverse",
 })
-
 assert_namespace(typst.navigation, {
     "files",
     "toc",
@@ -316,13 +313,11 @@ assert_namespace(typst.navigation, {
     "pick",
     "pick_items",
 })
-
 assert_namespace(typst.diagnostics, {
     "quickfix",
     "errors",
     "bibliography",
 })
-
 assert_namespace(typst.ui, {
     "info",
     "bug_report",
@@ -333,14 +328,12 @@ assert_namespace(typst.ui, {
     "count",
     "log",
 })
-
 assert_namespace(typst.tools, {
     "format",
     "lint",
     "grammar",
     "font_diagnostics",
 })
-
 for _, name in ipairs({
     "doc",
     "docs",

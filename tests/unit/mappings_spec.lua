@@ -4,7 +4,6 @@ vim.opt.runtimepath:prepend(root)
 local typst = require("typst")
 typst.reset()
 typst.setup({ root = root })
-
 local config = require("typst.config")
 local mappings = require("typst.edit.mappings")
 

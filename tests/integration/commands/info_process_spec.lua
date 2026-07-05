@@ -15,7 +15,6 @@ typst.setup({
         deps = false,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -47,16 +46,15 @@ assert(
 
 local captured = {}
 local original_echo = vim.api.nvim_echo
-vim.api.nvim_echo = function(chunks)
+rawset(vim.api, "nvim_echo", function(chunks)
     for _, chunk in ipairs(chunks) do
         captured[#captured + 1] = chunk[1]
     end
-end
+end)
 
 local ok, err = pcall(function()
     typst.ui.info()
 end)
-
 vim.api.nvim_echo = original_echo
 assert(ok, err)
 

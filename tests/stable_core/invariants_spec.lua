@@ -18,7 +18,6 @@ typst.setup({
     root = fixture_dir,
     output_dir = typst_test_cache_path("stable-core-output"),
 })
-
 vim.cmd.edit(first_main)
 local bufnr = vim.api.nvim_get_current_buf()
 local first = assert(typst.project.set_main(first_main))
@@ -62,7 +61,6 @@ typst.setup({
         end,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
@@ -81,7 +79,7 @@ assert(
     type(stopped) == "table" and stopped.stopped == true,
     "stopping a pending preview open should confirm cancellation"
 )
-finish_open({ ok = true, opened = true })
+assert(finish_open)({ ok = true, opened = true })
 preview_state = typst_test_preview(project)
 assert(
     preview_state.active == false and preview_state.opening == false,

@@ -29,7 +29,6 @@ write(report_root .. "/run-1/performance_spec.json", {
         },
     },
 })
-
 write(report_root .. "/run-2/performance_spec.json", {
     spec = "performance_spec",
     metrics = {
@@ -45,7 +44,6 @@ write(report_root .. "/run-2/performance_spec.json", {
         },
     },
 })
-
 local collected = summary.collect(report_root)
 assert(#collected.runs == 2, "benchmark summary should record runs")
 

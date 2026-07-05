@@ -17,12 +17,10 @@ typst.setup({
         import_scan = false,
     },
 })
-
 vim.cmd.enew()
 local scratch_bufnr = vim.api.nvim_get_current_buf()
 vim.bo.filetype = "typst"
 vim.api.nvim_buf_set_lines(scratch_bufnr, 0, -1, false, { "= Unsaved" })
-
 local scratch_project = assert(
     typst.project.attach(scratch_bufnr),
     "unnamed Typst buffers should attach"
@@ -125,7 +123,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 local shared_root = vim.fn.tempname()
 vim.fn.mkdir(shared_root, "p")
 local shared = shared_root .. "/shared.typ"
@@ -138,11 +135,9 @@ vim.fn.writefile({ "= Main B", '#include "shared.typ"' }, main_b)
 vim.cmd.edit(vim.fn.fnameescape(main_a))
 local project_a = typst.project.set_main(main_a)
 registry.update_dependencies(project_a, { main_a, shared })
-
 vim.cmd.edit(vim.fn.fnameescape(main_b))
 local project_b = typst.project.set_main(main_b)
 registry.update_dependencies(project_b, { main_b, shared })
-
 vim.cmd.edit(vim.fn.fnameescape(shared))
 vim.b.typst_main = nil
 local shared_project = typst.project.get(0)
@@ -184,7 +179,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 local source_root = vim.fn.tempname()
 vim.fn.mkdir(source_root, "p")
 local source_shared = source_root .. "/shared.typ"
@@ -207,7 +201,6 @@ vim.cmd.edit(vim.fn.fnameescape(compiler_main))
 local compiler_project = typst.project.set_main(compiler_main)
 local compiler_live = assert(project_store.get(compiler_project.key))
 registry.update_dependencies(compiler_live, { compiler_main, source_shared })
-
 vim.cmd.edit(vim.fn.fnameescape(source_shared))
 vim.b.typst_main = nil
 local sourced_project = typst.project.get(0)
@@ -242,7 +235,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 local symlink_root = vim.fn.tempname()
 vim.fn.mkdir(symlink_root, "p")
 local canonical_main = symlink_root .. "/canonical.typ"
@@ -278,7 +270,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 local deleted_root = vim.fn.tempname()
 vim.fn.mkdir(deleted_root, "p")
 local deleted_chapter = deleted_root .. "/chapter.typ"
@@ -315,7 +306,6 @@ typst.setup({
         import_scan_max_depth = 1,
     },
 })
-
 local moved_root = vim.fn.tempname()
 vim.fn.mkdir(moved_root, "p")
 local moved_chapter = moved_root .. "/chapter.typ"
@@ -359,7 +349,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 local running_root = vim.fn.tempname()
 vim.fn.mkdir(running_root, "p")
 local running_chapter = running_root .. "/chapter.typ"
@@ -408,7 +397,6 @@ typst.setup({
         import_scan = false,
     },
 })
-
 local event_root = vim.fn.tempname()
 vim.fn.mkdir(event_root, "p")
 local event_chapter = event_root .. "/chapter.typ"
@@ -425,12 +413,12 @@ local tinymist = require("typst.integrations.tinymist")
 local original_tinymist_ensure = tinymist.ensure
 local finalized_projects = {}
 local attach_events_saw_finalized = {}
-tinymist.ensure = function(buf, state)
+rawset(tinymist, "ensure", function(buf, state)
     if state and state.key then
         finalized_projects[state.key] = true
     end
     return original_tinymist_ensure(buf, state)
-end
+end)
 local event_group = vim.api.nvim_create_augroup(
     "TypstProjectMainChangeEventSpec",
     { clear = true }
@@ -449,7 +437,6 @@ vim.api.nvim_create_autocmd("User", {
         end
     end,
 })
-
 local event_project_b
 local event_ok, event_err = pcall(function()
     event_project_b = typst.project.set_main(event_main_b)
@@ -481,12 +468,12 @@ assert(
 
 seen_events = {}
 attach_events_saw_finalized = {}
-tinymist.ensure = function(buf, state)
+rawset(tinymist, "ensure", function(buf, state)
     if state and state.key then
         finalized_projects[state.key] = true
     end
     return original_tinymist_ensure(buf, state)
-end
+end)
 vim.b.typst_main = event_main_a
 local lazy_project
 local lazy_ok, lazy_err = pcall(function()
@@ -518,10 +505,10 @@ assert(
 )
 
 local reload_finalize_count = 0
-tinymist.ensure = function(buf, state)
+rawset(tinymist, "ensure", function(buf, state)
     reload_finalize_count = reload_finalize_count + 1
     return original_tinymist_ensure(buf, state)
-end
+end)
 local reload_ok, reload_err = pcall(function()
     typst.project.reload_state({ notify = false })
 end)
@@ -558,9 +545,9 @@ vim.api.nvim_create_autocmd("User", {
         finalization_ok_event = args.data and args.data.finalization_ok
     end,
 })
-tinymist.ensure = function()
+rawset(tinymist, "ensure", function()
     error("synthetic tinymist ensure failure")
-end
+end)
 local failure_project_b
 local failure_ok, failure_err = pcall(function()
     failure_project_b = typst.project.set_main(failure_main_b)

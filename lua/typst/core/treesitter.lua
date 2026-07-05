@@ -271,13 +271,11 @@ function M.collect(bufnr, types)
             nodes[#nodes + 1] = node
         end
     end)
-
     table.sort(nodes, function(a, b)
         local a_row, a_col = a:range()
         local b_row, b_col = b:range()
         return before(a_row, a_col, b_row, b_col)
     end)
-
     collect_cache[bufnr] = collect_cache[bufnr] or {}
     collect_cache[bufnr][key] = {
         changedtick = changedtick,
@@ -393,7 +391,6 @@ function M.find_containing(bufnr, types, pos)
             end
         end
     end)
-
     return best
 end
 

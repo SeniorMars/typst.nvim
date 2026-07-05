@@ -255,7 +255,9 @@ function M.open_entry(project, opts)
         0,
         { item.lnum or 1, math.max((item.col or 1) - 1, 0) }
     )
-    pcall(vim.cmd, "normal! zv")
+    pcall(function()
+        vim.cmd("normal! zv")
+    end)
 
     if opts.preview and toc_state.valid_win(toc_winid) then
         vim.api.nvim_set_current_win(toc_winid)

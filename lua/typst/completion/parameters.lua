@@ -80,7 +80,6 @@ function M.items(opts, base)
     table.sort(items, function(a, b)
         return a.word < b.word
     end)
-
     return items
 end
 
@@ -155,7 +154,6 @@ function M.value_items(opts, base)
     table.sort(items, function(a, b)
         return a.word < b.word
     end)
-
     return items
 end
 

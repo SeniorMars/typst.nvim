@@ -24,7 +24,6 @@ typst.setup({
         end,
     },
 })
-
 vim.cmd.edit(generation_main)
 vim.bo.filetype = "typst"
 local project = typst.project.attach(0)
@@ -35,7 +34,6 @@ end, function() end)
 render.fragment(project, { source = "newer" }, function(result)
     results[#results + 1] = result
 end, function() end)
-
 provider_callbacks[2]({
     ok = true,
     path = generation_main,
@@ -46,7 +44,6 @@ provider_callbacks[1]({
     path = generation_main,
     format = "typ",
 })
-
 assert(results[1] and results[1].ok, "newer render should complete")
 assert(results[2] and results[2].stale, "older render should be stale")
 assert(
@@ -70,11 +67,9 @@ typst.setup({
         output_format = "svg",
     },
 })
-
 vim.cmd.edit(cancel_main)
 project = typst.project.set_main(cancel_main)
 typst.render.cache_clear({ force = true })
-
 local cancel_result = render.equation(
     project,
     { expression = "alpha", open = false },
@@ -94,7 +89,6 @@ cancel_result.cancel({
     timeout_ms = 50,
     kill_timeout_ms = 50,
 })
-
 assert(
     vim.wait(3000, function()
         return cancel_result.pending == false
@@ -127,11 +121,10 @@ typst.setup({
         output_format = "svg",
     },
 })
-
 vim.cmd.edit(failure_main)
 project = typst.project.set_main(failure_main)
 typst.render.cache_clear({ force = true })
-
+---@type any
 local failure_result = nil
 local failed_run = render.equation(
     project,

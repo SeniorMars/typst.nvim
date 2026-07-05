@@ -26,7 +26,6 @@ typst.setup({
         end,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 local chapter = root .. "/tests/fixtures/basic/chapter.typ"
 
@@ -74,7 +73,6 @@ vim.api.nvim_create_autocmd("User", {
         attached_event = args.data
     end,
 })
-
 assert(
     typst.viewer.preview({ mode = "document" }) == true,
     "reload_state fixture should open a preview"
@@ -161,7 +159,6 @@ typst.setup({
         persist_main = true,
     },
 })
-
 local persisted_root = vim.fn.tempname()
 vim.fn.mkdir(persisted_root, "p")
 local persisted_main = persisted_root .. "/document.typ"
@@ -190,7 +187,6 @@ typst.setup({
         persist_main = true,
     },
 })
-
 local persisted_project = typst.project.attach(0)
 assert(
     persisted_project.main == util.normalize(persisted_main),
@@ -223,7 +219,6 @@ typst.setup({
         persist_main = true,
     },
 })
-
 local renamed_project = typst.project.attach(0)
 assert(
     renamed_project.main == util.normalize(persisted_main),
@@ -246,7 +241,6 @@ typst.setup({
         persist_main = true,
     },
 })
-
 local cleared_project = typst.project.attach(0)
 assert(
     cleared_project.main == util.normalize(renamed_chapter),
@@ -262,7 +256,6 @@ typst.setup({
         persist_main = false,
     },
 })
-
 local transient_root = vim.fn.tempname()
 vim.fn.mkdir(transient_root, "p")
 local transient_main = transient_root .. "/document.typ"
@@ -291,7 +284,6 @@ typst.setup({
         persist_main = true,
     },
 })
-
 local transient_project = typst.project.attach(0)
 assert(
     transient_project.main == util.normalize(transient_chapter),

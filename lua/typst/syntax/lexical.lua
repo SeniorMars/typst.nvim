@@ -156,14 +156,26 @@ function M.mask_lines(lines, opts)
                     index = index + 2
                 elseif char == "`" then
                     local tick_count = M.backtick_run(line, index)
-                    local marker = ("`"):rep(tick_count)
-                    local close_start =
-                        line:find(marker, index + tick_count, true)
-                    local close_end = close_start
-                            and (close_start + tick_count - 1)
-                        or #line
-                    append_segment(out, line:sub(index, close_end), modes.raw)
-                    index = close_end + 1
+                    if not tick_count then
+                        out[#out + 1] = char
+                        index = index + 1
+                    else
+                        local marker = ("`"):rep(tick_count)
+                        local close_start =
+                            line:find(marker, index + tick_count, true)
+                        if not close_start then
+                            break
+                        end
+                        local close_end = close_start
+                                and (close_start + tick_count - 1)
+                            or #line
+                        append_segment(
+                            out,
+                            line:sub(index, close_end),
+                            modes.raw
+                        )
+                        index = close_end + 1
+                    end
                 else
                     out[#out + 1] = char
                     index = index + 1
@@ -247,14 +259,21 @@ function M.ranges(line, opts)
             index = index + 2
         elseif char == "`" then
             local tick_count = M.backtick_run(line, index)
-            local marker = ("`"):rep(tick_count)
-            local close_start = line:find(marker, index + tick_count, true)
-            local close_end = close_start and (close_start + tick_count - 1)
-                or #line
-            if include.raw then
-                ranges[#ranges + 1] = { index, close_end, "raw" }
+            if not tick_count then
+                index = index + 1
+            else
+                local marker = ("`"):rep(tick_count)
+                local close_start = line:find(marker, index + tick_count, true)
+                if not close_start then
+                    break
+                end
+                local close_end = close_start and (close_start + tick_count - 1)
+                    or #line
+                if include.raw then
+                    ranges[#ranges + 1] = { index, close_end, "raw" }
+                end
+                index = close_end + 1
             end
-            index = close_end + 1
         else
             index = index + 1
         end

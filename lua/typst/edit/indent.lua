@@ -121,7 +121,6 @@ local function treesitter_ignore_ranges(bufnr)
         end
         return left.end_row < right.end_row
     end)
-
     treesitter_ignore_cache[bufnr] = {
         changedtick = changedtick,
         ranges = ranges,

@@ -17,7 +17,6 @@ typst.setup({
         deps = false,
     },
 })
-
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
 local project_snapshot = typst.project.set_main(main)
@@ -53,7 +52,6 @@ local compile_callback_called = false
 local handle = typst.compiler.compile({ notify = false }, function()
     compile_callback_called = true
 end)
-
 assert(
     typst_test_compiler(unload_project).process == handle,
     "compile process should be active before BufHidden unload cleanup"

@@ -25,12 +25,11 @@ local ok, err = xpcall(function()
         return now
     end
 
-    registry_scan.root_signatures = function()
+    rawset(registry_scan, "root_signatures", function()
         signature_calls = signature_calls + 1
         return { packages = "sig" }
-    end
-
-    registry_scan.scan_roots = function()
+    end)
+    rawset(registry_scan, "scan_roots", function()
         scan_calls = scan_calls + 1
         return {
             {
@@ -40,8 +39,8 @@ local ok, err = xpcall(function()
                 spec = "@preview/alpha:1.0.0",
             },
         }
-    end
-    registry_scan.scan_roots_async = function(_, _, callback)
+    end)
+    rawset(registry_scan, "scan_roots_async", function(_, _, callback)
         scan_calls = scan_calls + 1
         vim.schedule(function()
             callback({
@@ -54,8 +53,7 @@ local ok, err = xpcall(function()
             })
         end)
         return {}
-    end
-
+    end)
     local cache = registry_cache.new()
     local first = cache:cached_packages(
         { "/packages" },
@@ -198,15 +196,15 @@ local ok, err = xpcall(function()
         #asynchronously_prewarmed == 1,
         "scheduled package prewarm should populate the in-memory package snapshot"
     )
-    registry_scan.root_signatures = function()
+    rawset(registry_scan, "root_signatures", function()
         error("hot package reads must not validate root signatures")
-    end
-    registry_scan.scan_roots = function()
+    end)
+    rawset(registry_scan, "scan_roots", function()
         error("hot package reads must not scan package roots synchronously")
-    end
-    registry_scan.scan_roots_async = function()
+    end)
+    rawset(registry_scan, "scan_roots_async", function()
         error("memory-only hot package reads must not schedule refresh work")
-    end
+    end)
     local hot_path_read = registry.cached_packages({
         roots = { "/packages" },
         prefix = "@preview/alpha",
@@ -232,7 +230,7 @@ local ok, err = xpcall(function()
 
     local info_calls = 0
     local completed_info_calls = 0
-    vim.system = function(_command, _opts, callback)
+    rawset(vim, "system", function(_command, _opts, callback)
         info_calls = info_calls + 1
         local call = info_calls
         vim.schedule(function()
@@ -259,7 +257,7 @@ local ok, err = xpcall(function()
         return {
             kill = function() end,
         }
-    end
+    end)
 
     registry.package_roots()
     assert(
@@ -307,9 +305,9 @@ local ok, err = xpcall(function()
 
     local universe_path =
         typst_test_cache_path("package-cache-ttl-universe.json")
-    package_cache.cached_packages = function()
+    rawset(package_cache, "cached_packages", function()
         return {}
-    end
+    end)
     config.setup({
         root = root,
         completion = {
