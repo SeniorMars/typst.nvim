@@ -188,6 +188,49 @@ function M.install(api, notify)
         return snapshots, lines
     end
 
+    local function explain_project(opts)
+        opts = opts or {}
+        local reports = require("typst.ui.reports")
+        local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+        local state, err = attached_project(
+            vim.tbl_extend("force", opts, { bufnr = bufnr }),
+            "ui.explain_project",
+            {
+                create = true,
+                require_typst = true,
+                settle_pending = opts.settle_pending ~= false,
+            }
+        )
+        if not state then
+            local lines = no_project_lines(err, bufnr)
+            local failure = vim.tbl_extend("force", err or {}, {
+                ok = false,
+                reason = err and err.reason or "no_project",
+                message = lines[1],
+                lines = lines,
+            })
+            if opts.echo ~= false then
+                reports.echo_lines(lines)
+            end
+            return failure, lines
+        end
+
+        local explanation =
+            require("typst.project.explain").report(state, bufnr)
+        local lines = explanation.lines
+        local buf = nil
+        if opts.open then
+            buf = reports.open_scratch_buffer(
+                "typst.nvim project explanation",
+                "typstinfo",
+                lines
+            )
+        elseif opts.echo ~= false then
+            reports.echo_lines(lines)
+        end
+        return explanation, lines, buf
+    end
+
     local function bug_report(opts)
         opts = opts or {}
         local result = require("typst").report(opts)
@@ -388,6 +431,7 @@ function M.install(api, notify)
         status = status,
         status_report = status_report,
         status_all = status_all,
+        explain_project = explain_project,
         bug_report = bug_report,
         statusline = statusline,
         count = count,

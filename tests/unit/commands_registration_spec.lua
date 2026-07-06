@@ -5,6 +5,7 @@ local public_commands = {
     "TypstInfo",
     "TypstReloadState",
     "TypstClearCache",
+    "TypstExplainProject",
     "TypstLocks",
     "TypstCleanLocks",
     "TypstSetMain",

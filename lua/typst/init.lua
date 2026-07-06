@@ -35,6 +35,13 @@ function M.report(opts)
     return require("typst.internal.debug").bug_report(opts)
 end
 
+--- Return machine-readable availability for stable Typst workflows.
+---@param opts? table Reserved for future project-scoped capability checks.
+---@return table capabilities Capability summary for tools, integrations, and workflows.
+function M.capabilities(opts)
+    return require("typst.api.capabilities").collect(opts)
+end
+
 local notify = require("typst.core.notify").default
 
 api_exports.install(M, notify)

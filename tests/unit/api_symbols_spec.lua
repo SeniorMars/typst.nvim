@@ -5,6 +5,7 @@ local api_spec = require("typst.api.spec")
 local public_functions = {
     "setup",
     "api_version",
+    "capabilities",
     "version",
     "contract",
     "public_symbols",
@@ -68,6 +69,31 @@ assert(
     ),
     "contract() should document project-pruned payload fields"
 )
+local capabilities = typst.capabilities()
+assert(
+    type(capabilities) == "table"
+        and type(capabilities.typst) == "table"
+        and type(capabilities.compiler) == "table"
+        and type(capabilities.diagnostics) == "table",
+    "capabilities() should return a machine-readable workflow summary"
+)
+
+local original_get_parser = vim.treesitter.get_parser
+rawset(vim.treesitter, "get_parser", function()
+    error("missing typst parser")
+end)
+local parser_check_ok, parser_check_err = xpcall(function()
+    local no_parser_capabilities = typst.capabilities()
+    assert(
+        no_parser_capabilities.treesitter.parser == false,
+        "capabilities() should require a real attachable Typst parser"
+    )
+end, debug.traceback)
+rawset(vim.treesitter, "get_parser", original_get_parser)
+if not parser_check_ok then
+    error(parser_check_err)
+end
+
 for _, name in ipairs({
     "compile",
     "set_main",
@@ -324,6 +350,7 @@ assert_namespace(typst.ui, {
     "status",
     "status_report",
     "status_all",
+    "explain_project",
     "statusline",
     "count",
     "log",

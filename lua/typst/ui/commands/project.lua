@@ -31,6 +31,32 @@ function M.register(ctx)
         "Clear typst.nvim metadata, package, symbol, and conceal caches"
     ))
 
+    create(
+        "TypstExplainProject",
+        function(args)
+            local result, lines, buf =
+                api.ui.explain_project({
+                    open = args.bang,
+                    echo = not args.bang,
+                })
+            if type(result) == "table" and result.ok == false then
+                if args.bang then
+                    local reports = require("typst.ui.reports")
+                    reports.open_scratch_buffer(
+                        "typst.nvim project explanation",
+                        "typstinfo",
+                        lines or result.lines or { result.message }
+                    )
+                end
+                return nil
+            end
+            return result, lines, buf
+        end,
+        vim.tbl_extend("force", opts("Explain Typst project resolution"), {
+            bang = true,
+        })
+    )
+
     create("TypstLocks", function(args)
         local reports = require("typst.ui.reports")
         reports.echo_lines(reports.output_lock_lines({

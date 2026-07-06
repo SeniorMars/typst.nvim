@@ -7,6 +7,7 @@ local M = {}
 M.stable_root_functions = {
     "setup",
     "api_version",
+    "capabilities",
     "version",
     "contract",
     "public_symbols",
