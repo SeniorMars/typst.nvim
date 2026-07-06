@@ -604,7 +604,46 @@ function M.insert(opts)
     end
 
     local bufnr, row, col, winid = current_cursor(opts)
-    vim.api.nvim_buf_set_text(bufnr, row, col, row, col, { text })
+    if not (bufnr and vim.api.nvim_buf_is_valid(bufnr)) then
+        return {
+            ok = false,
+            reason = "invalid_buffer",
+            key = key,
+            text = text,
+            bufnr = bufnr,
+        }
+    end
+    if vim.bo[bufnr].modifiable == false then
+        return {
+            ok = false,
+            reason = "buffer_not_modifiable",
+            key = key,
+            text = text,
+            bufnr = bufnr,
+        }
+    end
+    if vim.bo[bufnr].readonly and opts.allow_readonly ~= true then
+        return {
+            ok = false,
+            reason = "buffer_readonly",
+            key = key,
+            text = text,
+            bufnr = bufnr,
+        }
+    end
+
+    local inserted, insert_err =
+        pcall(vim.api.nvim_buf_set_text, bufnr, row, col, row, col, { text })
+    if not inserted then
+        return {
+            ok = false,
+            reason = "insert_failed",
+            key = key,
+            text = text,
+            bufnr = bufnr,
+            error = tostring(insert_err),
+        }
+    end
     if winid then
         pcall(vim.api.nvim_win_set_cursor, winid, { row + 1, col + #text })
     end
@@ -613,6 +652,22 @@ end
 
 local function valid_key(key)
     return type(key) == "string" and key:match("^[%w_.:/%-]+$") ~= nil
+end
+
+local function validate_rename_keys(old_key, new_key)
+    old_key = type(old_key) == "string" and vim.trim(old_key) or old_key
+    new_key = type(new_key) == "string" and vim.trim(new_key) or new_key
+    if not valid_key(old_key) or not valid_key(new_key) then
+        return nil,
+            nil,
+            {
+                ok = false,
+                reason = "invalid_key",
+                old_key = old_key,
+                new_key = new_key,
+            }
+    end
+    return old_key, new_key
 end
 
 local function add_edit(edits, seen, kind, source, expected, replacement)
@@ -720,6 +775,18 @@ function M.rename_plan(opts)
     opts = opts or {}
     local old_key = opts.old_key or opts.key or opts.name
     local new_key = opts.new_key
+    local valid_old, valid_new, invalid = validate_rename_keys(old_key, new_key)
+    if not valid_old then
+        return invalid
+            or {
+                ok = false,
+                reason = "invalid_key",
+                old_key = old_key,
+                new_key = new_key,
+            }
+    end
+    old_key = valid_old
+    new_key = valid_new
     local project = project_context.resolve(opts)
     local collected = project and index.collect({ project = project }) or {}
     local edits = {}
@@ -813,15 +880,19 @@ end
 function M.rename_key(opts)
     opts = opts or {}
     local old_key = opts.old_key or opts.key or opts.name
-    local new_key = vim.trim(opts.new_key or "")
-    if not valid_key(old_key) or not valid_key(new_key) then
-        return {
-            ok = false,
-            reason = "invalid_key",
-            old_key = old_key,
-            new_key = new_key,
-        }
+    local new_key = opts.new_key
+    local valid_old, valid_new, invalid = validate_rename_keys(old_key, new_key)
+    if not valid_old then
+        return invalid
+            or {
+                ok = false,
+                reason = "invalid_key",
+                old_key = old_key,
+                new_key = new_key,
+            }
     end
+    old_key = valid_old
+    new_key = valid_new
     if old_key == new_key then
         return {
             ok = false,

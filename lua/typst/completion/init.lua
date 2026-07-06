@@ -582,6 +582,7 @@ function M.reset()
     for _, module_name in ipairs({
         "typst.completion.csl",
         "typst.completion.fonts",
+        "typst.completion.context",
         "typst.completion.lsp",
         "typst.completion.paths",
         "typst.completion.raw",
@@ -589,6 +590,11 @@ function M.reset()
         local module = package.loaded[module_name]
         if type(module) == "table" and type(module.reset) == "function" then
             module.reset()
+        elseif
+            type(module) == "table"
+            and type(module.clear_cache) == "function"
+        then
+            module.clear_cache()
         end
     end
 end

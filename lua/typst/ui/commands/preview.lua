@@ -56,7 +56,7 @@ function M.register(ctx)
     create(
         "TypstPreview",
         function(args)
-            api.viewer.preview(preview_opts(args))
+            return api.viewer.preview(preview_opts(args))
         end,
         vim.tbl_extend(
             "force",
@@ -73,7 +73,7 @@ function M.register(ctx)
             local parsed = preview_opts(args)
             parsed.native = "browser"
             parsed.restart = args.bang or parsed.restart
-            api.viewer.preview_open_browser(parsed)
+            return api.viewer.preview_open_browser(parsed)
         end,
         vim.tbl_extend(
             "force",
@@ -88,7 +88,7 @@ function M.register(ctx)
     create(
         "TypstPreviewReload",
         function(args)
-            api.viewer.preview_reload(preview_opts(args))
+            return api.viewer.preview_reload(preview_opts(args))
         end,
         vim.tbl_extend(
             "force",
@@ -107,13 +107,17 @@ function M.register(ctx)
                     echo = false,
                     notify = false,
                 })
+                if not (result and result.ok) then
+                    return result
+                end
                 require("typst.ui.reports").open_scratch_buffer(
                     "typst.nvim preview status",
                     "typstpreviewstatus",
                     result.lines or {}
                 )
+                return result
             else
-                api.viewer.preview_status()
+                return api.viewer.preview_status()
             end
         end,
         vim.tbl_extend("force", opts(own_status_command_definition), {
@@ -125,7 +129,7 @@ function M.register(ctx)
     create(
         "TypstCleanPreview",
         function(args)
-            api.viewer.clean_preview({
+            return api.viewer.clean_preview({
                 force = args.bang,
                 format = args.args ~= "" and args.args or nil,
             })
@@ -143,7 +147,7 @@ function M.register(ctx)
     create(
         "TypstPreviewStop",
         function()
-            api.viewer.preview_stop()
+            return api.viewer.preview_stop()
         end,
         vim.tbl_extend("force", opts(own_stop_command_definition), {
             force = false,
@@ -153,7 +157,7 @@ function M.register(ctx)
     create(
         "TypstPreviewToggle",
         function(args)
-            api.viewer.preview_toggle(preview_opts(args))
+            return api.viewer.preview_toggle(preview_opts(args))
         end,
         vim.tbl_extend(
             "force",
@@ -167,7 +171,7 @@ function M.register(ctx)
     create(
         "TypstPreviewInverse",
         function(args)
-            api.viewer.preview_inverse({
+            return api.viewer.preview_inverse({
                 path = args.fargs[1],
                 line = args.fargs[2],
                 column = args.fargs[3],

@@ -61,21 +61,22 @@ local function run_support_report(ctx, args, label)
             vim.log.levels.ERROR
         )
     end
+    return result
 end
 
 function M.register(ctx)
     create("TypstCheckInvariants", function()
-        run_invariant_check(ctx)
+        return run_invariant_check(ctx)
     end, opts("Check typst.nvim runtime invariants"))
 
     create("TypstDoctor", function()
-        run_invariant_check(ctx)
+        return run_invariant_check(ctx)
     end, opts("Check typst.nvim runtime invariants and lifecycle ownership"))
 
     create(
         "TypstBugReport",
         function(args)
-            run_support_report(ctx, args, "bug report")
+            return run_support_report(ctx, args, "bug report")
         end,
         vim.tbl_extend(
             "force",
@@ -89,7 +90,7 @@ function M.register(ctx)
     create(
         "TypstSupportBundle",
         function(args)
-            run_support_report(ctx, args, "support bundle")
+            return run_support_report(ctx, args, "support bundle")
         end,
         vim.tbl_extend(
             "force",

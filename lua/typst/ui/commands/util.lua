@@ -1,7 +1,11 @@
 local log = require("typst.core.log")
 local notify = require("typst.core.notify")
+local unpack = require("typst.core.tables").unpack
 
 local M = {}
+
+local active_command = nil
+local result_notify = notify.default
 
 ---@class TypstCommandOptions
 ---@field desc string
@@ -37,20 +41,143 @@ local function short_error(err)
     return (message:match("([^\n]+)") or message):gsub("^%s+", "")
 end
 
+local function pack_returns(...)
+    return { n = select("#", ...), ... }
+end
+
+local function unpack_returns(values)
+    return unpack(values, 1, values.n or #values)
+end
+
+local function failure_message(failure, name)
+    if type(failure) == "table" then
+        return failure.message
+            or failure.reason
+            or ("Typst command failed: " .. name)
+    end
+    return tostring(failure or ("Typst command failed: " .. name))
+end
+
+local function failure_level(failure)
+    if type(failure) ~= "table" then
+        return vim.log.levels.WARN
+    end
+    if type(failure.notify_level) == "number" then
+        return failure.notify_level
+    end
+    if failure.level == "error" or failure.severity == "error" then
+        return vim.log.levels.ERROR
+    end
+    if
+        failure.reason == "unknown_project_key"
+        or failure.reason == "ambiguous_project_key"
+        or failure.reason == "exception"
+    then
+        return vim.log.levels.ERROR
+    end
+    return vim.log.levels.WARN
+end
+
+local function is_failure_notification(level)
+    return type(level) == "number" and level >= vim.log.levels.WARN
+end
+
+local function is_pending_result(value)
+    return type(value) == "table" and value.pending == true
+end
+
+--- Report structured command callback failures.
+---
+--- Public APIs should return normal structured failures for expected user
+--- errors. Commands still need one boundary that turns those payloads into
+--- visible UI feedback, just as thrown errors already do.
+---@param name string Command name.
+---@param values table Packed callback returns.
+---@return any ...
+function M.report_result(name, values, context)
+    local result = values and values[1] or nil
+    local err = values and values[2] or nil
+    local failure = nil
+
+    if
+        err ~= nil
+        and (result == nil or result == false)
+        and not is_pending_result(err)
+    then
+        failure = err
+    elseif
+        type(result) == "table"
+        and result.ok == false
+        and not is_pending_result(result)
+    then
+        failure = result
+    elseif result == false and err ~= nil and not is_pending_result(err) then
+        failure = err
+    end
+
+    if not failure then
+        return unpack_returns(values or { n = 0 })
+    end
+
+    log.add("warn", "command returned failure", {
+        command = name,
+        error = failure,
+    })
+    if not (context and context.failure_notified == true) then
+        local notify_fn = context and context.notify or result_notify
+        notify_fn(failure_message(failure, name), failure_level(failure))
+    end
+    return nil
+end
+
+--- Set the notification sink used for returned structured command failures.
+---@param notify_fn? fun(message:string, level?:integer)
+---@return fun(message:string, level?:integer) previous Previously configured sink.
+function M.set_result_notify(notify_fn)
+    local previous = result_notify
+    result_notify = type(notify_fn) == "function" and notify_fn
+        or notify.default
+    return previous
+end
+
+--- Wrap a command notification sink so command result reporting can avoid
+--- emitting the same structured failure twice.
+---
+--- Duplicate suppression only applies to notifications emitted through this
+--- command-scoped wrapper during the synchronous command callback.
+--- Command-facing code should use ctx.notify for expected failures.
+---@param notify_fn fun(message:string, level?:integer)
+---@return fun(message:string, level?:integer)
+function M.command_notify(notify_fn)
+    return function(message, level)
+        if active_command and is_failure_notification(level) then
+            active_command.failure_notified = true
+        end
+        return notify_fn(message, level)
+    end
+end
+
 local function command_callback(name, callback)
     return function(args)
+        local context = {
+            failure_notified = false,
+            notify = result_notify,
+        }
+        local previous_context = active_command
+        active_command = context
         local ok, result = xpcall(function()
-            return callback(args)
+            return pack_returns(callback(args))
         end, debug.traceback)
+        active_command = previous_context
         if ok then
-            return result
+            return M.report_result(name, result, context)
         end
 
         log.add("error", "command failed", {
             command = name,
             error = result,
         })
-        notify.default(
+        context.notify(
             ("Typst command failed: %s"):format(short_error(result)),
             vim.log.levels.ERROR
         )

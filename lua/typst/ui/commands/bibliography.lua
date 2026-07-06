@@ -18,12 +18,13 @@ end
 local function notify_result(notify, label, result)
     if result and result.ok then
         notify(label)
-        return
+        return result
     end
     notify(
         ("%s failed: %s"):format(label, (result and result.reason) or "unknown"),
         vim.log.levels.WARN
     )
+    return result
 end
 
 local function set_attachment_quickfix(result)
@@ -76,12 +77,13 @@ function M.register(ctx)
                     insert_form = "auto",
                 })
                 if result and result.ok then
-                    return
+                    return result
                 end
+                return result
             end
         end
 
-        api.picker.open({
+        return api.picker.open({
             kind = "bibliography",
             query = query ~= "" and query or nil,
             insert_form = "auto",
@@ -95,7 +97,7 @@ function M.register(ctx)
     end, opts("Insert a Typst citation", "?", complete.citation))
 
     create("TypstCitationSearch", function(args)
-        api.picker.open({
+        return api.picker.open({
             kind = "bibliography",
             query = vim.trim(args.args or ""),
             insert_form = "auto",
@@ -107,7 +109,7 @@ function M.register(ctx)
         local result = api.bibliography.open({
             key = key ~= "" and key or nil,
         })
-        notify_result(notify, "Opened citation", result)
+        return notify_result(notify, "Opened citation", result)
     end, opts("Open a bibliography entry", "?", complete.citation))
 
     create("TypstCitationPreview", function(args)
@@ -125,6 +127,7 @@ function M.register(ctx)
                 vim.log.levels.WARN
             )
         end
+        return result
     end, opts("Preview a bibliography entry", "?", complete.citation))
 
     create("TypstCitationRename", function(args)
@@ -140,8 +143,13 @@ function M.register(ctx)
                 and (target.target.key or target.target.name)
             call_opts.new_key = parts[1]
         else
-            notify("Citation rename needs a new key", vim.log.levels.WARN)
-            return
+            local result = {
+                ok = false,
+                reason = "missing_new_key",
+                message = "Citation rename needs a new key",
+            }
+            notify(result.message, vim.log.levels.WARN)
+            return result
         end
 
         local result = api.bibliography.rename_key(call_opts)
@@ -160,6 +168,7 @@ function M.register(ctx)
                 vim.log.levels.WARN
             )
         end
+        return result
     end, opts("Rename a citation key", "+", complete.citation))
 
     create("TypstBibliographyStatus", function()
@@ -182,6 +191,7 @@ function M.register(ctx)
                 vim.log.levels.WARN
             )
         end
+        return result
     end, opts("Summarize project bibliography status"))
 
     create(
@@ -191,12 +201,16 @@ function M.register(ctx)
                 quickfix = true,
                 open = args.bang,
             })
+            if not (result and result.ok) then
+                return result
+            end
             notify(
                 ("Bibliography diagnostics: %d item%s"):format(
                     result.diagnostics,
                     result.diagnostics == 1 and "" or "s"
                 )
             )
+            return result
         end,
         vim.tbl_extend(
             "force",
@@ -215,6 +229,9 @@ function M.register(ctx)
                 key = query ~= "" and query or nil,
                 query = query ~= "" and query or nil,
             })
+            if not (result and result.ok) then
+                return result
+            end
             set_attachment_quickfix(result)
             if result and result.count == 1 then
                 open_attachment(result.attachments[1].path)
@@ -227,6 +244,7 @@ function M.register(ctx)
                     result and result.count == 1 and "" or "s"
                 )
             )
+            return result
         end,
         vim.tbl_extend(
             "force",

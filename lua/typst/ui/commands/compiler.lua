@@ -7,7 +7,7 @@ local create = command.create
 local opts = command.opts
 
 local function compile_command(api, args)
-    api.compiler.compile({
+    return api.compiler.compile({
         open = args.bang and true or nil,
         profile = args.args ~= "" and args.args or nil,
     })
@@ -21,7 +21,7 @@ function M.register(ctx)
     create(
         "TypstCompile",
         function(args)
-            compile_command(api, args)
+            return compile_command(api, args)
         end,
         vim.tbl_extend(
             "force",
@@ -35,7 +35,7 @@ function M.register(ctx)
     create(
         "TypstCompileSS",
         function(args)
-            compile_command(api, args)
+            return compile_command(api, args)
         end,
         vim.tbl_extend(
             "force",
@@ -53,7 +53,7 @@ function M.register(ctx)
     create(
         "TypstCompileSelected",
         function(args)
-            api.compiler.compile_selected({
+            return api.compiler.compile_selected({
                 line1 = args.line1,
                 line2 = args.line2,
                 range = args.range,
@@ -74,13 +74,13 @@ function M.register(ctx)
     )
 
     create("TypstCompileOutput", function()
-        api.compiler.output({ notify = true })
+        return api.compiler.output({ notify = true })
     end, opts("Open the current project's Typst compiler output"))
 
     create(
         "TypstWatch",
         function(args)
-            api.compiler.watch({
+            return api.compiler.watch({
                 open = args.bang and true or nil,
                 profile = args.args ~= "" and args.args or nil,
             })
@@ -99,17 +99,17 @@ function M.register(ctx)
     )
 
     create("TypstStop", function()
-        api.compiler.stop()
+        return api.compiler.stop()
     end, opts("Stop Typst watch for the current project"))
 
     create("TypstStopAll", function()
-        api.compiler.stop_all()
+        return api.compiler.stop_all()
     end, opts("Stop active Typst compilers for all known projects"))
 
     create(
         "TypstCompilerForceClear",
         function(args)
-            api.compiler.force_clear({
+            return api.compiler.force_clear({
                 force = args.bang == true,
                 key = args.args ~= "" and args.args or nil,
                 key_encoded = args.args ~= "",
@@ -129,13 +129,13 @@ function M.register(ctx)
     )
 
     create("TypstView", function()
-        api.viewer.view()
+        return api.viewer.view()
     end, opts("Open the current project's generated output"))
 
     create(
         "TypstViewForward",
         function()
-            api.viewer.view_forward()
+            return api.viewer.view_forward()
         end,
         opts(
             "Forward-search the current position in the configured Typst viewer"
@@ -143,7 +143,7 @@ function M.register(ctx)
     )
 
     create("TypstViewInverse", function(args)
-        api.viewer.view_inverse({
+        return api.viewer.view_inverse({
             path = args.fargs[1],
             line = args.fargs[2],
             column = args.fargs[3],
@@ -153,7 +153,7 @@ function M.register(ctx)
     create(
         "TypstClean",
         function(args)
-            api.viewer.clean({ all = args.bang })
+            return api.viewer.clean({ all = args.bang })
         end,
         vim.tbl_extend(
             "force",
@@ -165,11 +165,11 @@ function M.register(ctx)
     )
 
     create("TypstDiagnostics", function()
-        api.diagnostics.quickfix()
+        return api.diagnostics.quickfix()
     end, opts("Open current Typst compiler diagnostics in quickfix"))
 
     create("TypstErrors", function()
-        api.diagnostics.errors()
+        return api.diagnostics.errors()
     end, opts("Open current Typst compiler diagnostics in quickfix"))
 end
 

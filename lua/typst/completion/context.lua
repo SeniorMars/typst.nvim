@@ -147,6 +147,17 @@ function M.clear_cache(bufnr)
     kind_cache = {}
 end
 
+M.reset = M.clear_cache
+M.forget = M.clear_cache
+
+function M._cache_size_for_tests()
+    return vim.tbl_count(kind_cache)
+end
+
+function M._cache_has_for_tests(bufnr)
+    return kind_cache[bufnr] ~= nil
+end
+
 local function font_family_start(line, col)
     local before = line:sub(1, col)
     local quoted = before:match('font%s*:%s*"()[^"]*$')

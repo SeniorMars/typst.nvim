@@ -15,6 +15,7 @@ local group_modules = {
 }
 
 local default_notify = require("typst.core.notify").default
+local command_util = require("typst.ui.commands.util")
 
 local function lazy_commands_api(notify)
     local resolved = nil
@@ -54,7 +55,8 @@ end
 ---@param opts? table Command registration options, including `notify` and test API overrides.
 function M.register(typst_api, opts)
     opts = opts or {}
-    local notify = opts.notify or default_notify
+    local notify = command_util.command_notify(opts.notify or default_notify)
+    command_util.set_result_notify(notify)
     local ctx = {
         api = opts.api or lazy_commands_api(notify),
         notify = notify,

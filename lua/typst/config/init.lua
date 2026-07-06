@@ -399,7 +399,8 @@ end
 --- The returned table protects nested options from ordinary writes. Internal
 --- hot paths that intentionally need the live mutable table must use
 --- `unsafe_get()`. Consumers that need a traversable/mutable copy should use
---- `snapshot()`.
+--- `snapshot()`. Neovim's LuaJIT does not honor `__pairs`, so this read-only
+--- proxy is intentionally index-only.
 ---@return table config Read-only active configuration table.
 function M.get()
     if readonly_cache == nil or readonly_generation ~= generation then

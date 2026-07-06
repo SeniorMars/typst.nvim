@@ -14,7 +14,7 @@ function M.register(ctx)
     create(
         "TypstInfo",
         function(args)
-            api.ui.info({ bang = args.bang })
+            return api.ui.info({ bang = args.bang })
         end,
         vim.tbl_extend("force", opts("Show resolved Typst project state"), {
             bang = true,
@@ -22,11 +22,11 @@ function M.register(ctx)
     )
 
     create("TypstReloadState", function()
-        api.project.reload_state()
+        return api.project.reload_state()
     end, opts("Reload typst.nvim state for the current buffer"))
 
     create("TypstClearCache", function()
-        api.project.clear_cache()
+        return api.project.clear_cache()
     end, opts(
         "Clear typst.nvim metadata, package, symbol, and conceal caches"
     ))
@@ -59,7 +59,7 @@ function M.register(ctx)
     create(
         "TypstSetMain",
         function(args)
-            api.project.set_main(args.args, nil, {
+            return api.project.set_main(args.args, nil, {
                 persist = true,
                 force = args.bang,
             })
@@ -72,21 +72,21 @@ function M.register(ctx)
     )
 
     create("TypstToggleMain", function()
-        api.project.toggle_main()
+        return api.project.toggle_main()
     end, opts("Toggle the current buffer between local and project main"))
 
     create("TypstEditMain", function()
-        api.project.edit_main()
+        return api.project.edit_main()
     end, opts("Edit the resolved Typst main file"))
 
     create("TypstFiles", function()
-        api.navigation.files()
+        return api.navigation.files()
     end, opts("List files in the resolved Typst project"))
 
     create(
         "TypstCd",
         function(args)
-            api.project.cd({ global = args.bang })
+            return api.project.cd({ global = args.bang })
         end,
         vim.tbl_extend(
             "force",
@@ -100,7 +100,7 @@ function M.register(ctx)
     create(
         "TypstStatus",
         function(args)
-            api.ui.status_report({ bang = args.bang })
+            return api.ui.status_report({ bang = args.bang })
         end,
         vim.tbl_extend("force", opts("Show current Typst project status"), {
             bang = true,
@@ -110,7 +110,7 @@ function M.register(ctx)
     create(
         "TypstStatusAll",
         function(args)
-            api.ui.status_all({ open = args.bang })
+            return api.ui.status_all({ open = args.bang })
         end,
         vim.tbl_extend(
             "force",
@@ -125,7 +125,7 @@ function M.register(ctx)
         "TypstCount",
         function(args)
             local has_range = args.range and args.range > 0
-            api.ui.count({
+            return api.ui.count({
                 project = args.bang,
                 range = has_range,
                 line1 = has_range and args.line1 or nil,
@@ -139,13 +139,13 @@ function M.register(ctx)
     )
 
     create("TypstFormat", function()
-        api.tools.format()
+        return api.tools.format()
     end, opts("Format the current Typst buffer"))
 
     create(
         "TypstLint",
         function(args)
-            api.tools.lint({ open = args.bang })
+            return api.tools.lint({ open = args.bang })
         end,
         vim.tbl_extend("force", opts("Lint the current Typst project"), {
             bang = true,
@@ -155,7 +155,7 @@ function M.register(ctx)
     create(
         "TypstGrammar",
         function(args)
-            api.tools.grammar({ open = args.bang })
+            return api.tools.grammar({ open = args.bang })
         end,
         vim.tbl_extend(
             "force",
@@ -169,7 +169,7 @@ function M.register(ctx)
     create(
         "TypstFontDiagnostics",
         function(args)
-            api.tools.font_diagnostics({ open = args.bang })
+            return api.tools.font_diagnostics({ open = args.bang })
         end,
         vim.tbl_extend("force", opts("Check referenced Typst font families"), {
             bang = true,

@@ -739,6 +739,18 @@ function M.attach(result, kind, command, opts, handlers)
     result.cancel = function(cancel_opts, callback)
         return operation:_cancel(cancel_opts, callback)
     end
+    ---@param first table|fun(result:table, operation:typst.Operation)
+    ---@param second? fun(result:table, operation:typst.Operation)
+    ---@return typst.Operation|nil
+    result.on_finish = function(first, second)
+        local callback = first == result and second or first
+        if type(callback) ~= "function" then
+            return nil
+        end
+        return operation:on_finish(function(finished)
+            return callback(result, finished)
+        end)
+    end
     return operation
 end
 

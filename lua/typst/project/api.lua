@@ -2,6 +2,7 @@ local M = {}
 
 local log = require("typst.core.log")
 local project = require("typst.project")
+local api_context = require("typst.api.context")
 local project_lifecycle = require("typst.project.lifecycle")
 local util = require("typst.core.util")
 local cache_registry = require("typst.core.cache_registry")
@@ -19,6 +20,19 @@ function M.create(opts)
 
     local function live_project(bufnr)
         return project_lifecycle.get_project(bufnr)
+    end
+
+    local function require_project(opts, operation)
+        local ctx = api_context.project(opts or {}, {
+            create = true,
+            require_typst = true,
+            settle_pending = true,
+            operation = operation,
+        }, notify)
+        if not ctx.ok then
+            return nil, ctx.error
+        end
+        return ctx.project
     end
 
     local function public_snapshot(state, snapshot_opts)
@@ -87,36 +101,50 @@ function M.create(opts)
 
     function api.edit_main(edit_opts)
         edit_opts = edit_opts or {}
-        local state = live_project(edit_opts.bufnr)
+        local state, err = require_project(edit_opts, "project.edit_main")
+        if not state then
+            return nil, err
+        end
         util.edit_existing_or_path(state.main)
-        notify(
-            ("Editing Typst main: %s"):format(
-                util.relpath(state.main, state.root)
+        if edit_opts.notify ~= false then
+            notify(
+                ("Editing Typst main: %s"):format(
+                    util.relpath(state.main, state.root)
+                )
             )
-        )
+        end
         return state.main
     end
 
     function api.cd(cd_opts)
         cd_opts = cd_opts or {}
-        local state = live_project(cd_opts.bufnr)
+        local state, err = require_project(cd_opts, "project.cd")
+        if not state then
+            return nil, err
+        end
         local command = cd_opts.global and "cd" or "lcd"
         vim.cmd(command .. " " .. vim.fn.fnameescape(state.root))
         log.add("info", "changed directory to project root", {
             root = state.root,
             scope = cd_opts.global and "global" or "window",
         })
-        notify(("Typst root: %s"):format(state.root))
+        if cd_opts.notify ~= false then
+            notify(("Typst root: %s"):format(state.root))
+        end
         return state.root
     end
 
     --- Rebuild project attachment and metadata caches for a buffer.
     ---@param reload_opts? table Reload controls, including `bufnr` and `notify`.
-    ---@return table snapshot Reattached project snapshot.
+    ---@return table|nil snapshot Reattached project snapshot.
+    ---@return table? err Structured reload failure.
     function api.reload_state(reload_opts)
-        return public_snapshot(
+        local state, err =
             project_lifecycle.reload_state(api, reload_opts, notify)
-        )
+        if not state then
+            return nil, err
+        end
+        return public_snapshot(state)
     end
 
     --- Clear derived metadata, completion, package, import-scan, index, and conceal caches.

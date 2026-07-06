@@ -77,6 +77,14 @@ local entries = {
         reload = true,
     },
     {
+        name = "completion_context",
+        module = "typst.completion.context",
+        reset = "clear_cache",
+        forget = "clear_cache",
+        forget_args = "bufnr",
+        optional = true,
+    },
+    {
         name = "completion_packages",
         module = "typst.completion.packages",
         reset = "reset",
@@ -348,6 +356,13 @@ function M.reload(opts)
                 force = true,
             }, "reload")
         end
+    end
+    for _, name in ipairs({ "index", "import_scan", "treesitter" }) do
+        local entry = by_name[name]
+        summary[name] = call_entry(entry, entry.clear, {
+            force = true,
+            bufnr = opts.bufnr,
+        }, "clear")
     end
     summary.conceal = call_entry(by_name.conceal, by_name.conceal.clear, {
         force = true,

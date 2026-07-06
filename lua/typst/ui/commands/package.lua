@@ -12,7 +12,7 @@ function M.register(ctx)
     local api = ctx.api
 
     create("TypstPackageInfo", function(args)
-        api.package.info({ query = args.args ~= "" and args.args or nil })
+        return api.package.info({ query = args.args ~= "" and args.args or nil })
     end, opts(
         "Open Typst package resource information",
         "?",
@@ -20,17 +20,21 @@ function M.register(ctx)
     ))
 
     create("TypstPackageOpen", function(args)
-        api.package.open({ query = args.args ~= "" and args.args or nil })
+        return api.package.open({ query = args.args ~= "" and args.args or nil })
     end, opts("Open the Typst Universe package page", "?", complete.package))
 
     create("TypstPackageReadme", function(args)
-        api.package.readme({ query = args.args ~= "" and args.args or nil })
+        return api.package.readme({
+            query = args.args ~= "" and args.args or nil,
+        })
     end, opts("Open the cached Typst package README", "?", complete.package))
 
     create(
         "TypstPackageSource",
         function(args)
-            api.package.source({ query = args.args ~= "" and args.args or nil })
+            return api.package.source({
+                query = args.args ~= "" and args.args or nil,
+            })
         end,
         opts(
             "Open the cached Typst package source entrypoint",
@@ -40,11 +44,13 @@ function M.register(ctx)
     )
 
     create("TypstSymbolInfo", function(args)
-        api.symbol.info({ query = args.args ~= "" and args.args or nil })
+        return api.symbol.info({ query = args.args ~= "" and args.args or nil })
     end, opts("Open Typst symbol information", "?", complete.symbol))
 
     create("TypstSymbolVariants", function(args)
-        api.symbol.variants({ query = args.args ~= "" and args.args or nil })
+        return api.symbol.variants({
+            query = args.args ~= "" and args.args or nil,
+        })
     end, opts("List Typst symbol variants", "?", complete.symbol))
 end
 

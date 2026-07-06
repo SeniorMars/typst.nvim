@@ -14,7 +14,7 @@ function M.register(ctx)
     create(
         "TypstPreviewFragment",
         function(args)
-            api.render.fragment({
+            return api.render.fragment({
                 line1 = args.line1,
                 line2 = args.line2,
                 range = args.range,
@@ -39,7 +39,7 @@ function M.register(ctx)
     create(
         "TypstPreviewEquation",
         function(args)
-            api.render.equation({
+            return api.render.equation({
                 expression = args.args ~= "" and args.args or nil,
                 line1 = args.line1,
                 line2 = args.line2,
@@ -56,7 +56,7 @@ function M.register(ctx)
     create(
         "TypstPreviewImage",
         function(args)
-            api.render.image({
+            return api.render.image({
                 path = args.args ~= "" and args.args or nil,
                 open = not args.bang,
             })
@@ -70,7 +70,7 @@ function M.register(ctx)
         "TypstPreviewPage",
         function(args)
             local page = tonumber(args.args)
-            api.render.page({
+            return api.render.page({
                 page = page or 1,
                 open = not args.bang,
             })
@@ -83,7 +83,7 @@ function M.register(ctx)
     create(
         "TypstRenderCacheClear",
         function(args)
-            api.render.cache_clear({ force = args.bang })
+            return api.render.cache_clear({ force = args.bang })
         end,
         vim.tbl_extend(
             "force",
