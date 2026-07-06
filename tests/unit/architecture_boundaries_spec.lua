@@ -318,12 +318,18 @@ project_registry.set(literal_percent_key, literal_percent_project)
 project_registry.set(decoded_slash_key, decoded_slash_project)
 assert(
     project_registry.get(literal_percent_key) == literal_percent_project,
-    "project.registry should prefer exact raw keys before decoding"
+    "project.registry exact lookup should return raw keys"
 )
 assert(
     project_registry.get(project_registry.encode_key(literal_percent_key))
-        == literal_percent_project,
-    "project.registry should resolve encoded literal-percent keys"
+        == nil,
+    "project.registry exact lookup should not decode fallback keys"
+)
+assert(
+    project_registry.get_encoded(
+        project_registry.encode_key(literal_percent_key)
+    ) == literal_percent_project,
+    "project.registry encoded lookup should resolve encoded literal-percent keys"
 )
 local ambiguous_project, ambiguous_reason =
     project_registry.resolve_key(project_registry.encode_key(decoded_slash_key))

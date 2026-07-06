@@ -54,7 +54,9 @@ typst.setup({
                 return "idle"
             end,
             output = function()
-                return nil
+                return helpers.cache_path(
+                    "heuristic-confidence-output/main.pdf"
+                )
             end,
         },
     },

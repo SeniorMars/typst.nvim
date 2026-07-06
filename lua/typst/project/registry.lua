@@ -65,7 +65,7 @@ function M.get(key)
     if key == nil then
         return nil
     end
-    return projects[key] or projects[M.decode_key(key)]
+    return projects[key]
 end
 
 function M.resolve_key(key, opts)

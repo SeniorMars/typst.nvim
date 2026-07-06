@@ -32,6 +32,7 @@ function M.values()
         root = nil,
         root_markers = { ".typstmain", "typst.toml", ".git" },
         main = nil,
+        main_base_dir = nil,
         project = {
             import_scan = true,
             import_scan_max_files = 200,

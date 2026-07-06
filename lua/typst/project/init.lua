@@ -10,6 +10,7 @@ local compiler_service = require("typst.project.services.compiler")
 local root_discovery = require("typst.project.root")
 local state_store = require("typst.core.state")
 local project_store = require("typst.project.store")
+local project_transaction = require("typst.project.transaction")
 local util = require("typst.core.util")
 
 local M = {}
@@ -68,6 +69,28 @@ local function transfer_buffer(bufnr, next_key)
     end
 end
 
+local function planned_compiler_output(root, main, key)
+    local project = project_store.get(key)
+    local compiler_state = project and compiler_service.get(project) or {}
+    local output_project = project
+        or {
+            root = root,
+            main = main,
+            key = key,
+        }
+
+    if
+        compiler_state.process
+        or compiler_state.watcher
+        or compiler_state.stopping_compile
+    then
+        return compiler_state.output
+            or project_model.output_path(output_project)
+    end
+
+    return project_model.output_path(output_project)
+end
+
 ---@param root string Project root.
 ---@param main string Project main file.
 ---@param bufnr integer Attached buffer.
@@ -76,41 +99,64 @@ end
 ---@return TypstProject project Attached project state.
 local function create_or_update(root, main, bufnr, path, resolution)
     local key = project_key(root, main)
-    local project = project_store.create(root, main)
-    local buffer_is_scratch = type(resolution) == "table"
-        and resolution.scratch == true
-    local main_is_scratch = buffer_is_scratch and util.same_path(path, main)
-    project.source_kind = main_is_scratch and "scratch" or "file"
-    project.scratch = main_is_scratch
+    local planned_output = planned_compiler_output(root, main, key)
+    local transaction = project_transaction.begin(bufnr)
+    local ok, project_or_err = xpcall(function()
+        local project = project_store.create(root, main)
+        local buffer_is_scratch = type(resolution) == "table"
+            and resolution.scratch == true
+        local main_is_scratch = buffer_is_scratch and util.same_path(path, main)
+        project.source_kind = main_is_scratch and "scratch" or "file"
+        project.scratch = main_is_scratch
 
-    transfer_buffer(bufnr, key)
-    project.bufs[bufnr] = true
-    graph_sources.add(
-        project,
-        path,
-        project_model.association_source_for(path, main, resolution)
-    )
-    graph_sources.add(project, main, "explicit")
-    local compiler_state = compiler_service.get(project) or {}
-    if
-        compiler_state.process
-        or compiler_state.watcher
-        or compiler_state.stopping_compile
-    then
-        -- Preserve live handles while refreshing derived output state. Replacing
-        -- the compiler table here would orphan a running compile/watch job.
-        compiler_service.set(project, {
-            output = compiler_state.output
-                or project_model.output_path(project),
-        })
-    else
-        compiler_service.set(project, {
-            output = project_model.output_path(project),
-        })
+        transfer_buffer(bufnr, key)
+        project.bufs[bufnr] = true
+        graph_sources.add(
+            project,
+            path,
+            project_model.association_source_for(path, main, resolution)
+        )
+        graph_sources.add(project, main, "explicit")
+        local compiler_state = compiler_service.get(project) or {}
+        if
+            compiler_state.process
+            or compiler_state.watcher
+            or compiler_state.stopping_compile
+        then
+            -- Preserve live handles while refreshing derived output state.
+            -- Replacing the compiler table here would orphan a running job.
+            compiler_service.set(project, {
+                output = compiler_state.output or planned_output,
+            })
+        else
+            compiler_service.set(project, {
+                output = planned_output,
+            })
+        end
+        project_store.set_buffer(bufnr, key)
+        record_resolution(project, bufnr, path, resolution)
+        return project
+    end, debug.traceback)
+
+    if not ok then
+        local rollback_ok, rollback_err = project_transaction.rollback(
+            transaction,
+            { reason = "project commit failure" }
+        )
+        if not rollback_ok then
+            error(
+                ("%s\nproject commit rollback failed: %s"):format(
+                    tostring(project_or_err),
+                    tostring(rollback_err)
+                ),
+                0
+            )
+        end
+        error(project_or_err, 0)
     end
-    project_store.set_buffer(bufnr, key)
-    record_resolution(project, bufnr, path, resolution)
-    return project
+
+    project_transaction.commit(transaction)
+    return project_or_err
 end
 
 --- Resolve root/main data for a buffer without mutating project registry state.
@@ -273,10 +319,6 @@ function M.set_main(bufnr, main, opts)
     end
 
     util.set_buf_var(bufnr, "typst_main", resolved)
-    if persist_main then
-        state_store.set_explicit_main(path, resolved)
-    end
-    log.add("info", "set buffer main", { buffer = path, main = resolved })
     local ok, state = xpcall(function()
         return M.resolve(bufnr, {
             allow_unreadable_explicit_main = opts.force == true,
@@ -286,6 +328,10 @@ function M.set_main(bufnr, main, opts)
         restore_previous_main()
         error(state, 0)
     end
+    if persist_main then
+        state_store.set_explicit_main(path, resolved)
+    end
+    log.add("info", "set buffer main", { buffer = path, main = resolved })
     return state
 end
 
@@ -302,26 +348,51 @@ function M.clear_main(bufnr, opts)
     end
 
     local previous_key = project_store.key_for_buffer(bufnr)
-    local previous = previous_key and project_store.get(previous_key) or nil
-    if previous_key then
-        require("typst.project.attachments").forget(bufnr, previous_key)
-    end
-    if previous then
-        previous.bufs[bufnr] = nil
-        diagnostics.clear_buffer(previous, bufnr, { emit = false })
-        previous.resolutions[bufnr] = nil
-        project_model.refresh_resolution_pending(previous)
-        project_store.clear_buffer(bufnr)
-        rebuild_files(previous)
-        project_store.prune_if_empty(previous, "buffer main cleared")
+    local had_previous_buf_var = util.get_buf_var(bufnr, "typst_main") ~= nil
+    local previous_buf_var = util.get_buf_var(bufnr, "typst_main")
+    local clear_persisted = opts.clear_persisted ~= false
+    local previous_persisted = clear_persisted
+            and state_store.explicit_main(path)
+        or nil
+
+    local function restore_previous_main()
+        if had_previous_buf_var then
+            util.set_buf_var(bufnr, "typst_main", previous_buf_var)
+        else
+            util.del_buf_var(bufnr, "typst_main")
+        end
+        if clear_persisted then
+            if previous_persisted then
+                state_store.set_explicit_main(path, previous_persisted)
+            else
+                state_store.clear_explicit_main(path)
+            end
+        end
     end
 
     util.del_buf_var(bufnr, "typst_main")
-    if opts.clear_persisted ~= false then
+    if clear_persisted then
         state_store.clear_explicit_main(path)
     end
+
+    local ok, candidate = xpcall(function()
+        return M.resolve_candidate(bufnr, { ignore_project_key = previous_key })
+    end, debug.traceback)
+    if not ok then
+        restore_previous_main()
+        error(candidate, 0)
+    end
+
+    local commit_ok, state = xpcall(function()
+        return M.commit_attach(candidate)
+    end, debug.traceback)
+    if not commit_ok then
+        restore_previous_main()
+        error(state, 0)
+    end
+
     log.add("info", "cleared buffer main", { buffer = path })
-    return M.resolve(bufnr, { ignore_project_key = previous_key })
+    return state
 end
 
 --- Update a project's dependency graph from compiler or scanner paths.

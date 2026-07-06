@@ -7,6 +7,7 @@ local M = {}
 
 local uv = vim.uv or vim.loop
 local IMPORT_SCAN_CACHE_TTL_MS = 1000
+local IMPORT_SCAN_READ_LINE_LIMIT = 500
 local import_scan_cache = {}
 local import_scan_stats = {
     attempts = 0,
@@ -176,8 +177,10 @@ local function scan_has_remaining_candidates(
 
     local seen = {}
     local checked = 0
-    while #pending > 0 and checked < REMAINING_SCAN_DIR_BUDGET do
-        local pending_dir, depth = item_dir_depth(table.remove(pending, 1))
+    local pending_head = 1
+    while pending_head <= #pending and checked < REMAINING_SCAN_DIR_BUDGET do
+        local pending_dir, depth = item_dir_depth(pending[pending_head])
+        pending_head = pending_head + 1
         local dir = util.normalize(pending_dir)
         if not seen[dir] then
             seen[dir] = true
@@ -218,6 +221,7 @@ local function collect_typst_files(
 )
     local files = {}
     local queue = { queue_item(root, 0) }
+    local queue_head = 1
     local seen_dirs = {}
     local hit_limit = false
     local entries = 0
@@ -232,8 +236,9 @@ local function collect_typst_files(
         return true
     end
 
-    while #queue > 0 and #files < limit and not hit_entry_limit do
-        local item = table.remove(queue, 1)
+    while queue_head <= #queue and #files < limit and not hit_entry_limit do
+        local item = queue[queue_head]
+        queue_head = queue_head + 1
         local dir, depth = item_dir_depth(item)
         dir = util.normalize(dir)
         if not seen_dirs[dir] then
@@ -252,12 +257,16 @@ local function collect_typst_files(
                 if kind == "file" and name:match("%.typ$") then
                     files[#files + 1] = util.normalize(full)
                     if #files >= limit then
+                        local remaining = {}
+                        for index = queue_head, #queue do
+                            remaining[#remaining + 1] = queue[index]
+                        end
                         local has_remaining, helper_hit_entry_limit =
                             scan_has_remaining_candidates(
                                 handle,
                                 dir,
                                 depth,
-                                queue,
+                                remaining,
                                 count_entry,
                                 skip_dirs,
                                 max_depth
@@ -340,7 +349,8 @@ local function references_file(candidate, path, root, stats)
     if stats then
         stats.reads = (stats.reads or 0) + 1
     end
-    local ok, lines = pcall(vim.fn.readfile, candidate, "", 500)
+    local ok, lines =
+        pcall(vim.fn.readfile, candidate, "", IMPORT_SCAN_READ_LINE_LIMIT)
     if not ok then
         return false
     end
@@ -438,6 +448,12 @@ end
 
 function M._import_scan_stats()
     return vim.deepcopy(import_scan_stats)
+end
+
+---Return the per-file line limit used by import-scan relationship detection.
+---@return integer limit Maximum leading lines read from each candidate file.
+function M.import_scan_line_limit()
+    return IMPORT_SCAN_READ_LINE_LIMIT
 end
 
 ---Return a compact user-facing import-scan stats label.

@@ -3,6 +3,7 @@ local sections = require("typst.config.sections")
 local schema = require("typst.config.schema")
 local tables = require("typst.core.tables")
 local tools = require("typst.config.validate_tools")
+local util = require("typst.core.util")
 
 local M = {}
 
@@ -448,6 +449,12 @@ function M.validate(config)
     end
 
     sections.main(config.main)
+    if config.main_base_dir ~= nil then
+        validate_string(config.main_base_dir, "main_base_dir")
+        if not util.is_absolute(config.main_base_dir) then
+            error("typst.nvim: main_base_dir must be an absolute path")
+        end
+    end
     sections.project(config.project)
     validate_integrations(config.integrations)
     validate_api(config.api)

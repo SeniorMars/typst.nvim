@@ -44,6 +44,28 @@ function M.forget(bufnr, project_key)
     clear_dirty_ticks_for_buffer(bufnr)
 end
 
+---@param bufnr integer Buffer whose debounce entries should be copied.
+---@return table<string, integer> entries Debounce entries keyed by project/buffer pair.
+function M.snapshot(bufnr)
+    local suffix = ":" .. tostring(bufnr)
+    local entries = {}
+    for key, tick in pairs(last_text_dirty_ticks) do
+        if key:sub(-#suffix) == suffix then
+            entries[key] = tick
+        end
+    end
+    return entries
+end
+
+---@param bufnr integer Buffer whose debounce entries should be restored.
+---@param entries? table<string, integer> Snapshot returned by `snapshot`.
+function M.restore(bufnr, entries)
+    clear_dirty_ticks_for_buffer(bufnr)
+    for key, tick in pairs(entries or {}) do
+        last_text_dirty_ticks[key] = tick
+    end
+end
+
 function M.reset()
     last_text_dirty_ticks = {}
 end

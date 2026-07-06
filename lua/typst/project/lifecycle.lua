@@ -37,6 +37,13 @@ local function clear_deferred_import_scan(state, bufnr, token, status)
     if not resolution or resolution.import_scan_token ~= token then
         return
     end
+    for _, entry in ipairs(resolution.trace or {}) do
+        if entry.stage == "import_scan" and entry.status == "deferred" then
+            entry.status = status or "finished"
+            entry.settled = true
+            break
+        end
+    end
 
     resolution.import_scan_pending = false
     resolution.resolution_pending = nil
@@ -141,6 +148,34 @@ local function schedule_deferred_import_scan(bufnr, state, candidate)
         end
 
         local previous_resolution = vim.deepcopy(current_resolution)
+        local trace = vim.deepcopy(current_resolution.trace or {})
+        local updated_import_scan_trace = false
+        for _, entry in ipairs(trace) do
+            if entry.stage == "import_scan" then
+                entry.status = "matched"
+                entry.settled = true
+                entry.main = main
+                entry.source = main_source
+                entry.root = scan_root
+                entry.root_source = scan_root_source
+                entry.confidence = main_file.confidence_for_source(main_source)
+                updated_import_scan_trace = true
+                break
+            end
+        end
+        if not updated_import_scan_trace then
+            trace[#trace + 1] = {
+                stage = "import_scan",
+                status = "matched",
+                settled = true,
+                main = main,
+                source = main_source,
+                root = scan_root,
+                root_source = scan_root_source,
+                confidence = main_file.confidence_for_source(main_source),
+                line_limit = root_discovery.import_scan_line_limit(),
+            }
+        end
         local attach_candidate = {
             bufnr = bufnr,
             path = request.path,
@@ -152,6 +187,8 @@ local function schedule_deferred_import_scan(bufnr, state, candidate)
                 main_source = main_source,
                 main_confidence = main_file.confidence_for_source(main_source),
                 main_confidence_source = main_source,
+                import_scan_line_limit = root_discovery.import_scan_line_limit(),
+                trace = trace,
             },
         }
 

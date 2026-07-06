@@ -30,6 +30,20 @@ local ok, err = pcall(function()
             import_scan = false,
         },
     })
+    local warnings =
+        require("typst.config").last_relative_main_mapping_warnings()
+    assert(
+        #warnings == 1,
+        "relative main mapping roots should be reported during setup"
+    )
+    assert(
+        warnings[1].root == "docs" and warnings[1].cwd == util.normalize(base),
+        "relative main mapping warning should include the setup cwd"
+    )
+    assert(
+        warnings[1].resolved == util.normalize(base .. "/docs"),
+        "relative main mapping warning should include the resolved root"
+    )
     vim.cmd.edit(vim.fn.fnameescape(base .. "/docs/chapter.typ"))
     vim.bo.filetype = "typst"
     local bufnr = vim.api.nvim_get_current_buf()
@@ -55,6 +69,39 @@ local ok, err = pcall(function()
     assert(
         resolved.main == project.main,
         ":cd should not change normalized main mapping main"
+    )
+
+    typst.reset({ force = true })
+    vim.cmd("cd " .. vim.fn.fnameescape(other_cwd))
+    typst.setup({
+        root_markers = {},
+        main_base_dir = util.normalize(base),
+        main = {
+            docs = "main.typ",
+        },
+        project = {
+            import_scan = false,
+        },
+    })
+    local base_warnings =
+        require("typst.config").last_relative_main_mapping_warnings()
+    assert(
+        #base_warnings == 0,
+        "explicit main_base_dir should make relative main mapping roots intentional"
+    )
+    vim.cmd.edit(vim.fn.fnameescape(base .. "/docs/chapter.typ"))
+    vim.bo.filetype = "typst"
+    local base_project = assert(
+        typst.project.attach(vim.api.nvim_get_current_buf()),
+        "buffer should attach through main_base_dir relative mapping"
+    )
+    assert(
+        base_project.root == util.normalize(base .. "/docs"),
+        "main_base_dir should be the base for relative main mapping roots"
+    )
+    assert(
+        base_project.main == util.normalize(base .. "/docs/main.typ"),
+        "main_base_dir relative mapping should select the configured main"
     )
 end)
 vim.cmd("cd " .. vim.fn.fnameescape(original_cwd))

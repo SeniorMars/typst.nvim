@@ -1,9 +1,11 @@
 local events = require("typst.core.events")
 local log = require("typst.core.log")
+local notify = require("typst.core.notify")
 local diagnostics_service = require("typst.project.services.diagnostics")
 local quickfix = require("typst.diagnostics.quickfix")
 
 local M = {}
+local cap_warning_seen = {}
 
 local function diagnostic_total(by_buffer)
     local total = 0
@@ -32,6 +34,35 @@ local function scoped_quickfix_items(items, source)
         out[#out + 1] = copy
     end
     return out
+end
+
+local function maybe_warn_buffer_cap(project, key, parse_meta, opts)
+    if
+        opts.notify == false
+        or opts.quiet == true
+        or type(parse_meta) ~= "table"
+        or (parse_meta.skipped_by_cap or 0) <= 0
+    then
+        return
+    end
+
+    local warning_key = ("%s:%s:%s"):format(
+        project and (project.key or project.main) or "global",
+        tostring(key or "compiler"),
+        tostring(parse_meta.max_buffers_per_publish)
+    )
+    if cap_warning_seen[warning_key] then
+        return
+    end
+    cap_warning_seen[warning_key] = true
+
+    notify.default(
+        ('typst.nvim skipped %d external diagnostic path(s) after diagnostics.max_buffers_per_publish=%d; set diagnostics.external_paths = "quickfix-only" to avoid hidden buffers'):format(
+            parse_meta.skipped_by_cap,
+            parse_meta.max_buffers_per_publish
+        ),
+        vim.log.levels.WARN
+    )
 end
 
 local function publish_buffers(ctx, project, key, by_buffer)
@@ -87,6 +118,8 @@ function M.publish(ctx, project, text, opts)
         )
         return nil, err
     end
+
+    maybe_warn_buffer_cap(project, key, parse_meta, opts)
 
     ctx.clear(project, { emit = false, source = key })
     local published = publish_buffers(ctx, project, key, by_buffer)
@@ -157,6 +190,25 @@ function M.publish_by_buffer(ctx, project, by_buffer, opts)
         diagnostic_buffers = vim.tbl_count(published),
     })
     return published, items
+end
+
+--- Restore diagnostics previously captured for exact namespaces.
+---@param bufnr integer Buffer whose diagnostics should be restored.
+---@param snapshots table<number, table[]> Diagnostics keyed by namespace id.
+function M.restore_buffer_snapshot(bufnr, snapshots)
+    if not valid_buffer(bufnr) then
+        return
+    end
+
+    for namespace, items in pairs(snapshots or {}) do
+        if type(namespace) == "number" then
+            vim.diagnostic.set(namespace, bufnr, items or {}, {})
+        end
+    end
+end
+
+function M.reset()
+    cap_warning_seen = {}
 end
 
 return M

@@ -123,6 +123,24 @@ assert(
     "duplicate normalized main mapping roots should report a clear error"
 )
 
+local relative_main_base_ok, relative_main_base_err = pcall(function()
+    typst.setup({
+        main_base_dir = "docs",
+        main = {
+            chapters = "main.typ",
+        },
+    })
+end)
+assert(not relative_main_base_ok, "relative main_base_dir should be rejected")
+assert(
+    tostring(relative_main_base_err):find(
+        "main_base_dir must be an absolute path",
+        1,
+        true
+    ),
+    "relative main_base_dir should report a clear validation error"
+)
+
 local mutation_root = typst_test_cache_path("config-main-mutation")
 vim.fn.mkdir(mutation_root .. "/docs", "p")
 vim.cmd.cd(vim.fn.fnameescape(mutation_root))

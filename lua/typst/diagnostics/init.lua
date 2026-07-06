@@ -92,6 +92,52 @@ function M.namespace_for(project, source)
     return namespaces[key]
 end
 
+--- Snapshot all typst.nvim diagnostic namespaces for a project buffer.
+---
+--- This is used by lifecycle transactions that need to undo a buffer move after
+--- `clear_buffer()` has reset old project namespaces.
+---@param project table Project state whose diagnostic namespaces are captured.
+---@param bufnr integer Buffer whose diagnostics should be captured.
+---@return table<number, table[]> snapshots Diagnostics keyed by namespace id.
+function M.snapshot_buffer(project, bufnr)
+    if type(project) ~= "table" or not vim.api.nvim_buf_is_valid(bufnr) then
+        return {}
+    end
+
+    local namespaces = {}
+    local seen = {}
+    local function add_namespace(namespace)
+        if type(namespace) == "number" and not seen[namespace] then
+            namespaces[#namespaces + 1] = namespace
+            seen[namespace] = true
+        end
+    end
+
+    for _, namespace in pairs(project.diagnostics_namespaces or {}) do
+        add_namespace(namespace)
+    end
+
+    local diagnostic_state = diagnostics_service.get(project) or {}
+    for namespace in pairs(diagnostic_state.namespace_sources or {}) do
+        add_namespace(namespace)
+    end
+
+    local snapshots = {}
+    for _, namespace in ipairs(namespaces) do
+        snapshots[namespace] = vim.diagnostic.get(bufnr, {
+            namespace = namespace,
+        })
+    end
+    return snapshots
+end
+
+--- Restore a snapshot produced by `snapshot_buffer`.
+---@param bufnr integer Buffer whose diagnostics should be restored.
+---@param snapshots table<number, table[]> Diagnostics keyed by namespace id.
+function M.restore_buffer_snapshot(bufnr, snapshots)
+    return publisher.restore_buffer_snapshot(bufnr, snapshots)
+end
+
 --- Check whether compiler fallback diagnostics should publish for a project.
 ---@param project table Project state used to detect Tinymist ownership.
 ---@return boolean publish True when typst.nvim should publish parsed compiler diagnostics.
@@ -391,6 +437,7 @@ end
 --- Reset global diagnostic UI state.
 function M.reset()
     quickfix.reset()
+    publisher.reset()
 end
 
 return M

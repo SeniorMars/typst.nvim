@@ -167,6 +167,7 @@
     { "path": "log.file_path", "type": "nil|string", "default": "nil" },
     { "path": "log.max_entries", "type": "number", "default": "200" },
     { "path": "main", "type": "nil|string", "default": "nil" },
+    { "path": "main_base_dir", "type": "nil|string", "default": "nil" },
     { "path": "mappings.commands.clean", "type": "string", "default": "\"<localleader>lc\"" },
     { "path": "mappings.commands.compile", "type": "string", "default": "\"<localleader>lL\"" },
     { "path": "mappings.commands.errors", "type": "string", "default": "\"<localleader>le\"" },

@@ -13,6 +13,8 @@ local readonly_cache = nil
 local readonly_generation = -1
 local readonly_backing = setmetatable({}, { __mode = "k" })
 local last_unknown_keys = {}
+local last_relative_main_mapping_warnings = {}
+local notified_relative_main_mapping = {}
 
 local dynamic_config_paths = {
     api = true,
@@ -34,6 +36,7 @@ local dynamic_config_paths = {
 local known_optional_paths = {
     main = true,
     metadata_version = true,
+    main_base_dir = true,
     output_name = true,
     root = true,
     ["project.import_scan_max_descendant_depth"] = true,
@@ -199,18 +202,46 @@ local function materialize(value, seen)
 end
 
 local function normalize_main_mapping(user_opts)
+    last_relative_main_mapping_warnings = {}
     if type(user_opts) ~= "table" or type(user_opts.main) ~= "table" then
         return
     end
 
-    local base = util.normalize(vim.fn.getcwd())
+    local setup_cwd = util.normalize(vim.fn.getcwd())
+    local base = setup_cwd
+    local base_source = "setup_cwd"
+    if user_opts.main_base_dir ~= nil then
+        if type(user_opts.main_base_dir) ~= "string" then
+            return
+        end
+        if user_opts.main_base_dir == "" then
+            return
+        end
+        if not util.is_absolute(user_opts.main_base_dir) then
+            error("typst.nvim: main_base_dir must be an absolute path")
+        end
+        base = util.normalize(user_opts.main_base_dir)
+        base_source = "main_base_dir"
+    end
+
     local normalized = {}
     local seen = {}
     for root, main in pairs(user_opts.main) do
         local normalized_root
         if type(root) == "string" and root ~= "" then
+            local relative = not util.is_absolute(root)
             local resolved = util.resolve_path(root, base)
             normalized_root = resolved or root
+            if relative and base_source == "setup_cwd" then
+                local warnings = last_relative_main_mapping_warnings
+                warnings[#warnings + 1] = {
+                    root = root,
+                    resolved = normalized_root,
+                    cwd = setup_cwd,
+                    base = base,
+                    base_source = base_source,
+                }
+            end
         else
             normalized_root = root
         end
@@ -353,6 +384,33 @@ local function notify_unknown_keys(message)
     end
 end
 
+local function warn_relative_main_mappings(warnings)
+    if #warnings == 0 then
+        return
+    end
+
+    local ok, log = pcall(require, "typst.core.log")
+    for _, warning in ipairs(warnings) do
+        if ok and log and type(log.add) == "function" then
+            log.add("warn", "relative Typst main mapping root", warning)
+        end
+        if type(vim.notify) == "function" then
+            local notify_key =
+                ("%s\0%s"):format(tostring(warning.root), tostring(warning.cwd))
+            if not notified_relative_main_mapping[notify_key] then
+                notified_relative_main_mapping[notify_key] = true
+                local message =
+                    "typst.nvim: relative main mapping root %q resolved against setup cwd %s; set main_base_dir or use an absolute root to avoid lazy-loading surprises"
+                message = message:format(
+                    tostring(warning.root),
+                    tostring(warning.cwd)
+                )
+                pcall(vim.notify, message, vim.log.levels.WARN)
+            end
+        end
+    end
+end
+
 --- Validate and install the active plugin configuration.
 ---@param opts? table Plugin configuration partial to validate and apply.
 ---@return table config Active configuration table after validation.
@@ -369,6 +427,7 @@ function M.setup(opts)
     -- table that may be reused for later reconfiguration.
     local user_opts = vim.deepcopy(materialize(opts or {}))
     normalize_main_mapping(user_opts)
+    warn_relative_main_mappings(last_relative_main_mapping_warnings)
     last_unknown_keys = collect_unknown_keys(user_opts, defaults, "", {}) or {}
     local unknown_mode = unknown_key_mode(user_opts)
     if #last_unknown_keys > 0 then
@@ -434,6 +493,12 @@ end
 ---@return string[] keys Fully qualified unknown config keys.
 function M.last_unknown_keys()
     return vim.deepcopy(last_unknown_keys)
+end
+
+--- Return relative `main` mapping roots normalized during the last setup.
+---@return table[] warnings Recorded compatibility warnings.
+function M.last_relative_main_mapping_warnings()
+    return vim.deepcopy(last_relative_main_mapping_warnings)
 end
 
 --- Collect unknown config paths without installing the config.

@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local registry = require("typst.project")
+local config = require("typst.config")
 local project_store = require("typst.project.store")
 local typst = require("typst")
 typst.reset()
@@ -161,6 +162,161 @@ end, debug.traceback)
 project_module.commit_attach = original_commit_attach
 if not rollback_ok then
     error(rollback_err)
+end
+
+local output_cfg = config.unsafe_get()
+local original_output_dir = output_cfg.output_dir
+local original_allow_external_output = output_cfg.allow_external_output
+local outside_output_dir = vim.fn.tempname() .. "-typst-nvim-output"
+vim.fn.mkdir(outside_output_dir, "p")
+output_cfg.output_dir = outside_output_dir
+output_cfg.allow_external_output = false
+local previous_project_key = project_store.key_for_buffer(bufnr)
+local output_failed_ok, output_failed_err = pcall(function()
+    typst.project.set_main(chapter, nil, { persist = true })
+end)
+output_cfg.output_dir = original_output_dir
+output_cfg.allow_external_output = original_allow_external_output
+assert(
+    not output_failed_ok,
+    "set_main should surface output path validation failures"
+)
+assert(
+    tostring(output_failed_err):find("allow_external_output", 1, true),
+    "set_main output failure should report the output ownership policy"
+)
+assert(
+    vim.b.typst_main == main,
+    "set_main output failure should roll back buffer-local main"
+)
+assert(
+    state_store.explicit_main(chapter) == main,
+    "set_main output failure should roll back persisted main"
+)
+assert(
+    project_store.key_for_buffer(bufnr) == previous_project_key,
+    "set_main output failure should keep previous buffer ownership"
+)
+assert(
+    project_store.get(project_store.project_key(root, chapter)) == nil,
+    "set_main output failure should not leave a candidate project"
+)
+
+local graph_sources = require("typst.project.graph.sources")
+local attachment_index = require("typst.project.attachments.index")
+local transaction_diagnostics = require("typst.diagnostics")
+local compiler_service = require("typst.project.services.compiler")
+local original_graph_add = graph_sources.add
+local transaction_failure_ok, transaction_failure_err = xpcall(function()
+    local previous_key = project_store.key_for_buffer(bufnr)
+    local previous_live = assert(project_store.get(previous_key))
+    compiler_service.set(previous_live, {
+        outputless = true,
+    })
+    local namespace = transaction_diagnostics.namespace_for(previous_live)
+    vim.diagnostic.set(namespace, bufnr, {
+        {
+            lnum = 0,
+            col = 0,
+            message = "rollback diagnostic",
+            severity = vim.diagnostic.severity.ERROR,
+        },
+    }, {})
+    assert(
+        attachment_index.should_mark_dirty(previous_live, {
+            event = "TextChanged",
+            buf = bufnr,
+        }),
+        "dirty tick fixture should create a debounce entry"
+    )
+
+    rawset(graph_sources, "add", function(target_project, added_path, source)
+        if target_project.key == project_store.project_key(root, chapter) then
+            error("forced graph add failure")
+        end
+        return original_graph_add(target_project, added_path, source)
+    end)
+
+    local ok = pcall(function()
+        typst.project.set_main(chapter, nil, { persist = true })
+    end)
+    assert(not ok, "set_main should surface post-transfer commit failures")
+    assert(
+        vim.b.typst_main == main,
+        "post-transfer failure should roll back buffer-local main"
+    )
+    assert(
+        state_store.explicit_main(chapter) == main,
+        "post-transfer failure should roll back persisted main"
+    )
+    assert(
+        project_store.key_for_buffer(bufnr) == previous_key,
+        "post-transfer failure should restore previous buffer ownership"
+    )
+    assert(
+        project_store.get(previous_key) == previous_live,
+        "post-transfer failure should restore the previous project object"
+    )
+    assert(
+        project_store.get(project_store.project_key(root, chapter)) == nil,
+        "post-transfer failure should remove the failed candidate project"
+    )
+    assert(
+        previous_live.bufs[bufnr] == true,
+        "post-transfer failure should restore project buffer membership"
+    )
+    assert(
+        previous_live.resolutions[bufnr] ~= nil,
+        "post-transfer failure should restore buffer resolution metadata"
+    )
+    assert(
+        graph_sources.get(previous_live)[main] == true
+            and graph_sources.get(previous_live)[chapter] == true,
+        "post-transfer failure should restore graph source membership"
+    )
+    assert(
+        (compiler_service.get(previous_live) or {}).outputless == true,
+        "post-transfer failure should restore compiler outputless state"
+    )
+    assert(
+        #vim.diagnostic.get(bufnr, { namespace = namespace }) == 1,
+        "post-transfer failure should restore previous diagnostics"
+    )
+    assert(not attachment_index.should_mark_dirty(previous_live, {
+        event = "TextChanged",
+        buf = bufnr,
+    }), "post-transfer failure should restore dirty tick debounce state")
+end, debug.traceback)
+graph_sources.add = original_graph_add
+if not transaction_failure_ok then
+    error(transaction_failure_err)
+end
+
+local original_resolve_candidate = project_module.resolve_candidate
+local clear_failed_ok, clear_failed_err = xpcall(function()
+    rawset(project_module, "resolve_candidate", function()
+        error("forced clear-main resolution failure")
+    end)
+    local ok = pcall(function()
+        typst.project.clear_main(bufnr, { clear_persisted = true })
+    end)
+    assert(not ok, "clear_main should surface resolution failures")
+    assert(
+        vim.b.typst_main == main,
+        "clear_main failure should roll back buffer-local main"
+    )
+    assert(
+        state_store.explicit_main(chapter) == main,
+        "clear_main failure should roll back persisted main"
+    )
+    assert(
+        project_store.key_for_buffer(bufnr) == previous_project_key,
+        "clear_main failure should keep previous buffer ownership"
+    )
+end, debug.traceback)
+project_module.resolve_candidate = original_resolve_candidate
+if not clear_failed_ok then
+    error(clear_failed_err)
 end
 
 local forced_missing = root .. "/tests/fixtures/basic/generated-later.typ"

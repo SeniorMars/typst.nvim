@@ -5,6 +5,7 @@ local M = {}
 
 local optional_nil_defaults = {
     "metadata_version",
+    "main_base_dir",
     "output_name",
     "root",
     "main",
@@ -58,6 +59,7 @@ local optional_types = {
     ["integrations.tinymist.capabilities"] = "nil|table",
     ["integrations.tinymist.on_attach"] = "nil|function",
     ["log.file_path"] = "nil|string",
+    main_base_dir = "nil|string",
     ["integrations.semantic.provider"] = "nil|string|function|table",
     ["compile.provider"] = "nil|string|function|table",
     ["exports.provider"] = "nil|string|function|table",
