@@ -64,7 +64,8 @@ Optional integrations:
   `integrations.tinymist.client_names` to detect custom nvim-lsp wrapper
   client names. `:checkhealth
   typst` reports the selected mode, detected native Tinymist clients,
-  advertised capabilities, and the Coc skip reason.
+  advertised capabilities, the Coc skip reason, and the last project-local
+  ensure reason such as `missing_executable`, `detect`, `disabled`, or `coc`.
 - `typst-preview.nvim` only when explicitly selected as a compatibility preview
   provider for its source synchronization commands
 - Telescope, fzf-lua, fzf.vim, or Snacks for `:TypstPick` UI
@@ -227,6 +228,11 @@ existing project graphs before returning `source_path_not_in_project`.
 `viewer.capabilities()` is project-free; preview capabilities are
 project-scoped.
 
+User commands use the same boundary. Command callbacks report returned
+`(nil, err)` and `{ ok = false }` payloads through a shared notifier/log path,
+so running commands from a non-Typst buffer should produce a normal user-facing
+failure instead of an internal Lua error or silent no-op.
+
 Default Typst buffer mappings:
 
 | Mapping | Mode | Action |
@@ -324,7 +330,10 @@ require("typst").setup()
 The runtime plugin calls `setup()` with defaults when Neovim sources
 `plugin/typst.lua`. Later calls to `require("typst").setup({...})` are treated
 as reconfiguration: one-time commands/autocmds stay installed, configuration is
-validated again, and attached buffers are reapplied. Set
+validated again, and attached buffers are reapplied. Optional global feature
+autocmds are synced with configuration; for example, native browser
+follow-buffer hooks are installed only while `preview.follow_buffer = true`.
+Set
 `vim.g.typst_nvim_no_auto_setup = 1` before plugin loading to opt out of the
 default runtime setup and call `setup()` yourself.
 
@@ -1837,6 +1846,15 @@ Start with `:checkhealth typst`, `:TypstInfo!`, `:TypstDoctor`,
 artifact is needed. They show the resolved root/main/output, Tinymist ownership,
 active compiler/preview state, last command output, lifecycle/provider errors,
 and runtime ownership invariants.
+
+Diagnostics for files outside the current buffer follow
+`diagnostics.external_paths`:
+
+| Mode | Behavior |
+| --- | --- |
+| `"bufadd"` | Default. Creates unloaded buffers for external diagnostic paths, capped by `diagnostics.max_buffers_per_publish`, so `vim.diagnostic` can own them. |
+| `"quickfix-only"` | Keeps unopened-file diagnostics in quickfix/location lists without typst.nvim-created hidden buffers. Use this for large, generated, remote, or package-heavy projects. |
+| `"open-files-only"` | Publishes diagnostics only for already loaded files and reports skipped external paths in `:TypstInfo!`. |
 
 - Optional JSONL file logging is local-only and disabled by default. If enabled,
   the raw log file may contain absolute paths in structured fields; generated

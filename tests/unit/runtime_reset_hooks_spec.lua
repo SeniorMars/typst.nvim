@@ -60,6 +60,18 @@ typst.setup({
         package_cache_prewarm = true,
     },
     preview = {
+        follow_buffer = false,
+    },
+})
+assert(
+    autocmd_count("typst_nvim_preview_follow_buffer") == 0,
+    "disabled follow-buffer should not install global autocmds"
+)
+typst.setup({
+    completion = {
+        package_cache_prewarm = true,
+    },
+    preview = {
         follow_buffer = true,
     },
 })
@@ -90,12 +102,18 @@ assert(
     "second setup should identify reconfigure pre-events"
 )
 assert(
-    #config_changed_events == 1 and config_changed_events[1].reconfigure == true,
+    init_events[3] and init_events[3].reconfigure == true,
+    "third setup should identify reconfigure events"
+)
+assert(
+    #config_changed_events == 2
+        and config_changed_events[1].reconfigure == true
+        and config_changed_events[2].reconfigure == true,
     "reconfigure should emit a dedicated config-changed event"
 )
 assert(
     table.concat(event_order, ",")
-        == "TypstEventInitPre,TypstEventInitPost,TypstEventInitPre,TypstEventConfigChanged,TypstEventInitPost",
+        == "TypstEventInitPre,TypstEventInitPost,TypstEventInitPre,TypstEventConfigChanged,TypstEventInitPost,TypstEventInitPre,TypstEventConfigChanged,TypstEventInitPost",
     "setup events should keep documented first-setup and reconfigure order"
 )
 assert(

@@ -19,9 +19,15 @@ must replace handlers instead of stacking them.
 
 ## Global Runtime Events
 
-Runtime setup owns global exit cleanup, preview follow-buffer hooks, command
-registration, and shared reset hooks. Runtime reset must remove global hooks it
-owns and clear buffer-local groups for buffers still known to typst.nvim.
+Runtime setup owns global exit cleanup, command registration, and shared reset
+hooks. Core cleanup autocmds stay installed after setup because they own
+resource shutdown and window-local state cleanup.
+
+Optional global autocmd managers must be feature-gated. The native browser
+preview follow-buffer hook is installed only while
+`preview.follow_buffer = true`; setup/reconfigure removes its augroup when the
+option is false. Runtime reset must remove global hooks it owns and clear
+buffer-local groups for buffers still known to typst.nvim.
 
 ## Tests
 

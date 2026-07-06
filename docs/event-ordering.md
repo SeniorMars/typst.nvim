@@ -25,6 +25,20 @@ Expected attach path:
 4. Emit buffer/project attach events.
 5. Schedule deferred import scan or index refresh if configured.
 
+Attach finalization failures are not hidden. The project may remain attached in
+a degraded state, but lifecycle transition metadata records
+`finalization_error`, and attach events carry `finalization_ok = false`.
+
+Project reload must not detach the previous project before a replacement attach
+has succeeded. If reload fails, command/API callers receive a structured
+`reload_failed` result and typst.nvim preserves or restores the previous buffer
+membership when possible.
+
+Transition snapshots use `previous_stop_requested` for old-project cleanup. That
+field means typst.nvim invoked the supervisor stop/prune path; it is not a
+confirmed shutdown result. Confirmed compiler shutdown remains reported by the
+compiler/operation state and stop events.
+
 Expected detach path:
 
 1. Emit buffer-detach events while the project is still inspectable.

@@ -173,8 +173,8 @@ Run `:checkhealth typst` to inspect executable availability, parser/query
 loading, Tinymist and preview integration state, configuration, and attached
 projects. Project health lines include provider-aware status, root/main
 decision sources, project-specific Tinymist attachment, effective compiler
-diagnostics policy, active profile, command, cwd, and process/watcher details
-when present.
+diagnostics policy, last Tinymist ensure reason, active profile, command, cwd,
+and process/watcher details when present.
 
 ==============================================================================
 DAILY WORKFLOW                                                     *typst-usage*
@@ -2204,7 +2204,10 @@ intentionally need the live table.
 The runtime plugin calls `setup()` with defaults when `plugin/typst.lua` is
 sourced. Later `require("typst").setup({...})` calls are reconfiguration:
 commands, global autocmds, and plug mappings remain one-time runtime state,
-while configuration is validated again and attached buffers are reapplied. Set
+while configuration is validated again and attached buffers are reapplied.
+Optional global feature autocmds are synced with configuration; for example,
+native browser follow-buffer hooks are installed only while
+`preview.follow_buffer = true`. Set
 `vim.g.typst_nvim_no_auto_setup = 1` before plugin loading to opt out of the
 default runtime setup and call `setup()` explicitly.
 
@@ -2755,6 +2758,15 @@ diagnostics only for already loaded buffers and reports skipped external paths
 in `:TypstInfo!`; use this for the strict no-new-buffer policy.
 quickfix-only diagnostics are stored by diagnostic source so
 `:TypstDiagnostics` can rebuild the list after another command replaces it.
+
+External-path mode summary:
+
+- `"bufadd"`: default, hidden buffers are created up to
+  `diagnostics.max_buffers_per_publish`.
+- `"quickfix-only"`: unopened-file diagnostics stay in quickfix/location lists;
+  typst.nvim does not create hidden diagnostic buffers.
+- `"open-files-only"`: unopened files are skipped entirely and reported in
+  status/debug output.
 
 Tinymist integration                                      *typst-tinymist*
 
@@ -3750,6 +3762,10 @@ wrappers return `nil, { reason = "no_project", ... }` or a result table with
 `ok = false` and `reason = "no_project"`. If an explicit key cannot be
 resolved, wrappers return `unknown_project_key` or `ambiguous_project_key`
 instead of `no_project`.
+
+User commands pass these structured failures through the shared command result
+handler. A command callback that returns `(nil, err)` or `{ ok = false, ... }`
+is logged and reported to the user instead of disappearing silently.
 
 Action APIs such as compile, watch, preview, render, export, eval, navigation,
 and semantic calls may resolve or create project state only for Typst source

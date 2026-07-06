@@ -60,6 +60,18 @@ that owns the work, not merely the current global config. If setup is called
 while compile/watch work is active, event payloads continue reporting the
 provider that produced the event.
 
+## Command And API Error Boundaries
+
+Stable commands must surface expected user failures as structured results, not
+tracebacks or silent no-ops. Public APIs may return `(nil, err)` or
+`{ ok = false, ... }`; command callbacks must pass those results through the
+shared command result handler so no-project, missing-output, failed-reload, and
+unavailable-provider cases are visible to users.
+
+`config.get()` is a read-only indexable view, not an iterable table. LuaJIT used
+by Neovim does not honor `__pairs` for this proxy. Extensions that need to
+iterate or serialize config must use `config.snapshot()`.
+
 ## Tinymist Boundary
 
 Tinymist is an optional semantic provider. The stable core is compile, watch,

@@ -3,6 +3,14 @@ vim.opt.runtimepath:prepend(root)
 
 local typst = require("typst")
 
+local function autocmd_count(group)
+    local ok, autocmds = pcall(vim.api.nvim_get_autocmds, { group = group })
+    if not ok then
+        return 0
+    end
+    return #autocmds
+end
+
 typst.reset({ force = true })
 typst.setup({
     preview = {
@@ -19,11 +27,10 @@ rawset(vim, "schedule", function(_)
     schedule_calls = schedule_calls + 1
 end)
 local ok, err = xpcall(function()
-    vim.api.nvim_exec_autocmds("BufEnter", {
-        group = "typst_nvim_preview_follow_buffer",
-        buffer = bufnr,
-        modeline = false,
-    })
+    assert(
+        autocmd_count("typst_nvim_preview_follow_buffer") == 0,
+        "disabled follow_buffer should not install global autocmds"
+    )
     assert(
         schedule_calls == 0,
         "disabled follow_buffer should not schedule BufEnter work"
@@ -34,6 +41,10 @@ local ok, err = xpcall(function()
             follow_buffer = true,
         },
     })
+    assert(
+        autocmd_count("typst_nvim_preview_follow_buffer") > 0,
+        "enabled follow_buffer should install global autocmds"
+    )
     vim.api.nvim_exec_autocmds("BufEnter", {
         group = "typst_nvim_preview_follow_buffer",
         buffer = bufnr,
@@ -42,6 +53,16 @@ local ok, err = xpcall(function()
     assert(
         schedule_calls == 1,
         "enabled follow_buffer should schedule BufEnter work"
+    )
+
+    typst.setup({
+        preview = {
+            follow_buffer = false,
+        },
+    })
+    assert(
+        autocmd_count("typst_nvim_preview_follow_buffer") == 0,
+        "disabling follow_buffer should remove global autocmds"
     )
 end, debug.traceback)
 

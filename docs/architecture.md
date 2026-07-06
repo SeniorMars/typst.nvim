@@ -8,6 +8,8 @@ features grow. Public API details live in `API.md` and
 Detailed maintainer inventories live next to this overview:
 
 - `docs/services.md` records project service owners and reset rules.
+- `docs/state.md` records process, project, buffer, and window state owners.
+- `docs/diagnostics.md` records external diagnostic path policy and tests.
 - `docs/event-ordering.md` records public event ordering and provider identity.
 - `docs/cache-invalidation.md` records cache owners, invalidators, and budgets.
 - `docs/autocmd-lifecycle.md` records buffer-local and runtime autocmd rules.

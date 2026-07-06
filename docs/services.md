@@ -21,6 +21,8 @@ use commands and API methods, not mutate service tables directly.
 | `graph` | project dependency graph modules | sources, dependencies, dependency generation, roots | Invalidated by attach/detach, file writes, import scan changes, and explicit project reload. |
 | `index` | project index modules | headings, labels, definitions, bibliography, per-file index data, index generation | Mark dirty on source edits and refresh lazily. Cached reads should use generation checks. |
 | `invalidation` | project invalidation service | dirty buffers, reasons, generation counters | Reset with project services; used to avoid stale index/source-map results. |
+| `integrations` | integration boundary modules | last Tinymist ensure result and future provider/integration status | Attach records availability reasons here; status and health read this state without making startup decisions. |
+| `lifecycle` | `typst.project.lifecycle` | last attach/reload transition, finalization status, previous-stop flag | Transition metadata is bounded reporting state. It must not contain raw handles or live project tables. |
 
 ## Ownership Rules
 
@@ -32,6 +34,9 @@ use commands and API methods, not mutate service tables directly.
   `instance_id`; callbacks from a pruned or replaced project are stale.
 - Services may add fields for diagnostics and reports, but fields become stable
   only when documented in the public API or provider contract.
+- Expected user errors should be recorded as structured results and surfaced by
+  command wrappers. Commands should not rely on Lua tracebacks for no-project,
+  missing-output, unavailable-provider, or failed-reload cases.
 
 ## Status And Bug Reports
 
