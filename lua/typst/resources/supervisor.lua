@@ -415,109 +415,147 @@ function M.reset(opts)
     }
     for _, state in ipairs(states) do
         state.resetting = true
-        for bufnr in pairs(state.bufs or {}) do
-            core_lifecycle().clear_buffer(bufnr)
-        end
+        local reset_ok, reset_err = xpcall(function()
+            for bufnr in pairs(state.bufs or {}) do
+                core_lifecycle().clear_buffer(bufnr)
+            end
 
-        pcall(toc_module().close, state)
+            pcall(toc_module().close, state)
 
-        if (preview_service.get(state) or {}).active then
-            local ok, result = pcall(
-                preview_module().stop,
-                state,
-                { lifecycle = true, reset = true }
-            )
-            if not ok then
-                log.add("warn", "failed to stop preview during reset", {
-                    main = state.main,
-                    error = result,
-                })
-                record_preview_stop_failure(state, "reset", result)
-                reset_failed(summary, state, "preview_stop_error", result)
-                if opts.force then
-                    preview_module().clear_state(
+            if (preview_service.get(state) or {}).active then
+                local ok, result = pcall(
+                    preview_module().stop,
+                    state,
+                    { lifecycle = true, reset = true }
+                )
+                if not ok then
+                    log.add("warn", "failed to stop preview during reset", {
+                        main = state.main,
+                        error = result,
+                    })
+                    record_preview_stop_failure(state, "reset", result)
+                    reset_failed(summary, state, "preview_stop_error", result)
+                    if opts.force then
+                        preview_module().clear_state(
+                            state,
+                            { lifecycle = true, reset = true, reason = "reset" }
+                        )
+                    end
+                elseif type(result) == "table" and result.pending == true then
+                    log.add("warn", "preview stop pending during reset", {
+                        main = state.main,
+                    })
+                    record_preview_stop_failure(state, "reset", result)
+                    reset_failed(summary, state, "preview_stop_pending", result)
+                    if opts.force then
+                        preview_module().clear_state(
+                            state,
+                            { lifecycle = true, reset = true, reason = "reset" }
+                        )
+                    end
+                elseif type(result) == "table" and result.ok == false then
+                    log.add("warn", "preview stop failed during reset", {
+                        main = state.main,
+                        reason = result.reason,
+                        message = result.message,
+                    })
+                    record_preview_stop_failure(state, "reset", result)
+                    reset_failed(summary, state, "preview_stop_failed", result)
+                    if opts.force then
+                        preview_module().clear_state(
+                            state,
+                            { lifecycle = true, reset = true, reason = "reset" }
+                        )
+                    end
+                elseif result == false then
+                    log.add("warn", "preview stop declined during reset", {
+                        main = state.main,
+                    })
+                    record_preview_stop_failure(state, "reset", result)
+                    reset_failed(
+                        summary,
                         state,
-                        { lifecycle = true, reset = true, reason = "reset" }
+                        "preview_stop_declined",
+                        result
                     )
-                end
-            elseif type(result) == "table" and result.pending == true then
-                log.add("warn", "preview stop pending during reset", {
-                    main = state.main,
-                })
-                record_preview_stop_failure(state, "reset", result)
-                reset_failed(summary, state, "preview_stop_pending", result)
-                if opts.force then
-                    preview_module().clear_state(
-                        state,
-                        { lifecycle = true, reset = true, reason = "reset" }
-                    )
-                end
-            elseif type(result) == "table" and result.ok == false then
-                log.add("warn", "preview stop failed during reset", {
-                    main = state.main,
-                    reason = result.reason,
-                    message = result.message,
-                })
-                record_preview_stop_failure(state, "reset", result)
-                reset_failed(summary, state, "preview_stop_failed", result)
-                if opts.force then
-                    preview_module().clear_state(
-                        state,
-                        { lifecycle = true, reset = true, reason = "reset" }
-                    )
-                end
-            elseif result == false then
-                log.add("warn", "preview stop declined during reset", {
-                    main = state.main,
-                })
-                record_preview_stop_failure(state, "reset", result)
-                reset_failed(summary, state, "preview_stop_declined", result)
-                if opts.force then
-                    preview_module().clear_state(
-                        state,
-                        { lifecycle = true, reset = true, reason = "reset" }
-                    )
+                    if opts.force then
+                        preview_module().clear_state(
+                            state,
+                            { lifecycle = true, reset = true, reason = "reset" }
+                        )
+                    end
                 end
             end
-        end
 
-        local stopped = stop_compiler_for_reset(state, opts)
-        if not core_result.is_confirmed_stopped(stopped) then
-            reset_failed(summary, state, "compiler_stop_failed", stopped)
-        end
-        local cancelled = project_operations.cancel_project(state, {
-            reason = "reset",
-            timeout_ms = opts.operation_timeout_ms or 250,
-            kill_timeout_ms = opts.operation_kill_timeout_ms or 250,
-            wait_timeout_ms = opts.operation_wait_timeout_ms or 1000,
-        })
-        if cancelled.failed > 0 then
-            log.add(
-                "warn",
-                "failed to cancel all project operations during reset",
-                {
-                    main = state.main,
-                    summary = cancelled,
-                }
-            )
-            reset_failed(summary, state, "operation_cancel_failed", cancelled)
-        end
-        if (cancelled.retained or 0) > 0 then
-            log.add(
-                "warn",
-                "retained orphaned project operations during reset",
-                {
-                    main = state.main,
-                    summary = cancelled,
-                }
-            )
-            reset_failed(summary, state, "operation_orphan_retained", cancelled)
-        end
+            local stopped = stop_compiler_for_reset(state, opts)
+            if not core_result.is_confirmed_stopped(stopped) then
+                reset_failed(summary, state, "compiler_stop_failed", stopped)
+            end
+            local cancelled = project_operations.cancel_project(state, {
+                reason = "reset",
+                timeout_ms = opts.operation_timeout_ms or 250,
+                kill_timeout_ms = opts.operation_kill_timeout_ms or 250,
+                wait_timeout_ms = opts.operation_wait_timeout_ms or 1000,
+            })
+            if cancelled.failed > 0 then
+                log.add(
+                    "warn",
+                    "failed to cancel all project operations during reset",
+                    {
+                        main = state.main,
+                        summary = cancelled,
+                    }
+                )
+                reset_failed(
+                    summary,
+                    state,
+                    "operation_cancel_failed",
+                    cancelled
+                )
+            end
+            if (cancelled.retained or 0) > 0 then
+                log.add(
+                    "warn",
+                    "retained orphaned project operations during reset",
+                    {
+                        main = state.main,
+                        summary = cancelled,
+                    }
+                )
+                reset_failed(
+                    summary,
+                    state,
+                    "operation_orphan_retained",
+                    cancelled
+                )
+            end
+        end, debug.traceback)
         state.resetting = false
+        if not reset_ok then
+            log.add("error", "project reset failed", {
+                main = state.main,
+                error = reset_err,
+            })
+            reset_failed(summary, state, "project_reset_exception", reset_err)
+        end
     end
 
     for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-        core_lifecycle().clear_buffer(bufnr)
+        local ok, err = xpcall(function()
+            core_lifecycle().clear_buffer(bufnr)
+        end, debug.traceback)
+        if not ok then
+            summary.ok = false
+            summary.failed[#summary.failed + 1] = {
+                bufnr = bufnr,
+                reason = "buffer_clear_failed",
+                result = err,
+            }
+            log.add("error", "buffer reset cleanup failed", {
+                bufnr = bufnr,
+                error = err,
+            })
+        end
     end
 
     return summary

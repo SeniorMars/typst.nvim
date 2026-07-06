@@ -386,7 +386,7 @@ local function validate_provider(provider)
         )
     end
 
-    for _, name in ipairs({ "compile", "start", "stop", "status", "output" }) do
+    for _, name in ipairs({ "compile", "start", "stop", "status" }) do
         if type(provider[name]) ~= "function" then
             error(
                 ("typst.nvim: compile.provider.%s must be a function"):format(
@@ -394,6 +394,17 @@ local function validate_provider(provider)
                 )
             )
         end
+    end
+    if provider.outputless ~= true and type(provider.output) ~= "function" then
+        error("typst.nvim: compile.provider.output must be a function")
+    end
+    if
+        provider.outputless ~= nil
+        and type(provider.outputless) ~= "boolean"
+    then
+        error(
+            "typst.nvim: compile.provider.outputless must be a boolean or nil"
+        )
     end
 end
 

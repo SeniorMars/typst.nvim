@@ -159,7 +159,7 @@ run_case("cycle success failure success", function(group)
             local watcher = typst_test_compiler(project).watcher
             return watcher ~= nil
                 and watcher.last_cycle_status == "success"
-                and #seen.started >= 3
+                and #seen.started >= 4
                 and #seen.success >= 2
                 and #seen.failed >= 1
                 and #seen.diagnostics >= 1
@@ -189,7 +189,23 @@ run_case("cycle success failure success", function(group)
     )
 
     assert(
-        seen.started[1].status == "compiling",
+        seen.started[1].status == "watching",
+        "watch start event should report watching status"
+    )
+    assert(
+        seen.started[1].watch == true,
+        "watch start event should be marked as a watch event"
+    )
+    assert(
+        seen.started[1].watch_generation ~= nil,
+        "watch start event should include the watch generation"
+    )
+    assert(
+        seen.started[1].cycle_generation == nil,
+        "watch start event should not claim a compile cycle generation"
+    )
+    assert(
+        seen.started[2].status == "compiling",
         "watch cycle started event should report compiling status"
     )
     assert(
@@ -205,23 +221,23 @@ run_case("cycle success failure success", function(group)
         "watch cycle failure event should report error status"
     )
     assert(
-        seen.started[1].cycle_generation == 1,
+        seen.started[2].cycle_generation == 1,
         "first watch cycle should start with generation 1"
     )
     assert(
-        seen.started[2].cycle_generation == 2,
+        seen.started[3].cycle_generation == 2,
         "second watch cycle should advance the cycle generation"
     )
     assert(
-        seen.started[3].cycle_generation == 3,
+        seen.started[4].cycle_generation == 3,
         "third watch cycle should advance the cycle generation"
     )
     assert(
-        seen.success[1].cycle_generation == seen.started[1].cycle_generation,
+        seen.success[1].cycle_generation == seen.started[2].cycle_generation,
         "success event should keep the cycle generation from its start event"
     )
     assert(
-        seen.failed[1].cycle_generation == seen.started[2].cycle_generation,
+        seen.failed[1].cycle_generation == seen.started[3].cycle_generation,
         "failure event should keep the cycle generation from its start event"
     )
     assert(

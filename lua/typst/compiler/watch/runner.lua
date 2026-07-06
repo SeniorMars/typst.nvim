@@ -451,6 +451,13 @@ function M.start(project, callback, run_config)
         watcher_operation = watcher_operation,
         status = "watching",
     })
+    compiler_events.started(project, {
+        provider = "typst",
+        status = "watching",
+        watch = true,
+        watch_generation = generation,
+        watch_status = "watching",
+    })
     compiler_dependencies.start_poll(project, watcher_state)
     return handle
 end

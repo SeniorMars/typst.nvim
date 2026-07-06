@@ -85,9 +85,67 @@ local function tool_provider_label(provider)
     return "<none>"
 end
 
-local function check_string_compiler_provider(provider)
+local function warn_missing_compiler_method(label, name)
+    warn(
+        ("Compiler provider %s is missing method %s"):format(
+            tostring(label),
+            name
+        )
+    )
+end
+
+local function check_compiler_provider_shape(label, provider)
+    if type(provider) ~= "table" then
+        warn(
+            ("Compiler provider %s did not resolve to a provider table"):format(
+                tostring(label)
+            )
+        )
+        return
+    end
+
+    for _, name in ipairs({ "compile", "start", "stop", "status" }) do
+        if type(provider[name]) ~= "function" then
+            warn_missing_compiler_method(label, name)
+            return
+        end
+    end
+
     if
-        type(provider) ~= "string"
+        provider.outputless ~= nil
+        and type(provider.outputless) ~= "boolean"
+    then
+        warn(
+            ("Compiler provider %s has non-boolean outputless field"):format(
+                tostring(label)
+            )
+        )
+        return
+    end
+
+    if provider.outputless == true then
+        if type(provider.output) ~= "function" then
+            info(
+                ("Compiler provider %s is marked outputless; preview compile mode needs another output source"):format(
+                    tostring(label)
+                )
+            )
+        end
+        return
+    end
+
+    if type(provider.output) ~= "function" then
+        warn(
+            ("Compiler provider %s is missing method output; set outputless = true if it intentionally reports no output path"):format(
+                tostring(label)
+            )
+        )
+    end
+end
+
+local function check_compiler_provider_contract(provider)
+    if
+        provider == nil
         or provider == "typst"
         or provider == "generic"
         or provider == "task"
@@ -95,9 +153,29 @@ local function check_string_compiler_provider(provider)
         return
     end
 
+    local label = tool_provider_label(provider)
+    if type(provider) == "table" then
+        check_compiler_provider_shape(label, provider)
+        return
+    end
+
+    if type(provider) == "function" then
+        info(
+            "Compiler provider callback is configured; method shape cannot be inspected safely"
+        )
+        return
+    end
+
+    if type(provider) ~= "string" then
+        return
+    end
+
     local ok_providers, providers =
         pcall(require, "typst.integrations.providers")
-    if ok_providers and providers.get("compiler", provider) then
+    local registered = ok_providers and providers.get("compiler", provider)
+        or nil
+    if registered then
+        check_compiler_provider_shape(provider, registered)
         return
     end
 
@@ -111,17 +189,7 @@ local function check_string_compiler_provider(provider)
         return
     end
 
-    for _, name in ipairs({ "compile", "start", "stop", "status", "output" }) do
-        if type(loaded[name]) ~= "function" then
-            warn(
-                ("Compiler provider module %s is missing method %s"):format(
-                    provider,
-                    name
-                )
-            )
-            return
-        end
-    end
+    check_compiler_provider_shape(provider, loaded)
 end
 
 local function conceal_math_capture_status()
@@ -648,7 +716,7 @@ function M.check()
 
     local provider_label = config.provider_label()
     ok(("Compiler provider: %s"):format(provider_label))
-    check_string_compiler_provider(opts.compile and opts.compile.provider)
+    check_compiler_provider_contract(opts.compile and opts.compile.provider)
 
     if provider_label ~= "typst" then
         ok("Typst executable: not required by configured compiler provider")

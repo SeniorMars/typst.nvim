@@ -1,4 +1,6 @@
 local log = require("typst.core.log")
+local cancel = require("typst.core.cancel")
+local pending = require("typst.core.pending")
 local core_result = require("typst.core.result")
 local services = require("typst.project.services")
 
@@ -315,114 +317,6 @@ local function has_live_uncancellable_handle(record)
     return true
 end
 
-local function normalize_cancel_call(called, stopped, result)
-    if not called then
-        return false, { error = stopped }
-    end
-    if stopped == nil and result == nil then
-        return false,
-            {
-                reason = "cancel_no_result",
-                message = "operation cancel returned no result",
-            }
-    end
-    if stopped == false then
-        return false, result
-    end
-    if type(result) == "table" and result.orphaned then
-        return false, result
-    end
-    return true, result or stopped
-end
-
-local function confirmed_cancel_call(called, stopped, result)
-    if not called or stopped == false then
-        return false
-    end
-    if stopped == nil and result == nil then
-        return false
-    end
-    if type(result) == "table" and result.orphaned then
-        return false
-    end
-    return true
-end
-
-local function should_try_cancel_fallback(called, stopped, result)
-    if not called or (stopped == nil and result == nil) then
-        return true
-    end
-    if stopped ~= false or type(result) ~= "table" then
-        return false
-    end
-    return result.reason == "missing_reason"
-        or result.reason == "wrong_receiver"
-        or result.reason == "invalid_receiver"
-end
-
-local function call_cancel(handle, opts, style)
-    if style == "dot" then
-        return pcall(handle.cancel, opts)
-    end
-    return pcall(handle.cancel, handle, opts)
-end
-
-local function cancel_style(handle)
-    if type(handle) ~= "table" then
-        return "dot", true
-    end
-    if
-        handle.cancel_style == "dot"
-        or handle._typst_cancel_style == "dot"
-        or handle.deferred == true
-    then
-        return "dot", true
-    end
-    if
-        handle.cancel_style == "colon"
-        or handle.cancel_style == "method"
-        or handle._typst_cancel_style == "colon"
-        or handle.on_finish_style == "colon"
-        or handle._typst_on_finish_style == "colon"
-    then
-        return "method", true
-    end
-    local ok, info = pcall(debug.getinfo, handle.cancel, "u")
-    if ok and type(info) == "table" then
-        if type(info.nparams) == "number" and info.nparams >= 2 then
-            return "method", false
-        end
-        if info.isvararg ~= true and (info.nparams or 0) <= 1 then
-            return "dot", false
-        end
-    end
-    return "method", false
-end
-
-local function cancel_handle(handle, opts)
-    local first_style, explicit_style = cancel_style(handle)
-    local called, stopped, result = call_cancel(handle, opts, first_style)
-    if
-        not explicit_style
-        and should_try_cancel_fallback(called, stopped, result)
-    then
-        local fallback_style = first_style == "dot" and "method" or "dot"
-        local fallback_called, fallback_stopped, fallback_result =
-            call_cancel(handle, opts, fallback_style)
-        if
-            confirmed_cancel_call(
-                fallback_called,
-                fallback_stopped,
-                fallback_result
-            )
-        then
-            called, stopped, result =
-                fallback_called, fallback_stopped, fallback_result
-        end
-    end
-    return normalize_cancel_call(called, stopped, result)
-end
-
 local function add_cancel_outcome(summary, record, outcome, result)
     summary.outcomes = summary.outcomes or {}
     summary.outcomes[#summary.outcomes + 1] = {
@@ -479,7 +373,7 @@ function M.cancel_project(project, opts)
             summary.total = summary.total + 1
             local handle = cancellable_handle(active_record)
             if handle then
-                local ok, cancel_result = cancel_handle(handle, opts)
+                local ok, cancel_result = cancel.call(handle, opts)
                 local raw_handle = active_record and active_record.handle
                 local operation = raw_handle and raw_handle.operation
                 if
@@ -625,6 +519,84 @@ local function terminal_result(result)
         or result.output ~= nil
 end
 
+local function copy_terminal_fields(proxy, result)
+    if type(result) ~= "table" then
+        return
+    end
+    for _, key in ipairs({
+        "ok",
+        "code",
+        "signal",
+        "reason",
+        "message",
+        "stopped",
+        "state",
+        "stale",
+        "orphaned",
+    }) do
+        if result[key] ~= nil then
+            proxy[key] = result[key]
+        end
+    end
+end
+
+local function settle_deferred_proxy(proxy, result)
+    if proxy.finished == true then
+        return result
+    end
+    proxy.pending = false
+    proxy.finished = true
+    proxy.result = result
+    copy_terminal_fields(proxy, result)
+    return result
+end
+
+local function on_finish_style(source)
+    if type(source) ~= "table" then
+        return "colon"
+    end
+    if
+        source.on_finish_style == "dot"
+        or source._typst_on_finish_style == "dot"
+    then
+        return "dot"
+    end
+    return "colon"
+end
+
+local function subscribe_deferred_proxy(proxy, actual)
+    if type(actual) ~= "table" or actual.pending ~= true then
+        settle_deferred_proxy(proxy, actual)
+        return
+    end
+
+    local ok, err = pending.subscribe(actual, function(result)
+        settle_deferred_proxy(proxy, result)
+    end, { style = on_finish_style(actual) })
+    if ok then
+        return
+    end
+
+    local operation = actual.operation
+    if type(operation) == "table" then
+        local op_ok, op_err = pending.subscribe(operation, function(finished)
+            settle_deferred_proxy(proxy, finished.result or actual)
+        end, { style = on_finish_style(operation) })
+        if op_ok then
+            return
+        end
+        err = op_err or err
+    end
+
+    settle_deferred_proxy(proxy, {
+        ok = false,
+        pending = false,
+        reason = "pending_unobservable",
+        message = "Deferred operation returned a pending handle without an observable finish callback",
+        error = err and tostring(err) or nil,
+    })
+end
+
 -- Wrap user-facing operations in a project-scoped record without hiding their
 -- native return value. Synchronous results finish the record immediately; pending
 -- handles stay active until their callback settles the same operation exactly
@@ -649,37 +621,43 @@ local function run(project, kind, callback, runner, opts)
                 deferred = true,
                 cancel_style = "dot",
                 kind = kind,
-                cancel = function(cancel_opts, cancel_callback)
-                    if actual then
-                        local handle = actual.operation or actual
-                        if
-                            type(handle) == "table"
-                            and type(handle.cancel) == "function"
-                        then
-                            return handle.cancel(
-                                handle,
-                                cancel_opts,
-                                cancel_callback
-                            )
-                        end
-                    end
-                    cancelled = true
-                    local result = {
-                        ok = false,
-                        stopped = true,
-                        reason = (cancel_opts and cancel_opts.reason)
-                            or "cancelled",
-                    }
-                    if type(cancel_callback) == "function" then
-                        protected_callback(cancel_callback, true, result)
-                    end
-                    return true, result
-                end,
             }
+            proxy.cancel = function(cancel_opts, cancel_callback)
+                if actual then
+                    local handle = actual.operation or actual
+                    if
+                        type(handle) == "table"
+                        and type(handle.cancel) == "function"
+                    then
+                        local stopped, result =
+                            cancel.call(handle, cancel_opts, cancel_callback)
+                        if not (type(result) == "table" and result.pending) then
+                            settle_deferred_proxy(proxy, result)
+                        end
+                        return stopped, result
+                    end
+                end
+                cancelled = true
+                local result = {
+                    ok = false,
+                    stopped = true,
+                    reason = (cancel_opts and cancel_opts.reason)
+                        or "cancelled",
+                }
+                if type(cancel_callback) == "function" then
+                    protected_callback(cancel_callback, true, result)
+                end
+                settle_deferred_proxy(proxy, result)
+                return true, result
+            end
 
             events.defer_state_change("operation:" .. kind, function()
                 if cancelled then
-                    proxy.pending = false
+                    settle_deferred_proxy(proxy, proxy.result or {
+                        ok = false,
+                        stopped = true,
+                        reason = "cancelled",
+                    })
                     return
                 end
                 actual = run(
@@ -692,9 +670,7 @@ local function run(project, kind, callback, runner, opts)
                 proxy.handle = actual
                 proxy.operation = type(actual) == "table" and actual.operation
                     or nil
-                if type(actual) ~= "table" or actual.pending ~= true then
-                    proxy.pending = false
-                end
+                subscribe_deferred_proxy(proxy, actual)
             end)
             return proxy
         end
@@ -846,34 +822,43 @@ function M.stop(project, callback, notify)
             deferred = true,
             cancel_style = "dot",
             kind = "stop",
-            cancel = function(cancel_opts, cancel_callback)
-                if actual and type(actual.cancel) == "function" then
-                    return actual.cancel(actual, cancel_opts, cancel_callback)
-                end
-                cancelled = true
-                local result = {
-                    ok = false,
-                    stopped = true,
-                    reason = (cancel_opts and cancel_opts.reason)
-                        or "cancelled",
-                }
-                if type(cancel_callback) == "function" then
-                    protected_callback(cancel_callback, true, result)
-                end
-                return true, result
-            end,
         }
+        proxy.cancel = function(cancel_opts, cancel_callback)
+            if actual and type(actual.cancel) == "function" then
+                local stopped, result =
+                    cancel.call(actual, cancel_opts, cancel_callback)
+                if not (type(result) == "table" and result.pending) then
+                    settle_deferred_proxy(proxy, result)
+                end
+                return stopped, result
+            end
+            cancelled = true
+            local result = {
+                ok = false,
+                stopped = true,
+                reason = (cancel_opts and cancel_opts.reason) or "cancelled",
+            }
+            if type(cancel_callback) == "function" then
+                protected_callback(cancel_callback, true, result)
+            end
+            settle_deferred_proxy(proxy, result)
+            return true, result
+        end
 
         events.defer_state_change("operation:stop", function()
             if cancelled then
-                proxy.pending = false
+                settle_deferred_proxy(proxy, proxy.result or {
+                    ok = false,
+                    stopped = true,
+                    reason = "cancelled",
+                })
                 return
             end
             actual = M.stop(project, callback, notify)
             proxy.handle = actual
-            if type(actual) ~= "table" or actual.pending ~= true then
-                proxy.pending = false
-            end
+            proxy.operation = type(actual) == "table" and actual.operation
+                or nil
+            subscribe_deferred_proxy(proxy, actual)
         end)
         return proxy
     end

@@ -5,7 +5,7 @@ local compiler_service = require("typst.project.services.compiler")
 
 local M = {}
 
-local required_methods = { "compile", "start", "stop", "status", "output" }
+local required_methods = { "compile", "start", "stop", "status" }
 
 local function typst_provider()
     return require("typst.compiler.typst")
@@ -26,6 +26,16 @@ local function validate(provider)
                 ("typst.nvim: compiler provider missing method %s"):format(name)
             )
         end
+    end
+
+    if provider.outputless ~= true and type(provider.output) ~= "function" then
+        error("typst.nvim: compiler provider missing method output")
+    end
+    if
+        provider.outputless ~= nil
+        and type(provider.outputless) ~= "boolean"
+    then
+        error("typst.nvim: compiler provider outputless must be boolean or nil")
     end
 
     return provider
@@ -280,6 +290,17 @@ end
 ---@param project TypstProject Project state whose compiler output may be updated.
 ---@param run_config? table Effective run configuration for the provider call.
 function M.refresh_output(provider, project, run_config)
+    if type(provider) == "table" and provider.outputless == true then
+        compiler_service.set(project, {
+            clear = { "output" },
+            outputless = true,
+        })
+        return
+    end
+    compiler_service.set(project, {
+        clear = { "output", "outputless" },
+    })
+
     local binding = project.compiler_provider or {}
     local provider_project = M.project_arg(project, binding.external)
     local output = provider_adapter.invoke(

@@ -110,6 +110,39 @@ do
             )
         )
     end
+
+    local outputless_setup_ok, outputless_setup_err = pcall(function()
+        typst.reset()
+        typst.setup({
+            root = root,
+            output_dir = typst_test_cache_path(
+                "outputless-table-provider-output"
+            ),
+            compile = {
+                provider = {
+                    name = "outputless-inline",
+                    outputless = true,
+                    compile = function()
+                        return { code = 0 }
+                    end,
+                    start = function()
+                        return { pending = true }
+                    end,
+                    stop = function()
+                        return { stopped = true }
+                    end,
+                    status = function()
+                        return "idle"
+                    end,
+                },
+            },
+        })
+    end)
+    assert(
+        outputless_setup_ok,
+        outputless_setup_err
+            or "outputless inline providers should not require output()"
+    )
 end
 
 vim.cmd("qa!")

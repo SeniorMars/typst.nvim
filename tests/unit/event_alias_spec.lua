@@ -687,4 +687,288 @@ if not ok then
     error(err)
 end
 
+events._reset_for_tests()
+
+local pending = require("typst.core.pending")
+local pending_handle = nil
+local pending_deferred_handle = nil
+local pending_compile_calls = 0
+local pending_compile_callbacks = 0
+
+rawset(compiler_api, "compile", function(_, _, callback)
+    pending_compile_calls = pending_compile_calls + 1
+    pending_handle = pending.new({
+        kind = "unit-deferred-compile",
+        copy_result_fields = true,
+    })
+    pending_handle:on_finish(function(result)
+        callback(result, reentrant_project)
+    end)
+    return pending_handle
+end)
+
+ok, err = xpcall(function()
+    vim.api.nvim_create_autocmd("User", {
+        pattern = "TypstUnitDeferredPending",
+        once = true,
+        callback = function()
+            pending_deferred_handle = operations.compile(
+                reentrant_project,
+                {},
+                function()
+                    pending_compile_callbacks = pending_compile_callbacks + 1
+                end
+            )
+            assert(
+                pending_deferred_handle
+                    and pending_deferred_handle.deferred
+                    and pending_deferred_handle.pending,
+                "pending operation started from user event should return a pending deferred proxy"
+            )
+            assert(
+                pending_compile_calls == 0,
+                "pending deferred operation should not run during the user event"
+            )
+        end,
+    })
+
+    events.emit("TypstUnitDeferredPending", reentrant_project)
+
+    assert(
+        pending_compile_calls == 1,
+        "pending deferred operation should run after the event batch"
+    )
+    assert(
+        pending_deferred_handle.pending == true,
+        "deferred proxy should remain pending while the actual handle is pending"
+    )
+    assert(
+        pending_handle and pending_handle.pending == true,
+        "fake pending compiler handle should be active before finish"
+    )
+
+    pending_handle:finish({ ok = true, code = 0 })
+
+    assert(
+        vim.wait(1000, function()
+            return pending_deferred_handle.pending == false
+                and pending_deferred_handle.finished == true
+        end, 10),
+        "deferred proxy should settle after actual pending handle finishes"
+    )
+    assert(
+        pending_deferred_handle.result
+            and pending_deferred_handle.result.ok == true,
+        "deferred proxy should retain the actual pending result"
+    )
+    assert(
+        pending_compile_callbacks == 1,
+        "pending deferred operation callback should run exactly once"
+    )
+end, debug.traceback)
+
+compiler_api.compile = original_compile
+events._reset_for_tests()
+
+if not ok then
+    error(err)
+end
+
+events._reset_for_tests()
+
+local unobservable_deferred_handle = nil
+local unobservable_compile_calls = 0
+
+rawset(compiler_api, "compile", function()
+    unobservable_compile_calls = unobservable_compile_calls + 1
+    return {
+        pending = true,
+    }
+end)
+
+ok, err = xpcall(function()
+    vim.api.nvim_create_autocmd("User", {
+        pattern = "TypstUnitDeferredUnobservable",
+        once = true,
+        callback = function()
+            unobservable_deferred_handle =
+                operations.compile(reentrant_project, {})
+            assert(
+                unobservable_deferred_handle
+                    and unobservable_deferred_handle.deferred,
+                "unobservable deferred compile should return a deferred proxy"
+            )
+        end,
+    })
+
+    events.emit("TypstUnitDeferredUnobservable", reentrant_project)
+    assert(
+        unobservable_compile_calls == 1,
+        "unobservable deferred compile should run after the event batch"
+    )
+    assert(
+        unobservable_deferred_handle.pending == false
+            and unobservable_deferred_handle.finished == true,
+        "unobservable deferred proxy should settle immediately"
+    )
+    assert(
+        unobservable_deferred_handle.reason == "pending_unobservable",
+        "unobservable deferred proxy should expose a structured failure"
+    )
+end, debug.traceback)
+
+compiler_api.compile = original_compile
+events._reset_for_tests()
+
+if not ok then
+    error(err)
+end
+
+events._reset_for_tests()
+
+local original_stop = compiler_api.stop
+local cancel_compile_calls = 0
+local cancel_callback_calls = 0
+local cancel_deferred_handle = nil
+
+rawset(compiler_api, "compile", function()
+    cancel_compile_calls = cancel_compile_calls + 1
+    return {
+        pending = true,
+        cancel_style = "dot",
+        on_finish = function()
+            return nil
+        end,
+        cancel = function(opts, callback)
+            assert(
+                type(opts) == "table" and opts.reason == "after-start",
+                "deferred compile proxy should preserve dot-style cancel arguments"
+            )
+            local result = {
+                ok = false,
+                stopped = true,
+                reason = opts.reason,
+            }
+            if type(callback) == "function" then
+                callback(true, result)
+            end
+            return true, result
+        end,
+    }
+end)
+
+ok, err = xpcall(function()
+    vim.api.nvim_create_autocmd("User", {
+        pattern = "TypstUnitDeferredCancelCompile",
+        once = true,
+        callback = function()
+            cancel_deferred_handle = operations.compile(reentrant_project, {})
+        end,
+    })
+
+    events.emit("TypstUnitDeferredCancelCompile", reentrant_project)
+    assert(cancel_compile_calls == 1, "deferred compile should have started")
+    assert(
+        cancel_deferred_handle and cancel_deferred_handle.pending == true,
+        "deferred compile proxy should be pending before cancel"
+    )
+    local stopped, result = cancel_deferred_handle.cancel(
+        { reason = "after-start" },
+        function()
+            cancel_callback_calls = cancel_callback_calls + 1
+        end
+    )
+    assert(stopped == true, "deferred compile cancel should confirm stop")
+    assert(
+        result and result.reason == "after-start",
+        "deferred compile cancel should return provider result"
+    )
+    assert(
+        cancel_deferred_handle.pending == false
+            and cancel_deferred_handle.finished == true,
+        "deferred compile proxy should settle after cancel"
+    )
+    assert(
+        cancel_callback_calls == 1,
+        "deferred compile cancel should forward cancel callback"
+    )
+end, debug.traceback)
+
+compiler_api.compile = original_compile
+events._reset_for_tests()
+
+if not ok then
+    error(err)
+end
+
+local stop_calls = 0
+local stop_cancel_callbacks = 0
+local stop_deferred_handle = nil
+
+rawset(compiler_api, "stop", function()
+    stop_calls = stop_calls + 1
+    return {
+        pending = true,
+        cancel_style = "dot",
+        on_finish = function()
+            return nil
+        end,
+        cancel = function(opts, callback)
+            assert(
+                type(opts) == "table" and opts.reason == "stop-after-start",
+                "deferred stop proxy should preserve dot-style cancel arguments"
+            )
+            local result = {
+                ok = false,
+                stopped = true,
+                reason = opts.reason,
+            }
+            if type(callback) == "function" then
+                callback(true, result)
+            end
+            return true, result
+        end,
+    }
+end)
+
+ok, err = xpcall(function()
+    vim.api.nvim_create_autocmd("User", {
+        pattern = "TypstUnitDeferredCancelStop",
+        once = true,
+        callback = function()
+            stop_deferred_handle = operations.stop(reentrant_project)
+        end,
+    })
+
+    events.emit("TypstUnitDeferredCancelStop", reentrant_project)
+    assert(stop_calls == 1, "deferred stop should have started")
+    local stopped, result = stop_deferred_handle.cancel(
+        { reason = "stop-after-start" },
+        function()
+            stop_cancel_callbacks = stop_cancel_callbacks + 1
+        end
+    )
+    assert(stopped == true, "deferred stop cancel should confirm stop")
+    assert(
+        result and result.reason == "stop-after-start",
+        "deferred stop cancel should return provider result"
+    )
+    assert(
+        stop_deferred_handle.pending == false
+            and stop_deferred_handle.finished == true,
+        "deferred stop proxy should settle after cancel"
+    )
+    assert(
+        stop_cancel_callbacks == 1,
+        "deferred stop cancel should forward cancel callback"
+    )
+end, debug.traceback)
+
+compiler_api.stop = original_stop
+events._reset_for_tests()
+
+if not ok then
+    error(err)
+end
+
 vim.cmd("qa!")

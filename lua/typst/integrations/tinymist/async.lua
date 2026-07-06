@@ -286,7 +286,7 @@ function M.request(bufnr, method, params_for_client, opts, callback, normalize)
                                     return normalize(result, client, params)
                                 end
                             )
-                            if ok_norm then
+                            if ok_norm and type(normalized) == "table" then
                                 finish(normalized)
                             else
                                 finish({
@@ -295,7 +295,9 @@ function M.request(bufnr, method, params_for_client, opts, callback, normalize)
                                     provider = "tinymist",
                                     client = client.name,
                                     method = method,
-                                    message = tostring(normalized),
+                                    message = ok_norm
+                                            and "Tinymist response normalizer returned no result"
+                                        or tostring(normalized),
                                     error = tostring(normalized),
                                 })
                             end

@@ -457,6 +457,102 @@ run_case("compiler provider state", function()
         saw_missing_provider,
         "health should warn about missing string compiler providers"
     )
+
+    package.preload["typst_health_missing_output_provider"] = function()
+        return {
+            name = "typst-health-missing-output-provider",
+            compile = function() end,
+            start = function() end,
+            stop = function() end,
+            status = function()
+                return "idle"
+            end,
+        }
+    end
+    typst.setup({
+        root = root,
+        compile = {
+            provider = "typst_health_missing_output_provider",
+        },
+    })
+    messages = capture_health()
+    package.preload["typst_health_missing_output_provider"] = nil
+    package.loaded["typst_health_missing_output_provider"] = nil
+
+    assert(
+        has_message(
+            messages,
+            "warn",
+            "Compiler provider typst_health_missing_output_provider is missing method output"
+        ),
+        "health should warn when non-outputless providers omit output()"
+    )
+
+    package.preload["typst_health_outputless_provider"] = function()
+        return {
+            name = "typst-health-outputless-provider",
+            outputless = true,
+            compile = function() end,
+            start = function() end,
+            stop = function() end,
+            status = function()
+                return "idle"
+            end,
+        }
+    end
+    typst.setup({
+        root = root,
+        compile = {
+            provider = "typst_health_outputless_provider",
+        },
+    })
+    messages = capture_health()
+    package.preload["typst_health_outputless_provider"] = nil
+    package.loaded["typst_health_outputless_provider"] = nil
+
+    assert(
+        not has_message(messages, "warn", "missing method output"),
+        "health should not warn when providers explicitly set outputless=true"
+    )
+
+    typst.reset({ force = true })
+    vim.cmd("silent! %bwipeout!")
+
+    local function_provider_executed = false
+    typst.setup({
+        root = root,
+        compile = {
+            provider = function()
+                function_provider_executed = true
+                return {
+                    name = "health-callback-provider",
+                    compile = function() end,
+                    start = function() end,
+                    stop = function() end,
+                    status = function()
+                        return "idle"
+                    end,
+                    output = function()
+                        return nil
+                    end,
+                }
+            end,
+        },
+    })
+    messages = capture_health()
+
+    assert(
+        function_provider_executed == false,
+        "health should not execute function-valued compiler providers"
+    )
+    assert(
+        has_message(
+            messages,
+            "ok",
+            "Compiler provider callback is configured; method shape cannot be inspected safely"
+        ),
+        "health should explain that callback providers are not statically inspected"
+    )
 end)
 run_case("tinymist ownership report", function()
     local old_get_clients = vim.lsp.get_clients

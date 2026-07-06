@@ -14,6 +14,9 @@ local compile_return
 local compile_result
 local start_return
 local start_result
+local compiler_output = root .. "/out.pdf"
+local compile_open = false
+local after_compile_opts = nil
 
 stub("typst.compiler.api", nil)
 stub("typst.compiler", {
@@ -35,11 +38,13 @@ stub("typst.config", {
         return { project = {} }
     end,
     for_run = function()
-        return { compile = { open = false, profile = nil } }
+        return { compile = { open = compile_open, profile = nil } }
     end,
 })
 stub("typst.compiler.consumers", {
-    after_compile = function() end,
+    after_compile = function(_, _, opts)
+        after_compile_opts = opts
+    end,
     after_watch_cycle = function()
         return {}
     end,
@@ -47,7 +52,10 @@ stub("typst.compiler.consumers", {
 stub("typst.compiler.fragments", {})
 stub("typst.project.services.compiler", {
     get = function()
-        return { output = root .. "/out.pdf" }
+        return {
+            output = compiler_output,
+            provider_label = "sync-provider",
+        }
     end,
 })
 stub("typst.core.log", { add = function() end })
@@ -78,6 +86,30 @@ local ok, err = xpcall(function()
         not vim.tbl_contains(messages, "Compiling " .. project.main),
         "sync compile success should not emit a late Compiling notification"
     )
+
+    messages = {}
+    compiler_output = nil
+    compile_open = true
+    after_compile_opts = nil
+    compile_result = { code = 0 }
+    compile_return = { ok = true, code = 0 }
+    api.compile(project, {}, nil, notify)
+    assert(
+        messages[1]
+            == "Typst compile succeeded; provider sync-provider did not report an output path",
+        "outputless provider success should emit an actionable warning"
+    )
+    assert(
+        messages[2]
+            == "Cannot open compile output because the compiler provider did not report one",
+        "open compile without output should emit an actionable warning"
+    )
+    assert(
+        after_compile_opts and after_compile_opts.open == false,
+        "outputless compile should not ask consumers to open a missing output"
+    )
+    compiler_output = root .. "/out.pdf"
+    compile_open = false
 
     messages = {}
     compile_result = { code = 1 }

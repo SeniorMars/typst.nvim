@@ -135,7 +135,8 @@
 ---@field stop fun(project:TypstProject|TypstProviderContext|table, callback?:fun(result:TypstCompilerResult)):TypstProviderPendingHandle|TypstCompilerResult|unknown
 ---@field stop_for_exit? fun(project:TypstProject|TypstProviderContext|table, opts?:table):TypstProviderPendingHandle|TypstCompilerResult|unknown
 ---@field status fun(project:TypstProject|table):string?
----@field output fun(project:TypstProject|TypstProviderContext|table, run_config?:TypstCompilerRunConfig|table):string?
+---@field output? fun(project:TypstProject|TypstProviderContext|table, run_config?:TypstCompilerRunConfig|table):string?
+---@field outputless? boolean
 ---@field name string?
 
 ---@class TypstProjectServices

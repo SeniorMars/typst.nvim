@@ -20,6 +20,29 @@ local function is_active_handle(value)
         and not provider_adapter.result_like(value)
 end
 
+local function compile_output(state)
+    local output = (compiler_service.get(state) or {}).output
+    if type(output) == "string" and output ~= "" then
+        return output
+    end
+    return nil
+end
+
+local function compiler_provider_label(state)
+    local service = compiler_service.get(state) or {}
+    if
+        type(service.provider_label) == "string"
+        and service.provider_label ~= ""
+    then
+        return service.provider_label
+    end
+    local binding = state and state.compiler_provider or nil
+    if type(binding) == "table" and type(binding.label) == "string" then
+        return binding.label
+    end
+    return "compiler"
+end
+
 local function warn_low_confidence_main(state, action, notify)
     local project_config = (config.unsafe_get().project or {})
     if project_config.warn_on_low_confidence_main == false then
@@ -80,13 +103,35 @@ function M.compile(state, opts, callback, notify)
         end
 
         if result.code == 0 then
-            local output = (compiler_service.get(state) or {}).output
-            notify_user(
-                notify,
-                ("Compiled %s"):format(util.relpath(output, state.root))
-            )
+            local output = compile_output(state)
+            if output then
+                notify_user(
+                    notify,
+                    ("Compiled %s"):format(util.relpath(output, state.root))
+                )
+            else
+                local provider = compiler_provider_label(state)
+                log.add("warn", "compiler succeeded without output path", {
+                    main = state and state.main or nil,
+                    provider = provider,
+                })
+                notify_user(
+                    notify,
+                    ("Typst compile succeeded; provider %s did not report an output path"):format(
+                        provider
+                    ),
+                    vim.log.levels.WARN
+                )
+            end
+            if run_config.compile.open == true and not output then
+                notify_user(
+                    notify,
+                    "Cannot open compile output because the compiler provider did not report one",
+                    vim.log.levels.WARN
+                )
+            end
             consumers.after_compile(state, result, {
-                open = run_config.compile.open == true,
+                open = output ~= nil and run_config.compile.open == true,
                 profile = run_config.compile.profile,
             }, notify)
         else

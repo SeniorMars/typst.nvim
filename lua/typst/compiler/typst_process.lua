@@ -1,5 +1,6 @@
 local compiler_dependencies = require("typst.compiler.dependencies")
 local compiler_events = require("typst.compiler.events")
+local async = require("typst.core.async")
 local log = require("typst.core.log")
 local process = require("typst.core.process")
 local compiler_service = require("typst.project.services.compiler")
@@ -73,10 +74,7 @@ end
 --- Stop and close a libuv timer when it is still open.
 ---@param timer? any Timer handle created by `uv.new_timer`.
 function M.close_timer(timer)
-    if timer and not timer:is_closing() then
-        timer:stop()
-        timer:close()
-    end
+    async.close_timer(timer)
 end
 
 --- Request process termination with a SIGKILL fallback timer.
