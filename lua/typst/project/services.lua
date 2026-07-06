@@ -12,7 +12,9 @@ local compiler = require("typst.project.services.compiler")
 local diagnostics = require("typst.project.services.diagnostics")
 local graph = require("typst.project.services.graph")
 local index = require("typst.project.services.index")
+local integrations = require("typst.project.services.integrations")
 local invalidation = require("typst.project.services.invalidation")
+local lifecycle = require("typst.project.services.lifecycle")
 local operations = require("typst.project.services.operation_state")
 local preview = require("typst.project.services.preview")
 local viewer = require("typst.project.services.viewer")
@@ -27,6 +29,8 @@ local service_modules = {
     index = index,
     viewer = viewer,
     invalidation = invalidation,
+    integrations = integrations,
+    lifecycle = lifecycle,
 }
 
 --- Create the per-project service state container.
@@ -42,6 +46,8 @@ function M.new_state()
         index = index.defaults(),
         viewer = viewer.defaults(),
         invalidation = invalidation.defaults(),
+        integrations = integrations.defaults(),
+        lifecycle = lifecycle.defaults(),
     }
 end
 
@@ -175,6 +181,20 @@ function M.invalidation(project)
     return invalidation.get(project)
 end
 
+--- Return the integration status service for a project.
+---@param project TypstProject Project state to inspect.
+---@return TypstProjectIntegrationsService? integrations Integration service table.
+function M.integrations(project)
+    return integrations.get(project)
+end
+
+--- Return the lifecycle status service for a project.
+---@param project TypstProject Project state to inspect.
+---@return TypstProjectLifecycleService? lifecycle Lifecycle service table.
+function M.lifecycle(project)
+    return lifecycle.get(project)
+end
+
 --- Check whether a project still owns processes, preview, or active operations.
 ---@param project TypstProject Project state to inspect.
 ---@return boolean active True when pruning should keep the project alive.
@@ -201,6 +221,8 @@ function M.snapshot(project)
         invalidation = invalidation.snapshot(project),
         diagnostics = diagnostics.snapshot(project),
         index = index.snapshot(project),
+        integrations = integrations.snapshot(project),
+        lifecycle = lifecycle.snapshot(project),
     }
 end
 

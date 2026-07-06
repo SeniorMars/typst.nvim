@@ -197,5 +197,13 @@ function M.reset()
 end
 
 M._reset_for_tests = M.reset
+M._state_for_tests = function()
+    return {
+        emitting_depth = emitting_depth,
+        deferred_count = #deferred_state_changes,
+        draining_deferred = draining_deferred,
+        reset_generation = reset_generation,
+    }
+end
 
 return M

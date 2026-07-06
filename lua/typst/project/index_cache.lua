@@ -10,6 +10,7 @@ local DISK_SIGNATURE_TTL_MS = 250
 local DISK_SIGNATURE_BUDGET = 32
 local FS_EVENT_DEBOUNCE_MS = 50
 local DEFAULT_FS_WATCHER_CAP = 256
+local reset_generation = 0
 
 -- Project index cache state. It tracks three kinds of freshness separately:
 -- loaded-buffer ticks, disk signatures for unloaded files, and dependency graph
@@ -56,6 +57,10 @@ function M.ensure(project)
     index.fs_watch_mode = index.fs_watch_mode or "idle"
     index.fs_watch_wanted_count = index.fs_watch_wanted_count or 0
     index.fs_watch_active_count = index.fs_watch_active_count or 0
+    index.fs_watch_attempted_count = index.fs_watch_attempted_count or 0
+    index.fs_watch_failed_count = index.fs_watch_failed_count or 0
+    index.fs_watch_first_failed_path = index.fs_watch_first_failed_path or nil
+    index.fs_watch_partial = index.fs_watch_partial or false
     index.fs_watch_cap = index.fs_watch_cap or DEFAULT_FS_WATCHER_CAP
     index.stats = index.stats or {}
     for key, value in pairs(empty_stats()) do
@@ -92,6 +97,7 @@ function M.reset(project)
     if type(project) ~= "table" then
         return
     end
+    reset_generation = reset_generation + 1
 
     local index = services.index(project)
     if type(index) == "table" then
@@ -117,6 +123,10 @@ function M.reset(project)
         fs_watch_mode = "idle",
         fs_watch_wanted_count = 0,
         fs_watch_active_count = 0,
+        fs_watch_attempted_count = 0,
+        fs_watch_failed_count = 0,
+        fs_watch_first_failed_path = nil,
+        fs_watch_partial = false,
         fs_watch_cap = DEFAULT_FS_WATCHER_CAP,
         stats = empty_stats(),
     }
@@ -175,6 +185,10 @@ local function set_watch_status(project_index, fields)
     end
 end
 
+local function project_store()
+    return require("typst.project.store")
+end
+
 local function disable_watchers(project_index, reason, wanted_total, cap)
     close_watchers(project_index)
     set_watch_status(project_index, {
@@ -182,6 +196,10 @@ local function disable_watchers(project_index, reason, wanted_total, cap)
         fs_watch_disabled_reason = reason,
         fs_watch_wanted_count = wanted_total,
         fs_watch_active_count = 0,
+        fs_watch_attempted_count = 0,
+        fs_watch_failed_count = 0,
+        fs_watch_first_failed_path = nil,
+        fs_watch_partial = false,
         fs_watch_cap = cap,
     })
 end
@@ -199,16 +217,35 @@ local function warn_cap_exceeded(project_index, wanted_total, cap)
     })
 end
 
-local function schedule_watch_bump(project_index, path)
+local function schedule_watch_bump(project_index, key, path, handle)
     if project_index.fs_watch_pending then
         return
     end
 
+    local project = project_index.project
+    local expected_key = project and project.key or nil
+    local expected_instance_id = project and project.instance_id or nil
+    local expected_reset_generation = reset_generation
     project_index.fs_watch_pending = true
     vim.defer_fn(function()
         project_index.fs_watch_pending = false
-        if type(project_index.project) ~= "table" then
+        if
+            type(project) ~= "table"
+            or type(expected_key) ~= "string"
+            or project._typst_project_pruned == true
+            or project_store().get(expected_key) ~= project
+            or project.instance_id ~= expected_instance_id
+            or project_index.project ~= project
+            or reset_generation ~= expected_reset_generation
+        then
             return
+        end
+        if key ~= nil and handle ~= nil then
+            local record = project_index.fs_watchers
+                and project_index.fs_watchers[key]
+            if not (record and record.handle == handle) then
+                return
+            end
         end
         -- Filesystem events are coarse and can coalesce writes. Force the next
         -- collection to rebuild disk signatures instead of trusting a cursor.
@@ -239,7 +276,7 @@ local function start_file_watcher(project_index, key, path)
                 local record = project_index.fs_watchers
                     and project_index.fs_watchers[key]
                 if record and record.handle == handle then
-                    schedule_watch_bump(project_index, path)
+                    schedule_watch_bump(project_index, key, path, handle)
                 end
             end)
         end)
@@ -268,6 +305,8 @@ function M.sync_file_watchers(project_index, paths)
     local cap = watcher_cap()
     local watchers = project_index.fs_watchers or {}
     project_index.fs_watchers = watchers
+    project_index.fs_watch_generation = (project_index.fs_watch_generation or 0)
+        + 1
 
     if cap == false then
         disable_watchers(project_index, "disabled", wanted_total, false)
@@ -287,9 +326,13 @@ function M.sync_file_watchers(project_index, paths)
         end
     end
 
+    local first_failed_path = nil
     for key, path in pairs(wanted) do
         if not watchers[key] then
             watchers[key] = start_file_watcher(project_index, key, path)
+            if not watchers[key] then
+                first_failed_path = first_failed_path or path
+            end
         end
     end
 
@@ -302,9 +345,16 @@ function M.sync_file_watchers(project_index, paths)
 
     set_watch_status(project_index, {
         fs_watch_mode = active_count > 0 and "watching" or "polling",
-        fs_watch_disabled_reason = nil,
+        fs_watch_disabled_reason = active_count == 0
+                and wanted_total > 0
+                and "watch_start_failed"
+            or nil,
         fs_watch_wanted_count = wanted_total,
         fs_watch_active_count = active_count,
+        fs_watch_attempted_count = wanted_total,
+        fs_watch_failed_count = math.max(wanted_total - active_count, 0),
+        fs_watch_first_failed_path = first_failed_path,
+        fs_watch_partial = active_count > 0 and active_count < wanted_total,
         fs_watch_cap = cap,
     })
 end
@@ -573,6 +623,13 @@ function M.sync_dependency_generation(project, project_index)
         project_index.dependency_signature = signature
         M.bump(project_index, "dependency graph changed")
     end
+end
+
+M._schedule_watch_bump_for_tests = function(project_index, path)
+    return schedule_watch_bump(project_index, nil, path, nil)
+end
+M._reset_generation_for_tests = function()
+    return reset_generation
 end
 
 return M

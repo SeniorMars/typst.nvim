@@ -89,7 +89,7 @@ function M.emit_reassign(
 end
 
 function M.stop_previous(previous, log_message, prune_reason)
-    resources.stop_before_prune(previous, log_message, prune_reason)
+    return resources.stop_before_prune(previous, log_message, prune_reason)
 end
 
 return M

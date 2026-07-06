@@ -45,6 +45,16 @@ function M.remove(key)
     return project_registry.remove(key)
 end
 
+function M.restore(state)
+    if type(state) ~= "table" or type(state.key) ~= "string" then
+        return nil
+    end
+    state._typst_project_pruned = nil
+    state._typst_project_pruned_reason = nil
+    state._typst_project_pruned_event_emitted = nil
+    return project_registry.set(state.key, state)
+end
+
 function M.key_for_buffer(bufnr)
     return project_registry.key_for_buffer(bufnr)
 end

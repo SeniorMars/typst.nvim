@@ -89,6 +89,15 @@ local function schedule(bufnr)
 end
 
 function M.setup()
+    if not enabled() then
+        M.reset()
+        return {
+            ok = true,
+            installed = false,
+            reason = "disabled",
+        }
+    end
+
     if group then
         pcall(vim.api.nvim_del_augroup_by_id, group)
     end
@@ -104,6 +113,10 @@ function M.setup()
             schedule(args.buf)
         end,
     })
+    return {
+        ok = true,
+        installed = true,
+    }
 end
 
 function M.reset()

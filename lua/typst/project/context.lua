@@ -168,6 +168,8 @@ function M.snapshot(project, opts)
     local diagnostics = service_state.diagnostics or {}
     local graph = service_state.graph or {}
     local viewer = service_state.viewer or {}
+    local integrations = service_state.integrations or {}
+    local lifecycle = service_state.lifecycle or {}
     out.output = compiler.output
     out.status = compiler.status
     out.last_profile = compiler.last_profile
@@ -191,6 +193,10 @@ function M.snapshot(project, opts)
     out.last_viewer_backend = viewer.backend
     out.last_viewer_command = copy_value(viewer.command, opts.depth or 5)
     out.last_viewer_cwd = viewer.cwd
+    out.tinymist_ensure = copy_value(integrations.tinymist, opts.depth or 5)
+    out.last_transition = copy_value(lifecycle.last_transition, opts.depth or 5)
+    out.last_reload_cache =
+        copy_value(lifecycle.last_reload_cache, opts.depth or 5)
 
     local project_index = service_state.index
     if type(project_index) == "table" then

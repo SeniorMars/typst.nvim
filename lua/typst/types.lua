@@ -148,10 +148,40 @@
 ---@field index TypstProjectIndexService?
 ---@field viewer TypstProjectViewerService?
 ---@field invalidation TypstProjectInvalidationService?
+---@field integrations TypstProjectIntegrationsService?
+---@field lifecycle TypstProjectLifecycleService?
 
 ---@class TypstProjectServicePatch
 ---@field clear string[]?
 ---@field _clear string[]?
+
+---@class TypstProjectIntegrationsService
+---@field tinymist table?
+---@field [string] any
+
+---@class TypstProjectIntegrationsServicePatch: TypstProjectServicePatch
+---@field tinymist table?
+---@field [string] any
+
+---@class TypstProjectLifecycleService
+---@field last_transition TypstProjectTransition?
+---@field last_reload_cache table<string, boolean>?
+---@field [string] any
+
+---@class TypstProjectLifecycleServicePatch: TypstProjectServicePatch
+---@field last_transition TypstProjectTransition?
+---@field last_reload_cache table<string, boolean>?
+---@field [string] any
+
+---@class TypstProjectTransition
+---@field ok boolean
+---@field previous_stop_requested boolean?
+---@field emitted_events boolean?
+---@field finalization_error string?
+---@field reason string?
+---@field bufnr integer?
+---@field previous_key string?
+---@field project_key string?
 
 ---@class TypstProjectOperationRecord
 ---@field id integer

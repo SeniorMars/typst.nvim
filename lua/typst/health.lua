@@ -413,6 +413,22 @@ local function project_status_line(state)
     local index_state = index_service.get(state) or {}
     local preview_state = preview_service.get(state) or {}
     local resource_state = resource_session.snapshot(state) or {}
+    local integration_state = state.services and state.services.integrations
+        or {}
+    local tinymist_last_ensure = integration_state.tinymist
+            and (integration_state.tinymist.reason or tostring(
+                integration_state.tinymist.ok
+            ))
+        or nil
+    if not tinymist_last_ensure then
+        if not tinymist.lsp_enabled() then
+            tinymist_last_ensure = "off"
+        elseif tinymist.lsp_mode() == "detect" then
+            tinymist_last_ensure = "detect"
+        else
+            tinymist_last_ensure = "not_checked"
+        end
+    end
     local native_preview = native_preview_session.project_state(state)
     local index_stats = index_state.stats or {}
     local fields = {
@@ -426,6 +442,7 @@ local function project_status_line(state)
                 or "off"
         ),
         ("tinymist_lsp_mode=%s"):format(tinymist.lsp_mode()),
+        ("tinymist_last_ensure=%s"):format(tinymist_last_ensure),
         ("semantic_provider=%s"):format(semantic_provider.name()),
         ("semantic_provider_attached=%s"):format(
             semantic_provider.available_for_project(state) and "attached"
@@ -457,6 +474,23 @@ local function project_status_line(state)
             index_stats.bibliography_misses or 0
         ),
     }
+
+    if index_state.fs_watch_mode then
+        fields[#fields + 1] = ("index_fs_watch=%s active=%d wanted=%d failed=%d"):format(
+            index_state.fs_watch_mode,
+            index_state.fs_watch_active_count or 0,
+            index_state.fs_watch_wanted_count or 0,
+            index_state.fs_watch_failed_count or 0
+        )
+        if index_state.fs_watch_partial then
+            fields[#fields + 1] = "index_fs_watch_partial=yes"
+        end
+        if index_state.fs_watch_first_failed_path then
+            fields[#fields + 1] = ("index_fs_watch_first_failed=%s"):format(
+                index_state.fs_watch_first_failed_path
+            )
+        end
+    end
 
     local lease_count = #output_ownership.snapshot(state)
     if lease_count > 0 then
@@ -681,6 +715,40 @@ function M.check()
             and raw_tinymist_clients
         or {}
     ok(("Tinymist Neovim LSP mode: %s"):format(tinymist_mode))
+    local tinymist_startability = tinymist.startability()
+    ok(
+        ("Tinymist command: %s"):format(
+            util.command_display(
+                tinymist_startability.command or { "tinymist" }
+            )
+        )
+    )
+    if tinymist_startability.ok then
+        ok(
+            ("Tinymist startability: ok%s"):format(
+                tinymist_startability.path
+                        and (" (" .. tinymist_startability.path .. ")")
+                    or ""
+            )
+        )
+    elseif tinymist_startability.reason == "off" then
+        ok("Tinymist startability: off by configuration")
+    elseif tinymist_startability.reason == "detect" then
+        ok("Tinymist startability: detect-only mode")
+    elseif tinymist_startability.reason == "coc" then
+        ok("Tinymist startability: delegated to coc.nvim")
+    elseif tinymist_startability.reason == "disabled" then
+        ok("Tinymist startability: disabled by global autostart flag")
+    else
+        warn(
+            ("Tinymist startability: %s%s"):format(
+                tinymist_startability.reason or "unknown",
+                tinymist_startability.executable
+                        and (" (" .. tinymist_startability.executable .. ")")
+                    or ""
+            )
+        )
+    end
     if coc_active then
         ok("coc.nvim detected for Tinymist policy")
     end

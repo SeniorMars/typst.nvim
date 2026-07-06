@@ -178,6 +178,25 @@ function M.blockers(project)
                 reason = index.fs_watch_disabled_reason,
                 active = index.fs_watch_active_count,
                 wanted = index.fs_watch_wanted_count,
+                attempted = index.fs_watch_attempted_count,
+                failed = index.fs_watch_failed_count,
+                first_failed_path = index.fs_watch_first_failed_path,
+                cap = index.fs_watch_cap,
+            }
+        )
+    end
+    if index.fs_watch_partial then
+        add(
+            blockers,
+            "index_fs_watch_partial",
+            "warning",
+            "index file watchers are partially degraded",
+            {
+                active = index.fs_watch_active_count,
+                wanted = index.fs_watch_wanted_count,
+                attempted = index.fs_watch_attempted_count,
+                failed = index.fs_watch_failed_count,
+                first_failed_path = index.fs_watch_first_failed_path,
                 cap = index.fs_watch_cap,
             }
         )

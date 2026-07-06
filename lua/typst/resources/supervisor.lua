@@ -36,6 +36,88 @@ local function project_store()
     return require("typst.project.store")
 end
 
+local function safe_tostring(value)
+    local ok, text = pcall(tostring, value)
+    if ok then
+        return text
+    end
+    return "<tostring failed>"
+end
+
+local function safe_summary_value(value, depth, seen)
+    local value_type = type(value)
+    if
+        value == nil
+        or value_type == "boolean"
+        or value_type == "number"
+        or value_type == "string"
+    then
+        return value
+    end
+    if value_type ~= "table" then
+        return safe_tostring(value)
+    end
+
+    depth = depth or 0
+    if depth >= 4 then
+        return "<max-depth>"
+    end
+    seen = seen or {}
+    if seen[value] then
+        return "<cycle>"
+    end
+    seen[value] = true
+
+    local out = {}
+    local count = 0
+    local ok, iter, state, first = pcall(pairs, value)
+    if not ok then
+        seen[value] = nil
+        return safe_tostring(value)
+    end
+    while true do
+        local next_ok, key, item = pcall(iter, state, first)
+        if not next_ok then
+            out["<iteration_error>"] = safe_tostring(key)
+            break
+        end
+        if key == nil then
+            break
+        end
+        first = key
+        count = count + 1
+        if count > 32 then
+            out["<truncated>"] = true
+            break
+        end
+        local safe_key = safe_summary_value(key, depth + 1, seen)
+        if type(safe_key) ~= "string" and type(safe_key) ~= "number" then
+            safe_key = safe_tostring(safe_key)
+        end
+        out[safe_key] = safe_summary_value(item, depth + 1, seen)
+    end
+    seen[value] = nil
+    return out
+end
+
+local function record_exit_failure(summary, state, reason, err, level)
+    summary.ok = false
+    local failure = {
+        main = state and state.main or nil,
+        reason = reason,
+        error = safe_tostring(err),
+    }
+    if type(err) == "table" then
+        failure.result = safe_summary_value(err)
+    end
+    summary.failed[#summary.failed + 1] = failure
+    log.add(level or "error", "project exit cleanup failed", {
+        main = state and state.main or nil,
+        reason = reason,
+        error = err,
+    })
+end
+
 local function record_preview_stop_failure(state, prune_reason, result)
     preview_service.set(state, {
         active = true,
@@ -306,6 +388,20 @@ local function reset_failed(summary, state, reason, result)
     }
 end
 
+local function preview_exit_failure_reason(result)
+    if type(result) == "table" then
+        if result.pending == true then
+            return "preview_stop_pending"
+        end
+        if result.ok == false then
+            return "preview_stop_failed"
+        end
+    elseif result == false then
+        return "preview_stop_declined"
+    end
+    return nil
+end
+
 --- Stop project resources and clear buffer lifecycle state during plugin reset.
 ---@param opts? table Reset controls; `force=true` clears state even when stops fail.
 ---@return table summary Reset status with failed project details.
@@ -427,38 +523,110 @@ function M.reset(opts)
     return summary
 end
 
-function M.stop_for_exit_all()
-    local states = project_store().all()
-    events.emit_global("TypstEventQuit", {
-        projects = vim.tbl_count(states),
-    })
-    for _, state in pairs(states) do
-        if (preview_service.get(state) or {}).active then
-            local ok = pcall(preview_module().stop_for_exit, state, {
+local function stop_project_for_exit(state, summary)
+    if (preview_service.get(state) or {}).active then
+        local ok, preview_result = pcall(function()
+            return preview_module().stop_for_exit(state, {
                 lifecycle = true,
                 reason = "exit",
             })
-            if not ok then
-                preview_module().clear_state(state, {
+        end)
+        if not ok then
+            record_exit_failure(
+                summary,
+                state,
+                "preview_stop_error",
+                preview_result,
+                "warn"
+            )
+            local cleared, clear_err = pcall(function()
+                return preview_module().clear_state(state, {
                     lifecycle = true,
                     reason = "exit",
                 })
+            end)
+            if not cleared then
+                record_exit_failure(
+                    summary,
+                    state,
+                    "preview_clear_error",
+                    clear_err,
+                    "warn"
+                )
+            end
+        else
+            local reason = preview_exit_failure_reason(preview_result)
+            if reason then
+                record_exit_failure(
+                    summary,
+                    state,
+                    reason,
+                    preview_result,
+                    "warn"
+                )
             end
         end
-        compiler_module().stop_for_exit(state)
-        local cancelled = project_operations.cancel_project(state, {
+    end
+
+    local compiler_ok, compiler_result = pcall(function()
+        return compiler_module().stop_for_exit(state)
+    end)
+    if not compiler_ok then
+        record_exit_failure(
+            summary,
+            state,
+            "compiler_stop_error",
+            compiler_result
+        )
+    end
+
+    local cancelled_ok, cancelled =
+        pcall(project_operations.cancel_project, state, {
             reason = "exit",
             timeout_ms = 100,
             kill_timeout_ms = 100,
             wait_timeout_ms = 250,
         })
-        if (cancelled.failed or 0) > 0 or (cancelled.retained or 0) > 0 then
-            log.add("warn", "project operations remained during exit", {
-                main = state.main,
-                summary = cancelled,
-            })
+    if not cancelled_ok then
+        record_exit_failure(summary, state, "operation_cancel_error", cancelled)
+        return
+    end
+    if
+        type(cancelled) == "table"
+        and ((cancelled.failed or 0) > 0 or (cancelled.retained or 0) > 0)
+    then
+        log.add("warn", "project operations remained during exit", {
+            main = state.main,
+            summary = cancelled,
+        })
+        summary.ok = false
+        summary.failed[#summary.failed + 1] = {
+            main = state.main,
+            reason = "operation_cancel_incomplete",
+            result = safe_summary_value(cancelled),
+        }
+    end
+end
+
+function M.stop_for_exit_all()
+    local states = project_store().all()
+    local summary = {
+        ok = true,
+        projects = vim.tbl_count(states),
+        failed = {},
+    }
+    events.emit_global("TypstEventQuit", {
+        projects = vim.tbl_count(states),
+    })
+    for _, state in pairs(states) do
+        local ok, err = xpcall(function()
+            stop_project_for_exit(state, summary)
+        end, debug.traceback)
+        if not ok then
+            record_exit_failure(summary, state, "project_exit_error", err)
         end
     end
+    return summary
 end
 
 return M

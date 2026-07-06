@@ -38,7 +38,6 @@ function M.setup_once(api, notify)
     require("typst.edit.mappings").register_plugs()
     require("typst.commands").register(api, { notify = notify })
     require("typst.core.lifecycle").register_autocmds()
-    require("typst.preview.follow_buffer").setup()
     did_setup_once = true
     return {
         ok = true,
@@ -55,8 +54,19 @@ local function maybe_prewarm_packages()
         local ok, package_completion =
             pcall(require, "typst.completion.packages")
         if ok and type(package_completion.prewarm) == "function" then
-            package_completion.prewarm({ schedule = true })
-            package_prewarm_scheduled = true
+            local prewarm_ok, prewarm_err =
+                pcall(package_completion.prewarm, { schedule = true })
+            if prewarm_ok then
+                package_prewarm_scheduled = true
+            else
+                require("typst.core.log").add(
+                    "warn",
+                    "package cache prewarm failed",
+                    {
+                        error = tostring(prewarm_err),
+                    }
+                )
+            end
         end
     end
 end
@@ -64,11 +74,13 @@ end
 local function reconfigure_attached_buffers()
     local reapply =
         require("typst.project.attachments").reapply_attached_buffers()
+    local follow_buffer = require("typst.preview.follow_buffer").setup()
     maybe_prewarm_packages()
     did_configure = true
     return {
         ok = true,
         reapply = reapply,
+        follow_buffer = follow_buffer,
     }
 end
 

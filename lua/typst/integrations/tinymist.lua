@@ -13,6 +13,8 @@ local symbols = require("typst.integrations.tinymist.symbols")
 ---@field lsp_enabled fun(): boolean
 ---@field lsp_mode fun(): string
 ---@field coc_active fun(): boolean
+---@field start_command fun(): string[]
+---@field startability fun(): table
 ---@field ensure fun(bufnr: integer|nil, project: table|nil): boolean, string
 ---@field request fun(bufnr: integer|nil, method: string, opts: table|nil, callback: function|nil): table|nil
 ---@field supports fun(bufnr: integer|nil, method: string): boolean
@@ -47,6 +49,8 @@ M.lsp_backend = clients.lsp_backend
 M.lsp_enabled = clients.lsp_enabled
 M.lsp_mode = clients.lsp_mode
 M.coc_active = clients.coc_active
+M.start_command = clients.start_command
+M.startability = clients.startability
 M.ensure = clients.ensure
 
 M.request = features.request

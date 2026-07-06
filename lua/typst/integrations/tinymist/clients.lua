@@ -151,11 +151,60 @@ local function start_command()
     return { tinymist.path or "tinymist" }
 end
 
+--- Return the configured Tinymist start command prefix.
+---@return string[] command Command prefix used for native Neovim LSP startup.
+function M.start_command()
+    return vim.deepcopy(start_command())
+end
+
 local function executable_available(command)
     local executable = util.command_executable(command)
     return type(executable) == "string"
         and executable ~= ""
         and vim.fn.executable(executable) == 1
+end
+
+--- Report whether typst.nvim can start Tinymist in the current policy mode.
+---@return table status Startability status with `ok`, `reason`, `mode`, and `command`.
+function M.startability()
+    local mode = M.lsp_mode()
+    local command = start_command()
+    local status = {
+        ok = false,
+        reason = mode,
+        mode = mode,
+        command = vim.deepcopy(command),
+        executable = util.command_executable(command),
+    }
+
+    if mode == "off" or mode == "detect" then
+        return status
+    end
+
+    if mode == "auto" and vim.g.typst_nvim_disable_tinymist_autostart == 1 then
+        status.reason = "disabled"
+        return status
+    end
+
+    if mode == "auto" and M.coc_active() then
+        status.reason = "coc"
+        return status
+    end
+
+    if not (vim.lsp and type(vim.lsp.start) == "function") then
+        status.reason = "no_nvim_lsp_start"
+        return status
+    end
+
+    if not executable_available(command) then
+        status.reason = "missing_executable"
+        return status
+    end
+
+    status.ok = true
+    status.reason = "ok"
+    status.path = vim.fn.exepath(util.command_executable(command))
+    return status
 end
 
 local function nonempty_copy(value)
@@ -218,34 +267,13 @@ function M.ensure(bufnr, project)
         bufnr = vim.api.nvim_get_current_buf()
     end
 
-    local mode = M.lsp_mode()
-    if mode == "off" then
-        return false, mode
-    end
-
     if M.available(bufnr) then
         return true, "attached"
     end
 
-    if mode == "detect" then
-        return false, mode
-    end
-
-    if mode == "auto" and vim.g.typst_nvim_disable_tinymist_autostart == 1 then
-        return false, "disabled"
-    end
-
-    if mode == "auto" and M.coc_active() then
-        return false, "coc"
-    end
-
-    if not (vim.lsp and type(vim.lsp.start) == "function") then
-        return false, "no_nvim_lsp_start"
-    end
-
-    local command = start_command()
-    if not executable_available(command) then
-        return false, "missing_executable"
+    local start = M.startability()
+    if not start.ok then
+        return false, start.reason
     end
 
     local config, opts = start_config(bufnr, project)

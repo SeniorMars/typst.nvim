@@ -93,6 +93,9 @@ function M.snapshot(bufnr, opts)
     local graph = graph_service.get(state) or {}
     local index_state = index_service.get(state) or {}
     local resources = resource_session.snapshot(state) or {}
+    local service_state = state.services or {}
+    local integrations_state = service_state.integrations or {}
+    local lifecycle_state = service_state.lifecycle or {}
     local watcher = compiler_state.watcher
     local output = compiler_state.output
 
@@ -168,6 +171,9 @@ function M.snapshot(bufnr, opts)
         tinymist_lsp_backend = tinymist.lsp_backend(),
         tinymist_lsp_enabled = tinymist.lsp_enabled(),
         tinymist_lsp_attached = tinymist.available_for_project(state),
+        tinymist_ensure = copy_table(integrations_state.tinymist),
+        last_transition = copy_table(lifecycle_state.last_transition),
+        last_reload_cache = copy_table(lifecycle_state.last_reload_cache),
         buffers = vim.tbl_count(state.bufs or {}),
         dependencies = vim.tbl_count(graph.dependencies or {}),
         index_generation = index_state.generation or 0,
@@ -177,6 +183,10 @@ function M.snapshot(bufnr, opts)
             reason = index_state.fs_watch_disabled_reason,
             wanted = index_state.fs_watch_wanted_count,
             active = index_state.fs_watch_active_count,
+            attempted = index_state.fs_watch_attempted_count,
+            failed = index_state.fs_watch_failed_count,
+            first_failed_path = index_state.fs_watch_first_failed_path,
+            partial = index_state.fs_watch_partial,
             cap = index_state.fs_watch_cap,
         },
         resources = resources,
@@ -220,6 +230,10 @@ function M.project_snapshot(state)
                 reason = index_state.fs_watch_disabled_reason,
                 wanted = index_state.fs_watch_wanted_count,
                 active = index_state.fs_watch_active_count,
+                attempted = index_state.fs_watch_attempted_count,
+                failed = index_state.fs_watch_failed_count,
+                first_failed_path = index_state.fs_watch_first_failed_path,
+                partial = index_state.fs_watch_partial,
                 cap = index_state.fs_watch_cap,
             },
             resources = resources,
@@ -255,11 +269,21 @@ function M.project_snapshot(state)
         reason = index_state.fs_watch_disabled_reason,
         wanted = index_state.fs_watch_wanted_count,
         active = index_state.fs_watch_active_count,
+        attempted = index_state.fs_watch_attempted_count,
+        failed = index_state.fs_watch_failed_count,
+        first_failed_path = index_state.fs_watch_first_failed_path,
+        partial = index_state.fs_watch_partial,
         cap = index_state.fs_watch_cap,
     }
     snapshot.resources = resources
     snapshot.blockers = copy_table(resources.blockers) or {}
     snapshot.blocker_count = resources.blocker_count or 0
+    snapshot.tinymist_ensure =
+        copy_table(((state.services or {}).integrations or {}).tinymist)
+    snapshot.last_transition =
+        copy_table(((state.services or {}).lifecycle or {}).last_transition)
+    snapshot.last_reload_cache =
+        copy_table(((state.services or {}).lifecycle or {}).last_reload_cache)
     return snapshot
 end
 
