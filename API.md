@@ -15,6 +15,53 @@ that same API level as `api` and `api_version`.
 `require("typst").contract()` returns the versioned API/event contract,
 including stable root symbols, documented `TypstEvent*` names, compatibility
 aliases, and payload field names.
+`require("typst").capabilities()` returns a machine-readable availability
+summary for Typst, Tree-sitter, Tinymist, compiler, preview, and diagnostics
+workflows.
+
+The `capabilities()` result is a best-effort table. Expected inspection
+failures are reported in the relevant section instead of throwing:
+
+```lua
+{
+  typst = {
+    executable = true,
+    path = "/usr/bin/typst",
+    command = "typst",
+  },
+  treesitter = {
+    parser = true,
+    conceal_query = true,
+  },
+  tinymist = {
+    mode = "auto",
+    attached = false,
+    startable = true,
+    reason = nil,
+  },
+  compiler = {
+    ok = true,
+    provider = "typst",
+    builtin = true,
+    inspectable = true,
+    watch = true,
+    output_locks = true,
+    outputless = false,
+    output = true,
+  },
+  preview = {
+    native_viewer = true,
+    native_browser = false,
+    native_auto = false,
+    typst_preview = false,
+  },
+  diagnostics = {
+    compiler = true,
+    source = "fallback",
+    external_paths = "bufadd",
+  },
+}
+```
 
 Within API level 1, only the stable functions listed below, command names,
 event names, provider kinds, and result-table fields are additive unless the
@@ -176,6 +223,7 @@ code and this document together when the public symbol surface changes.
 
 <!-- typst.nvim stable-symbols:start -->
 - `api_version`
+- `capabilities`
 - `compiler.compile`
 - `compiler.compile_selected`
 - `compiler.current_output`
@@ -456,6 +504,7 @@ code and this document together when the public symbol surface changes.
 - `tools.lint`
 - `ui.bug_report`
 - `ui.count`
+- `ui.explain_project`
 - `ui.info`
 - `ui.log`
 - `ui.status`
@@ -484,6 +533,24 @@ Stable project methods that return project state return copied public snapshots:
 `project.reload_state`, `project.set_main`, `project.snapshot`, and
 `project.toggle_main().state`. Mutating these snapshots never mutates the live
 project registry.
+
+`ui.explain_project(opts)` returns the resolver decision for the current buffer
+or `opts.bufnr`. It never throws for expected no-project cases:
+
+```lua
+local report, lines, bufnr = require("typst").ui.explain_project({
+  bufnr = 0,
+  open = false,
+  echo = true,
+  settle_pending = true,
+})
+```
+
+`report.ok == false` means no Typst project could be resolved. Successful
+reports include `root`, `main`, `root_source`, `main_source`,
+`main_confidence`, `stages`, import-scan limits, and pending-resolution fields.
+The report table is stable as an additive shape; consumers should tolerate new
+fields.
 
 ### Migration: public project methods now return snapshots
 
@@ -1384,6 +1451,7 @@ The public command surface is:
 - `:TypstInfo!`
 - `:TypstReloadState`
 - `:TypstClearCache`
+- `:TypstExplainProject[!]`
 - `:TypstLocks [output-or-lockdir]`
 - `:TypstCleanLocks[!] [output-or-lockdir]`
 - `:TypstSetMain [file]`

@@ -335,7 +335,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: typst-nvim-performance-reports
-          path: ${{ runner.temp }}/typst-nvim-xdg/cache/performance-reports/*.json
+          path: ${{ runner.temp }}/typst-nvim-xdg/cache/nvim/typst.nvim/performance-reports/*.json
 
   windows-edge:
     name: windows-latest / process tree and path edge gate

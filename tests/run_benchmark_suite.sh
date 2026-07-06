@@ -5,7 +5,7 @@ source tests/xdg.sh
 typst_nvim_init_test_xdg
 
 runs="${TYPST_NVIM_BENCHMARK_RUNS:-3}"
-bench_root="${TYPST_NVIM_BENCHMARK_ROOT:-${XDG_CACHE_HOME}/benchmark-reports/$(date -u +%Y%m%dT%H%M%SZ)}"
+bench_root="${TYPST_NVIM_BENCHMARK_ROOT:-$(typst_nvim_test_cache_path benchmark-reports)/$(date -u +%Y%m%dT%H%M%SZ)}"
 
 specs=(
   tests/performance/performance_spec.lua

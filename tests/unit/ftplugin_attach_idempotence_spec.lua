@@ -88,4 +88,38 @@ assert(attach_events == 1, "re-sourcing ftplugin should not emit attach")
 assert(autocmd_count("TextChanged") == 1, "re-source should not stack autocmds")
 assert(map_count() == maps_before, "re-source should not stack buffer mappings")
 
+local attachment_toc = require("typst.project.attachments.toc")
+local old_schedule_follow_open = attachment_toc.schedule_follow_open
+local old_schedule_refresh = attachment_toc.schedule_refresh
+local follow_calls = 0
+local refresh_calls = 0
+rawset(attachment_toc, "schedule_follow_open", function(attached, event_bufnr)
+    assert(attached.key == project.key, "cursor callback should use project")
+    assert(event_bufnr == bufnr, "cursor callback should use source buffer")
+    follow_calls = follow_calls + 1
+end)
+rawset(attachment_toc, "schedule_refresh", function(attached)
+    assert(attached.key == project.key, "refresh callback should use project")
+    refresh_calls = refresh_calls + 1
+end)
+local callbacks_ok, callbacks_err = xpcall(function()
+    vim.api.nvim_exec_autocmds("CursorMoved", { buffer = bufnr })
+    vim.api.nvim_exec_autocmds("TextChanged", { buffer = bufnr })
+end, debug.traceback)
+rawset(attachment_toc, "schedule_follow_open", old_schedule_follow_open)
+rawset(attachment_toc, "schedule_refresh", old_schedule_refresh)
+if not callbacks_ok then
+    error(callbacks_err)
+end
+assert(
+    follow_calls == 1,
+    ("cursor lifecycle callback should fire once, got %d"):format(follow_calls)
+)
+assert(
+    refresh_calls == 1,
+    ("text-change lifecycle callback should fire once, got %d"):format(
+        refresh_calls
+    )
+)
+
 vim.cmd("qa!")

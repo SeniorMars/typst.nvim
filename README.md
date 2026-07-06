@@ -175,6 +175,7 @@ For diagnostics and support:
 ```vim
 :TypstDiagnostics
 :TypstLocks
+:TypstExplainProject
 :TypstInfo!
 :TypstLog
 ```
@@ -208,6 +209,12 @@ stable-symbol block in `API.md`;
 `experimental_symbols()` reports those helpers explicitly.
 Use `contract()` to inspect the versioned API/event contract, including
 documented `TypstEvent*` names and payload fields.
+For user autocmds, treat `TypstEventCompileStarted` as the shared start event
+for one-shot compile and watch starts; terminal compile/watch state arrives
+through success, failure, or stopped events. Project attach events fire after
+registry commit and buffer finalization, so handlers can inspect the effective
+project, but they should schedule follow-up work or call public wrappers rather
+than mutating project services directly inside the event callback.
 
 Project-scoped public Lua APIs use one no-project policy. Passive inspection
 helpers such as `compiler.status()`, `compiler.current_output()`,
@@ -397,6 +404,7 @@ require("typst").setup({
   metadata_version = nil,
   root_markers = { ".typstmain", "typst.toml", ".git" },
   main = nil,
+  main_base_dir = nil,
   project = {
     import_scan = true,
     import_scan_max_files = 200,
@@ -1222,10 +1230,14 @@ choices, a leading `// typst.nvim: main = ../main.typ` directive, configured
 `#include`/`#import` scanning, nested-file `main.typ` heuristics, and finally the
 current buffer. `main` may be a string, callback, or table keyed by project root. Table
 values may be strings or callbacks, allowing per-root main-file mappings.
-Relative table keys are normalized once during `setup()` against the setup-time
-cwd; later `:cd` or `:lcd` changes do not change those mappings. When `root` is
-not configured, table keys also act as root hints, so subprojects inside a
-larger Git repository can resolve before the `.git` marker is used. A
+Relative table keys are normalized once during `setup()`. They resolve against
+`main_base_dir` when it is set; otherwise they use the setup-time cwd for
+compatibility and typst.nvim logs a warning because lazy-loaded setups can bind
+the mapping to an unexpected cwd. `main_base_dir` must be an absolute path.
+Prefer absolute table keys, or set `main_base_dir` explicitly when relative keys
+are intentional. Later `:cd` or `:lcd` changes do not change those mappings.
+When `root` is not configured, table keys also act as root hints, so subprojects
+inside a larger Git repository can resolve before the `.git` marker is used. A
 throwing `root` or `main` callback is caught, logged, and treated as no match so
 the remaining resolvers can continue; typst.nvim does not leave a half-attached
 buffer because a user resolver failed. A
@@ -1258,6 +1270,12 @@ confidence; when no prior confidence is available they are treated as medium.
 Compile/watch warn once per project before using the nested `main.typ`
 heuristic unless `project.warn_on_low_confidence_main = false`. Other
 low-confidence fallbacks are reported in `:TypstInfo!` but do not warn today.
+Use `:TypstExplainProject` when the wrong file compiles. It prints the resolver
+trace, import-scan limits, selected confidence, and low-confidence notes. Import
+scan is intentionally heuristic: it scans bounded candidates and only reads the
+first 500 lines of each candidate file for literal `#include`/`#import` paths,
+so late or dynamic imports should use `:TypstSetMain`, `.typstmain`,
+`vim.b.typst_main`, or `config.main`.
 When attach reaches the bounded import-scan fallback, it first attaches with
 the later heuristic and records `resolution_pending = "import_scan"`; a
 scheduled scan reassigns the buffer if it finds a unique importing main.
@@ -1575,6 +1593,10 @@ non-stale results update `project.services.compiler.last_result`, status, user
 events, and output ownership consistently. A stop result means confirmed
 termination only when it sets `stopped = true`; `stopped = false` or an
 `orphaned` result keeps failure visible instead of pretending cleanup succeeded.
+Compiler providers that intentionally produce no document artifact should set
+`outputless = true`; otherwise health expects `output(project, run_config)` and
+warns when it is missing. Outputless compilers can still run compile/watch
+workflows, but native preview compile-mode needs another output source.
 Retained orphans remain visible in reports/logs and keep leases guarded until a
 real late exit releases them, `typst.reset({ force = true })` clears retained
 state, or the user explicitly discards external compiler state with
@@ -1859,8 +1881,9 @@ Diagnostics for files outside the current buffer follow
 - Optional JSONL file logging is local-only and disabled by default. If enabled,
   the raw log file may contain absolute paths in structured fields; generated
   `:TypstBugReport` and `:TypstSupportBundle` artifacts redact paths by default.
-- Wrong file compiles: inspect `root_source` and `main_source` in
-  `:TypstInfo!`; use `:TypstSetMain`, `.typstmain`, or a setup `main` policy.
+- Wrong file compiles: run `:TypstExplainProject`, then inspect `root_source`
+  and `main_source` in `:TypstInfo!`; use `:TypstSetMain`, `.typstmain`,
+  `vim.b.typst_main`, or a setup `main` policy for deterministic projects.
 - `:TypstWatch` runs but preview does not refresh: check watcher status,
   `watch_unknown_status_lines`, output path, and preview backend in
   `:TypstInfo!`; human `typst watch` output can change between Typst versions.

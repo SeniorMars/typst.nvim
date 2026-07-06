@@ -352,6 +352,18 @@ status(project)
 output(project, run_config)
 ```
 
+Provider author checklist:
+
+- return terminal result tables once, or return `{ pending = true }` while work
+  is still owned;
+- call the callback exactly once for each terminal compile/watch/stop result;
+- expose a cancellable handle when work can outlive the initiating API call;
+- report `stopped = true` only when shutdown is confirmed;
+- implement `output(project, run_config)` unless the provider deliberately sets
+  `outputless = true`;
+- expect timeouts, `stopped = false`, and pending stop results to retain state
+  until a later terminal callback or explicit force-clear.
+
 `compile` is one-shot. `start` is watch mode. `stop` should eventually call back
 with `{ stopped = true }` or a failure result. A timeout or `{ stopped = false }`
 does not release output ownership because the provider may still be writing.
@@ -359,7 +371,10 @@ does not release output ownership because the provider may still be writing.
 discarding that unconfirmed state; it releases typst.nvim's lease without
 asserting the provider stopped.
 `output` is called before compile or watch starts so events, leases, status, and
-`:TypstInfo` agree on the planned artifact path.
+`:TypstInfo` agree on the planned artifact path. Providers that intentionally
+do not produce a document artifact may omit `output()` only when the provider
+table sets `outputless = true`; health warns for missing `output()` on any
+provider that does not opt into that outputless contract.
 Output ownership is enforced by an in-process lease and a file-backed lock
 directory under typst.nvim's cache directory. The file-backed lock coordinates
 Neovim sessions that share the same cache root; it is not a global filesystem

@@ -1,4 +1,5 @@
 local util = require("typst.core.util")
+local async = require("typst.core.async")
 
 local M = {}
 
@@ -37,12 +38,7 @@ function M.by_key(key)
 end
 
 function M.close_timer(timer)
-    if not timer then
-        return
-    end
-
-    pcall(timer.stop, timer)
-    pcall(timer.close, timer)
+    async.close_timer(timer)
 end
 
 function M.is_toc_buffer(bufnr)

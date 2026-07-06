@@ -533,13 +533,15 @@ Resolution order is intentionally conservative:
 6. Root heuristics and the current buffer as the final fallback.
 
 Configured `main = { [root] = main }` table keys are normalized during
-`setup()` against the setup-time cwd. Resolver code must not reinterpret those
-keys against the live cwd, because `:cd`/`:lcd` must not change project
-identity. Resolver candidates carry `main_confidence`: explicit sources are
-high confidence, import-scan/existing graph matches are medium confidence, and
-fallback guesses such as current-buffer or nested `main.typ` are low confidence.
-User-facing compile/watch paths warn once per project before using the nested
-`main.typ` heuristic.
+`setup()`. Absolute keys are preferred. Relative keys resolve against
+`main_base_dir` when it is set; otherwise they keep the compatibility behavior
+of resolving against the setup-time cwd and emitting a warning. Resolver code
+must not reinterpret those keys against the live cwd, because `:cd`/`:lcd` must
+not change project identity. Resolver candidates carry `main_confidence`:
+explicit sources are high confidence, import-scan/existing graph matches are
+medium confidence, and fallback guesses such as current-buffer or nested
+`main.typ` are low confidence. User-facing compile/watch paths warn once per
+project before using the nested `main.typ` heuristic.
 
 The resolver may read bounded source snippets and filesystem metadata, but it
 must not start compiler, preview, Tinymist, or watcher work. Attach/lifecycle

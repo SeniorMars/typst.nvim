@@ -542,9 +542,9 @@ Command groups:
 
   Project state:
     |:TypstInfo|, |:TypstReloadState|, |:TypstClearCache|,
-    |:TypstLocks|, |:TypstCleanLocks|, |:TypstSetMain|,
-    |:TypstToggleMain|, |:TypstEditMain|, |:TypstFiles|, |:TypstCd|,
-    |:TypstStatus|, |:TypstStatusAll|, |:TypstCount|
+    |:TypstExplainProject|, |:TypstLocks|, |:TypstCleanLocks|,
+    |:TypstSetMain|, |:TypstToggleMain|, |:TypstEditMain|, |:TypstFiles|,
+    |:TypstCd|, |:TypstStatus|, |:TypstStatusAll|, |:TypstCount|
 
   Compile, diagnostics, and output:
     |:TypstCompile|, |:TypstCompileSS|, |:TypstCompileSelected|,
@@ -616,6 +616,14 @@ Command groups:
     collection caches, and conceal match caches through typst.nvim's cache
     registry, then redraw
     conceal decorations.
+
+                                                        *:TypstExplainProject*
+:TypstExplainProject[!]
+    Explain how typst.nvim resolved the current buffer's project root and main
+    file. The report lists each resolver stage, the matched source, confidence,
+    import-scan limits, pending state, and low-confidence notes. With bang, open
+    the explanation in a scratch buffer. Use this when a chapter compiles as
+    its own main or when import-scan heuristics miss a large or dynamic project.
 
                                                         *:TypstLocks*
 :TypstLocks [output-or-lockdir]

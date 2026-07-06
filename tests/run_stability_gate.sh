@@ -29,6 +29,7 @@ specs=(
   tests/unit/provider_adapter_late_duplicate_spec.lua
   tests/unit/provider_adapter_invalid_handle_spec.lua
   tests/unit/operation_process_tree_cancel_spec.lua
+  tests/integration/project/explain_project_spec.lua
   tests/integration/project/lifecycle_spec.lua
   tests/integration/compiler/lifecycle_spec.lua
   tests/integration/watch/process_spec.lua

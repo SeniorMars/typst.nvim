@@ -4,7 +4,7 @@ set -euo pipefail
 source tests/xdg.sh
 typst_nvim_init_test_xdg
 
-export TYPST_NVIM_PERF_REPORT_DIR="${TYPST_NVIM_PERF_REPORT_DIR:-${XDG_CACHE_HOME}/performance-reports}"
+export TYPST_NVIM_PERF_REPORT_DIR="${TYPST_NVIM_PERF_REPORT_DIR:-$(typst_nvim_test_cache_path performance-reports)}"
 mkdir -p "${TYPST_NVIM_PERF_REPORT_DIR}"
 
 specs=(

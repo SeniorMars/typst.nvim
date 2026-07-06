@@ -13,6 +13,8 @@ buffers for those paths, stores filename-only quickfix entries, or skips them.
 The cap in `diagnostics.max_buffers_per_publish` applies only to parser-created
 hidden buffers in `bufadd` mode. Existing loaded buffers and paths accepted
 earlier in the same publish batch continue to receive diagnostics.
+When `bufadd` reaches the cap, typst.nvim logs and shows one warning per project
+so the bounded skip is visible instead of looking like a diagnostic leak.
 
 `quickfix-only` diagnostics are stored by diagnostic source in the project
 diagnostics service. That lets `:TypstDiagnostics` rebuild source-owned

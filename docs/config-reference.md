@@ -171,6 +171,7 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `log.file_path` | `nil\|string` | `nil` |
 | `log.max_entries` | `number` | `200` |
 | `main` | `nil\|string` | `nil` |
+| `main_base_dir` | `nil\|string` | `nil` |
 | `mappings.commands.clean` | `string` | `"<localleader>lc"` |
 | `mappings.commands.compile` | `string` | `"<localleader>lL"` |
 | `mappings.commands.errors` | `string` | `"<localleader>le"` |

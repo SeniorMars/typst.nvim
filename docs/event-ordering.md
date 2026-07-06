@@ -67,7 +67,8 @@ release leases owned by newer work.
 Expected watch path:
 
 1. Resolve project/output and acquire watch output ownership.
-2. Bind the active compiler provider and emit watch start.
+2. Bind the active compiler provider and emit the shared
+   `TypstCompileStarted` event with `watch = true`.
 3. Parse watch cycles independently from process exit.
 4. Emit cycle events for parsed cycle results.
 5. Refresh preview/artifact consumers only after a successful cycle and output
@@ -76,6 +77,8 @@ Expected watch path:
    recorded.
 
 Process exit after at least one parsed cycle is not itself a compile result.
+Every successful built-in or provider-backed watch spawn must emit exactly one
+start event before the first cycle, stop, or failure event for that spawn.
 
 ## Preview
 
@@ -101,3 +104,10 @@ Runtime reset requests stop/cancel from owners, waits within configured bounds,
 then records retained or forced state instead of pretending external work was
 confirmed stopped. Late provider callbacks after reset are stale unless they
 match the live project instance and generation.
+
+Cancellation call style and result normalization are owned by `typst.core.cancel`
+for project operations and should be reused by new async owners. A result may be
+reported as confirmed stopped only when the cancel path returns a terminal
+confirmation; missing results, pending stops, retained orphans, and wrong
+receiver fallbacks stay unconfirmed until a later owner-specific result proves
+otherwise.

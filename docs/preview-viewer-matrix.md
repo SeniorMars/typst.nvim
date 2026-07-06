@@ -20,7 +20,8 @@ The harness keeps Neovim alive for
 `TYPST_NVIM_PREVIEW_MATRIX_WAIT_MS` milliseconds, defaults to 120 seconds,
 refreshes browser previews after `TYPST_NVIM_PREVIEW_MATRIX_REFRESH_AFTER_MS`,
 and stops browser preview near the end of the run. It writes a JSON report to
-`$TYPST_NVIM_TEST_XDG_ROOT/preview-matrix/report.json`.
+`$TYPST_NVIM_TEST_ROOT/preview-matrix/report.json`; by default that root is under
+Neovim's real `stdpath("cache")`.
 
 ## Manual Checks
 

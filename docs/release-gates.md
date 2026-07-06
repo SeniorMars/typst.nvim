@@ -45,20 +45,25 @@ there, the matching inventory should change in the same patch.
 `tests/run_performance_gate.sh` runs the normal runtime performance spec plus a
 generated large-project fixture. The large fixture exercises project indexing,
 cached index reads, narrow index accessors, project completion, package
-completion, and bibliography diagnostics. The specs emit machine-readable JSON
-reports under `$XDG_CACHE_HOME/performance-reports/`, and CI uploads those
-reports as artifacts so latency trends can be audited across runs.
+completion, TOC collection/follow coalescing, conceal first render and redraw
+windows, and bibliography diagnostics. The startup spec records setup latency
+with default and optional features; `tests/unit/startup_lazy_modules_spec.lua`
+keeps heavyweight health, preview, Tinymist, package-scan, metadata, and viewer
+modules out of basic setup. The specs emit machine-readable JSON reports under
+Neovim's `stdpath("cache")/typst.nvim/performance-reports/`, and CI uploads
+those reports as artifacts so latency trends can be audited across runs.
 
 For longer trend runs, `just benchmarks` runs the same workloads multiple times
 (`TYPST_NVIM_BENCHMARK_RUNS`, default `3`) and writes a summary under
-`$XDG_CACHE_HOME/benchmark-reports/<timestamp>/summary.json`. That summary reports
-per-metric sample counts, min, p50, p95, max, and worst budget ratio. It is a
-maintainer benchmark suite, not a normal PR gate.
+Neovim's `stdpath("cache")/typst.nvim/benchmark-reports/<timestamp>/summary.json`.
+That summary reports per-metric sample counts, min, p50, p95, max, and worst
+budget ratio. It is a maintainer benchmark suite, not a normal PR gate.
 
 The budgets are intentionally regression gates, not proofs of final asymptotic
 behavior. Bibliography, index, and package hot paths can still improve, but a
-release should not regress the measured p95-style interactive paths without an
-explicit budget update.
+release should not regress startup laziness, TOC cursor-follow coalescing,
+conceal large-file range behavior, or the measured p95-style interactive paths
+without an explicit budget update.
 
 ## Manual Smoke
 

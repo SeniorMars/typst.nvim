@@ -18,6 +18,19 @@ typst.api_version()
 typst.version()
 ```
 
+Machine-readable workflow availability is available through:
+
+```lua
+local caps = typst.capabilities()
+print(caps.compiler.provider)
+print(caps.preview.native_browser)
+```
+
+`capabilities()` returns best-effort sections for Typst, Tree-sitter, Tinymist,
+compiler, preview, and diagnostics. Inspection failures are reported in the
+section, for example `caps.compiler.ok = false` with a stable `reason`, instead
+of throwing for expected provider/configuration problems.
+
 ## API Tiers
 
 Prefer structured namespaces for new code, but do not treat an installed

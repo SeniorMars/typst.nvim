@@ -3,7 +3,7 @@ set -euo pipefail
 
 source tests/xdg.sh
 typst_nvim_init_test_xdg
-mkdir -p "${TYPST_NVIM_TEST_XDG_ROOT}/preview-matrix"
+mkdir -p "$(typst_nvim_test_root_path preview-matrix)"
 
 case "${1:-browser-server}" in
   browser-server)
