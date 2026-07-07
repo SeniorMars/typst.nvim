@@ -21,10 +21,19 @@ local backend_name = generic_helpers.backend_name
 local record_last_viewer = generic_helpers.record_last_viewer
 local executable_open = generic_helpers.executable_open
 
+local function short_error(err)
+    local text = tostring(err or "unknown error")
+    local typst_message = text:match("(typst%.nvim: .*)")
+    if typst_message then
+        return typst_message
+    end
+    return text:match("([^\n]+)") or text
+end
+
 --- Open the current compiler output with the configured generic viewer backend.
 ---@param project table Project state whose compiler output should be opened.
 ---@param opts? table Open options; `path` overrides compiler output for preview-owned artifacts.
----@return string|false path Opened output path, or false when the viewer declined.
+---@return string|false|table path Opened output path, false when declined, or structured failure.
 function M.open(project, opts)
     opts = opts or {}
     -- Use compiler state rather than deriving the PDF from the current buffer:
@@ -32,7 +41,15 @@ function M.open(project, opts)
     -- the Typst main file or an active compile profile.
     local path = opts.path or (compiler_service.get(project) or {}).output
     if not path or vim.fn.filereadable(path) ~= 1 then
-        error(("typst.nvim: output does not exist: %s"):format(path or "<nil>"))
+        return {
+            ok = false,
+            reason = "missing_output",
+            message = ("Typst output does not exist: %s"):format(
+                path or "<nil>"
+            ),
+            output = path,
+            notify_level = vim.log.levels.WARN,
+        }
     end
 
     local viewer = effective_viewer()
@@ -65,11 +82,18 @@ function M.open(project, opts)
                 output = path,
                 error = result.error or result.message,
             })
-            error(
-                ("typst.nvim: viewer open callback failed: %s"):format(
-                    result.message or result.error or "unknown error"
-                )
-            )
+            return {
+                ok = false,
+                reason = "viewer_failed",
+                message = ("Typst viewer open callback failed: %s"):format(
+                    short_error(result.message or result.error)
+                ),
+                provider = viewer.provider,
+                backend_reason = result.reason,
+                error = result.error or result.message,
+                output = path,
+                notify_level = vim.log.levels.ERROR,
+            }
         end
         if result == false then
             log.add("debug", "viewer open callback declined", {
@@ -86,17 +110,52 @@ function M.open(project, opts)
             nil,
             nil
         )
-    elseif not executable_open(project, path, viewer) then
-        if vim.ui and vim.ui.open then
-            local object, err = open_helper.ui_open(path)
-            if not object then
-                error(("typst.nvim: vim.ui.open failed: %s"):format(err))
+    else
+        local ok_open, opened = pcall(executable_open, project, path, viewer)
+        if not ok_open then
+            log.add("warn", "viewer executable open failed", {
+                provider = viewer.provider,
+                main = project.main,
+                output = path,
+                error = opened,
+            })
+            return {
+                ok = false,
+                reason = "viewer_failed",
+                message = short_error(opened),
+                provider = viewer.provider,
+                output = path,
+                notify_level = vim.log.levels.ERROR,
+            }
+        end
+        if not opened then
+            if vim.ui and vim.ui.open then
+                local object, err = open_helper.ui_open(path)
+                if not object then
+                    return {
+                        ok = false,
+                        reason = "viewer_failed",
+                        message = ("typst.nvim: vim.ui.open failed: %s"):format(
+                            err
+                        ),
+                        provider = viewer.provider,
+                        backend = "vim.ui.open",
+                        output = path,
+                        error = err,
+                        notify_level = vim.log.levels.ERROR,
+                    }
+                end
+                record_last_viewer(project, viewer, "vim.ui.open", nil, nil)
+            else
+                return {
+                    ok = false,
+                    reason = "viewer_failed",
+                    message = "typst.nvim: vim.ui.open is unavailable; configure viewer.open",
+                    provider = viewer.provider,
+                    output = path,
+                    notify_level = vim.log.levels.ERROR,
+                }
             end
-            record_last_viewer(project, viewer, "vim.ui.open", nil, nil)
-        else
-            error(
-                "typst.nvim: vim.ui.open is unavailable; configure viewer.open"
-            )
         end
     end
 

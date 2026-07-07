@@ -32,6 +32,33 @@ rejects("nested/paper", "separator output_name")
 rejects("paper\0name", "NUL output_name")
 rejects("paper\nname", "control-character output_name")
 
+local format_ok, format_err = pcall(output_path.output_path, project, {
+    output_format = "../pdf",
+    output_name = "paper",
+    output_dir = project_root,
+    allow_external_output = true,
+})
+assert(not format_ok, "path-like output_format should reject")
+assert(
+    tostring(format_err):find("output_name", 1, true),
+    "path-like output_format error"
+)
+
+local safe_output, safe_error = output_path.safe_output_path(project, {
+    output_format = "../pdf",
+    output_name = "paper",
+    output_dir = project_root,
+    allow_external_output = true,
+}, {
+    operation = "render",
+})
+assert(safe_output == nil, "safe helper should not return invalid path")
+assert(safe_error and safe_error.ok == false, "safe helper should fail")
+assert(
+    safe_error.reason == "output_path_invalid",
+    "safe helper should classify invalid output format"
+)
+
 local original_is_windows = path_util.is_windows
 rawset(path_util, "is_windows", function()
     return true

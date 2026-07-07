@@ -1,7 +1,8 @@
 local cursor_position = require("typst.completion.position")
 local cleanup = require("typst.viewer.cleanup")
 local preview_cache = require("typst.preview.cache")
-local typst_preview = require("typst.integrations.typst_preview")
+local preview_results = require("typst.preview.results")
+local typst_preview = require("typst.preview.controller")
 local preview_service = require("typst.project.services.preview")
 local util = require("typst.core.util")
 local viewer = require("typst.viewer")
@@ -14,8 +15,7 @@ local M = {}
 local notify_user = require("typst.core.notify").user
 
 local function stop_failed(result)
-    return type(result) == "table"
-        and (result.ok == false or result.stopped == false)
+    return preview_results.stop_failed(result)
 end
 
 local function stop_failure_message(result, fallback)
@@ -54,9 +54,17 @@ end
 ---@param state table Project state whose compiler output should be opened.
 ---@param opts? table Viewer options accepted for API symmetry.
 ---@param notify? fun(message:string, level?:integer) Notification sink used by commands/API calls.
----@return string|false path Opened output path, or false when no viewer opened it.
+---@return string|false|table path Opened output path, false when no viewer opened it, or failure payload.
 function M.view(state, opts, notify)
     local path = viewer.open(state)
+    if type(path) == "table" and path.ok == false then
+        notify_user(
+            notify,
+            path.message or "Typst viewer is unavailable",
+            path.notify_level or vim.log.levels.WARN
+        )
+        return path
+    end
     if path ~= false then
         notify_user(
             notify,
@@ -285,8 +293,8 @@ end
 ---@return table status Preview status payload.
 function M.preview_status(state, opts, notify)
     opts = opts or {}
-    local preview_state = preview_service.get(state) or {}
-    local cache_status = preview_cache.status(state)
+    local status = typst_preview.status(state, { raw = true, cache = true })
+    local cache_status = status.cache or preview_cache.status(state)
     local lines = require("typst.ui.reports").preview_status_lines(state)
     if opts.echo ~= false then
         require("typst.ui.reports").echo_lines(lines)
@@ -294,18 +302,19 @@ function M.preview_status(state, opts, notify)
         notify_user(
             notify,
             ("Preview %s, cache %d entries"):format(
-                preview_state.active and "active" or "inactive",
+                status.active and "active" or "inactive",
                 cache_status.count
             )
         )
     end
     return {
         ok = true,
-        active = preview_state.active == true,
-        backend = preview_state.active and preview_state.active_backend
-            or preview_state.last_backend,
+        active = status.active == true,
+        backend = status.backend,
+        status = status.status,
         cache = cache_status,
         lines = lines,
+        preview = status,
     }
 end
 
@@ -319,12 +328,17 @@ function M.preview_stop(state, opts, notify)
     local result = typst_preview.stop(state, opts)
 
     if stop_failed(result) then
-        notify_user(
-            notify,
-            stop_failure_message(result, "Typst preview stop is unavailable"),
-            vim.log.levels.WARN
-        )
-    elseif result ~= false then
+        if opts.notify ~= false then
+            notify_user(
+                notify,
+                stop_failure_message(
+                    result,
+                    "Typst preview stop is unavailable"
+                ),
+                vim.log.levels.WARN
+            )
+        end
+    elseif result ~= false and opts.notify ~= false then
         notify_user(
             notify,
             ("Preview stopped for %s"):format(

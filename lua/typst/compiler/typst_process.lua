@@ -9,7 +9,7 @@ local M = {}
 local uv = vim.uv or vim.loop
 
 local function compiler_watch()
-    return require("typst.compiler.watch")
+    return require("typst.compiler.watch.state")
 end
 
 -- Process-state helpers shared by one-shot compile and watch.

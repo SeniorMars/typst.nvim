@@ -1,7 +1,7 @@
 local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
-local parser = require("typst.compiler.watch_parser")
+local parser = require("typst.compiler.watch.parser")
 
 local required_fixtures = {
     "typst-0.11.txt",

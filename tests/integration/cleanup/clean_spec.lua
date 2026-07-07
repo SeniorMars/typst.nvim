@@ -2,7 +2,9 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local fragment_helpers = require("typst.compiler.fragment_helpers")
+local compiler_service = require("typst.project.services.compiler")
 local typst = require("typst")
+local util = require("typst.core.util")
 typst.reset()
 local project_root = typst_test_cache_path("clean-project")
 vim.fn.mkdir(project_root, "p")
@@ -28,6 +30,7 @@ assert(
 )
 vim.cmd.edit(main)
 local project = typst.project.set_main(main)
+local live_project = require("typst.project.context").live(project) or project
 
 local clean_event = nil
 vim.api.nvim_create_autocmd("User", {
@@ -194,6 +197,66 @@ assert(
 assert(
     missing.output == output,
     "missing clean should report the same output path"
+)
+
+local original_delete_checked = util.delete_checked
+local temp_delete_path = project_root .. "/delete-failure-deps.json"
+assert(
+    vim.fn.writefile({ "{}" }, temp_delete_path) == 0,
+    "failed to create temporary delete-failure fixture"
+)
+compiler_service.set(
+    live_project,
+    { active_compile_deps_path = temp_delete_path }
+)
+util.delete_checked = function(path)
+    if path == temp_delete_path then
+        return false, "unit temporary delete denied"
+    end
+    return original_delete_checked(path)
+end
+local temp_delete_failed = typst.viewer.clean()
+util.delete_checked = original_delete_checked
+compiler_service.set(live_project, { clear = { "active_compile_deps_path" } })
+assert(
+    temp_delete_failed.ok == false
+        and temp_delete_failed.reason == "delete_failed",
+    "temporary delete failure should return delete_failed"
+)
+assert(
+    temp_delete_failed.path == temp_delete_path,
+    "temporary delete failure should report failed path"
+)
+assert(
+    temp_delete_failed.temporary_failed_count == 1,
+    "temporary delete failure should report failed temporary count"
+)
+
+assert(
+    vim.fn.writefile({ "output delete failure fixture" }, output) == 0,
+    "failed to recreate output delete-failure fixture"
+)
+util.delete_checked = function(path)
+    if path == output then
+        return false, "unit output delete denied"
+    end
+    return original_delete_checked(path)
+end
+local output_delete_failed = typst.viewer.clean({ all = true, force = true })
+util.delete_checked = original_delete_checked
+assert(
+    output_delete_failed.ok == false
+        and output_delete_failed.reason == "delete_failed",
+    "output delete failure should return delete_failed"
+)
+assert(
+    output_delete_failed.output == output
+        and output_delete_failed.path == output,
+    "output delete failure should report failed output path"
+)
+assert(
+    vim.fn.filereadable(output) == 1,
+    "failed output clean should leave output in place"
 )
 
 vim.cmd("qa!")

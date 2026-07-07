@@ -4,6 +4,33 @@ local provider_adapter = require("typst.integrations.provider_adapter")
 
 local M = {}
 
+local render_result_fields = {
+    output = true,
+    path = true,
+}
+
+local function cancelable_provider_handle(result)
+    return type(result) == "table"
+        and not provider_adapter.result_like(result)
+        and (
+            result.pending == true
+            or type(result.cancel) == "function"
+            or type(result.stop) == "function"
+            or type(result.kill) == "function"
+        )
+end
+
+local function terminal_result(result)
+    if type(result) ~= "table" then
+        return true
+    end
+    return provider_adapter.is_terminal_result(result, {
+        accept_table_result = true,
+        result_fields = render_result_fields,
+        is_handle = cancelable_provider_handle,
+    })
+end
+
 local function provider_for(opts, render_config)
     return providers.resolve(
         "render",
@@ -104,7 +131,7 @@ function M.call(project, kind, opts, context)
                     result.kind = result.kind or kind
                     result.generation = generation
                 end
-                if type(result) ~= "table" or result.pending ~= true then
+                if terminal_result(result) then
                     release_lease()
                 end
                 return result
@@ -112,7 +139,7 @@ function M.call(project, kind, opts, context)
             invalid_result_message = "Render provider returned no result",
         }
     )
-    if type(returned) ~= "table" or returned.pending ~= true then
+    if terminal_result(returned) then
         release_lease()
     end
     return returned

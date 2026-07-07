@@ -51,6 +51,47 @@ assert(
     "older render should report stale_result"
 )
 
+typst.reset({ force = true })
+provider_callbacks = {}
+results = {}
+local reset_root = typst_test_cache_path("render-reset-token-project")
+vim.fn.mkdir(reset_root, "p")
+local reset_main = reset_root .. "/main.typ"
+vim.fn.writefile({ "= Render Reset", "body" }, reset_main)
+typst.setup({
+    root = reset_root,
+    render = {
+        output_dir = typst_test_cache_path("render-reset-token-output"),
+        provider = function(_, _, callback)
+            provider_callbacks[#provider_callbacks + 1] = callback
+            return { pending = true }
+        end,
+    },
+})
+vim.cmd.edit(reset_main)
+vim.bo.filetype = "typst"
+project = typst.project.attach(0)
+render.fragment(project, { source = "stale after reset" }, function(result)
+    results[#results + 1] = result
+end, function() end)
+assert(provider_callbacks[1], "reset-token render should start provider")
+typst.reset({ force = true })
+provider_callbacks[1]({
+    ok = true,
+    path = reset_main,
+    format = "typ",
+})
+assert(
+    vim.wait(1000, function()
+        return results[1] ~= nil
+    end, 10),
+    "reset-stale render provider callback did not settle"
+)
+assert(
+    results[1].stale and results[1].reason == "reset",
+    "render provider callback after reset should return stale reset result"
+)
+
 typst.reset()
 local cancel_root = typst_test_cache_path("render-cancel-project")
 vim.fn.mkdir(cancel_root, "p")

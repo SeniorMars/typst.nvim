@@ -56,13 +56,27 @@ end
 
 local function profile_paths(project, opts)
     local run_config = config.for_run(opts.profile, {})
-    local output = output_path_util.output_path(project, run_config)
+    local output, output_error =
+        output_path_util.safe_output_path(project, run_config, {
+            operation = "profile",
+        })
+    if output_error or not output then
+        return nil,
+            nil,
+            run_config,
+            output_error or {
+                ok = false,
+                pending = false,
+                reason = "output_path_invalid",
+                message = "Invalid Typst profile output path",
+            }
+    end
     local timings = opts.output
         or util.join(
             run_config.output_dir or config.default_output_dir(),
             ("%s.timings.json"):format(util.stem(project.main))
         )
-    return output, util.resolve_path(timings, project.root), run_config
+    return output, util.resolve_path(timings, project.root), run_config, nil
 end
 
 local function profile_command(project, output, timings, run_config, opts)
@@ -214,17 +228,30 @@ function M.profile(project, opts, callback, notify)
         return provider_result
     end
 
-    local output, timings, run_config = profile_paths(project, opts)
+    local output, timings, run_config, path_error = profile_paths(project, opts)
+    if path_error then
+        path_error.pending = false
+        path_error.kind = "profile"
+        path_error.main = project.main
+        if callback then
+            callback(path_error, providers.project_context(project))
+        end
+        return path_error
+    end
     for _, path in ipairs({ output, timings }) do
         local parent_ok, parent_err = util.ensure_parent(path)
         if not parent_ok then
-            return {
+            local result = {
                 ok = false,
                 pending = false,
                 reason = "parent_create_failed",
                 message = tostring(parent_err),
                 path = path,
             }
+            if callback then
+                callback(result, providers.project_context(project))
+            end
+            return result
         end
     end
     local command = profile_command(project, output, timings, run_config, opts)
@@ -243,6 +270,8 @@ function M.profile(project, opts, callback, notify)
         text = true,
         detach = false,
     }, {
+        owner = "project",
+        project_key = project.key,
         on_finish = function(exit)
             if async.cancelled(result) then
                 return
@@ -359,6 +388,8 @@ local function run_default_tool(kind, project, opts, callback, notify)
         proc_opts.env = opts.env
     end
     operation.attach(result, kind, command, proc_opts, {
+        owner = "project",
+        project_key = project.key,
         on_finish = function(exit)
             if async.cancelled(result) then
                 return

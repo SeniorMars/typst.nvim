@@ -227,7 +227,7 @@ end
 ---@param project TypstProject Project state with root, main file, and compiler service state.
 ---@param callback? fun(result:TypstCompilerResult) Watch-cycle or terminal result callback.
 ---@param run_config? table Effective run configuration used to build the command.
----@return userdata? handle libuv process handle, or nil when startup fails before spawn.
+---@return userdata|TypstCompilerResult|nil handle libuv process handle, structured failure, or nil when startup fails before spawn.
 function M.start(project, callback, run_config)
     local opts = run_config or config.unsafe_get()
     local compiler_state = compiler_service.get(project) or {}
@@ -254,7 +254,35 @@ function M.start(project, callback, run_config)
         return nil
     end
 
-    local output = output_path_util.output_path(project, opts)
+    local output, output_err =
+        output_path_util.safe_output_path(project, opts, {
+            operation = "watch",
+        })
+    if not output then
+        local failure = output_err
+            or {
+                ok = false,
+                code = 1,
+                stdout = "",
+                stderr = "Invalid Typst watch output path",
+                reason = "output_path_invalid",
+                message = "Invalid Typst watch output path",
+                stale = false,
+            }
+        compiler_service.set(project, {
+            watch_generation = generation,
+            status = "error",
+            last_result = failure,
+        })
+        compiler_fanout.watch_failed(project, failure, nil, {
+            publish_diagnostics = false,
+        })
+        if callback then
+            callback(failure)
+        end
+        return failure
+    end
+
     -- Hold the output lease for the whole watch lifetime so compile/export or
     -- render jobs cannot write the same PDF while `typst watch` is active.
     local lease, lease_err = output_ownership.acquire(output, {
@@ -401,6 +429,8 @@ function M.start(project, callback, run_config)
                 compiler_watch.enqueue_stream(project, watcher, "stderr", data)
             end,
         }, {
+            owner = "project",
+            project_key = project.key,
             cleanup = function()
                 output_ownership.release(lease)
             end,

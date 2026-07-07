@@ -178,6 +178,64 @@ local function clean_preview_artifacts(state, opts)
     }, function() end)
 end
 
+local function empty_preview_clean()
+    return {
+        ok = true,
+        deleted = {},
+        failed = {},
+        skipped = {},
+        count = 0,
+    }
+end
+
+local function clean_failure(state, notify, reason, message, fields)
+    fields = fields or {}
+    local preview_clean = fields.preview_clean or empty_preview_clean()
+    local temporary = fields.temporary or {}
+    local temporary_failed = fields.temporary_failed or {}
+    local result = vim.tbl_extend("force", {
+        ok = false,
+        reason = reason,
+        message = message,
+        deleted = false,
+        output_deleted = false,
+        temporary = temporary,
+        temporary_deleted = #temporary,
+        temporary_failed = temporary_failed,
+        temporary_failed_count = #temporary_failed,
+        temporary_skipped = fields.temporary_skipped or {},
+        temporary_skipped_count = #(fields.temporary_skipped or {}),
+        preview_artifacts = preview_clean.deleted or {},
+        preview_artifacts_deleted = #(preview_clean.deleted or {}),
+        preview_artifacts_skipped = preview_clean.skipped or {},
+        preview_artifacts_failed = preview_clean.failed or {},
+        missing = fields.missing == true,
+        notify_level = fields.notify_level or vim.log.levels.ERROR,
+    }, fields)
+    result.preview_clean = nil
+    notify_user(notify, result.message, result.notify_level)
+    log.add("warn", "Typst clean failed", {
+        main = state.main,
+        reason = result.reason,
+        message = result.message,
+        path = result.path or result.output,
+        error = result.error,
+    })
+    return result
+end
+
+local function configured_output_path(state, compiler_state)
+    if
+        type(compiler_state.output) == "string"
+        and compiler_state.output ~= ""
+    then
+        return compiler_state.output, nil
+    end
+    return output_path_util.safe_output_path(state, config.unsafe_get(), {
+        operation = "clean",
+    })
+end
+
 local function notify_clean_result(
     state,
     notify,
@@ -247,8 +305,16 @@ local function clean_impl(state, opts, notify)
 
     local compiler_state = compiler_service.get(state) or {}
     if compiler_state.process or compiler_state.watcher then
-        error(
-            "typst.nvim: stop the active Typst compiler before cleaning output"
+        return clean_failure(
+            state,
+            notify,
+            "active_compiler",
+            "Stop the active Typst compiler before cleaning output",
+            {
+                process = compiler_state.process ~= nil,
+                watcher = compiler_state.watcher ~= nil,
+                notify_level = vim.log.levels.WARN,
+            }
         )
     end
 
@@ -256,17 +322,52 @@ local function clean_impl(state, opts, notify)
         clean_temporary_artifacts(state, opts)
     if #failed > 0 then
         local first = failed[1]
-        error(
-            ("typst.nvim: failed to delete temporary artifact %s: %s"):format(
+        return clean_failure(
+            state,
+            notify,
+            "delete_failed",
+            ("Failed to delete temporary artifact %s: %s"):format(
                 first.path,
                 tostring(first.error)
-            )
+            ),
+            {
+                path = first.path,
+                error = first.error,
+                temporary = deleted_temp,
+                temporary_failed = failed,
+                temporary_skipped = skipped_temp,
+            }
         )
     end
     local preview_clean = clean_preview_artifacts(state, opts)
 
-    local output = compiler_state.output
-        or output_path_util.output_path(state, config.unsafe_get())
+    local output, output_error = configured_output_path(state, compiler_state)
+    if output_error or not output then
+        local result = vim.tbl_extend("force", output_error or {
+            ok = false,
+            reason = "output_path_invalid",
+            message = "Invalid Typst clean output path",
+        }, {
+            deleted = false,
+            output_deleted = false,
+            temporary = deleted_temp,
+            temporary_deleted = #deleted_temp,
+            temporary_skipped = skipped_temp,
+            temporary_skipped_count = #skipped_temp,
+            preview_artifacts = preview_clean.deleted or {},
+            preview_artifacts_deleted = #(preview_clean.deleted or {}),
+            preview_artifacts_skipped = preview_clean.skipped or {},
+            preview_artifacts_failed = preview_clean.failed or {},
+            missing = true,
+        })
+        notify_user(notify, result.message, vim.log.levels.ERROR)
+        log.add("warn", "clean skipped invalid Typst output path", {
+            main = state.main,
+            reason = result.reason,
+            message = result.message,
+        })
+        return result
+    end
     local deleted_output = false
     local missing_output = vim.fn.filereadable(output) ~= 1
     if opts.all or opts.outputs then
@@ -296,11 +397,23 @@ local function clean_impl(state, opts, notify)
             end
             local ok, result = remove_file(output)
             if not ok then
-                error(
-                    ("typst.nvim: failed to delete output %s: %s"):format(
+                return clean_failure(
+                    state,
+                    notify,
+                    "delete_failed",
+                    ("Failed to delete output %s: %s"):format(
                         output,
                         tostring(result)
-                    )
+                    ),
+                    {
+                        output = output,
+                        path = output,
+                        error = result,
+                        temporary = deleted_temp,
+                        temporary_skipped = skipped_temp,
+                        preview_clean = preview_clean,
+                        missing = false,
+                    }
                 )
             end
             local artifact_state = artifacts_service.get(state) or {}

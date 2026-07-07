@@ -36,18 +36,10 @@ local function provider_name(provider)
 end
 
 local function explicit_terminal_result(value)
-    return type(value) == "table"
-        and value.pending ~= true
-        and (
-            value.ok ~= nil
-            or value.code ~= nil
-            or value.reason ~= nil
-            or value.message ~= nil
-            or value.stopped ~= nil
-            or value.forced ~= nil
-            or value.orphaned ~= nil
-            or value.idle ~= nil
-        )
+    return provider_adapter.is_terminal_result(value, {
+        return_mode = "handle",
+        expect_handle = true,
+    })
 end
 
 ---@param run_config? table Effective run configuration.

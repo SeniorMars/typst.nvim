@@ -21,25 +21,50 @@ local function provider_config(kind, run_config)
     return (run_config or config.unsafe_get()).compile[kind] or {}
 end
 
-local function output_path(project, run_config, runner)
+local function output_path(project, run_config, runner, mode)
+    local config_snapshot = run_config or config.unsafe_get()
     if type(runner.output) == "function" then
         local output = runner.output(project, run_config)
         if type(output) == "string" and output ~= "" then
-            return util.resolve_path(output, project.root)
+            return output_path_util.safe_explicit_output_path(
+                project,
+                config_snapshot,
+                output,
+                {
+                    operation = ("generic %s"):format(mode or "compile"),
+                }
+            )
         end
     elseif type(runner.output) == "string" and runner.output ~= "" then
-        return util.resolve_path(runner.output, project.root)
+        return output_path_util.safe_explicit_output_path(
+            project,
+            config_snapshot,
+            runner.output,
+            {
+                operation = ("generic %s"):format(mode or "compile"),
+            }
+        )
     end
 
-    return output_path_util.output_path(
-        project,
-        run_config or config.unsafe_get()
-    )
+    return output_path_util.safe_output_path(project, config_snapshot, {
+        operation = ("generic %s"):format(mode or "compile"),
+    })
 end
 
-local function context(project, run_config, kind)
+local function context(project, run_config, kind, mode)
     local output = (compiler_service.get(project) or {}).output
-        or output_path(project, run_config, provider_config(kind, run_config))
+    local output_err
+    if not output then
+        output, output_err = output_path(
+            project,
+            run_config,
+            provider_config(kind, run_config),
+            mode
+        )
+    end
+    if not output then
+        return nil, output_err
+    end
     local compile = run_config and run_config.compile or {}
     local stdin_source = type(compile.stdin) == "string"
     local source = project.main
@@ -58,7 +83,8 @@ local function context(project, run_config, kind)
         profile = compile.profile or "",
         provider = kind,
         stdin = stdin_source and "1" or "",
-    }
+    },
+        nil
 end
 
 local function replace_placeholders(value, ctx)
@@ -128,7 +154,27 @@ local function run(kind, mode, project, callback, run_config)
         return missing_command(kind, mode, callback)
     end
 
-    local ctx = context(project, run_config, kind)
+    local ctx, ctx_err = context(project, run_config, kind, mode)
+    if not ctx then
+        local result = ctx_err
+            or {
+                code = 1,
+                stdout = "",
+                stderr = "Invalid generic compiler output path",
+                ok = false,
+                reason = "output_path_invalid",
+                message = "Invalid generic compiler output path",
+                stale = false,
+            }
+        compiler_service.set(project, {
+            status = "error",
+            last_result = result,
+        })
+        if callback then
+            callback(result)
+        end
+        return result
+    end
     local lease, lease_err = output_ownership.acquire(ctx.output, {
         kind = ("generic-%s-%s"):format(kind, mode),
         project_key = project.key,
@@ -240,6 +286,8 @@ local function run(kind, mode, project, callback, run_config)
         command,
         system_opts,
         {
+            owner = "project",
+            project_key = project.key,
             cleanup = function()
                 release_lease(state)
             end,
@@ -360,11 +408,13 @@ function M.create(kind)
             return (compiler_service.get(project) or {}).status
         end,
         output = function(project, run_config)
-            return output_path(
+            local output = output_path(
                 project,
                 run_config or config.unsafe_get(),
-                provider_config(kind, run_config or config.unsafe_get())
+                provider_config(kind, run_config or config.unsafe_get()),
+                "output"
             )
+            return output
         end,
     }
 end

@@ -82,6 +82,7 @@ function M.output_path(project, config)
     if vim.fn.fnamemodify(output_name, ":e") == "" then
         output_name = output_name .. "." .. format
     end
+    validate_output_name(output_name)
 
     if config.output_dir and config.output_dir ~= "" then
         local output_dir =
@@ -105,6 +106,95 @@ function M.output_path(project, config)
     end
 
     return path_util.join(path_util.dirname(project.main), output_name)
+end
+
+--- Resolve an output path without throwing across workflow/API boundaries.
+---
+--- `output_path()` remains strict for internal validation tests and call sites
+--- that intentionally want assertion-style behavior. Compile/watch/export
+--- workflows should use this helper so user config/path errors return through
+--- the normal result/callback contract before any process or output lease is
+--- created.
+---@param project table Project state with root and main file paths.
+---@param config table Effective run configuration with output fields.
+---@param context? {operation?:string} Failure context.
+---@return string? output Absolute output path when valid.
+---@return TypstCompilerResult? result Structured failure when invalid.
+function M.safe_output_path(project, config, context)
+    local ok, output = pcall(function()
+        return M.output_path(project, config)
+    end)
+    if ok then
+        return output, nil
+    end
+
+    local operation = context and context.operation or "compile"
+    local error_text = tostring(output)
+    local user_error = error_text:match("(typst%.nvim: .*)") or error_text
+    local message = ("Invalid Typst %s output path: %s"):format(
+        operation,
+        user_error
+    )
+    return nil,
+        {
+            ok = false,
+            code = 1,
+            stdout = "",
+            stderr = message,
+            reason = "output_path_invalid",
+            message = message,
+            error = error_text,
+            stale = false,
+        }
+end
+
+--- Validate an explicit provider-declared output path without throwing.
+---
+--- Generic providers may declare their own output path, but the destination is
+--- still typst.nvim-owned for leases/cleanup. Keep the same external-output
+--- policy as normal compile outputs unless `allow_external_output` is set.
+---@param project table Project state with root and main file paths.
+---@param config table Effective run configuration.
+---@param output string Provider-declared output path.
+---@param context? {operation?:string} Failure context.
+---@return string? output Absolute output path when valid.
+---@return TypstCompilerResult? result Structured failure when invalid.
+function M.safe_explicit_output_path(project, config, output, context)
+    local ok, resolved_or_err = pcall(function()
+        if type(output) ~= "string" or output == "" then
+            error("typst.nvim: explicit output path must be a non-empty string")
+        end
+        local resolved = path_util.resolve_path(output, project.root)
+        local output_dir = path_util.dirname(resolved)
+        if not output_dir_allowed(project, config or {}, output_dir) then
+            error(
+                "typst.nvim: explicit output outside the project or typst.nvim cache requires allow_external_output = true"
+            )
+        end
+        return resolved
+    end)
+    if ok then
+        return resolved_or_err, nil
+    end
+
+    local operation = context and context.operation or "compile"
+    local error_text = tostring(resolved_or_err)
+    local user_error = error_text:match("(typst%.nvim: .*)") or error_text
+    local message = ("Invalid Typst %s output path: %s"):format(
+        operation,
+        user_error
+    )
+    return nil,
+        {
+            ok = false,
+            code = 1,
+            stdout = "",
+            stderr = message,
+            reason = "output_path_invalid",
+            message = message,
+            error = error_text,
+            stale = false,
+        }
 end
 
 return M

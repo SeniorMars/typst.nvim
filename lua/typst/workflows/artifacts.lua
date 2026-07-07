@@ -8,6 +8,7 @@ local output_path_util = require("typst.compiler.output_path")
 local output_ownership = require("typst.resources.outputs")
 local providers = require("typst.integrations.providers")
 local provider_adapter = require("typst.integrations.provider_adapter")
+local resource_manager = require("typst.runtime.resource_manager")
 local artifacts_service = require("typst.project.services.artifacts")
 local compiler_service = require("typst.project.services.compiler")
 local util = require("typst.core.util")
@@ -118,7 +119,9 @@ local function output_path(project, spec)
         or spec.name
         or run_config.output_name
     run_config.output_dir = spec.output_dir or run_config.output_dir
-    return output_path_util.output_path(project, run_config)
+    return output_path_util.safe_output_path(project, run_config, {
+        operation = "export",
+    })
 end
 
 local function path_key(path)
@@ -349,8 +352,52 @@ local function verify_artifact(path, before, started_at_sec)
     return true, nil, fingerprint.signature
 end
 
+local export_result_fields = {
+    artifacts = true,
+    output = true,
+    outputs = true,
+    path = true,
+}
+
+local function cancelable_provider_handle(result)
+    return type(result) == "table"
+        and not provider_adapter.result_like(result)
+        and (
+            result.pending == true
+            or type(result.cancel) == "function"
+            or type(result.stop) == "function"
+            or type(result.kill) == "function"
+        )
+end
+
 local function terminal_result(result)
-    return type(result) ~= "table" or result.pending ~= true
+    if type(result) ~= "table" then
+        return true
+    end
+    return provider_adapter.is_terminal_result(result, {
+        accept_table_result = true,
+        result_fields = export_result_fields,
+        is_handle = cancelable_provider_handle,
+    })
+end
+
+local function stale_export_result(token)
+    if not token then
+        return nil
+    end
+    local valid, reason = resource_manager.valid_token(token)
+    if valid then
+        return nil
+    end
+    return {
+        ok = false,
+        pending = false,
+        stale = true,
+        reason = reason or "stale_result",
+        message = reason == "reset"
+                and "Typst export result was ignored after typst.nvim reset"
+            or "Typst export result was ignored after the project changed",
+    }
 end
 
 local function add_arg(args, flag, value)
@@ -684,7 +731,7 @@ local function planned_output_map(planned)
     return outputs, paths, records
 end
 
-local function provider_export(project, opts, callback, notify, planned)
+local function provider_export(project, opts, callback, notify, planned, token)
     -- Reserve every declared output before invoking custom providers. Results
     -- pointing elsewhere are rejected so integrations cannot silently overwrite
     -- paths outside the user's export plan.
@@ -737,6 +784,13 @@ local function provider_export(project, opts, callback, notify, planned)
         notify_user(notify, "Typst export provider finished")
     end
     local function provider_result(result)
+        local stale = stale_export_result(token)
+        if stale then
+            if terminal_result(result) then
+                release_leases()
+            end
+            return stale
+        end
         result = normalize_provider_result(
             project,
             result,
@@ -841,6 +895,7 @@ end
 ---@return table result Export plan/result with artifact records, pending state, and cancellation when async.
 function M.export(project, opts, callback, notify)
     opts = opts or {}
+    local manager_token = resource_manager.token(project, "export")
     local specs, profile = specs_for(opts)
     local result = {
         ok = true,
@@ -854,7 +909,21 @@ function M.export(project, opts, callback, notify)
     }
     local planned = {}
     for index, spec in ipairs(specs) do
-        local path = output_path(project, spec)
+        local path, path_error = output_path(project, spec)
+        if path_error or not path then
+            local failure = vim.tbl_extend("force", result, path_error or {
+                ok = false,
+                pending = false,
+                reason = "output_path_invalid",
+                message = "Invalid Typst export output path",
+            }, {
+                pending = false,
+            })
+            if callback then
+                callback(failure, providers.project_context(project))
+            end
+            return failure
+        end
         local canonical = path_key(path)
         planned[index] = {
             spec = spec,
@@ -871,8 +940,14 @@ function M.export(project, opts, callback, notify)
     local provider_opts = spec_provider ~= nil
             and vim.tbl_extend("force", opts, { provider = spec_provider })
         or opts
-    local provider_result =
-        provider_export(project, provider_opts, callback, notify, planned)
+    local provider_result = provider_export(
+        project,
+        provider_opts,
+        callback,
+        notify,
+        planned,
+        manager_token
+    )
     if provider_result ~= nil then
         return provider_result
     end
@@ -1005,6 +1080,8 @@ function M.export(project, opts, callback, notify)
             text = true,
             detach = false,
         }, {
+            owner = "project",
+            project_key = project.key,
             cleanup = function()
                 output_ownership.release(item.lease)
             end,
@@ -1029,6 +1106,22 @@ function M.export(project, opts, callback, notify)
                 if result.completed == #specs then
                     result.pending = false
                     result.state = result.orphaned and "orphaned" or "cancelled"
+                    finish_export_callback()
+                end
+                return
+            end
+            local stale = stale_export_result(manager_token)
+            if stale then
+                artifact.result = exit
+                artifact.status = "stale"
+                artifact.reason = stale.reason
+                result.ok = false
+                result.stale = true
+                result.reason = stale.reason
+                result.message = stale.message
+                if result.completed == #specs then
+                    result.pending = false
+                    result.state = "stale"
                     finish_export_callback()
                 end
                 return
@@ -1112,10 +1205,12 @@ function M.export(project, opts, callback, notify)
     return result
 end
 
---- Reset artifact path leases used by export/render workflows.
-function M.reset()
-    output_ownership.reset()
-end
+--- Reset artifact workflow-local state.
+---
+--- Global output leases are owned by `typst.resources.outputs` and reset
+--- through the resource registry. Artifact reset must not release
+--- compiler/export/render leases out of order.
+function M.reset() end
 
 --- Return known artifacts for a project.
 ---@param project table Project state whose artifact/compiler services are queried.

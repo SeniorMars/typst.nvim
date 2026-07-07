@@ -3,9 +3,9 @@ vim.opt.runtimepath:prepend(root)
 
 local typst = require("typst")
 local operation = require("typst.core.operation")
-local compiler_watch = require("typst.compiler.watch")
+local compiler_watch = require("typst.compiler.watch.state")
 local compiler_dependencies = require("typst.compiler.dependencies")
-local typst_watcher = require("typst.compiler.typst_watcher")
+local typst_watcher = require("typst.compiler.watch.runner")
 
 typst.reset()
 typst.setup({

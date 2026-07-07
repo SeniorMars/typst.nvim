@@ -17,7 +17,7 @@ local M = {}
 ---@param project TypstProject Project state with root, main file, and compiler service state.
 ---@param callback? fun(result:TypstCompilerResult) Terminal compile result callback.
 ---@param run_config? table Effective run configuration used to build the command.
----@return userdata? handle libuv process handle, or nil when startup fails before spawn.
+---@return userdata|TypstCompilerResult|nil handle libuv process handle, structured failure, or nil when startup fails before spawn.
 function M.start(project, callback, run_config)
     local opts = run_config or config.unsafe_get()
     local compiler_state = compiler_service.get(project) or {}
@@ -44,7 +44,35 @@ function M.start(project, callback, run_config)
         return nil
     end
 
-    local output = output_path_util.output_path(project, opts)
+    local output, output_err =
+        output_path_util.safe_output_path(project, opts, {
+            operation = "compile",
+        })
+    if not output then
+        local failure = output_err
+            or {
+                ok = false,
+                code = 1,
+                stdout = "",
+                stderr = "Invalid Typst compile output path",
+                reason = "output_path_invalid",
+                message = "Invalid Typst compile output path",
+                stale = false,
+            }
+        compiler_service.set(project, {
+            generation = generation,
+            status = "error",
+            last_result = failure,
+        })
+        compiler_fanout.compile_failed(project, failure, {
+            publish_diagnostics = false,
+        })
+        if callback then
+            callback(failure)
+        end
+        return failure
+    end
+
     local lease, lease_err = output_ownership.acquire(output, {
         kind = "compile",
         project_key = project.key,
@@ -162,6 +190,8 @@ function M.start(project, callback, run_config)
 
     local run_ok, run_result = xpcall(function()
         return operation.run("compiler-typst-compile", command, process_opts, {
+            owner = "project",
+            project_key = project.key,
             cleanup = function()
                 output_ownership.release(lease)
             end,

@@ -25,11 +25,14 @@ assert(
     "compile process should be active before clean refusal"
 )
 
-local ok, err = pcall(function()
-    typst.viewer.clean()
-end)
-assert(not ok, "clean should refuse while a one-shot compile is active")
-assert(tostring(err):match("stop the active Typst compiler"), tostring(err))
+local result = typst.viewer.clean()
+assert(
+    type(result) == "table"
+        and result.ok == false
+        and result.reason == "active_compiler",
+    "clean should return active_compiler while a one-shot compile is active"
+)
+assert(result.message:match("active Typst compiler"), tostring(result.message))
 assert(
     typst_test_compiler(project).process == handle,
     "failed clean should leave the active compile tracked"

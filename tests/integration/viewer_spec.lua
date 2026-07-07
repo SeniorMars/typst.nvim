@@ -281,13 +281,16 @@ run_case("open failures preserve previous viewer state", function(group)
             view_event = args.data
         end,
     })
-    local missing_output_ok, missing_output_err = pcall(function()
-        typst.viewer.view()
-    end)
-    assert(not missing_output_ok, "viewing before output exists should fail")
+    local missing_output = typst.viewer.view({ notify = false })
     assert(
-        tostring(missing_output_err):match("output does not exist"),
-        tostring(missing_output_err)
+        type(missing_output) == "table"
+            and missing_output.ok == false
+            and missing_output.reason == "missing_output",
+        "viewing before output exists should return missing_output"
+    )
+    assert(
+        tostring(missing_output.message):match("output does not exist"),
+        tostring(missing_output.message)
     )
 
     compile_current_project("compile failed before view error test")
@@ -298,13 +301,16 @@ run_case("open failures preserve previous viewer state", function(group)
         command = { "last-good-viewer", typst_test_compiler(project).output },
         cwd = "/tmp/last-good",
     })
-    local missing_viewer_ok, missing_viewer_err = pcall(function()
-        typst.viewer.view()
-    end)
-    assert(not missing_viewer_ok, "missing viewer executable should fail")
+    local missing_viewer = typst.viewer.view({ notify = false })
     assert(
-        tostring(missing_viewer_err):match("viewer executable not found"),
-        tostring(missing_viewer_err)
+        type(missing_viewer) == "table"
+            and missing_viewer.ok == false
+            and missing_viewer.reason == "viewer_failed",
+        "missing viewer executable should return viewer_failed"
+    )
+    assert(
+        tostring(missing_viewer.message):match("viewer executable not found"),
+        tostring(missing_viewer.message)
     )
     assert(
         view_event == nil,
@@ -370,16 +376,16 @@ run_case("viewer callback errors are isolated", function(group)
         },
         cwd = "/tmp/stale",
     })
-    local open_ok, open_err = pcall(function()
-        typst.viewer.view()
-    end)
+    local open_result = typst.viewer.view({ notify = false })
     assert(
-        not open_ok,
-        "viewer open callback errors should fail the view command"
+        type(open_result) == "table"
+            and open_result.ok == false
+            and open_result.reason == "viewer_failed",
+        "viewer open callback errors should return viewer_failed"
     )
     assert(
-        tostring(open_err):match("viewer open callback failed"),
-        tostring(open_err)
+        tostring(open_result.message):match("viewer open callback failed"),
+        tostring(open_result.message)
     )
     assert(
         open_event == nil,

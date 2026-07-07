@@ -3,9 +3,11 @@ local async = require("typst.core.async")
 local events = require("typst.core.events")
 local log = require("typst.core.log")
 local operation = require("typst.core.operation")
+local output_path_util = require("typst.compiler.output_path")
 local output_policy = require("typst.core.output_policy")
 local output_ownership = require("typst.resources.outputs")
 local providers = require("typst.integrations.providers")
+local resource_manager = require("typst.runtime.resource_manager")
 local graph_service = require("typst.project.services.graph")
 local index_service = require("typst.project.services.index")
 local render_cache = require("typst.workflows.render.cache")
@@ -53,13 +55,43 @@ local function rollback_render_generation(project, kind, generation)
     end
 end
 
-local function render_stale(project, kind, generation)
+local function token_stale_result(token, kind, generation)
+    if not token then
+        return nil
+    end
+    local valid, reason = resource_manager.valid_token(token)
+    if valid then
+        return nil
+    end
+    return {
+        ok = false,
+        pending = false,
+        stale = true,
+        reason = reason or "stale_result",
+        kind = kind,
+        generation = generation,
+        message = reason == "reset"
+                and "A render result was ignored after typst.nvim reset"
+            or "A render result was ignored after the project changed",
+    }
+end
+
+local function render_generation_stale(project, kind, generation)
     return generation ~= nil
         and project.render_generations
         and project.render_generations[kind] ~= generation
 end
 
-local function stale_render_result(kind, generation)
+local function render_stale(project, kind, generation, token)
+    return token_stale_result(token, kind, generation) ~= nil
+        or render_generation_stale(project, kind, generation)
+end
+
+local function stale_render_result(kind, generation, token)
+    local token_result = token_stale_result(token, kind, generation)
+    if token_result then
+        return token_result
+    end
     return {
         ok = false,
         stale = true,
@@ -186,10 +218,27 @@ local function output_path(project, kind, opts)
         kind,
         vim.tbl_extend("force", opts, { format = format })
     )
-    local dir = util.resolve_path(
-        cfg.output_dir or config.default_render_output_dir(),
-        project.root
-    )
+    local path, path_error = output_path_util.safe_output_path(project, {
+        output_format = format,
+        output_name = key,
+        output_dir = cfg.output_dir or config.default_render_output_dir(),
+        allow_external_output = cfg.allow_external_output == true
+            or config.unsafe_get().allow_external_output == true,
+    }, {
+        operation = "render",
+    })
+    if path_error or not path then
+        return key,
+            nil,
+            nil,
+            nil,
+            path_error or {
+                ok = false,
+                pending = false,
+                reason = "output_path_invalid",
+                message = "Invalid Typst render output path",
+            }
+    end
     local source_path = project.main
     local stdin_source = false
     if kind ~= "page" then
@@ -204,10 +253,7 @@ local function output_path(project, kind, opts)
             source_path = ("<typst.nvim-render:%s>"):format(key)
         end
     end
-    return key,
-        util.join(dir, ("%s.%s"):format(key, format)),
-        source_path,
-        stdin_source
+    return key, path, source_path, stdin_source, nil
 end
 
 local provider_render_result
@@ -236,7 +282,8 @@ local function call_render_provider(
     opts,
     callback,
     notify,
-    generation
+    generation,
+    token
 )
     return render_provider.call(project, kind, opts, {
         callback = callback,
@@ -244,11 +291,28 @@ local function call_render_provider(
             return provider_render_result(result, provider_opts, notify)
         end,
         generation = generation,
-        is_stale = render_stale,
+        is_stale = function(stale_project, stale_kind, stale_generation)
+            return render_stale(
+                stale_project,
+                stale_kind,
+                stale_generation,
+                token
+            )
+        end,
         render_config = render_config,
         rollback_generation = rollback_render_generation,
-        stale_result = stale_render_result,
+        stale_result = function(stale_kind, stale_generation)
+            return stale_render_result(stale_kind, stale_generation, token)
+        end,
     })
+end
+
+local function apply_stale_result(target, stale)
+    for key, value in pairs(stale or {}) do
+        target[key] = value
+    end
+    target.pending = false
+    return target
 end
 
 local function command_for(project, source_path, output, opts)
@@ -370,7 +434,11 @@ local function cached_result(project, kind, opts)
         return nil
     end
 
-    local key, path, source_path = output_path(project, kind, opts)
+    local key, path, source_path, _, path_error =
+        output_path(project, kind, opts)
+    if path_error or not path then
+        return nil
+    end
     local entry = cache[key]
     if entry and entry.path == path and vim.fn.filereadable(path) == 1 then
         local now = now_ms()
@@ -527,14 +595,37 @@ local function render_source(project, kind, source, opts, callback, notify)
     opts.source = source
     opts.format = opts.format or render_config(opts).output_format or "svg"
     local generation = start_render_generation(project, kind)
-    local key, path, source_path, stdin_source =
+    local manager_token = resource_manager.token(project, "render:" .. kind)
+    local key, path, source_path, stdin_source, path_error =
         output_path(project, kind, opts)
+    if path_error or not path then
+        rollback_render_generation(project, kind, generation)
+        local result = vim.tbl_extend("force", path_error or {
+            ok = false,
+            reason = "output_path_invalid",
+            message = "Invalid Typst render output path",
+        }, {
+            pending = false,
+            kind = kind,
+        })
+        if callback then
+            callback(result, providers.project_context(project))
+        end
+        return result
+    end
     opts.output_path = opts.output_path or path
     opts.source_path = opts.source_path or source_path
     opts.stdin_source = opts.stdin_source or stdin_source
 
-    local provider_result =
-        call_render_provider(project, kind, opts, callback, notify, generation)
+    local provider_result = call_render_provider(
+        project,
+        kind,
+        opts,
+        callback,
+        notify,
+        generation,
+        manager_token
+    )
     if provider_result ~= nil then
         if type(provider_result) == "table" then
             provider_result.kind = provider_result.kind or kind
@@ -631,6 +722,8 @@ local function render_source(project, kind, source, opts, callback, notify)
         detach = false,
         stdin = opts.stdin_source and source or nil,
     }, {
+        owner = "project",
+        project_key = project.key,
         cleanup = function()
             output_ownership.release(lease)
         end,
@@ -639,12 +732,11 @@ local function render_source(project, kind, source, opts, callback, notify)
                 cleanup_unremembered(result, project, "cancelled")
                 return
             end
-            if render_stale(project, kind, generation) then
-                result.pending = false
-                result.ok = false
-                result.stale = true
-                result.reason = "stale_result"
-                result.generation = generation
+            local stale = render_stale(project, kind, generation, manager_token)
+                    and stale_render_result(kind, generation, manager_token)
+                or nil
+            if stale then
+                apply_stale_result(result, stale)
                 if callback then
                     callback(result, providers.project_context(project))
                 end
@@ -814,7 +906,25 @@ function M.page(project, opts, callback, notify)
     opts.source = project.main
     opts.page = opts.page or 1
     local generation = start_render_generation(project, "page")
-    local key, path = output_path(project, "page", opts)
+    local manager_token = resource_manager.token(project, "render:page")
+    local function finish_failure(result)
+        if callback then
+            callback(result, providers.project_context(project))
+        end
+        return result
+    end
+    local key, path, _, _, path_error = output_path(project, "page", opts)
+    if path_error or not path then
+        rollback_render_generation(project, "page", generation)
+        return finish_failure(vim.tbl_extend("force", path_error or {
+            ok = false,
+            reason = "output_path_invalid",
+            message = "Invalid Typst render output path",
+        }, {
+            pending = false,
+            kind = "page",
+        }))
+    end
     opts.output_path = opts.output_path or path
 
     local provider_result = call_render_provider(
@@ -823,7 +933,8 @@ function M.page(project, opts, callback, notify)
         opts,
         callback,
         notify,
-        generation
+        generation,
+        manager_token
     )
     if provider_result ~= nil then
         if type(provider_result) == "table" then
@@ -848,26 +959,26 @@ function M.page(project, opts, callback, notify)
     if not lease then
         ---@cast lease_err table
         rollback_render_generation(project, "page", generation)
-        return {
+        return finish_failure({
             ok = false,
             pending = false,
             reason = lease_err.reason,
             message = lease_err.message,
             active_output = lease_err.active_output or path,
             path = path,
-        }
+        })
     end
     local parent_ok, parent_err = output_ownership.ensure_parent(path)
     if not parent_ok then
         output_ownership.release(lease)
         rollback_render_generation(project, "page", generation)
-        return {
+        return finish_failure({
             ok = false,
             pending = false,
             reason = "parent_create_failed",
             message = tostring(parent_err),
             path = path,
-        }
+        })
     end
     local command = command_for(project, project.main, path, opts)
     local result = {
@@ -887,6 +998,8 @@ function M.page(project, opts, callback, notify)
         text = true,
         detach = false,
     }, {
+        owner = "project",
+        project_key = project.key,
         cleanup = function()
             output_ownership.release(lease)
         end,
@@ -895,12 +1008,18 @@ function M.page(project, opts, callback, notify)
                 cleanup_unremembered(result, project, "cancelled")
                 return
             end
-            if render_stale(project, "page", generation) then
-                result.pending = false
-                result.ok = false
-                result.stale = true
-                result.reason = "stale_result"
-                result.generation = generation
+            local stale = render_stale(
+                project,
+                "page",
+                generation,
+                manager_token
+            ) and stale_render_result(
+                "page",
+                generation,
+                manager_token
+            ) or nil
+            if stale then
+                apply_stale_result(result, stale)
                 if callback then
                     callback(result, providers.project_context(project))
                 end

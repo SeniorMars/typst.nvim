@@ -15,9 +15,9 @@ local M = {}
 local notify_user = require("typst.core.notify").user
 
 local function is_active_handle(value)
-    return value ~= nil
-        and value ~= false
-        and not provider_adapter.result_like(value)
+    return provider_adapter.is_active_handle(value, {
+        return_mode = "handle",
+    })
 end
 
 local function compile_output(state)

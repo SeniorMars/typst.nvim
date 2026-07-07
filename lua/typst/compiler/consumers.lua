@@ -9,7 +9,7 @@ local function viewer_module()
 end
 
 local function preview_module()
-    return require("typst.integrations.typst_preview")
+    return require("typst.preview.controller")
 end
 
 local function protected(action, project, callback)

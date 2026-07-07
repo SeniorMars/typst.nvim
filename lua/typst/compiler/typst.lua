@@ -1,6 +1,6 @@
 local compiler_compile = require("typst.compiler.typst_compile")
 local compiler_process = require("typst.compiler.typst_process")
-local compiler_watcher = require("typst.compiler.typst_watcher")
+local compiler_watcher = require("typst.compiler.watch.runner")
 local compiler_result = require("typst.compiler.state_machine")
 local log = require("typst.core.log")
 local compiler_service = require("typst.project.services.compiler")
