@@ -1,6 +1,15 @@
 local api_spec = require("typst.api.spec")
 
 local M = {}
+local owned_globals = rawget(_G, "__typst_nvim_owned_globals")
+if type(owned_globals) ~= "table" then
+    owned_globals = {}
+    rawset(_G, "__typst_nvim_owned_globals", owned_globals)
+end
+local last_global_install = {
+    installed = {},
+    skipped = {},
+}
 
 ---@class TypstApiNamespaceSpec
 ---@field name string
@@ -105,16 +114,63 @@ local function install_namespace(api, namespace, notify)
     api[namespace.name] = target
 end
 
-local function install_global(global)
-    _G[global.name] = function(...)
+local function log_global(level, message, context)
+    local ok, log = pcall(require, "typst.core.log")
+    if ok and type(log) == "table" and type(log.add) == "function" then
+        pcall(log.add, level, message, context)
+    end
+end
+
+local function typst_global_name(name)
+    return type(name) == "string" and name:match("^typst_nvim_") ~= nil
+end
+
+local function global_is_owned(name)
+    return owned_globals[name] ~= nil and _G[name] == owned_globals[name]
+end
+
+local function build_global(global)
+    return function(...)
         if global.args == "formatexpr" then
             return require(global.module)[global.method](
                 vim.v.lnum,
                 vim.v.count
             )
         end
+        if global.args == "foldexpr" then
+            return require(global.module)[global.method](vim.v.lnum)
+        end
         return require(global.module)[global.method](...)
     end
+end
+
+local function install_global(global)
+    if not typst_global_name(global.name) then
+        log_global("error", "refused invalid typst.nvim global name", {
+            name = global.name,
+        })
+        return false, "invalid_name"
+    end
+
+    if global_is_owned(global.name) then
+        return true
+    end
+
+    local existing = _G[global.name]
+    if existing ~= nil and existing ~= owned_globals[global.name] then
+        owned_globals[global.name] = nil
+        if global.allow_overwrite ~= true then
+            log_global("warn", "kept existing non-typst global", {
+                name = global.name,
+            })
+            return false, "collision"
+        end
+    end
+
+    local fn = build_global(global)
+    _G[global.name] = fn
+    owned_globals[global.name] = fn
+    return true
 end
 
 local function append_namespace_symbols(symbols, namespace)
@@ -195,6 +251,109 @@ local function experimental_symbols(api)
     return sorted_unique(experimental)
 end
 
+--- Install v:lua globals owned by the public API spec.
+---
+--- Globals are process-wide. typst.nvim only installs names with the
+--- `typst_nvim_` prefix, and it does not overwrite user/plugin functions
+--- unless a spec entry explicitly opts into that behavior.
+---@return table summary Installed/skipped global names.
+function M.install_globals()
+    local summary = {
+        installed = {},
+        skipped = {},
+    }
+    for _, global in ipairs(api_spec.globals) do
+        local ok, reason = install_global(global)
+        if ok then
+            summary.installed[#summary.installed + 1] = global.name
+        else
+            summary.skipped[#summary.skipped + 1] = {
+                name = global.name,
+                reason = reason,
+            }
+        end
+    end
+    last_global_install = vim.deepcopy(summary)
+    return summary
+end
+
+--- Remove globals still owned by this typst.nvim instance.
+---
+--- If another plugin or user code replaced one of the functions, reset keeps
+--- that value and drops typst.nvim ownership instead of deleting it.
+---@return table summary Removed/preserved global names.
+function M.reset_globals()
+    local summary = {
+        removed = {},
+        preserved = {},
+    }
+    local expected = {}
+    for _, global in ipairs(api_spec.globals) do
+        local name = global.name
+        expected[name] = true
+        if global_is_owned(name) then
+            _G[name] = nil
+            owned_globals[name] = nil
+            summary.removed[#summary.removed + 1] = name
+        elseif owned_globals[name] ~= nil then
+            owned_globals[name] = nil
+            summary.preserved[#summary.preserved + 1] = name
+        end
+    end
+    for name, fn in pairs(owned_globals) do
+        if typst_global_name(name) and expected[name] ~= true then
+            if _G[name] == fn then
+                _G[name] = nil
+                summary.removed[#summary.removed + 1] = name
+            else
+                summary.preserved[#summary.preserved + 1] = name
+            end
+            owned_globals[name] = nil
+        end
+    end
+    return summary
+end
+
+--- Return a snapshot of globals still owned by typst.nvim.
+---@return table<string, boolean> globals Owned global names.
+function M.owned_globals()
+    local snapshot = {}
+    for name in pairs(owned_globals) do
+        if global_is_owned(name) then
+            snapshot[name] = true
+        end
+    end
+    return snapshot
+end
+
+--- Return installed/skipped v:lua global status for health and diagnostics.
+---@return table status Summary of expected, owned, installed, and skipped globals.
+function M.global_status()
+    local expected = {}
+    for _, global in ipairs(api_spec.globals or {}) do
+        expected[#expected + 1] = global.name
+    end
+    table.sort(expected)
+
+    local owned = M.owned_globals()
+    local owned_names = {}
+    for name in pairs(owned) do
+        owned_names[#owned_names + 1] = name
+    end
+    table.sort(owned_names)
+
+    return {
+        expected = expected,
+        expected_count = #expected,
+        owned = owned_names,
+        owned_count = #owned_names,
+        installed = vim.deepcopy(last_global_install.installed or {}),
+        installed_count = #(last_global_install.installed or {}),
+        skipped = vim.deepcopy(last_global_install.skipped or {}),
+        skipped_count = #(last_global_install.skipped or {}),
+    }
+end
+
 --- Install stable, experimental, and compatibility API symbols onto `api`.
 ---@param api table Public module table that receives lazy namespace methods.
 ---@param notify? fun(message:string, level?:vim.log.levels|integer) Notification callback captured by factory namespaces.
@@ -203,9 +362,7 @@ function M.install(api, notify)
         install_namespace(api, namespace, notify)
     end
 
-    for _, global in ipairs(api_spec.globals) do
-        install_global(global)
-    end
+    M.install_globals()
 
     api.public_symbols = function()
         return installed_symbols(api)

@@ -478,4 +478,108 @@ assert(
     "api context should report ambiguous raw project keys"
 )
 
+local ambiguous_root = vim.fn.tempname()
+vim.fn.mkdir(ambiguous_root, "p")
+local ambiguous_leaf_a = ambiguous_root .. "/leaf-a.typ"
+local ambiguous_leaf_b = ambiguous_root .. "/leaf-b.typ"
+local ambiguous_main_b = ambiguous_root .. "/main-b.typ"
+vim.fn.writefile({ "= Leaf A" }, ambiguous_leaf_a)
+vim.fn.writefile({ "= Leaf B" }, ambiguous_leaf_b)
+local ambiguous_buf_a = vim.api.nvim_create_buf(true, true)
+local ambiguous_buf_b = vim.api.nvim_create_buf(true, true)
+vim.api.nvim_buf_set_name(ambiguous_buf_a, ambiguous_leaf_a)
+vim.api.nvim_buf_set_name(ambiguous_buf_b, ambiguous_leaf_b)
+local ambiguous_project = {
+    key = "api-context-import-scan-ambiguous",
+    root = ambiguous_root,
+    main = ambiguous_leaf_a,
+    bufs = {
+        [ambiguous_buf_a] = true,
+        [ambiguous_buf_b] = true,
+    },
+    resolutions = {
+        [ambiguous_buf_a] = {
+            buffer = ambiguous_leaf_a,
+            resolution_pending = "import_scan",
+            import_scan_pending = true,
+        },
+        [ambiguous_buf_b] = {
+            buffer = ambiguous_leaf_b,
+            import_scan_pending = false,
+            import_scan_suggestion = {
+                main = ambiguous_main_b,
+                status = "matched",
+            },
+        },
+    },
+    resolution_pending = "import_scan",
+}
+registry.set(ambiguous_project.key, ambiguous_project)
+store.set_buffer(ambiguous_buf_a, ambiguous_project.key)
+store.set_buffer(ambiguous_buf_b, ambiguous_project.key)
+vim.cmd.enew()
+vim.bo.filetype = ""
+local ambiguous_resolution = api_context.project({
+    key = ambiguous_project.key,
+    notify = false,
+    import_scan_command_wait_ms = 0,
+}, {
+    create = true,
+    require_typst = true,
+    settle_pending = true,
+    block_pending_resolution = true,
+    operation = "compiler.compile",
+})
+assert(
+    not ambiguous_resolution.ok
+        and ambiguous_resolution.error.reason == "resolution_ambiguous",
+    "key-only action lookup should not choose among multiple import-scan owners"
+)
+local identified_resolution = api_context.project({
+    key = ambiguous_project.key,
+    bufnr = ambiguous_buf_a,
+    notify = false,
+    import_scan_command_wait_ms = 0,
+}, {
+    create = true,
+    require_typst = true,
+    settle_pending = true,
+    block_pending_resolution = true,
+    operation = "compiler.compile",
+})
+assert(
+    not identified_resolution.ok
+        and identified_resolution.error.reason == "resolution_pending",
+    "identified owner buffer should block on its own import-scan resolution"
+)
+store.clear_buffer(ambiguous_buf_a)
+store.clear_buffer(ambiguous_buf_b)
+registry.remove(ambiguous_project.key)
+pcall(vim.api.nvim_buf_delete, ambiguous_buf_a, { force = true })
+pcall(vim.api.nvim_buf_delete, ambiguous_buf_b, { force = true })
+
+local numeric_project_ok, numeric_project = pcall(api_context.project, 0, {
+    create = false,
+    passive = true,
+    operation = "compiler.status",
+})
+assert(
+    numeric_project_ok and type(numeric_project) == "table",
+    "api_context.project should accept numeric buffer opts without throwing"
+)
+local numeric_endpoint_ok, numeric_endpoint =
+    pcall(api_context.resolve_endpoint, {
+        namespace = "compiler",
+        name = "status",
+        operation = "compiler.status",
+        project = {
+            create = false,
+            passive = true,
+        },
+    }, 0)
+assert(
+    numeric_endpoint_ok and type(numeric_endpoint) == "table",
+    "api_context.resolve_endpoint should accept numeric buffer opts without throwing"
+)
+
 typst.reset({ force = true })

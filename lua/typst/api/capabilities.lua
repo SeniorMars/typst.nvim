@@ -45,8 +45,7 @@ local function treesitter_status()
 end
 
 local function compiler_status(opts)
-    local configured_provider = ((config.unsafe_get() or {}).compile or {})
-        .provider
+    local configured_provider = ((config.unsafe_get() or {}).compile or {}).provider
     if configured_provider == nil or configured_provider == "typst" then
         return {
             provider = "typst",

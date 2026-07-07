@@ -440,6 +440,17 @@ M.globals = {
         method = "formatexpr",
         args = "formatexpr",
     },
+    {
+        name = "typst_nvim_foldexpr",
+        module = "typst.edit.folds",
+        method = "expr",
+        args = "foldexpr",
+    },
+    {
+        name = "typst_nvim_foldtext",
+        module = "typst.edit.folds",
+        method = "foldtext",
+    },
 }
 
 return M

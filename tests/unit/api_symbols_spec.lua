@@ -131,6 +131,7 @@ assert(
 )
 local stable_symbols = typst.stable_symbols()
 local experimental_symbols = typst.experimental_symbols()
+local runtime_policies = require("typst.api.runtime").policies()
 assert(
     vim.tbl_contains(stable_symbols, "project.attach"),
     "stable API should explicitly include project.attach"
@@ -216,6 +217,49 @@ assert(
 assert(
     vim.tbl_contains(experimental_symbols, "project.operations"),
     "runtime project operation helpers should be reported as experimental"
+)
+for _, symbol in ipairs({
+    "compiler.compile",
+    "compiler.compile_selected",
+    "compiler.current_output",
+    "compiler.output",
+    "compiler.status",
+    "compiler.stop",
+    "compiler.watch",
+    "viewer.view",
+    "viewer.view_forward",
+    "viewer.view_inverse",
+}) do
+    assert(
+        runtime_policies[symbol],
+        ("runtime method should declare a project policy: %s"):format(symbol)
+    )
+    assert(
+        runtime_policies[symbol].operation == symbol,
+        ("runtime method policy should name its operation: %s"):format(symbol)
+    )
+end
+assert(
+    runtime_policies["compiler.compile"].create == true
+        and runtime_policies["compiler.compile"].require_typst == true,
+    "compiler.compile policy should create only from Typst buffers"
+)
+assert(
+    runtime_policies["compiler.status"].passive == true
+        and runtime_policies["compiler.status"].create == false,
+    "compiler.status policy should be passive"
+)
+assert(
+    runtime_policies["viewer.view_inverse"].source_path == true,
+    "viewer.view_inverse policy should resolve source paths"
+)
+assert(
+    runtime_policies["compiler.stop_all"].project == false,
+    "compiler.stop_all should explicitly avoid project resolution"
+)
+assert(
+    runtime_policies["viewer.capabilities"].project == false,
+    "viewer.capabilities should explicitly avoid project resolution"
 )
 assert(
     type(require("typst.internal.debug").telemetry().setup) == "table",
