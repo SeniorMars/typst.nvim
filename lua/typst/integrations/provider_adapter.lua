@@ -215,6 +215,81 @@ local function returned_result_like(control, value, handle_mode)
     return M.result_like(value) or allowed_result_field(control, value)
 end
 
+--- Classify a raw provider return value using the adapter contract.
+---
+--- This is for callers that need to decide whether a value can be installed as
+--- active lifecycle state. It mirrors `invoke()` classification without
+--- starting timers or normalizing results.
+---@param value any Provider return value.
+---@param control? table Adapter controls such as `return_mode`, `expect_handle`, `accept_table_result`, `result_fields`, or `is_handle`.
+---@return {active_handle:boolean,result_like:boolean,terminal_result:boolean,pending:boolean,invalid_handle:boolean,kind:string}
+function M.classify_return(value, control)
+    control = control or {}
+    local handle_mode = control.return_mode == "handle"
+        or control.expect_handle == true
+    local pending = type(value) == "table" and value.pending == true
+    local explicit_result = explicit_terminal_result(value)
+    local result_like = value ~= nil
+        and not pending
+        and returned_result_like(control, value, handle_mode)
+    local provider_handle = type(control.is_handle) == "function"
+            and control.is_handle(value)
+        or false
+    if provider_handle and not explicit_result then
+        result_like = false
+    end
+    local raw_active_handle = value ~= nil
+        and value ~= false
+        and not result_like
+        and (
+            pending
+            or provider_handle
+            or handle_mode
+            or not M.result_like(value)
+        )
+    local invalid_handle = control.expect_handle == true
+        and raw_active_handle
+        and type(value) ~= "table"
+        and type(value) ~= "userdata"
+    local active_handle = raw_active_handle and not invalid_handle
+
+    local kind
+    if invalid_handle then
+        kind = "invalid_handle"
+    elseif active_handle then
+        kind = pending and "pending_handle" or "handle"
+    elseif result_like then
+        kind = "terminal_result"
+    else
+        kind = "missing"
+    end
+
+    return {
+        active_handle = active_handle,
+        result_like = result_like,
+        terminal_result = result_like and not pending,
+        pending = pending,
+        invalid_handle = invalid_handle,
+        kind = kind,
+    }
+end
+
+--- Return whether a provider value should be stored as live lifecycle state.
+---@param value any Provider return value.
+---@param control? table Adapter classification controls.
+---@return boolean active True when the value is an active provider handle.
+function M.is_active_handle(value, control)
+    return M.classify_return(value, control).active_handle == true
+end
+
+--- Return whether a provider value is a terminal result.
+---@param value any Provider return value.
+---@param control? table Adapter classification controls.
+---@return boolean terminal True when the value is a completed result.
+function M.is_terminal_result(value, control)
+    return M.classify_return(value, control).terminal_result == true
+end
+
 local function invalid_result(kind, name, message)
     return {
         ok = false,

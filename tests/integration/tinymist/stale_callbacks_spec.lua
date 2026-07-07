@@ -181,6 +181,29 @@ local ok, err = xpcall(function()
         #timeout_results == 1,
         "late Tinymist response after timeout should be ignored"
     )
+
+    bufnr = make_buffer({ "#let reset = 4" })
+    ---@type any
+    local reset_result = nil
+    requests.hover(bufnr, {
+        callback = function(result)
+            reset_result = result
+        end,
+    })
+    local reset_request_id = next_id
+    assert(
+        pending[reset_request_id],
+        "reset stale test should start a Tinymist request"
+    )
+    typst.reset({ force = true })
+    deliver(reset_request_id)
+    wait_for(function()
+        return reset_result ~= nil
+    end, "reset-stale Tinymist request did not finish")
+    assert(
+        reset_result.stale and reset_result.reason == "reset",
+        "Tinymist hover should reject responses after typst.nvim reset"
+    )
 end, debug.traceback)
 
 cleanup()

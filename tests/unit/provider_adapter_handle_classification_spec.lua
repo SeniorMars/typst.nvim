@@ -120,6 +120,105 @@ assert(
     "explicit terminal results should still complete through the result path"
 )
 
+local pending_class = adapter.classify_return({
+    pending = true,
+    reason = "starting",
+    cancel = function()
+        return true
+    end,
+}, {
+    return_mode = "handle",
+    expect_handle = true,
+})
+assert(
+    pending_class.active_handle == true
+        and pending_class.pending == true
+        and pending_class.kind == "pending_handle",
+    "classification should preserve pending provider handles"
+)
+
+local result_class = adapter.classify_return({
+    ok = true,
+    output = "/tmp/output.pdf",
+}, {
+    return_mode = "handle",
+})
+assert(
+    result_class.terminal_result == true and result_class.active_handle == false,
+    "classification should identify explicit terminal results"
+)
+
+local invalid_class = adapter.classify_return("bad-handle", {
+    return_mode = "handle",
+    expect_handle = true,
+})
+assert(
+    invalid_class.invalid_handle == true
+        and invalid_class.active_handle == false,
+    "classification should reject scalar handles when a handle is required"
+)
+assert(
+    adapter.is_active_handle("bad-handle", {
+        return_mode = "handle",
+        expect_handle = true,
+    }) == false,
+    "invalid scalar handles must not be stored as active lifecycle handles"
+)
+assert(
+    adapter.is_active_handle({ pending = true }, { return_mode = "handle" }),
+    "is_active_handle should follow adapter classification"
+)
+assert(
+    adapter.is_terminal_result(
+        { reason = "failed" },
+        { return_mode = "handle" }
+    ),
+    "is_terminal_result should follow adapter classification"
+)
+local structural_with_cancel = {
+    path = "/tmp/output.pdf",
+    cancel = function()
+        return true
+    end,
+}
+local structural_handle_class =
+    adapter.classify_return(structural_with_cancel, {
+        result_fields = { path = true },
+        is_handle = function(value)
+            return type(value) == "table"
+                and not adapter.result_like(value)
+                and type(value.cancel) == "function"
+        end,
+    })
+assert(
+    structural_handle_class.active_handle == true
+        and structural_handle_class.terminal_result == false,
+    "structural cancelable provider tables should remain active handles"
+)
+assert(
+    adapter.is_terminal_result(structural_with_cancel, {
+        accept_table_result = true,
+        result_fields = { path = true },
+        is_handle = function(value)
+            return type(value) == "table"
+                and not adapter.result_like(value)
+                and type(value.cancel) == "function"
+        end,
+    }) == false,
+    "terminal-result helper should preserve caller-provided handle predicates"
+)
+assert(
+    adapter.is_terminal_result({}, {
+        accept_table_result = true,
+        is_handle = function(value)
+            return type(value) == "table"
+                and not adapter.result_like(value)
+                and type(value.cancel) == "function"
+        end,
+    }) == true,
+    "accept_table_result should preserve legacy plain table terminal results"
+)
+
 log.clear()
 callback_called = false
 local explicit_cancelable_result = invoke_returning({

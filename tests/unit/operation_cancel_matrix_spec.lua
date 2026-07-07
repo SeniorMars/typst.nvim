@@ -75,13 +75,14 @@ local dot_unknown_summary = operations.cancel_project(project, {
     reason = "dot_unknown_stop",
 })
 assert(
-    dot_unknown_summary.cancelled == 1,
-    "unknown dot-style operation cancellation should infer direct option calls"
+    dot_unknown_summary.failed == 1,
+    "unknown dot-style operation cancellation should not infer direct option calls"
 )
 assert(
-    outcome(dot_unknown_summary, dot_unknown).reason == "dot_unknown_cancelled",
-    "unknown dot-style operation cancellation should preserve the fallback result"
+    outcome(dot_unknown_summary, dot_unknown).reason == "missing_reason",
+    "unknown dot-style operation cancellation should preserve receiver failure"
 )
+operations.clear(project, dot_unknown)
 
 local colon_cancelled = assert(operations.begin(project, "export"))
 local colon_handle = { pending = true, cancelled = false }
@@ -193,6 +194,25 @@ assert(
 assert(
     project.services.operations.active_by_id[stale.id] == nil,
     "stale operation records should be cleared"
+)
+
+local structural = assert(operations.begin(project, "export"))
+local structural_cancelled = false
+structural.handle = {
+    path = root .. "/out.pdf",
+    cancel = function()
+        structural_cancelled = true
+        return true, { stopped = true, reason = "structural_cancelled" }
+    end,
+}
+local structural_summary = operations.cancel_project(project, { skip = {} })
+assert(
+    structural_summary.cancelled == 1 and structural_cancelled == true,
+    "cancelable structural operation results should stay active"
+)
+assert(
+    outcome(structural_summary, structural).reason == "structural_cancelled",
+    "cancelable structural operation cancellation should preserve result"
 )
 
 vim.cmd("qa!")

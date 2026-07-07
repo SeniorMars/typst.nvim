@@ -129,6 +129,26 @@ assert(
     "subscribe should forward dot-style source completion"
 )
 
+local compatible_dot_callbacks = {}
+local compatible_dot_source = {
+    pending = true,
+    on_finish = function(callback)
+        compatible_dot_callbacks[#compatible_dot_callbacks + 1] = callback
+    end,
+}
+ok = pending.subscribe_compatible(compatible_dot_source, function(done)
+    observed = done
+end)
+assert(
+    ok == true,
+    "subscribe_compatible should accept legacy dot-style handles"
+)
+compatible_dot_callbacks[1]({ ok = true, compatible_dot = true })
+assert(
+    observed and observed.compatible_dot == true,
+    "subscribe_compatible should forward legacy dot-style completion"
+)
+
 local dot_two_arg_callbacks = {}
 local dot_two_arg_source = {
     pending = true,
@@ -253,6 +273,27 @@ colon_callbacks[1]({ ok = true, colon_style = true })
 assert(
     observed and observed.colon_style == true,
     "subscribe should forward colon-style source completion"
+)
+
+local compatible_colon_callbacks = {}
+local compatible_colon_source = {
+    pending = true,
+    on_finish_style = "colon",
+}
+function compatible_colon_source:on_finish(callback)
+    compatible_colon_callbacks[#compatible_colon_callbacks + 1] = callback
+end
+ok = pending.subscribe_compatible(compatible_colon_source, function(done)
+    observed = done
+end)
+assert(
+    ok == true,
+    "subscribe_compatible should accept explicit colon-style handles"
+)
+compatible_colon_callbacks[1]({ ok = true, compatible_colon = true })
+assert(
+    observed and observed.compatible_colon == true,
+    "subscribe_compatible should forward colon-style completion"
 )
 
 vim.cmd("qa!")

@@ -120,9 +120,11 @@ local function call_cancel(source, opts, call_opts)
 
     local ok, stopped, result
     if style == "dot" then
-        ok, stopped, result = pcall(source.cancel, opts)
+        ok, stopped, result =
+            pcall(source.cancel, opts, call_opts and call_opts.callback)
     else
-        ok, stopped, result = pcall(source.cancel, source, opts)
+        ok, stopped, result =
+            pcall(source.cancel, source, opts, call_opts and call_opts.callback)
     end
     if ok then
         return normalize_cancel_return(stopped, result, opts)
@@ -140,7 +142,8 @@ end
 ---Cancel another pending handle using an explicit cancel calling convention.
 ---@param source any Pending source handle.
 ---@param opts? table Cancellation options passed to the provider handle.
----@param call_opts? {style?:"colon"|"dot"|"method"} Calling convention.
+---@param call_opts? {style?:"colon"|"dot"|"method", callback?:function} Calling
+---convention.
 ---@return boolean stopped False when cancellation failed or was unconfirmed.
 ---@return any result Provider cancellation result or normalized failure.
 function M.cancel(source, opts, call_opts)
@@ -318,6 +321,26 @@ function M.subscribe(source, callback, opts)
         return true, result
     end
     return false, result
+end
+
+---Subscribe to a handle that may expose explicit or legacy receiver style.
+---@param source any Pending source handle.
+---@param callback function Callback to run when `source` finishes.
+---@return boolean ok
+---@return any result_or_error
+function M.subscribe_compatible(source, callback)
+    local style = type(source) == "table"
+            and (source.on_finish_style or source._typst_on_finish_style)
+        or nil
+    if style then
+        return M.subscribe(source, callback, { style = style })
+    end
+
+    local ok, result = M.subscribe(source, callback, { style = "dot" })
+    if ok then
+        return ok, result
+    end
+    return M.subscribe(source, callback)
 end
 
 return M

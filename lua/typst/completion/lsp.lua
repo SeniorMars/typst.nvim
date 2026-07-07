@@ -1,11 +1,14 @@
 local completion_items = require("typst.completion.items")
 local completion_match = require("typst.completion.match")
+local config = require("typst.config")
 local lsp_request = require("typst.core.lsp_request")
 local log = require("typst.core.log")
 local position = require("typst.core.coordinates")
+local resource_manager = require("typst.runtime.resource_manager")
 local tinymist = require("typst.integrations.tinymist")
 
 local M = {}
+local uv = vim.uv or vim.loop
 
 ---@class TypstLspCompletionCacheEntry
 ---@field cache_generation number
@@ -15,6 +18,7 @@ local M = {}
 ---@field position table
 ---@field context string
 ---@field result table?
+---@field timer userdata?
 ---@field waiters table[]?
 ---@field waiter_keys table?
 
@@ -33,8 +37,11 @@ local cache = {
     order = {},
     generation = 0,
 }
+
+local notify_waiters
 local CACHE_LIMIT = 64
 local MAX_WAITERS = 16
+local DEFAULT_TINYMIST_TIMEOUT_MS = 1000
 
 -- Completion LSP bridge.
 --
@@ -182,6 +189,47 @@ local function client_supports_completion(client, bufnr)
     return ok and supported or false
 end
 
+local function project_for_buffer(bufnr)
+    local ok, project = pcall(require, "typst.project")
+    if ok and type(project.get) == "function" then
+        return project.get(bufnr)
+    end
+end
+
+local function valid_entry_token(entry)
+    if not entry or not entry.epoch_token then
+        return true
+    end
+    local ok, reason = resource_manager.valid_token(entry.epoch_token)
+    if ok then
+        return true
+    end
+    log.add("debug", "ignored stale Tinymist completion request", {
+        bufnr = entry.bufnr,
+        reason = reason,
+    })
+    return false, reason
+end
+
+local function close_timer(entry)
+    if not entry or not entry.timer then
+        return
+    end
+    pcall(function()
+        if not entry.timer:is_closing() then
+            entry.timer:stop()
+            entry.timer:close()
+        end
+    end)
+    entry.timer = nil
+end
+
+local function cancel_pending_request(entry)
+    if entry and entry.pending then
+        lsp_request.cancel(entry.client, entry.request_id)
+    end
+end
+
 local function cache_completion(key, entry)
     cache.generation = (cache.generation or 0) + 1
     entry.cache_generation = cache.generation
@@ -200,12 +248,16 @@ local function cache_completion(key, entry)
         local stale = table.remove(cache.order, 1)
         local current = cache.entries[stale.key]
         if current and current.cache_generation == stale.generation then
+            cancel_pending_request(current)
+            notify_waiters(current, {})
+            close_timer(current)
             cache.entries[stale.key] = nil
         end
     end
 end
 
 local function cache_delete(key)
+    close_timer(cache.entries[key])
     cache.entries[key] = nil
     for i = #cache.order, 1, -1 do
         if cache.order[i].key == key then
@@ -265,6 +317,53 @@ local function call_waiter(waiter, items)
             session = waiter.key,
         })
     end
+end
+
+function notify_waiters(entry, items)
+    local waiters = entry.waiters or {}
+    entry.waiters = {}
+    entry.waiter_keys = {}
+    for _, waiter in ipairs(waiters) do
+        call_waiter(waiter, items or {})
+    end
+end
+
+local function tinymist_timeout_ms()
+    local completion = config.unsafe_get().completion or {}
+    local timeout = tonumber(completion.tinymist_timeout_ms)
+    if timeout == nil then
+        timeout = DEFAULT_TINYMIST_TIMEOUT_MS
+    end
+    return math.max(timeout, 0)
+end
+
+local function start_timeout(key, entry)
+    local timeout = tinymist_timeout_ms()
+    if timeout <= 0 then
+        return
+    end
+
+    local timer = uv.new_timer()
+    if not timer then
+        return
+    end
+    entry.timer = timer
+    timer:start(timeout, 0, function()
+        vim.schedule(function()
+            local current = cache.entries[key]
+            if current ~= entry or not entry.pending then
+                close_timer(entry)
+                return
+            end
+            lsp_request.cancel(entry.client, entry.request_id)
+            log.add("debug", "Tinymist completion request timed out", {
+                bufnr = entry.bufnr,
+                timeout_ms = timeout,
+            })
+            notify_waiters(entry, {})
+            cache_delete(key)
+        end)
+    end)
 end
 
 local function lsp_position(opts, client)
@@ -327,6 +426,13 @@ function M.items(opts, base, context)
                 tostring(context or ""),
             }, "\0")
             local cached = cache.entries[key]
+            if cached and not valid_entry_token(cached) then
+                cancel_pending_request(cached)
+                notify_waiters(cached, {})
+                cache_delete(key)
+                cached = nil
+            end
+
             if cached and cached.result then
                 vim.list_extend(
                     results,
@@ -341,6 +447,10 @@ function M.items(opts, base, context)
                     changedtick = changedtick,
                     position = params.position,
                     context = context,
+                    epoch_token = resource_manager.token(
+                        project_for_buffer(bufnr),
+                        "tinymist:completion"
+                    ),
                     waiters = {},
                     waiter_keys = {},
                 }
@@ -356,8 +466,16 @@ function M.items(opts, base, context)
                             if not entry then
                                 return
                             end
+                            close_timer(entry)
+
+                            if not valid_entry_token(entry) then
+                                notify_waiters(entry, {})
+                                cache_delete(key)
+                                return
+                            end
 
                             if err or not result then
+                                notify_waiters(entry, {})
                                 cache_delete(key)
                                 return
                             end
@@ -391,10 +509,12 @@ function M.items(opts, base, context)
                     bufnr
                 )
                 if not request_start.ok then
+                    notify_waiters(entry, {})
                     cache_delete(key)
                 else
                     entry.client = client
                     entry.request_id = request_start.request_id
+                    start_timeout(key, entry)
                 end
             end
         end
@@ -405,9 +525,9 @@ end
 
 function M.reset()
     for _, entry in pairs(cache.entries) do
-        if entry and entry.pending then
-            lsp_request.cancel(entry.client, entry.request_id)
-        end
+        cancel_pending_request(entry)
+        notify_waiters(entry, {})
+        close_timer(entry)
     end
     cache = {
         entries = {},

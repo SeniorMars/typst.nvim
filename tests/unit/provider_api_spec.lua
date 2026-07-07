@@ -303,7 +303,7 @@ assert(picker_result.item_count == 1, "registered picker should receive items")
 assert(calls.picker == 1, "registered picker should be called once")
 
 local toc_items =
-    require("typst.edit.toc").collect(project, { backend = "treesitter" })
+    require("typst.navigation.toc").collect(project, { backend = "treesitter" })
 assert(
     vim.tbl_contains(
         vim.tbl_map(function(item)

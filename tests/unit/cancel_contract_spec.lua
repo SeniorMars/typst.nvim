@@ -1,10 +1,14 @@
 local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
-local cancel = require("typst.core.cancel")
+local pending = require("typst.core.pending")
+
+local function cancel_call(handle, opts, callback)
+    return pending.cancel(handle, opts, { callback = callback })
+end
 
 local dot_opts = nil
-local stopped, result = cancel.call({
+local stopped, result = cancel_call({
     cancel_style = "dot",
     cancel = function(opts)
         dot_opts = opts
@@ -28,7 +32,7 @@ function method_handle:cancel(opts)
         reason = opts.reason,
     }
 end
-stopped, result = cancel.call(method_handle, { reason = "unit-method" })
+stopped, result = cancel_call(method_handle, { reason = "unit-method" })
 assert(stopped == true, "method cancel should confirm stop")
 assert(method_seen_self, "method cancel should receive self")
 assert(
@@ -36,7 +40,7 @@ assert(
     "method cancel result should pass through"
 )
 
-stopped, result = cancel.call({
+stopped, result = cancel_call({
     cancel_style = "dot",
     cancel = function()
         return {
@@ -68,12 +72,12 @@ function fallback_handle.cancel(self_or_opts, maybe_opts)
             reason = self_or_opts.reason or maybe_opts.reason,
         }
 end
-stopped, result = cancel.call(fallback_handle, { reason = "unit-fallback" })
-assert(stopped == true, "implicit cancel should try receiver fallback")
-assert(fallback_calls == 2, "fallback cancel should try both receivers")
+stopped, result = cancel_call(fallback_handle, { reason = "unit-fallback" })
+assert(stopped == false, "implicit cancel should not guess receiver fallback")
+assert(fallback_calls == 1, "implicit cancel should call once")
 assert(
-    result.reason == "unit-fallback",
-    "fallback cancel result should pass through"
+    result.reason == "wrong_receiver",
+    "implicit cancel should preserve receiver failure"
 )
 
 local table_receiver_calls = 0
@@ -92,18 +96,18 @@ function table_receiver_handle.cancel(self_or_opts, maybe_opts)
     }
 end
 stopped, result =
-    cancel.call(table_receiver_handle, { reason = "unit-table-fallback" })
+    cancel_call(table_receiver_handle, { reason = "unit-table-fallback" })
 assert(
-    stopped == true,
-    "single-table wrong_receiver result should try receiver fallback"
+    stopped == false,
+    "single-table wrong_receiver result should not try receiver fallback"
 )
 assert(
-    table_receiver_calls == 2,
-    "single-table wrong_receiver fallback should try both receivers"
+    table_receiver_calls == 1,
+    "single-table wrong_receiver should call once"
 )
 assert(
-    result.reason == "unit-table-fallback",
-    "single-table fallback cancel result should pass through"
+    result.reason == "wrong_receiver",
+    "single-table cancel should preserve receiver failure"
 )
 
 local pending_fallback_calls = 0
@@ -129,28 +133,79 @@ function pending_fallback_handle.cancel(self_or_opts, maybe_opts)
         }
 end
 stopped, result =
-    cancel.call(pending_fallback_handle, { reason = "unit-pending-fallback" })
-assert(stopped == false, "pending fallback should be unconfirmed")
+    cancel_call(pending_fallback_handle, { reason = "unit-pending-fallback" })
+assert(stopped == false, "receiver failure should be unconfirmed")
 assert(
-    pending_fallback_calls == 2,
-    "pending fallback should try both receivers"
+    pending_fallback_calls == 1,
+    "pending fallback should not try guessed receiver"
 )
 assert(
-    result.pending == true and result.reason == "stop_pending",
-    "pending fallback result should be preserved"
+    result.reason == "wrong_receiver",
+    "receiver failure should be preserved instead of guessed fallback"
 )
 
-stopped, result = cancel.call({
+local ambiguous_dot_called = false
+stopped, result = cancel_call({
+    on_finish_style = "dot",
+    cancel = function()
+        ambiguous_dot_called = true
+        return true,
+            {
+                stopped = true,
+                reason = "should-not-run",
+            }
+    end,
+}, { reason = "unit-ambiguous-dot" })
+assert(
+    stopped == false,
+    "ambiguous dot-style cancel should be rejected without explicit style"
+)
+assert(
+    ambiguous_dot_called == false,
+    "ambiguous dot-style cancel should not call the provider"
+)
+assert(
+    result.reason == "dot_cancel_requires_explicit_style",
+    "ambiguous dot-style cancel should preserve the pending style error"
+)
+
+local callback_seen = false
+stopped, result = cancel_call({
+    cancel_style = "dot",
+    cancel = function(opts, callback)
+        local payload = {
+            stopped = true,
+            reason = opts.reason,
+        }
+        callback(true, payload)
+        return true, payload
+    end,
+}, { reason = "unit-callback" }, function(callback_stopped, callback_result)
+    callback_seen = callback_stopped == true
+        and callback_result
+        and callback_result.reason == "unit-callback"
+end)
+assert(stopped == true, "dot cancel callback fixture should confirm stop")
+assert(
+    callback_seen == true,
+    "dot cancel should forward cancellation callback through pending"
+)
+assert(
+    result.reason == "unit-callback",
+    "dot cancel callback fixture should pass through result"
+)
+
+stopped, result = cancel_call({
     cancel_style = "dot",
     cancel = function() end,
 }, { reason = "unit-empty" })
 assert(stopped == false, "empty cancel should be unconfirmed")
 assert(
-    result.reason == "cancel_no_result",
-    "empty cancel should normalize to cancel_no_result"
+    result.reason == "cancel_unconfirmed",
+    "empty cancel should normalize through pending cancellation"
 )
 
-stopped, result = cancel.call({
+stopped, result = cancel_call({
     cancel_style = "dot",
     cancel = function()
         return true,
@@ -163,7 +218,7 @@ stopped, result = cancel.call({
 assert(stopped == false, "orphaned cancel should be unconfirmed")
 assert(result.orphaned == true, "orphaned cancel payload should pass through")
 
-stopped, result = cancel.call({
+stopped, result = cancel_call({
     cancel_style = "dot",
     cancel = function()
         return true,
@@ -182,7 +237,7 @@ assert(
     "contradictory cancel payload should pass through"
 )
 
-stopped, result = cancel.call({
+stopped, result = cancel_call({
     cancel_style = "dot",
     cancel = function()
         return true,
@@ -195,7 +250,7 @@ stopped, result = cancel.call({
 assert(stopped == false, "pending cancel payload should be unconfirmed")
 assert(result.pending == true, "pending cancel payload should pass through")
 
-stopped, result = cancel.call({
+stopped, result = cancel_call({
     cancel_style = "dot",
     cancel = function()
         return true,
@@ -209,6 +264,9 @@ assert(
     stopped == false,
     "ok=false cancel payload without stopped=true should be unconfirmed"
 )
-assert(result.reason == "timeout", "ok=false cancel payload should pass through")
+assert(
+    result.reason == "timeout",
+    "ok=false cancel payload should pass through"
+)
 
 vim.cmd("qa!")

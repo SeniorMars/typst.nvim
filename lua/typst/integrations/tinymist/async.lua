@@ -3,6 +3,7 @@ local async_state = require("typst.core.async_state")
 local lsp_request = require("typst.core.lsp_request")
 local clients = require("typst.integrations.tinymist.clients")
 local log = require("typst.core.log")
+local resource_manager = require("typst.runtime.resource_manager")
 local windows = require("typst.core.windows")
 
 local M = {}
@@ -48,14 +49,27 @@ local function next_generation(bufnr, method, opts)
     return generations[key]
 end
 
+local function project_for_buffer(bufnr)
+    local ok, project = pcall(require, "typst.project")
+    if ok and type(project.get) == "function" then
+        return project.get(bufnr)
+    end
+end
+
 local function capture_guard(bufnr, method, opts)
     opts = opts or {}
+    local project = type(opts.project) == "table" and opts.project
+        or project_for_buffer(bufnr)
     local guard = {
         bufnr = bufnr,
         method = method,
         changedtick = nil,
         cursor = nil,
         generation = next_generation(bufnr, method, opts),
+        epoch_token = resource_manager.token(
+            project,
+            ("tinymist:%s"):format(method)
+        ),
     }
 
     if vim.api.nvim_buf_is_valid(bufnr) then
@@ -78,12 +92,36 @@ end
 local function stale_result(guard, opts)
     opts = opts or {}
     local bufnr = guard.bufnr
+    local valid_token, token_reason =
+        resource_manager.valid_token(guard.epoch_token)
     if not vim.api.nvim_buf_is_valid(bufnr) then
+        if not valid_token and token_reason == "reset" then
+            return {
+                ok = false,
+                reason = "reset",
+                provider = "tinymist",
+                message = "Tinymist response arrived after typst.nvim reset",
+                stale = true,
+            }
+        end
+
         return {
             ok = false,
             reason = "invalid_buffer",
             provider = "tinymist",
             message = "Tinymist response arrived after the buffer was deleted",
+            stale = true,
+        }
+    end
+
+    if not valid_token then
+        return {
+            ok = false,
+            reason = token_reason or "stale_request",
+            provider = "tinymist",
+            message = token_reason == "reset"
+                    and "Tinymist response arrived after typst.nvim reset"
+                or "Tinymist response arrived after the project changed",
             stale = true,
         }
     end
