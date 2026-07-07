@@ -58,6 +58,7 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `completion.path_scan_max` | `number` | `200` |
 | `completion.raw_languages` | `list` | `{}` |
 | `completion.scan_cache_ttl_ms` | `number` | `5000` |
+| `completion.tinymist_timeout_ms` | `number` | `1000` |
 | `completion.universe_index_paths` | `list` | `{}` |
 | `conceal.categories.emoji` | `boolean` | `false` |
 | `conceal.categories.function_wrappers.emph` | `boolean` | `true` |
@@ -304,6 +305,7 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `preview.source_maps.provider` | `string` | `"typst-query"` |
 | `preview.stop` | `nil\|function` | `nil` |
 | `project.import_scan` | `boolean` | `true` |
+| `project.import_scan_command_wait_ms` | `number` | `100` |
 | `project.import_scan_max_depth` | `number` | `3` |
 | `project.import_scan_max_descendant_depth` | `nil\|number` | `nil` |
 | `project.import_scan_max_entries` | `number` | `2000` |
@@ -311,7 +313,10 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `project.import_scan_skip_dirs` | `list` | `{ ".git", "node_modules", ".direnv", ".cache", "target", "build", "dist", "vendor", ".venv", "__pycache__" }` |
 | `project.index.fs_watchers` | `string` | `"auto"` |
 | `project.index.large_file_policy` | `string` | `"skip"` |
+| `project.index.max_depth` | `number` | `32` |
+| `project.index.max_entries` | `number` | `4096` |
 | `project.index.max_file_bytes` | `number` | `1048576` |
+| `project.index.max_files` | `number` | `512` |
 | `project.persist_main` | `boolean` | `true` |
 | `project.warn_on_low_confidence_main` | `boolean` | `true` |
 | `render.cache.enabled` | `boolean` | `true` |

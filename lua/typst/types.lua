@@ -7,8 +7,8 @@
 ---@field main string Normalized Typst main file path.
 ---@field services TypstProjectServices Per-project service tables.
 ---@field bufs table<integer, true> Attached buffers.
----@field resolutions table<integer, table> Per-buffer resolution metadata.
----@field last_resolution table? Last project resolution metadata.
+---@field resolutions table<integer, TypstProjectResolution> Per-buffer resolution metadata.
+---@field last_resolution TypstProjectResolution? Last project resolution metadata.
 ---@field root_source string? Source that selected `root`.
 ---@field main_source string? Source that selected `main`.
 ---@field main_confidence '"high"'|'"medium"'|'"low"'? Confidence of main resolution.
@@ -19,6 +19,25 @@
 ---@field _typst_project_pruned_reason string? Reason recorded when pruned.
 ---@field _typst_project_pruned_event_emitted boolean? Project-pruned event guard.
 ---@field [string] any
+
+---@class TypstProjectResolution
+---@field buffer string? Buffer path associated with this project.
+---@field root_source string? Source that selected the root.
+---@field main_source string? Source that selected the main.
+---@field main_confidence '"high"'|'"medium"'|'"low"'? Main resolution confidence.
+---@field main_confidence_source string? Source used for confidence.
+---@field resolution_pending '"import_scan"'? Deferred resolver stage still running.
+---@field import_scan_status string? Last deferred import-scan status.
+---@field import_scan_suggestion TypstImportScanSuggestion? Completed deferred import-scan result awaiting command-time acceptance.
+---@field trace table[]? Resolver trace stages.
+---@field [string] any
+
+---@class TypstImportScanSuggestion
+---@field main string Suggested Typst main file.
+---@field main_source string Source label, usually "import scan".
+---@field root string Suggested project root.
+---@field root_source string Source label for the suggested root.
+---@field confidence '"high"'|'"medium"'|'"low"'? Confidence of the suggested main.
 
 ---@class TypstCompilerResult
 ---@field ok boolean?

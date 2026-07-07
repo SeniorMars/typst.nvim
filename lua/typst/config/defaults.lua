@@ -35,6 +35,7 @@ function M.values()
         main_base_dir = nil,
         project = {
             import_scan = true,
+            import_scan_command_wait_ms = 100,
             import_scan_max_files = 200,
             import_scan_max_depth = 3,
             import_scan_max_entries = 2000,
@@ -55,6 +56,9 @@ function M.values()
             index = {
                 fs_watchers = "auto",
                 max_file_bytes = 1024 * 1024,
+                max_files = 512,
+                max_entries = 4096,
+                max_depth = 32,
                 large_file_policy = "skip",
             },
         },

@@ -108,7 +108,8 @@ function _G.typst_test_config_path(...)
 end
 
 function _G.typst_test_root_path(...)
-    local root = vim.env.TYPST_NVIM_TEST_ROOT or vim.env.TYPST_NVIM_TEST_XDG_ROOT
+    local root = vim.env.TYPST_NVIM_TEST_ROOT
+        or vim.env.TYPST_NVIM_TEST_XDG_ROOT
     if type(root) ~= "string" or root == "" then
         root = join(vim.fn.stdpath("cache"), "typst.nvim-test")
     end

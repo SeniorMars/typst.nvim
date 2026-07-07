@@ -125,6 +125,10 @@ assert(
     "project import scan entry cap should default to 2000"
 )
 assert(
+    default_config.project.import_scan_command_wait_ms == 100,
+    "project import scan command wait should default to 100ms"
+)
+assert(
     default_config.project.import_scan_max_descendant_depth == nil,
     "project import scan descendant depth should default to unlimited"
 )
@@ -135,6 +139,18 @@ assert(
 assert(
     default_config.project.index.max_file_bytes == 1024 * 1024,
     "project index static file cap should default to 1MiB"
+)
+assert(
+    default_config.project.index.max_files == 512,
+    "project index traversal file cap should default to 512"
+)
+assert(
+    default_config.project.index.max_entries == 4096,
+    "project index traversal import cap should default to 4096"
+)
+assert(
+    default_config.project.index.max_depth == 32,
+    "project index traversal depth cap should default to 32"
 )
 assert(
     default_config.project.index.large_file_policy == "skip",
@@ -211,6 +227,10 @@ local invalid_configs = {
         message = "project.import_scan_max_files",
     },
     {
+        opts = { project = { import_scan_command_wait_ms = -1 } },
+        message = "project.import_scan_command_wait_ms",
+    },
+    {
         opts = { project = { import_scan_max_depth = -1 } },
         message = "project.import_scan_max_depth",
     },
@@ -253,6 +273,18 @@ local invalid_configs = {
     {
         opts = { project = { index = { max_file_bytes = -1 } } },
         message = "project.index.max_file_bytes",
+    },
+    {
+        opts = { project = { index = { max_files = 0 } } },
+        message = "project.index.max_files",
+    },
+    {
+        opts = { project = { index = { max_entries = 0 } } },
+        message = "project.index.max_entries",
+    },
+    {
+        opts = { project = { index = { max_depth = -1 } } },
+        message = "project.index.max_depth",
     },
     {
         opts = { project = { index = { large_file_policy = "summary" } } },
@@ -1311,6 +1343,9 @@ local ok, err = pcall(function()
             index = {
                 fs_watchers = 64,
                 max_file_bytes = 512,
+                max_files = 32,
+                max_entries = 256,
+                max_depth = 4,
                 large_file_policy = "headings-only",
             },
         },
@@ -1698,6 +1733,18 @@ assert(
 assert(
     config.get().project.index.max_file_bytes == 512,
     "project index static file cap should be configurable"
+)
+assert(
+    config.get().project.index.max_files == 32,
+    "project index traversal file cap should be configurable"
+)
+assert(
+    config.get().project.index.max_entries == 256,
+    "project index traversal import cap should be configurable"
+)
+assert(
+    config.get().project.index.max_depth == 4,
+    "project index traversal depth cap should be configurable"
 )
 assert(
     config.get().project.index.large_file_policy == "headings-only",

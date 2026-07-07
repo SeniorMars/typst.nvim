@@ -64,6 +64,15 @@ function M.project(project)
     end
 
     if
+        type(project.import_scan_command_wait_ms) ~= "number"
+        or project.import_scan_command_wait_ms < 0
+    then
+        error(
+            "typst.nvim: project.import_scan_command_wait_ms must be a non-negative number"
+        )
+    end
+
+    if
         type(project.import_scan_max_files) ~= "number"
         or project.import_scan_max_files < 1
     then
@@ -145,6 +154,29 @@ function M.project(project)
     then
         error(
             "typst.nvim: project.index.max_file_bytes must be a non-negative number"
+        )
+    end
+
+    if
+        index.max_files ~= nil
+        and (type(index.max_files) ~= "number" or index.max_files < 1)
+    then
+        error("typst.nvim: project.index.max_files must be a positive number")
+    end
+
+    if
+        index.max_entries ~= nil
+        and (type(index.max_entries) ~= "number" or index.max_entries < 1)
+    then
+        error("typst.nvim: project.index.max_entries must be a positive number")
+    end
+
+    if
+        index.max_depth ~= nil
+        and (type(index.max_depth) ~= "number" or index.max_depth < 0)
+    then
+        error(
+            "typst.nvim: project.index.max_depth must be a non-negative number"
         )
     end
 

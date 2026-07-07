@@ -1,5 +1,6 @@
 local compile_config = require("typst.config.compile")
 local defaults_provider = require("typst.config.defaults")
+local config_spec = require("typst.config.spec")
 local tables = require("typst.core.tables")
 local util = require("typst.core.util")
 local validation = require("typst.config.validate")
@@ -16,121 +17,9 @@ local last_unknown_keys = {}
 local last_relative_main_mapping_warnings = {}
 local notified_relative_main_mapping = {}
 
-local dynamic_config_paths = {
-    api = true,
-    ["conceal.custom"] = true,
-    ["conceal.reveal_by_category"] = true,
-    main = true,
-    ["compile.profiles"] = true,
-    ["compile.fragments.templates"] = true,
-    ["exports.profiles"] = true,
-    ["imaps.mappings"] = true,
-    ["integrations.tinymist.capabilities"] = true,
-    ["integrations.tinymist.init_options"] = true,
-    ["integrations.tinymist.settings"] = true,
-    ["preview.browser.style.variables"] = true,
-    ["syntax.packages"] = true,
-    ["viewer.providers"] = true,
-}
-
-local known_optional_paths = {
-    main = true,
-    metadata_version = true,
-    main_base_dir = true,
-    output_name = true,
-    root = true,
-    ["project.import_scan_max_descendant_depth"] = true,
-    ["compile.fragments.source_dir"] = true,
-    ["compile.generic.compile"] = true,
-    ["compile.generic.cwd"] = true,
-    ["compile.generic.output"] = true,
-    ["compile.generic.watch"] = true,
-    ["compile.provider"] = true,
-    ["compile.task.compile"] = true,
-    ["compile.task.cwd"] = true,
-    ["compile.task.output"] = true,
-    ["compile.task.watch"] = true,
-    ["conceal.reveal_insert"] = true,
-    ["exports.default"] = true,
-    ["exports.provider"] = true,
-    ["folds.text"] = true,
-    ["grammar.command"] = true,
-    ["grammar.file_arg"] = true,
-    ["grammar.stdin"] = true,
-    ["integrations.tinymist.capabilities"] = true,
-    ["integrations.tinymist.cmd"] = true,
-    ["integrations.tinymist.on_attach"] = true,
-    ["lint.command"] = true,
-    ["log.file_path"] = true,
-    ["picker.custom"] = true,
-    ["preview.browser.app"] = true,
-    ["preview.browser.commands"] = true,
-    ["preview.browser.export.output_dir"] = true,
-    ["preview.browser.export.output_format"] = true,
-    ["preview.browser.export.output_name"] = true,
-    ["preview.browser.export.profile"] = true,
-    ["preview.browser.export.provider"] = true,
-    ["preview.browser.open"] = true,
-    ["preview.browser.style.css"] = true,
-    ["preview.browser.style.css_path"] = true,
-    ["preview.export.output_dir"] = true,
-    ["preview.export.output_format"] = true,
-    ["preview.export.output_name"] = true,
-    ["preview.export.profile"] = true,
-    ["preview.export.provider"] = true,
-    ["preview.forward"] = true,
-    ["preview.inverse"] = true,
-    ["preview.open"] = true,
-    ["preview.refresh"] = true,
-    ["preview.source_maps.forward"] = true,
-    ["preview.source_maps.inverse"] = true,
-    ["preview.stop"] = true,
-    ["render.display_provider"] = true,
-    ["render.provider"] = true,
-    ["viewer.forward"] = true,
-    ["viewer.inverse"] = true,
-    ["viewer.open"] = true,
-    ["viewer.reload"] = true,
-}
-
-local export_profile_fields = {
-    "command",
-    "compile_format",
-    "creation_timestamp",
-    "cwd",
-    "diagnostic_format",
-    "extra_args",
-    "features",
-    "font_path",
-    "font_paths",
-    "format",
-    "ignore_embedded_fonts",
-    "ignore_system_fonts",
-    "input",
-    "inputs",
-    "jobs",
-    "name",
-    "no_pdf_tags",
-    "output_dir",
-    "output_format",
-    "output_name",
-    "package_cache_path",
-    "package_path",
-    "pages",
-    "pdf_standard",
-    "pdf_standards",
-    "ppi",
-    "pretty",
-    "provider",
-    "stdout",
-    "timings",
-    "typst_format",
-}
-
-local export_profile_allowed = {}
-for _, field in ipairs(export_profile_fields) do
-    export_profile_allowed[field] = true
-end
+local dynamic_config_paths = config_spec.dynamic_paths
+local known_optional_paths = config_spec.optional_paths
+local export_profile_allowed = config_spec.export_profile_allowed
 
 local function key_path(parent, key)
     key = tostring(key)
@@ -395,8 +284,10 @@ local function warn_relative_main_mappings(warnings)
             log.add("warn", "relative Typst main mapping root", warning)
         end
         if type(vim.notify) == "function" then
-            local notify_key =
-                ("%s\0%s"):format(tostring(warning.root), tostring(warning.cwd))
+            local notify_key = ("%s\0%s"):format(
+                tostring(warning.root),
+                tostring(warning.cwd)
+            )
             if not notified_relative_main_mapping[notify_key] then
                 notified_relative_main_mapping[notify_key] = true
                 local message =

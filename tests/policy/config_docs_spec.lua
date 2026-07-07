@@ -2,6 +2,20 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local docs = require("typst.config.docs")
+local config_spec = require("typst.config.spec")
+
+assert(
+    config_spec.optional_paths["preview.open"] == true,
+    "config spec should own setup-time optional paths"
+)
+assert(
+    vim.tbl_contains(config_spec.doc_nil_defaults, "preview.open"),
+    "config spec should own generated-doc nil defaults"
+)
+assert(
+    config_spec.doc_optional_types["preview.open"] == "nil|function",
+    "config spec should own generated-doc optional types"
+)
 
 local function read(path)
     return table.concat(vim.fn.readfile(root .. "/" .. path), "\n")
@@ -54,6 +68,9 @@ for _, required in ipairs({
     "preview.provider",
     "project.import_scan_max_descendant_depth",
     "project.index.fs_watchers",
+    "project.index.max_depth",
+    "project.index.max_entries",
+    "project.index.max_files",
     "render.cache.ttl_ms",
 }) do
     assert(seen[required], "missing generated config key: " .. required)

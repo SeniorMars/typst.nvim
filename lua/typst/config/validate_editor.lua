@@ -222,6 +222,15 @@ function M.completion(completion)
     if type(completion.package_cache_prewarm) ~= "boolean" then
         error("typst.nvim: completion.package_cache_prewarm must be a boolean")
     end
+
+    if
+        type(completion.tinymist_timeout_ms) ~= "number"
+        or completion.tinymist_timeout_ms < 0
+    then
+        error(
+            "typst.nvim: completion.tinymist_timeout_ms must be a non-negative number"
+        )
+    end
 end
 
 --- Validate picker configuration.

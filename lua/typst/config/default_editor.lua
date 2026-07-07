@@ -132,6 +132,7 @@ function M.completion()
         package_scan_max = 500,
         package_cache_ttl_ms = 5000,
         package_cache_prewarm = false,
+        tinymist_timeout_ms = 1000,
     }
 end
 

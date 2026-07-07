@@ -91,11 +91,7 @@ assert(
 assert(
     #echoed_lines == 1
         and echoed_lines[1][1]
-        and echoed_lines[1][1]:find(
-            "typst.nvim project explanation",
-            1,
-            true
-        ),
+        and echoed_lines[1][1]:find("typst.nvim project explanation", 1, true),
     "successful TypstExplainProject should echo the explanation"
 )
 
