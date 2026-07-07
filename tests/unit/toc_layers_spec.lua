@@ -1,7 +1,7 @@
 local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
-local toc = require("typst.edit.toc")
+local toc = require("typst.navigation.toc")
 local typst = require("typst")
 
 typst.reset()

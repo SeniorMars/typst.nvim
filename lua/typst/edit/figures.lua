@@ -2,7 +2,7 @@ local calls = require("typst.edit.calls")
 local cursor = require("typst.edit.cursor")
 local edit_repeat = require("typst.edit.repeat")
 local surrounding = require("typst.edit.surrounding")
-local ts = require("typst.edit.treesitter")
+local ts = require("typst.core.treesitter")
 
 local M = {}
 

@@ -13,7 +13,7 @@ vim.bo.filetype = "typst"
 typst.project.attach(0)
 
 local textobjects = require("typst.edit.textobjects")
-local ts = require("typst.edit.treesitter")
+local ts = require("typst.core.treesitter")
 
 local function text(kind, part, cursor)
     vim.api.nvim_win_set_cursor(0, cursor)

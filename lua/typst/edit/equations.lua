@@ -1,6 +1,6 @@
 local core = require("typst.edit.equation_core")
 local equation_numbering = require("typst.edit.equation_numbering")
-local ts = require("typst.edit.treesitter")
+local ts = require("typst.core.treesitter")
 
 local M = {}
 

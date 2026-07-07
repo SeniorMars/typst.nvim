@@ -34,6 +34,15 @@ local function conceal_config()
     return config.unsafe_get().conceal
 end
 
+local function window_still_owns_buffer(winid, bufnr)
+    if not vim.api.nvim_win_is_valid(winid) then
+        return false
+    end
+
+    local ok, current_buf = pcall(vim.api.nvim_win_get_buf, winid)
+    return ok and current_buf == bufnr
+end
+
 local function buffer_enabled(bufnr)
     bufnr = normalize_bufnr(bufnr)
     local override = vim.b[bufnr].typst_conceal_enabled
@@ -93,7 +102,12 @@ end
 
 local function restore_conceallevel(winid)
     local previous = saved_conceallevel[winid]
-    if previous ~= nil and vim.api.nvim_win_is_valid(winid) then
+    local owner = conceallevel_owner[winid]
+    if
+        previous ~= nil
+        and owner ~= nil
+        and window_still_owns_buffer(winid, owner)
+    then
         local installed = installed_conceallevel[winid]
         if installed == nil or vim.wo[winid].conceallevel == installed then
             vim.wo[winid].conceallevel = previous
@@ -131,8 +145,29 @@ local function maybe_set_conceallevel(bufnr, winid)
         return
     end
 
+    local current = vim.wo[winid].conceallevel
+    local owner = conceallevel_owner[winid]
+    if owner ~= nil and owner ~= bufnr then
+        local previous = saved_conceallevel[winid]
+        local installed = installed_conceallevel[winid]
+        installed_conceallevel[winid] = nil
+        conceallevel_owner[winid] = nil
+        if previous == nil or (installed ~= nil and current ~= installed) then
+            saved_conceallevel[winid] = nil
+        end
+    elseif owner == nil then
+        saved_conceallevel[winid] = nil
+        installed_conceallevel[winid] = nil
+        conceallevel_owner[winid] = nil
+    end
+
     if saved_conceallevel[winid] == nil then
-        saved_conceallevel[winid] = vim.wo[winid].conceallevel
+        saved_conceallevel[winid] = current
+    elseif
+        installed_conceallevel[winid] ~= nil
+        and current ~= installed_conceallevel[winid]
+    then
+        saved_conceallevel[winid] = current
     end
     vim.wo[winid].conceallevel = opts.conceallevel
     installed_conceallevel[winid] = opts.conceallevel
@@ -319,7 +354,8 @@ function M.reset()
     matches.reset()
     render.reset()
     for winid in pairs(saved_conceallevel) do
-        if vim.api.nvim_win_is_valid(winid) then
+        local owner = conceallevel_owner[winid]
+        if owner ~= nil and window_still_owns_buffer(winid, owner) then
             local installed = installed_conceallevel[winid]
             if installed == nil or vim.wo[winid].conceallevel == installed then
                 vim.wo[winid].conceallevel = saved_conceallevel[winid]

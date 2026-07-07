@@ -1,7 +1,7 @@
 local calls = require("typst.edit.calls")
 local edit_repeat = require("typst.edit.repeat")
 local name_argument_params = require("typst.edit.name_argument_params")
-local ts = require("typst.edit.treesitter")
+local ts = require("typst.core.treesitter")
 
 local M = {}
 

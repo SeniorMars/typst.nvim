@@ -3,7 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local index = require("typst.index")
 local typst = require("typst")
-local toc_module = require("typst.edit.toc")
+local toc_module = require("typst.navigation.toc")
 local util = require("typst.core.util")
 typst.reset()
 typst.setup({

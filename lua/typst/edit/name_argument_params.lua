@@ -1,6 +1,6 @@
 local calls = require("typst.edit.calls")
 local metadata = require("typst.metadata")
-local ts = require("typst.edit.treesitter")
+local ts = require("typst.core.treesitter")
 
 local M = {}
 

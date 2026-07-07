@@ -1,4 +1,4 @@
-local ts = require("typst.edit.treesitter")
+local ts = require("typst.core.treesitter")
 local edit_context = require("typst.edit.context")
 
 local M = {}

@@ -1,6 +1,6 @@
 local edit_repeat = require("typst.edit.repeat")
 local cursor = require("typst.edit.cursor")
-local ts = require("typst.edit.treesitter")
+local ts = require("typst.core.treesitter")
 
 local M = {}
 

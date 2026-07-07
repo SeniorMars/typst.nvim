@@ -1,5 +1,5 @@
 local matchparen = require("typst.edit.matchparen")
-local ts = require("typst.edit.treesitter")
+local ts = require("typst.core.treesitter")
 local util = require("typst.edit.textobject_util")
 
 local M = {}

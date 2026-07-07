@@ -3,7 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local typst = require("typst")
 local diagnostics_parser = require("typst.diagnostics.parser")
-local watch_parser = require("typst.compiler.watch_parser")
+local watch_parser = require("typst.compiler.watch.parser")
 local dependencies = require("typst.compiler.dependencies")
 local bibliography_parser = require("typst.bibliography.parser")
 local manifest = require("typst.package.manifest")

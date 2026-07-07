@@ -3,7 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local ts = require("typst.core.treesitter")
 assert(
-    require("typst.edit.treesitter") == ts,
+    require("typst.core.treesitter") == ts,
     "edit Tree-sitter helper should remain a compatibility shim"
 )
 

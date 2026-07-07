@@ -3,7 +3,7 @@ local content = require("typst.edit.textobject_content")
 local delimiters = require("typst.edit.textobject_delimiters")
 local lsp = require("typst.edit.textobject_lsp")
 local nodes = require("typst.edit.textobject_nodes")
-local ts = require("typst.edit.treesitter")
+local ts = require("typst.core.treesitter")
 
 local M = {}
 

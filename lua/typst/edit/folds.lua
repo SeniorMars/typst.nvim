@@ -49,10 +49,6 @@ function M.expr(lnum)
     return "="
 end
 
-function _G.typst_nvim_foldexpr()
-    return require("typst.edit.folds").expr(vim.v.lnum)
-end
-
 local function foldtext_context()
     local bufnr = vim.api.nvim_get_current_buf()
     local foldstart = vim.v.foldstart
@@ -95,10 +91,6 @@ function M.foldtext()
     )
     local text = ctx.text ~= "" and ctx.text or vim.trim(ctx.first_line)
     return text .. suffix
-end
-
-function _G.typst_nvim_foldtext()
-    return require("typst.edit.folds").foldtext()
 end
 
 function M.apply(bufnr, winid)
