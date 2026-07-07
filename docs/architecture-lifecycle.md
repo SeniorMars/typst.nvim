@@ -11,7 +11,8 @@ unattached
   -> resolving
   -> attached
   -> resolution_pending(import_scan)
-  -> reassigning
+  -> import_scan_suggested
+  -> reassigning(command lookup)
   -> detaching
   -> resource_stopping
   -> pruned
@@ -24,7 +25,9 @@ unattached
 - Project keys are derived from canonical `(root, main)` path identity.
 - Public project methods return copied snapshots, not live service tables.
 - Deferred import-scan callbacks must check buffer validity, buffer path,
-  config generation, and expected project key before mutating state.
+  config generation, and expected project key before mutating state. They may
+  record a suggested main, but they must not reassign a buffer in the
+  background; command-time project lookup owns accepting a suggestion.
 - A project with no buffers may remain registered only while active resources
   are stopping, retained, or explicitly force-clearable.
 - Project prune must happen at most once for a project instance.

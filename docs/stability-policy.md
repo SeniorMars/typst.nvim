@@ -3,6 +3,32 @@
 `typst.nvim` is stable only when core lifecycle behavior is deterministic and
 recoverable. Stable does not mean every workflow is finished.
 
+## Scope And Non-Goals
+
+The stable-core scope is project identity, compile/watch, output ownership,
+preview lifecycle, reset/prune/exit recovery, diagnostics publication, public
+API failure behavior, and health/status reporting.
+
+Stable-core hardening is not a license to build more frameworks. These are
+explicit non-goals unless a patch removes older complexity at the same time:
+
+- generic task framework;
+- UI element or layout framework;
+- provider marketplace or provider spec DSL;
+- broad picker abstraction;
+- generated documentation for every internal module;
+- new event bus;
+- generalized diagnostic-tool engine.
+
+## Stability Tiers
+
+| Tier | Contract |
+| --- | --- |
+| Stable core | Project identity, compile/watch/stop, output leases, reset/recovery, status/health, stable API symbols, and documented commands. |
+| Supported workflow | Preview, viewer, diagnostics, completion, conceal, index, export/render/clean, and provider adapter behavior covered by the stability/provider gates. |
+| Experimental integration | Optional integrations such as Tinymist extras, delegated preview, picker adapters, and provider-specific extensions. They must fail closed with structured errors. |
+| Internal implementation | Module layout and helper functions not listed in `API.md`; these may move behind compatibility facades and contract tests. |
+
 ## Stability Guarantees
 
 | Guarantee | Policy |
@@ -72,3 +98,11 @@ During stable-core hardening, no new workflow feature should merge if it
 expands public API, provider behavior, lifecycle state, generated output, or
 background work without matching docs, caps, structured failure paths, and
 regression tests.
+
+## Subtractive Architecture Rule
+
+Architecture changes should remove more lifecycle surface area than they add.
+The approved stable-core architecture budget is one reset manifest, one preview
+controller split, one runtime API policy table, one pending/cancel contract, and
+one output lease owner. A broader abstraction needs a deletion plan, migration
+tests, and an explicit update to `docs/stable-core-decisions.md`.

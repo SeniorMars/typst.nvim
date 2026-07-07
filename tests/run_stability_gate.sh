@@ -7,33 +7,85 @@ typst_nvim_init_test_xdg
 specs=(
   tests/unit/api_symbols_spec.lua
   tests/unit/api_spec_modules_exist_spec.lua
+  tests/unit/api_globals_spec.lua
+  tests/unit/api_globals_retained_reset_spec.lua
+  tests/unit/stable_api_no_expected_throw_spec.lua
+  tests/policy/expected_failures_do_not_throw_spec.lua
+  tests/unit/workflow_safe_output_path_spec.lua
   tests/unit/commands_registration_spec.lua
   tests/unit/public_api_context_spec.lua
+  tests/unit/api_context_non_table_opts_spec.lua
+  tests/unit/runtime_context_policy_notify_spec.lua
   tests/unit/project_public_snapshot_immutability_spec.lua
   tests/unit/compiler_scratch_buffer_spec.lua
   tests/unit/compiler_stop_idle_lease_spec.lua
+  tests/unit/completion_lsp_timeout_spec.lua
   tests/unit/lifecycle_path_equivalence_spec.lua
+  tests/unit/ftplugin_window_restore_wrong_buffer_spec.lua
+  tests/unit/events_deferred_operation_reset_spec.lua
+  tests/unit/events_reset_reentrancy_spec.lua
+  tests/unit/buffer_path_index_duplicate_buffers_spec.lua
+  tests/unit/index_traversal_budget_spec.lua
   tests/unit/import_scan_descendant_depth_spec.lua
+  tests/unit/deferred_import_scan_spec.lua
+  tests/unit/import_scan_async_finish_style_spec.lua
   tests/unit/source_map_cache_signature_spec.lua
   tests/unit/bug_report_spec.lua
   tests/unit/preview_error_contract_spec.lua
+  tests/unit/preview_results_spec.lua
+  tests/unit/preview_state_machine_spec.lua
+  tests/unit/preview_status_service_compat_spec.lua
+  tests/unit/preview_backend_contract_spec.lua
+  tests/unit/preview_facade_spec.lua
+  tests/unit/runtime_api_force_clear_notify_once_spec.lua
+  tests/unit/runtime_dispatch_factory_env_spec.lua
+  tests/unit/core_operation_reset_spec.lua
+  tests/unit/core_operation_owner_scope_spec.lua
+  tests/unit/cancel_style_migration_contract_spec.lua
+  tests/unit/resource_manager_spec.lua
+  tests/integration/reset/global_operation_visibility_spec.lua
   tests/stable_core/invariants_spec.lua
   tests/unit/cache_registry_spec.lua
+  tests/unit/cache_registry_ownership_spec.lua
+  tests/unit/conceal_window_owner_spec.lua
+  tests/unit/conceal_parser_registration_lifecycle_spec.lua
   tests/policy/cache_registry_contract_spec.lua
   tests/policy/architecture_contract_spec.lua
+  tests/policy/reset_manifest_contract_spec.lua
+  tests/policy/runtime_api_project_policy_spec.lua
+  tests/unit/output_lease_reset_ownership_spec.lua
+  tests/unit/output_lease_reset_owner_spec.lua
   tests/unit/output_locks_policy_spec.lua
   tests/unit/diagnostics_buffer_limit_spec.lua
   tests/unit/diagnostics_source_isolation_spec.lua
   tests/unit/diagnostics_quickfix_source_rebuild_spec.lua
+  tests/unit/diagnostics_tool_result_spec.lua
   tests/unit/quickfix_nil_project_clear_spec.lua
+  tests/unit/provider_adapter_handle_classification_spec.lua
   tests/unit/provider_adapter_late_duplicate_spec.lua
   tests/unit/provider_adapter_invalid_handle_spec.lua
+  tests/unit/operation_cancel_matrix_spec.lua
   tests/unit/operation_process_tree_cancel_spec.lua
   tests/integration/project/explain_project_spec.lua
   tests/integration/project/lifecycle_spec.lua
   tests/integration/compiler/lifecycle_spec.lua
+  tests/integration/stable_command_api_parity_spec.lua
+  tests/integration/runtime_api_force_clear_contract_spec.lua
+  tests/integration/runtime_api_resolution_pending_contract_spec.lua
+  tests/integration/reset_force_warning_vs_failure_spec.lua
+  tests/integration/output_lock_release_failure_health_spec.lua
+  tests/integration/compiler/invalid_output_path_spec.lua
+  tests/integration/compiler/generic_invalid_output_path_spec.lua
+  tests/integration/compiler/generic_output_policy_spec.lua
+  tests/integration/project/deferred_import_scan_budget_spec.lua
   tests/integration/watch/process_spec.lua
-  tests/integration/resources/supervisor_spec.lua
+  tests/integration/resources/resource_manager_prune_spec.lua
+  tests/integration/resources/preview_pending_stop_retention_spec.lua
+  tests/integration/preview/pending_cancel_spec.lua
+  tests/integration/preview/restart_sequence_spec.lua
+  tests/integration/preview/native_stop_callback_error_state_spec.lua
+  tests/integration/preview/callback_stop_stopped_warning_spec.lua
+  tests/integration/preview/stop_for_exit_spec.lua
   tests/integration/preview/pending_open_spec.lua
   tests/integration/preview/native_preview_fast_event_spec.lua
 )

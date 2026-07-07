@@ -154,6 +154,11 @@ but is not associated with any loaded buffer or existing project graph, they
 return `source_path_not_in_project` instead of falling back to the focused
 project.
 
+When an action API with a callback is blocked by deferred project resolution,
+the callback receives `{ ok = false, reason = "resolution_pending", ... }` and
+the wrapper returns that same payload. Without a callback, stable `nil_error`
+endpoints keep the normal `nil, err` resolution-failure convention.
+
 External compiler provider compile/watch/stop timeouts retain typst.nvim's
 output lease because timeout is not proof of process exit. Use
 `typst.compiler.force_clear({ key = project_key })` to discard that retained

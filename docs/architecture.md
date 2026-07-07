@@ -16,7 +16,7 @@ Detailed maintainer inventories live next to this overview:
 - `docs/stable-core-decisions.md` records release policy decisions that should
   not be hidden in code comments.
 
-## Workflow-First Target Layout
+## Stability-First Target Layout
 
 The long-term layout should make typst.nvim read like a Typst workflow
 environment, not a bag of feature files. The important questions are:
@@ -28,334 +28,68 @@ environment, not a bag of feature files. The important questions are:
 5. Who publishes diagnostics?
 6. Which modules are public API versus internal implementation?
 
-The target top level is:
+### Subtractive Architecture Rule
+
+New architecture is allowed only when it collapses duplicate ownership,
+standardizes an existing contract, or removes repeated boilerplate. A refactor
+that adds a framework without deleting or simplifying an older reset path,
+operation path, async result shape, or API wrapper path should not merge during
+stable-core hardening.
+
+The approved stabilization architecture budget is intentionally small:
+
+1. One reset manifest and one reset/prune/exit orchestrator.
+2. One preview controller split with small backend adapters.
+3. One declarative runtime API policy table.
+4. One pending/cancel contract used by providers, preview, and operations.
+5. One output lease owner.
+
+Anything larger needs a specific deletion plan and tests showing that an older
+owner or contract disappeared.
+
+### Current Target
+
+The stable-core target is:
 
 ```text
 lua/typst/
-  api/             Stable Lua facade and API spec.
-  runtime/         Setup, reset, autocmds, command registration, health.
-  config/          Defaults, validation, profiles, schema/docs generation.
-  core/            Pure primitives: result, process, operation, path, events, cache.
+  api/             Public Lua facade, stable symbol spec, runtime policy table.
+  runtime/         Setup, reset manifest, resource manager, commands, health.
   project/         Root/main resolution, registry, lifecycle, services, index.
-  resources/       Project resource/session ownership, output leases, cleanup.
-  compiler/        Compile/watch controller, providers, Typst CLI backend, watch parser.
-  diagnostics/     Policy, parser, publisher, quickfix/location list.
-  viewer/          Output viewers and source-sync capabilities.
-  preview/         Native/custom/delegated preview sessions and source sync.
-  navigation/      TOC, gf/follow, labels, citations, symbols, pickers.
-  editor/          Motions, text objects, transforms, folds, indent, formatexpr.
-  completion/      Completion sources and frontends.
+  resources/       Output leases, liveness snapshots, cleanup drivers.
+  compiler/        Compile/watch lifecycle and provider binding.
+  preview/         Preview controller, pending helpers, small backend adapters.
+  viewer/          Artifact opening and source-sync commands.
+  diagnostics/     Diagnostic parser, policy, publisher, quickfix/location list.
+  completion/      Completion sources, cache, and frontend adapters.
   conceal/         Conceal matching, rendering, custom rules, inspection.
-  bibliography/    BibTeX/Hayagriva parsing, diagnostics, citation workflows.
-  metadata/        Generated Typst metadata, package/font/style data.
-  workflows/       Export, render, eval, template, clean, lint, format, dev tasks.
-  integrations/    Tinymist, provider adapter, picker adapters, external plugins.
-  ui/              Commands, reports, status, notifications.
-  internal/        Debugging, invariant checks, compatibility helpers.
+  edit/            Folds, indent, motions, text objects, transforms.
+  workflows/       Export, render, eval, template, clean, lint, format.
+  integrations/    Tinymist, provider adapter, and shallow external adapters.
+  ui/              Commands, reports, status lines, notifications.
+  core/            Dependency-light primitives only.
 ```
 
-The ideal expanded target is:
-
-```text
-lua/typst/
-  init.lua
-
-  api/
-    init.lua
-    spec.lua
-    exports.lua
-    runtime.lua
-    contract.lua
-
-  runtime/
-    setup.lua
-    reset.lua
-    autocmds.lua
-    commands.lua
-    health.lua
-    ftplugin.lua
-    state.lua
-
-  config/
-    init.lua
-    defaults.lua
-    validate.lua
-    schema.lua
-    profiles.lua
-    docs.lua
-
-  core/
-    result.lua
-    async.lua
-    pending.lua
-    operation.lua
-    process.lua
-    path.lua
-    buffer.lua
-    files.lua
-    cache.lua
-    scan_cache.lua
-    cache_registry.lua
-    events.lua
-    log.lua
-    telemetry.lua
-    coordinates.lua
-    lsp_request.lua
-    tables.lua
-    text.lua
-    xdg.lua
-
-  project/
-    init.lua
-    registry.lua
-    resolver.lua
-    model.lua
-    lifecycle.lua
-    context.lua
-    root.lua
-    main_file.lua
-    dependencies.lua
-    graph/
-      init.lua
-      sources.lua
-      match.lua
-      dependencies.lua
-    index/
-      init.lua
-      collector.lua
-      cache.lua
-      parser.lua
-      files.lua
-      invalidation.lua
-    services/
-      init.lua
-      compiler.lua
-      preview.lua
-      viewer.lua
-      diagnostics.lua
-      artifacts.lua
-      operations.lua
-      graph.lua
-      index.lua
-      invalidation.lua
-
-  resources/
-    session.lua
-    outputs.lua
-    cleanup.lua
-    operations.lua
-    leases.lua
-    retained.lua
-
-  compiler/
-    init.lua
-    api.lua
-    result.lua
-    provider.lua
-    provider_binding.lua
-    command.lua
-    typst_compile.lua
-    typst_watcher.lua
-    typst_process.lua
-    dependencies.lua
-    output_path.lua
-    output.lua
-    watch/
-      runner.lua
-      state.lua
-      parser.lua
-      fixtures.lua
-    generic.lua
-    lifecycle.lua
-    events.lua
-
-  diagnostics/
-    init.lua
-    policy.lua
-    parser.lua
-    publisher.lua
-    quickfix.lua
-    count.lua
-
-  preview/
-    init.lua
-    native/
-      init.lua
-      browser.lua
-      server.lua
-      session.lua
-      transport.lua
-    provider.lua
-    follow_buffer.lua
-    source_sync.lua
-    events.lua
-    capabilities.lua
-
-  viewer/
-    init.lua
-    api.lua
-    provider.lua
-    generic.lua
-    generic_helpers.lua
-    source_sync.lua
-    capabilities.lua
-
-  navigation/
-    toc.lua
-    toc_collect.lua
-    toc_state.lua
-    toc_window.lua
-    toc_quickfix.lua
-    follow.lua
-    follow_context.lua
-    follow_lsp.lua
-    follow_patterns.lua
-    picker.lua
-    picker_backends.lua
-    picker_items.lua
-    symbols.lua
-    labels.lua
-    citations.lua
-    references.lua
-    links.lua
-
-  edit/
-    init.lua
-    treesitter.lua
-    context.lua
-    motions/
-    textobjects/
-    folds.lua
-    indent.lua
-    imaps.lua
-    match_highlight.lua
-    format_expr.lua
-    surround.lua
-    transforms/
-      markup.lua
-      raw.lua
-      math.lua
-      list.lua
-      function.lua
-      label.lua
-      reference.lua
-
-  completion/
-    init.lua
-    context.lua
-    sources/
-      lsp.lua
-      stdlib.lua
-      project.lua
-      packages.lua
-      paths.lua
-      bibliography.lua
-      labels.lua
-      citations.lua
-      fonts.lua
-      colors.lua
-      raw.lua
-      csl.lua
-      parameters.lua
-    frontends/
-      omnifunc.lua
-      native.lua
-      cmp.lua
-      blink.lua
-    cache.lua
-
-  conceal/
-    init.lua
-    controller.lua
-    matches.lua
-    render.lua
-    match_query.lua
-    rules.lua
-    lookup.lua
-    shadows.lua
-    syntax.lua
-    symbols.lua
-    math.lua
-    emoji.lua
-    custom.lua
-    inspect.lua
-
-  bibliography/
-    init.lua
-    parser.lua
-    bibtex.lua
-    hayagriva.lua
-    diagnostics.lua
-    edit.lua
-    workflow.lua
-    attachments.lua
-
-  metadata/
-    init.lua
-    symbols.lua
-    packages.lua
-    fonts.lua
-    csl.lua
-    raw_languages.lua
-    cache.lua
-
-  workflows/
-    artifacts.lua
-    export.lua
-    render.lua
-    eval.lua
-    template.lua
-    clean.lua
-    lint.lua
-    format.lua
-    grammar.lua
-    development.lua
-
-  integrations/
-    providers.lua
-    provider_adapter.lua
-    semantic_provider.lua
-    tinymist/
-      init.lua
-      clients.lua
-      requests.lua
-      commands.lua
-      features.lua
-      code_actions.lua
-      symbols.lua
-    coc.lua
-    treesitter.lua
-    telescope.lua
-    fzf_lua.lua
-    snacks.lua
-
-  ui/
-    commands/
-      init.lua
-      compiler.lua
-      project.lua
-      preview.lua
-      viewer.lua
-      navigation.lua
-      editing.lua
-      tools.lua
-      complete.lua
-      util.lua
-    reports.lua
-    status.lua
-    log.lua
-    notify.lua
-    select.lua
-
-  internal/
-    debug.lua
-    compat.lua
-    invariants.lua
-```
-
-This is a target, not a mandate for a single PR. Move ownership first and files
+This target is not a mandate for file moves. Move ownership first and files
 second. A file move is acceptable only after tests pin the boundary it
 represents.
+
+### Not Allowed During Stable-Core Hardening
+
+Do not add these until they replace existing complexity instead of sitting on
+top of it:
+
+- a generic task framework;
+- a UI element/layout framework;
+- a provider spec DSL or provider marketplace;
+- a broad picker backend framework;
+- generated documentation for every internal module;
+- a new event bus;
+- a highly generic diagnostic-tool engine.
+
+Small helpers are allowed when they remove duplication. For example, a
+diagnostic tool result helper or provider result normalizer is acceptable; a
+cross-plugin task engine is not.
 
 ## Top-Level Mental Model
 
@@ -368,12 +102,12 @@ runtime      setup/reset/autocmd/commands/health
 config       configuration
 core         reusable primitives
 project      root/main/project identity
-resources    live resources and cleanup
+resources    liveness snapshots, output leases, cleanup drivers
 compiler     compile/watch
 diagnostics  diagnostic parsing/publishing
 viewer       open generated output
 preview      live preview sessions
-navigation   toc/gf/pickers/labels/citations
+navigation   toc/gf/items/labels/citations
 editor       motions/textobjects/format/folds/indent
 completion   completion sources/frontends
 conceal      visual conceal engine
@@ -389,7 +123,8 @@ The ownership model behind that layout is:
 
 ```text
 project owns identity
-resources centralizes liveness migration
+runtime.resource_manager owns reset/prune/exit ordering
+resources expose liveness snapshots and output leases
 compiler owns compile/watch state
 preview owns preview sessions
 viewer owns output opening
@@ -424,20 +159,20 @@ integrations/viewer.lua
 Compiler and preview are core workflows. Only external tool/plugin adapters
 belong under `integrations/`.
 
-Do not move files before tests pin ownership. The layout should follow
+Move ownership only when tests pin the boundary. The layout should follow
 boundaries with regression coverage:
 
 ```text
 project resolver does not mutate registry
 project.store owns live project identity
 project.attachments owns buffer hook installation
-resources session decides project activity
-outputs facade owns leases
-resources.supervisor is the reset/prune/exit cleanup entry point
+resources.session decides project activity
+resources.outputs owns leases
+runtime.resource_manager is the reset/prune/exit cleanup entry point
 diagnostics publisher is the only diagnostic writer
 compiler.fanout routes compiler-state post-result consumers
 typst.compiler decides stop/timeout semantics
-typst.integrations.typst_preview decides delegated preview stop semantics
+typst.preview.controller decides delegated preview stop semantics
 typst.viewer.api decides viewer/source-sync command semantics
 ```
 
@@ -456,12 +191,13 @@ buffer membership, dependency graph, index state, and service-table existence.
 They should not know how to kill a compiler, stop a preview server, release an
 output lease, or publish diagnostics.
 
-Resources modules are the liveness migration boundary. Runtime reset, exit
-cleanup, and stop-before-prune orchestration should go through
-`resources.supervisor` (`resources.cleanup` is a compatibility alias) so project
-lifecycle code stops learning backend-specific compiler, preview, operation,
-diagnostics, or output details. This is still a facade over some older lifecycle
-code; ownership is being migrated behind it.
+Runtime resource management is the liveness migration boundary. Runtime reset,
+exit cleanup, and stop-before-prune orchestration go through
+`runtime.resource_manager` and its reset manifest. `resources.session` exposes
+the project/global liveness view, `resources.outputs` owns generated-output
+leases and locks, and deleted `resources.supervisor` should not be restored.
+Callers should use `runtime.resource_manager` directly rather than learning
+backend-specific compiler, preview, operation, diagnostics, or output details.
 
 Compiler modules own compile/watch state, provider policy, Typst CLI behavior,
 watch output parsing, and compiler events. `typst.compiler` decides when a
@@ -480,11 +216,12 @@ document an exception.
 
 Viewer and preview are separate workflows. `typst.viewer.api` owns viewer
 commands and preview-facing public command orchestration. A viewer opens or
-controls existing artifacts. `typst.integrations.typst_preview` owns delegated
-`typst-preview.nvim` compatibility, while `preview/native/*` owns native browser
-preview details. Do not extract full preview/viewer controllers before the
-stable-core boundary is pinned. Source-sync capability reporting should make
-this distinction explicit.
+controls existing artifacts. `typst.preview.controller` owns delegated and
+native preview lifecycle decisions, while `typst.integrations.typst_preview`
+remains only the old require-path compatibility facade.
+`preview/native/*` owns native browser preview details. Do not extract full
+viewer controllers before the stable-core boundary is pinned. Source-sync
+capability reporting should make this distinction explicit.
 
 Navigation modules return item lists and jump actions. UI modules decide how to
 show them, and integrations supply optional semantic data. Navigation should not
@@ -547,12 +284,14 @@ The resolver may read bounded source snippets and filesystem metadata, but it
 must not start compiler, preview, Tinymist, or watcher work. Attach/lifecycle
 code owns side effects after resolution succeeds. Attach defers import scanning
 and marks the attached project with `resolution_pending = "import_scan"` while a
-scheduled scan settles; command-time resolution forces a pending scan before
-compiler, preview, or navigation work starts. Import scanning still uses the
-same synchronous scanner when it runs, so it is capped by candidate count,
-ancestor depth, and filesystem entry count. It uses a short-lived
-path/root/config/root-metadata cache, and roots that exceed the entry cap abort
-the import-scan attempt instead of using partial scan results.
+scheduled incremental scan runs. Deferred scans do not reassign buffers in the
+background; they record a suggested main, and command-time project lookup may
+accept that completed suggestion before compiler, preview, or navigation work
+starts. Explicit synchronous resolver calls still use the bounded scanner. Both
+paths are capped by candidate count, ancestor depth, and filesystem entry count.
+Import scan uses a short-lived path/root/config/root-metadata cache, and roots
+that exceed the entry cap abort the import-scan attempt instead of using partial
+scan results.
 
 Project identity is keyed by root plus main. Modules should use project API
 snapshots for observation and service controllers for mutation instead of
@@ -704,6 +443,14 @@ whether a table is expected to be a terminal result or an active handle. In
 handle mode, result-shaped terminal tables must be explicit with fields such as
 `ok`, `code`, `reason`, or `stopped`.
 
+Call sites that install lifecycle state, retain output leases, or release output
+leases must use `provider_adapter.classify_return()`,
+`provider_adapter.is_active_handle()`, or
+`provider_adapter.is_terminal_result()` instead of raw `type(result) == "table"`
+and `pending` checks. Structural result fields such as `path`, `output`, or
+`artifacts` are valid terminal results only after the caller has declared them
+to the adapter; cancelable structural tables remain active handles.
+
 The shared pending helper provides common `finish`, `on_finish`, and `cancel`
 behavior for adapter-owned pending handles, preview export continuations, and
 native preview continuations. It does not decide result-vs-handle
@@ -731,16 +478,20 @@ the existing public API.
 
 ### Stable-Core Implementation Layout
 
-The stable-core implementation layout is the current flat module layout. No
-large file moves, controller extractions, or namespace migrations should happen
-inside this stabilization patch. The stable-core boundary is behavior-first:
-project identity, lifecycle ordering, no-project behavior, output ownership,
-and reset/recovery semantics must be pinned before implementation files move.
+The stable-core implementation layout is the current mostly-flat module layout.
+Large file moves and namespace migrations should happen only behind
+compatibility facades and targeted contract tests. The stable-core boundary is
+behavior-first: project identity, lifecycle ordering, no-project behavior,
+output ownership, and reset/recovery semantics must be pinned before
+implementation files move.
 
-### No Controller Extraction Before Stable
+### Controller Extraction Guardrails
 
-Do not move files or extract new controller modules before tests pin ownership.
-This stabilization patch hardens behavior in the existing modules:
+Do not extract broad controller modules before tests pin ownership. Preview is
+the current approved extraction because its public facade, pending-handle
+contract, resource-manager driver, and callback/native/delegated behavior are
+covered by stability tests. This stabilization patch hardens behavior through
+small compatibility-preserving boundaries:
 
 1. Stabilize boundaries without big moves.
    - `core.result` is the only generic stopped/pending/orphan predicate layer.
@@ -750,14 +501,13 @@ This stabilization patch hardens behavior in the existing modules:
    - `project.resolver` resolves candidates without mutating state.
    - `project.attachments` is the BufferAttachment facade for buffer hooks and
      setup reapplication.
-   - `project.index.*` is the migration namespace for static-index modules;
-     old `project.index_*` files stay as compatibility entry points until the
-     large files can move without churn.
+   - project index modules stay on their current flat paths until there is a
+     deletion-backed reason to move them.
    - `core.windows` is the shared visible-window lookup primitive.
    - `resources.outputs` is the output lease facade used outside low-level tests.
    - `resources.session` is the project liveness view.
-   - `resources.supervisor` is the reset, exit, and stop-before-prune cleanup
-     entry point while ownership migrates behind it.
+   - `runtime.resource_manager` is the reset, exit, and stop-before-prune
+     cleanup entry point.
    - `diagnostics.publisher` is the compiler diagnostic writer.
    - `compiler.fanout` routes compiler-state result consumers.
 2. Keep compiler lifecycle in `typst.compiler`.
@@ -765,26 +515,29 @@ This stabilization patch hardens behavior in the existing modules:
      lifecycle module or narrower helper modules, not in a new full controller.
    - Keep built-in Typst helpers at their historical paths until tests require a
      real file split.
-3. Keep preview and viewer lifecycle in existing entry points.
+3. Keep preview and viewer lifecycle in tested entry points.
    - `typst.viewer.api` owns artifact opening and viewer source sync for now.
-   - `typst.integrations.typst_preview` owns delegated preview compatibility for
-     now.
+   - `typst.preview.controller` owns preview open/reuse/restart/refresh/stop
+     lifecycle.
+   - `typst.preview.results`, `typst.preview.pending`,
+     `typst.preview.state_machine`, and `typst.preview.backends.*` own preview
+     result shape, pending observation, state mutation, and backend adapters.
+   - `typst.integrations.typst_preview` remains a compatibility facade.
    - `preview/native/*` may keep native browser/server/session details.
 4. Keep navigation and editor implementation files in their existing layout.
    - The current flat navigation/edit modules remain the implementation paths
      for this stabilization patch.
 5. Harden the public API before any future layout migration.
-   - Keep implementation paths movable later, but do not move them in this
-     patch.
+   - Keep implementation paths movable later, but land each move behind the
+     compatibility facade and policy tests first.
 
 ### Post-Stable Target Boundaries
 
 After the stable-core contract is pinned, narrower controller modules remain
 valid long-term extraction targets when tests show the ownership boundary is
 stable. `compiler.controller` can become the compile/watch/stop/output owner,
-`preview.controller` can own native/delegated preview lifecycle, and
-`viewer.controller` can own viewer open/forward/inverse behavior. Those are
-post-stable targets, not prerequisites for this stabilization patch.
+and `viewer.controller` can own viewer open/forward/inverse behavior. Preview
+lifecycle already uses the tested `preview.controller` boundary.
    - Expose workflow namespaces deliberately: project, compiler, viewer,
      preview, diagnostics, navigation, edit, completion, conceal, bibliography,
      metadata, providers.
@@ -797,12 +550,12 @@ Command-to-module intent should stay simple for users:
 :TypstCompile               typst.compiler
 :TypstWatch                 typst.compiler
 :TypstStop                  typst.compiler
-:TypstStopAll               typst.compiler + resources.supervisor
+:TypstStopAll               typst.compiler + runtime.resource_manager
 :TypstCompilerForceClear    typst.compiler + resources.outputs
 :TypstErrors                diagnostics.quickfix
 :TypstView                  viewer.api
-:TypstPreview               integrations.typst_preview / preview.native
-:TypstPreviewStop           integrations.typst_preview / preview.native
+:TypstPreview               preview.controller / preview.native
+:TypstPreviewStop           preview.controller / preview.native
 :TypstToc                   navigation.toc
 :TypstPick                  navigation.picker
 gf                          navigation.follow
@@ -879,20 +632,6 @@ A compiler event reducer should own service transitions and event emission.
 Diagnostics, dependency refresh, artifacts, and preview refresh should consume
 those normalized events instead of being embedded directly in parser handlers.
 
-### Jobs Namespace
-
-Async primitives should move behind a `typst.jobs` namespace over time:
-
-- `jobs.pending`: shared pending handle helper.
-- `jobs.operation`: tracked operations.
-- `jobs.process`: process spawning and shutdown.
-- `jobs.provider_adapter`: provider invocation normalization.
-
-Compatibility modules such as `typst.core.operation` and
-`typst.integrations.provider_adapter` should remain until the next major API
-boundary. The `typst.jobs.*` facades already exist for new internal code that
-wants the migration namespace without changing behavior.
-
 ### Native Preview Split
 
 `preview/native.lua` remains the public native preview facade, while
@@ -911,8 +650,9 @@ pending refresh/restart tests passing.
 ### Cache Registry Stats
 
 The cache registry exposes both detailed `status()` entries and aggregate
-`stats()` counters. New cache owners should provide reset/clear/reload and
-buffer/window lifecycle methods where appropriate, then register enough metadata
-for health/report output to show loaded, unloaded, reset-capable,
+`stats()` counters. Runtime reset ownership lives in
+`runtime.resource_manifest`; cache-registry entries should provide
+clear/reload and buffer/window lifecycle methods where appropriate, then
+register enough metadata for health/report output to show loaded, unloaded,
 clear-capable, reload-capable, forget-capable, detach-capable, and
 window-cleanup-capable counts.

@@ -13,7 +13,7 @@ use commands and API methods, not mutate service tables directly.
 | Service | Owner | Main state | Reset / prune rule |
 | --- | --- | --- | --- |
 | `compiler` | `typst.compiler` | active compile process, watcher, output path, output lease, provider label, generations, last result/error | Stop active work before pruning when possible. Retain unconfirmed writers or release leases only through compiler/resource helpers. |
-| `preview` | `typst.integrations.typst_preview` and native preview modules | active/opening/stopping flags, backend/provider labels, pending open handle, generation, last result/error | Pending callbacks must check project key, instance id, generation, and prune state before mutating. |
+| `preview` | `typst.preview.controller` and native preview modules | active/opening/stopping flags, backend/provider labels, pending open handle, generation, last result/error | Pending callbacks must check project key, instance id, generation, and prune state before mutating. |
 | `viewer` | `typst.viewer` | viewer backend, command, last source-sync state | Cleared with project state; does not own compiler output. |
 | `diagnostics` | `typst.diagnostics` | per-source diagnostic tables, quickfix-only path diagnostics, last publish metadata | Source clears only clear their namespace/source data. Project prune clears all namespaces owned by the project. |
 | `artifacts` | workflow/export/render/preview producers | discovered artifacts, producer metadata, format/path records | Artifacts are reports of produced files. Deleting files still requires output/artifact ownership checks. |

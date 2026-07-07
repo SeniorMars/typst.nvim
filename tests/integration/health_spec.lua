@@ -3,7 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local typst = require("typst")
 local output_ownership = require("typst.resources.outputs")
-local preview = require("typst.integrations.typst_preview")
+local preview = require("typst.preview.controller")
 
 local case_id = 0
 
@@ -427,6 +427,14 @@ run_case("compiler provider state", function()
         saw_provider_state,
         "health output should expose provider-aware active project state"
     )
+    assert(
+        has_message(
+            messages,
+            "warn",
+            "Last output lock release failure: foreign_lock_owner"
+        ),
+        "health output should expose global output lock release failures"
+    )
 
     typst.compiler.stop()
     vim.fn.delete(failed_release_lease.lock_path, "rf")
@@ -736,5 +744,35 @@ run_case("remote browser preview host warns", function()
         has_message(messages, "warn", "non-loopback host"),
         "health should warn when browser preview binds beyond loopback"
     )
+end)
+run_case("v:lua global collision is reported", function()
+    local original = _G.typst_nvim_foldexpr
+    _G.typst_nvim_foldexpr = function()
+        return "user-owned-foldexpr"
+    end
+
+    local ok, err = xpcall(function()
+        typst.setup({
+            root = root,
+            completion = {
+                package_cache_prewarm = false,
+            },
+        })
+        local messages = capture_health()
+        assert(
+            has_message(messages, "warn", "Owned v:lua globals:")
+                and has_message(
+                    messages,
+                    "warn",
+                    "Skipped typst_nvim_foldexpr: collision"
+                ),
+            "health should report skipped typst.nvim v:lua globals"
+        )
+    end, debug.traceback)
+
+    _G.typst_nvim_foldexpr = original
+    if not ok then
+        error(err)
+    end
 end)
 vim.cmd("qa!")

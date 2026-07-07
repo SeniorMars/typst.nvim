@@ -5,8 +5,9 @@ local typst = require("typst")
 local cache_registry = require("typst.core.cache_registry")
 local compiler_service = require("typst.project.services.compiler")
 local core_result = require("typst.core.result")
+local operation = require("typst.core.operation")
 local core_windows = require("typst.core.windows")
-local index_files_facade = require("typst.project.index.files")
+local index_files = require("typst.project.index_files")
 local output_ownership = require("typst.resources.outputs")
 local project_attachments = require("typst.project.attachments")
 local project_facade = require("typst.project")
@@ -14,25 +15,33 @@ local project_registry = require("typst.project.registry")
 local project_resolver = require("typst.project.resolver")
 local project_store = require("typst.project.store")
 local resource_session = require("typst.resources.session")
-local resource_supervisor = require("typst.resources.supervisor")
+local resource_manager = require("typst.runtime.resource_manager")
+local resource_manager = require("typst.runtime.resource_manager")
 local preview_service = require("typst.project.services.preview")
 local compiler_api = require("typst.compiler")
 local compiler_fanout = require("typst.compiler.fanout")
 local compiler_typst_compile = require("typst.compiler.typst_compile")
 local compiler_typst_process = require("typst.compiler.typst_process")
-local compiler_typst_watcher = require("typst.compiler.typst_watcher")
+local compiler_typst_watcher = require("typst.compiler.watch.runner")
 local compiler_watch_output = require("typst.compiler.output")
 local edit_api = require("typst.edit.api")
-local edit_treesitter = require("typst.edit.treesitter")
+local edit_treesitter = require("typst.core.treesitter")
 local navigation_follow = require("typst.navigation.follow")
 local navigation_follow_context = require("typst.navigation.follow_context")
 local navigation_picker_backends = require("typst.navigation.picker_backends")
 local navigation_toc = require("typst.navigation.toc")
 local navigation_toc_collect = require("typst.navigation.toc_collect")
-local typst_preview = require("typst.integrations.typst_preview")
-local typst_preview_runtime =
-    require("typst.integrations.typst_preview.runtime")
-local typst_preview_state = require("typst.integrations.typst_preview.state")
+local preview_controller = require("typst.preview.controller")
+local preview_results = require("typst.preview.results")
+local preview_pending = require("typst.preview.pending")
+local preview_state_machine = require("typst.preview.state_machine")
+local preview_backend = require("typst.preview.backend")
+local preview_source_sync = require("typst.preview.source_sync")
+local preview_status = require("typst.preview.status")
+local preview_capabilities = require("typst.preview.capabilities")
+local preview_location = require("typst.preview.location")
+local preview_delegated_runtime =
+    require("typst.preview.backends.delegated_runtime")
 local viewer_api = require("typst.viewer.api")
 local viewer_generic = require("typst.viewer.generic")
 local viewer_generic_helpers = require("typst.viewer.generic_helpers")
@@ -45,24 +54,23 @@ typst.setup({
 local architecture_doc =
     table.concat(vim.fn.readfile(root .. "/docs/architecture.md"), "\n")
 for _, phrase in ipairs({
-    "Workflow-First Target Layout",
+    "Stability-First Target Layout",
     "Stable-Core Implementation Layout",
     "Post-Stable Target Boundaries",
     "Top-Level Mental Model",
     "What Not To Do",
     "Hard Ownership Boundaries",
-    "resources.cleanup",
     "project.store",
     "project.attachments",
-    "project.index.*",
+    "project index modules",
     "core.windows",
-    "resources.supervisor",
+    "runtime.resource_manager",
     "compiler.fanout",
-    "No Controller Extraction Before Stable",
+    "Controller Extraction Guardrails",
     "typst.compiler decides stop/timeout semantics",
-    "typst.integrations.typst_preview decides delegated preview stop semantics",
+    "typst.preview.controller decides delegated preview stop semantics",
     "typst.viewer.api decides viewer/source-sync command semantics",
-    "Do not move files or extract new controller modules",
+    "Do not extract broad controller modules before tests pin ownership",
     "diagnostics.publisher",
     "Command-to-module intent",
 }) do
@@ -138,8 +146,8 @@ assert(
     "cache registry should expose buffer/window lifecycle cleanup hooks"
 )
 assert(
-    index_files_facade == require("typst.project.index_files"),
-    "project.index facades should preserve old index require paths"
+    index_files == require("typst.project.index_files"),
+    "project index file module should stay on its real path"
 )
 
 local main = root .. "/tests/fixtures/basic/main.typ"
@@ -179,35 +187,43 @@ assert(
     "project.attachments should expose BufferAttachment lifecycle hooks"
 )
 assert(
-    type(resource_supervisor.reset) == "function"
-        and type(resource_supervisor.stop_before_prune) == "function"
-        and type(resource_supervisor.has_active_resources) == "function"
-        and type(resource_supervisor.snapshot) == "function"
-        and type(resource_supervisor.stop_for_exit_all) == "function",
-    "resources.supervisor should expose ResourceSupervisor cleanup hooks"
+    type(resource_manager.reset) == "function"
+        and type(resource_manager.stop_before_prune) == "function"
+        and type(resource_manager.has_active_resources) == "function"
+        and type(resource_manager.snapshot) == "function"
+        and type(resource_manager.stop_for_exit_all) == "function",
+    "runtime.resource_manager should expose cleanup hooks"
+)
+assert(
+    type(resource_manager.reset) == "function"
+        and type(resource_manager.snapshot) == "function"
+        and type(resource_manager.stop_live_resources) == "function"
+        and type(resource_manager.in_reset) == "function",
+    "runtime.resource_manager should expose the reset/resource ownership boundary"
 )
 local core_lifecycle = require("typst.core.lifecycle")
-local saved_resource_supervisor = package.loaded["typst.resources.supervisor"]
+local saved_resource_manager = package.loaded["typst.runtime.resource_manager"]
 local stop_before_prune_args = nil
-package.loaded["typst.resources.supervisor"] = {
+package.loaded["typst.runtime.resource_manager"] = {
     stop_before_prune = function(...)
         stop_before_prune_args = { ... }
         return true
     end,
 }
-local prune_state = { key = "resource-supervisor-test" }
+local prune_state = { key = "resource-manager-test" }
 assert(
     core_lifecycle.stop_before_prune(prune_state, "log message", "prune reason")
         == true,
-    "core.lifecycle should delegate stop-before-prune work to resources.supervisor"
+    "core.lifecycle should delegate stop-before-prune work to resource_manager"
 )
-package.loaded["typst.resources.supervisor"] = saved_resource_supervisor
+package.loaded["typst.runtime.resource_manager"] = saved_resource_manager
 assert(
     stop_before_prune_args
         and stop_before_prune_args[1] == prune_state
-        and stop_before_prune_args[2] == "log message"
-        and stop_before_prune_args[3] == "prune reason",
-    "core.lifecycle should preserve log-message/prune-reason argument order"
+        and type(stop_before_prune_args[2]) == "table"
+        and stop_before_prune_args[2].log_message == "log message"
+        and stop_before_prune_args[2].reason == "prune reason",
+    "core.lifecycle should pass structured prune options to resource_manager"
 )
 assert(
     type(compiler_fanout.compile_succeeded) == "function"
@@ -219,8 +235,12 @@ assert(
     "typst.compiler should remain the compiler lifecycle entry point"
 )
 assert(
-    require("typst.integrations.typst_preview") == typst_preview,
-    "typst-preview integration should remain the delegated preview entry point"
+    require("typst.preview.controller") == preview_controller,
+    "preview.controller should own preview lifecycle entrypoints"
+)
+assert(
+    require("typst.integrations.typst_preview") == preview_controller,
+    "typst-preview integration should remain a compatibility facade"
 )
 assert(
     require("typst.viewer.api") == viewer_api,
@@ -232,9 +252,21 @@ assert(
     "typst.compiler should own compile/watch/stop lifecycle entrypoints"
 )
 assert(
-    type(typst_preview.open) == "function"
-        and type(typst_preview.stop_for_exit) == "function",
-    "typst-preview integration should expose preview liveness entrypoints"
+    type(preview_controller.open) == "function"
+        and type(preview_controller.stop_for_exit) == "function",
+    "preview.controller should expose preview liveness entrypoints"
+)
+assert(
+    type(preview_results.stale_open) == "function"
+        and type(preview_pending.cancel_current_open) == "function"
+        and type(preview_state_machine.to_opening) == "function"
+        and type(preview_backend.resolve) == "function",
+    "preview controller helpers should expose result/pending/state/backend boundaries"
+)
+assert(
+    type(preview_source_sync.forward) == "function"
+        and type(preview_status.snapshot) == "function",
+    "preview source-sync and status helpers should live under preview/"
 )
 assert(
     type(viewer_api.view) == "function"
@@ -250,7 +282,7 @@ assert(
     "compiler typst_process path should remain available"
 )
 assert(
-    require("typst.compiler.typst_watcher") == compiler_typst_watcher,
+    require("typst.compiler.watch.runner") == compiler_typst_watcher,
     "compiler typst_watcher path should remain available"
 )
 assert(
@@ -258,12 +290,11 @@ assert(
     "compiler output helper path should remain available"
 )
 assert(
-    require("typst.integrations.typst_preview.runtime") == typst_preview_runtime,
-    "typst-preview runtime path should remain available"
-)
-assert(
-    require("typst.integrations.typst_preview.state") == typst_preview_state,
-    "typst-preview state path should remain available"
+    type(preview_delegated_runtime.command_available) == "function"
+        and type(preview_state_machine.to_active_callback) == "function"
+        and type(preview_capabilities.base) == "function"
+        and type(preview_location.current_position) == "function",
+    "preview helper modules should live under preview/"
 )
 assert(
     require("typst.viewer") == viewer_generic
@@ -276,7 +307,7 @@ assert(
 )
 assert(
     require("typst.edit.api") == edit_api
-        and require("typst.edit.treesitter") == edit_treesitter,
+        and require("typst.core.treesitter") == edit_treesitter,
     "edit implementation should remain available at flat paths"
 )
 assert(
@@ -349,8 +380,27 @@ assert(
     "resources.session should report no active resources initially"
 )
 assert(
-    resource_supervisor.has_active_resources(project) == false,
-    "resources.supervisor should be the project liveness boundary"
+    resource_manager.has_active_resources(project) == false,
+    "runtime.resource_manager should be the project liveness boundary"
+)
+local global_operation = operation.new("architecture-boundary-global")
+local session_with_global = resource_session.snapshot(project)
+assert(
+    session_with_global.global_operations.active == 1,
+    "resources.session should expose global operations"
+)
+assert(
+    resource_session.global_snapshot().operations.active == 1,
+    "resources.session should expose runtime-wide operation liveness"
+)
+assert(
+    resource_session.has_active(project) == false,
+    "global operations should not make an unrelated project active"
+)
+global_operation:finish({ code = 0, stdout = "", stderr = "" })
+assert(
+    resource_session.global_snapshot().operations.active == 0,
+    "resources.session should clear global operation liveness after finish"
 )
 
 local prune_root =
@@ -380,12 +430,12 @@ assert(
     "resources.session should treat active output leases as resources"
 )
 assert(
-    resource_supervisor.has_active_resources(prune_project) == true,
-    "resources.supervisor should retain projects with output leases"
+    resource_manager.has_active_resources(prune_project) == true,
+    "runtime.resource_manager should retain projects with output leases"
 )
 assert(
     project_store.prune(prune_project, "active lease boundary test") == false,
-    "project.store pruning should ask resources.supervisor before removal"
+    "project.store pruning should ask runtime.resource_manager before removal"
 )
 assert(
     output_ownership.release(lease) == true,
@@ -396,8 +446,8 @@ assert(
     "resources.session should clear output lease activity after release"
 )
 assert(
-    resource_supervisor.has_active_resources(prune_project) == false,
-    "resources.supervisor should clear liveness after lease release"
+    resource_manager.has_active_resources(prune_project) == false,
+    "runtime.resource_manager should clear liveness after lease release"
 )
 assert(
     project_store.prune(prune_project, "released lease boundary test") == true,
@@ -413,8 +463,8 @@ assert(
     "resources.session should report active preview resources"
 )
 assert(
-    resource_supervisor.has_active_resources(project) == true,
-    "resources.supervisor should report active preview resources"
+    resource_manager.has_active_resources(project) == true,
+    "runtime.resource_manager should report active preview resources"
 )
 
 preview_service.set(project, {
@@ -426,8 +476,8 @@ assert(
     "resources.session should clear active state after preview stops"
 )
 assert(
-    resource_supervisor.has_active_resources(project) == false,
-    "resources.supervisor should clear preview liveness after stop"
+    resource_manager.has_active_resources(project) == false,
+    "runtime.resource_manager should clear preview liveness after stop"
 )
 
 typst.reset({ force = true })

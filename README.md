@@ -125,12 +125,13 @@ Known limitations:
 - Normal Typst PDF output does not provide SyncTeX-style source sync. Forward
   and inverse search depend on viewer, preview, or source-map provider
   capabilities.
-- Import scanning is bounded, cached briefly, and deferred from buffer attach.
-  Commands force any pending scan before they compile/preview. Once
-  `project.import_scan_max_entries` is reached, typst.nvim abandons that
-  import-scan attempt and falls back to later main-file heuristics; disable
-  `project.import_scan` entirely in remote trees if even deferred scan latency
-  is not acceptable.
+- Import scanning is bounded, cached briefly, and incremental when deferred
+  from buffer attach. Deferred scans record a suggested main instead of
+  reassigning the buffer behind the user's back; the next command-time project
+  lookup may accept that suggestion. Once `project.import_scan_max_entries` is
+  reached, typst.nvim abandons that import-scan attempt and falls back to later
+  main-file heuristics; disable `project.import_scan` entirely in remote trees
+  if even deferred scan latency is not acceptable.
 - Rich conceal changes window-local `conceallevel` while enabled. Disable
   `conceal.enabled` or use `:TypstConcealDisable` for a plain-source workflow.
 
@@ -344,6 +345,22 @@ Set
 `vim.g.typst_nvim_no_auto_setup = 1` before plugin loading to opt out of the
 default runtime setup and call `setup()` yourself.
 
+typst.nvim installs a small set of owned `v:lua` globals for Neovim option
+callbacks:
+
+- `typst_nvim_omnifunc`
+- `typst_nvim_indentexpr`
+- `typst_nvim_formatexpr`
+- `typst_nvim_foldexpr`
+- `typst_nvim_foldtext`
+
+The installer does not overwrite an existing non-typst global with the same
+name. `require("typst").reset()` removes only globals still owned by
+typst.nvim; user/plugin replacements are preserved, and setup reinstalls
+missing owned globals. If reset retains projects because live resources could
+not be stopped, owned expression globals are preserved until a force reset or a
+later non-retained reset can remove them safely.
+
 Common setup snippets:
 
 ```lua
@@ -427,6 +444,9 @@ require("typst").setup({
     index = {
       fs_watchers = "auto",
       max_file_bytes = 1024 * 1024,
+      max_files = 512,
+      max_entries = 4096,
+      max_depth = 32,
       large_file_policy = "skip",
     },
   },
@@ -1277,8 +1297,11 @@ first 500 lines of each candidate file for literal `#include`/`#import` paths,
 so late or dynamic imports should use `:TypstSetMain`, `.typstmain`,
 `vim.b.typst_main`, or `config.main`.
 When attach reaches the bounded import-scan fallback, it first attaches with
-the later heuristic and records `resolution_pending = "import_scan"`; a
-scheduled scan reassigns the buffer if it finds a unique importing main.
+the later heuristic and records `resolution_pending = "import_scan"` while an
+incremental scheduled scan runs. If the scan finds a unique importing main, it
+records an import-scan suggestion and clears the pending marker. The buffer is
+not reassigned in the background; the next command-time project lookup may
+accept that suggestion before compile, watch, preview, or navigation work.
 Unnamed Typst buffers attach to a scratch in-memory project rooted at the
 current working directory; `:saveas` re-resolves them as normal file-backed
 projects and prunes the scratch project. Scratch project main paths are
@@ -1402,12 +1425,15 @@ from configured bibliography fields and path patterns.
 
 The project index is persistent per project and caches each scanned Typst or
 bibliography file by loaded-buffer `changedtick` or on-disk mtime/size plus the
-active index policy. `project.index.max_file_bytes` limits unloaded-file static
-indexing. `project.index.large_file_policy = "skip"` omits oversized unloaded
-files, `"headings-only"` reads the file to recover headings and local
-imports/includes while skipping heavier symbol/reference scans, and `"scan"`
-fully scans oversized files. Unnamed Typst buffers use their scratch project
-main path as the index key and are rescanned by buffer changedtick, so fallback
+active index policy. `project.index.max_files`, `project.index.max_entries`,
+and `project.index.max_depth` cap import-graph traversal; when a cap is hit,
+status and health report a partial index with the first skipped path.
+`project.index.max_file_bytes` limits unloaded-file static indexing.
+`project.index.large_file_policy = "skip"` omits oversized unloaded files,
+`"headings-only"` reads the file to recover headings and local imports/includes
+while skipping heavier symbol/reference scans, and `"scan"` fully scans
+oversized files. Unnamed Typst buffers use their scratch project main path as
+the index key and are rescanned by buffer changedtick, so fallback
 headings, labels, references, definitions, and TODOs work before the buffer has
 a file name.
 Bibliography parsing handles multiline/concatenated BibTeX fields and nested
@@ -1849,11 +1875,11 @@ documents may need tighter caps.
 
 | Area | Settings | Guidance |
 | --- | --- | --- |
-| Main-file discovery | `project.import_scan`, `project.import_scan_max_files`, `project.import_scan_max_depth`, `project.import_scan_max_entries`, `project.import_scan_skip_dirs` | Import scanning is deferred from attach and uses a short-lived cache keyed by path/root/config/root metadata. It skips common generated/cache directories by default. Set `.typstmain` or `:TypstSetMain` for deterministic large projects; disable import scan on slow remote trees. |
-| Project index | `project.index.max_file_bytes`, `project.index.large_file_policy`, `project.index.fs_watchers` | Keep `"skip"` for the cheapest unloaded-file behavior. Use `"headings-only"` when headings/imports matter, but it still reads oversized files. Use `"scan"` only for trusted projects where full oversized-file indexing is worth the cost. |
+| Main-file discovery | `project.import_scan`, `project.import_scan_max_files`, `project.import_scan_max_depth`, `project.import_scan_max_entries`, `project.import_scan_skip_dirs` | Import scanning is incremental when deferred from attach and uses a short-lived cache keyed by path/root/config/root metadata. Deferred results are suggestions accepted at the next command-time project lookup, not background project reassignments. It skips common generated/cache directories by default. Set `.typstmain` or `:TypstSetMain` for deterministic large projects; disable import scan on slow remote trees. |
+| Project index | `project.index.max_files`, `project.index.max_entries`, `project.index.max_depth`, `project.index.max_file_bytes`, `project.index.large_file_policy`, `project.index.fs_watchers` | Lower graph caps on generated or remote projects. Keep `"skip"` for the cheapest unloaded-file behavior. Use `"headings-only"` when headings/imports matter, but it still reads oversized files. Use `"scan"` only for trusted projects where full oversized-file indexing is worth the cost. |
 | Completion scans | `completion.path_scan_entry_max`, `completion.path_scan_max`, `completion.path_scan_cache_ms`, `completion.package_scan_max`, `completion.csl_scan_max`, `completion.font_scan_timeout_ms` | Lower caps when path/package completion is noisy. Set `path_scan_cache_ms = 0` to disable the brief directory cache; set `font_scan_timeout_ms = 0` to skip the `typst fonts` scan. |
 | Conceal/rendering | `conceal.enabled`, `conceal.viewport_margin`, `conceal.categories`, `conceal.renderer.mode`, `conceal.renderer.image.enabled` | Disable categories you do not use before disabling conceal entirely. Reduce `viewport_margin` for very large buffers; image conceal is opt-in and should stay off unless terminal image rendering is part of the workflow. |
-| Tinymist and async providers | `integrations.tinymist.lsp`, provider `timeout_ms` fields, `diagnostics.source` | Use `"detect"` if another plugin owns Tinymist startup. Prefer bounded provider timeouts and inspect stale callbacks or retained leases through `:TypstInfo!` and `:TypstLog`. |
+| Tinymist and async providers | `integrations.tinymist.lsp`, `completion.tinymist_timeout_ms`, provider `timeout_ms` fields, `diagnostics.source` | Use `"detect"` if another plugin owns Tinymist startup. Prefer bounded provider timeouts and inspect stale callbacks or retained leases through `:TypstInfo!` and `:TypstLog`. |
 | Native browser preview | `preview.browser.server`, `preview.browser.refresh_ms`, `preview.browser.max_artifact_bytes` | The local server caps headers and artifact size, then streams under-cap artifacts. Keep the cap enabled unless previewing trusted local artifacts in a controlled session. |
 
 Use `:TypstInfo!`, `:TypstStatusAll!`, `:TypstDoctor`, `:TypstBugReport`,

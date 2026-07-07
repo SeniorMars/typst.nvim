@@ -89,6 +89,24 @@ typst.nvim should detect it and avoid stealing LSP startup ownership.
 Global compatibility functions and installed experimental helpers remain
 available through the reset phase. They are not stable unless they appear in
 the `API.md` stable-symbol block and `require("typst").stable_symbols()`.
+Owned Neovim expression callbacks are limited to the documented
+`typst_nvim_omnifunc`, `typst_nvim_indentexpr`, `typst_nvim_formatexpr`,
+`typst_nvim_foldexpr`, and `typst_nvim_foldtext` globals. typst.nvim does not
+overwrite an existing non-owned `_G.typst_nvim_*` value, and reset only removes
+values it still owns.
 
 After `1.0`, removing a global compatibility helper requires at least one
 minor release of deprecation warning or an explicit major-version decision.
+
+## Architecture Budget
+
+Stable-core hardening is subtractive. Approved architecture changes are limited
+to one reset owner, one preview controller boundary, one declarative runtime API
+policy source, one pending/cancel contract, and one output lease owner. Larger
+frameworks are deferred unless they replace existing owners in the same change.
+
+Do not add a generic task framework, UI framework, provider marketplace/spec
+DSL, broad picker framework, new event bus, or generated-docs pipeline for
+internal modules during stable-core hardening. These may be reconsidered only
+with a deletion plan and contract tests proving that older overlapping paths
+were removed.

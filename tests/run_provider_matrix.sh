@@ -14,9 +14,11 @@ compiler_specs=(
   tests/unit/provider_adapter_cancel_style_spec.lua
   tests/unit/provider_adapter_late_duplicate_spec.lua
   tests/unit/provider_adapter_invalid_handle_spec.lua
+  tests/unit/provider_adapter_handle_classification_spec.lua
   tests/integration/compiler/provider_spec.lua
   tests/unit/provider_api_spec.lua
   tests/integration/compiler/generic_provider_spec.lua
+  tests/integration/compiler/generic_invalid_output_path_spec.lua
 )
 
 async_specs=(
@@ -29,6 +31,8 @@ async_specs=(
 
 workflow_specs=(
   tests/unit/export_spec.lua
+  tests/unit/export_epoch_token_spec.lua
+  tests/unit/workflow_safe_output_path_spec.lua
   tests/integration/render/render_spec.lua
   tests/unit/render_generation_spec.lua
   tests/unit/output_policy_spec.lua
@@ -37,6 +41,7 @@ workflow_specs=(
 tools_viewer_specs=(
   tests/integration/viewer_spec.lua
   tests/integration/preview/delegation_spec.lua
+  tests/integration/tinymist/stale_callbacks_spec.lua
   tests/unit/tinymist_format_async_spec.lua
   tests/unit/format_async_spec.lua
   tests/unit/format_lint_spec.lua

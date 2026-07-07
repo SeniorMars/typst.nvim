@@ -25,12 +25,15 @@ end
 
 local policy = read("docs/stability-policy.md")
 for _, text in ipairs({
+    "Scope And Non-Goals",
+    "Stability Tiers",
     "No silent wrong project",
     "No orphaned user state",
     "No hidden destructive cleanup",
     "Compatibility Matrix",
     "API And Deprecation Policy",
     "Feature Freeze Rule",
+    "Subtractive Architecture Rule",
 }) do
     assert(
         policy:find(text, 1, true),
@@ -66,6 +69,7 @@ for _, text in ipairs({
     "Event Payload Compatibility",
     "Tinymist Boundary",
     "Compatibility Functions",
+    "Architecture Budget",
 }) do
     assert(
         decisions:find(text, 1, true),

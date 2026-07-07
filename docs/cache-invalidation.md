@@ -19,7 +19,7 @@ status hook should be treated as a lifecycle change.
 | Conceal match chunks | conceal query engine | buffer changedtick, parser changes, config/categories, custom rules | conceal refresh/cache clear |
 | Conceal shadow cache | conceal shadow collector | syntax signature, parser callbacks, custom symbol rules | conceal refresh/cache clear |
 | Preview browser artifact state | native browser preview | preview refresh, artifact path/mtime/size changes, stop/reset | preview stop/reset |
-| Operation registry | `typst.core.operation` | operation finish/cancel/retain | operation reset/resource supervisor |
+| Operation registry | `typst.core.operation` | operation finish/cancel/retain | operation reset/resource manager |
 
 Output leases and lock files are not caches. They are ownership records and
 must be released only by the resource/output owner rules.

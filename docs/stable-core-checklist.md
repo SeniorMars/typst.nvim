@@ -50,6 +50,8 @@ the feature patch updates the matching tests and docs in the same change.
 ## Merge policy
 
 - [ ] No new feature PR merges while any stable-core checklist item is failing.
+- [ ] Architecture changes remove duplicate ownership or replace an older
+      contract; they do not add a parallel framework without a deletion plan.
 - [ ] Any new async, process, or provider feature adds a reset or cancel test.
 - [ ] Any new generated-output feature adds an output-lock test.
 - [ ] Any new command updates help docs or generated command docs.

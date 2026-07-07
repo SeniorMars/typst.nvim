@@ -35,7 +35,7 @@ has succeeded. If reload fails, command/API callers receive a structured
 membership when possible.
 
 Transition snapshots use `previous_stop_requested` for old-project cleanup. That
-field means typst.nvim invoked the supervisor stop/prune path; it is not a
+field means typst.nvim invoked the resource-manager stop/prune path; it is not a
 confirmed shutdown result. Confirmed compiler shutdown remains reported by the
 compiler/operation state and stop events.
 
@@ -105,9 +105,9 @@ then records retained or forced state instead of pretending external work was
 confirmed stopped. Late provider callbacks after reset are stale unless they
 match the live project instance and generation.
 
-Cancellation call style and result normalization are owned by `typst.core.cancel`
-for project operations and should be reused by new async owners. A result may be
+Cancellation call style and result normalization are owned by
+`typst.core.pending` and should be reused by new async owners. A result may be
 reported as confirmed stopped only when the cancel path returns a terminal
-confirmation; missing results, pending stops, retained orphans, and wrong
-receiver fallbacks stay unconfirmed until a later owner-specific result proves
-otherwise.
+confirmation; missing results, pending stops, retained orphans, and missing
+explicit receiver styles stay unconfirmed until a later owner-specific result
+proves otherwise.

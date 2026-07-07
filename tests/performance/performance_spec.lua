@@ -4,7 +4,7 @@ vim.opt.runtimepath:prepend(root)
 local conceal = require("typst.conceal")
 local perf = require("tests.performance_report")
 local telemetry = require("typst.core.telemetry")
-local toc = require("typst.edit.toc")
+local toc = require("typst.navigation.toc")
 local typst = require("typst")
 
 typst.reset()

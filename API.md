@@ -180,6 +180,15 @@ graphs. When an explicit source path is supplied but is not associated with any
 loaded buffer or existing project graph, they return
 `source_path_not_in_project` instead of falling back to the focused project.
 
+When an action API with a callback is blocked by an in-progress deferred project
+resolution, the wrapper settles the callback with a structured
+`{ ok = false, reason = "resolution_pending", ... }` payload and returns that
+payload to the caller. Without a callback, the same `nil, err` convention used
+by other resolution failures is preserved for stable `nil_error` endpoints.
+`compile`, `compile_selected`, `watch`, `view`, and preview action helpers share
+this policy so callers can distinguish “try again after project resolution”
+from ordinary `no_project` failures.
+
 ## Stable Entry Points
 
 The supported setup entry point is:
@@ -1356,7 +1365,16 @@ completion.
 `blink_source(opts)` return small source objects that call the same completion
 service; typst.nvim does not own or configure the completion frontend itself.
 Typst buffers install `v:lua.typst_nvim_omnifunc` as `omnifunc` when no other
-omnifunc is already set. The project-index fallback includes syntactic labels,
+omnifunc is already set. typst.nvim also owns
+`v:lua.typst_nvim_indentexpr`, `v:lua.typst_nvim_formatexpr`,
+`v:lua.typst_nvim_foldexpr`, and `v:lua.typst_nvim_foldtext` for
+buffer/window-local expression callbacks. The global installer refuses to
+overwrite existing non-typst `_G.typst_nvim_*` functions; runtime reset removes
+only globals still owned by typst.nvim, and setup reinstalls missing owned
+callbacks. If reset retains projects because live resources could not be
+stopped, owned expression globals are preserved so retained buffers can keep
+working; a force reset removes owned globals once typst.nvim discards retained
+state. The project-index fallback includes syntactic labels,
 references, bibliography keys, local `#let` declarations, direct imports, local
 module-alias members, local `#include` `.typ` traversal, and referenced file
 paths. In math context, symbol

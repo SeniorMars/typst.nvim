@@ -11,6 +11,7 @@ specs=(
   tests/performance/startup_spec.lua
   tests/performance/performance_spec.lua
   tests/performance/large_project_performance_spec.lua
+  tests/performance/large_index_traversal_budget_spec.lua
   tests/unit/source_map_cache_signature_spec.lua
 )
 

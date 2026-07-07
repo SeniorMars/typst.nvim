@@ -2257,6 +2257,9 @@ Defaults: >
       index = {
         fs_watchers = "auto",
         max_file_bytes = 1024 * 1024,
+        max_files = 512,
+        max_entries = 4096,
+        max_depth = 32,
         large_file_policy = "skip",
       },
     },
@@ -2984,9 +2987,11 @@ root marker is found, ancestor scanning is capped by
 `project.import_scan_max_depth`. Package imports such as
 `@preview/name:version` are ignored by this resolver.
 Buffer attach defers this bounded scan: the buffer first attaches through the
-later heuristic with `resolution_pending = "import_scan"`, then a scheduled
-scan reassigns it if a unique importing main is found. Commands force a pending
-scan before compile, watch, preview, or navigation uses the project.
+later heuristic with `resolution_pending = "import_scan"`, then an incremental
+scheduled scan records a suggested main if a unique importing main is found.
+The buffer is not reassigned in the background. The next command-time project
+lookup may accept the completed suggestion before compile, watch, preview, or
+navigation uses the project.
 
 Set `indent.enabled = false` to leave Typst buffer indentation untouched.
 
@@ -3099,7 +3104,15 @@ source entrypoints, typst.nvim-specific optional `[tool.typst-docs]` resource
 hints, package homepage/repository links, and Typst Universe pages.
 
 Typst buffers install `v:lua.typst_nvim_omnifunc` as `omnifunc` when no other
-omnifunc is already configured. In semantic Typst contexts, completion asks
+omnifunc is already configured. typst.nvim also owns
+`v:lua.typst_nvim_indentexpr`, `v:lua.typst_nvim_formatexpr`,
+`v:lua.typst_nvim_foldexpr`, and `v:lua.typst_nvim_foldtext` for
+buffer/window-local expression callbacks. The global installer does not
+overwrite existing non-typst `_G.typst_nvim_*` functions. Runtime reset removes
+only globals still owned by typst.nvim, and setup reinstalls missing owned
+callbacks. If reset retains projects because live resources could not be
+stopped, owned expression globals are preserved until a force reset or a later
+non-retained reset can remove them safely. In semantic Typst contexts, completion asks
 attached Tinymist clients for `textDocument/completion` first. Pass
 `include_tinymist = false` in Lua calls to skip the LSP request. The fallback
 completion source combines a syntactic project index with the bundled symbol
@@ -3371,7 +3384,7 @@ The intended ownership model is:
   `typst.project.store`;
 - buffer hook ownership: `typst.project.attachments`;
 - live resource liveness migration: `typst.resources.session` and
-  `typst.resources.supervisor`;
+  `typst.runtime.resource_manager`;
 - generated output leases: `typst.resources.outputs`;
 - compile/watch state: `typst.compiler`;
 - compiler result fanout: `typst.compiler.fanout` and
@@ -3393,8 +3406,7 @@ file moves:
 
 - resolver code should not mutate the registry;
 - attachment code should go through `project.attachments`;
-- reset/exit/prune cleanup should go through `resources.supervisor`, which is
-  the cleanup entry point while ownership migrates behind it;
+- reset/exit/prune cleanup should go through `runtime.resource_manager`;
 - project code should not publish diagnostics directly;
 - output-producing workflows should acquire/release leases through
   `resources.outputs`;
@@ -3424,17 +3436,21 @@ bounded by the file and entry caps. It skips directory basenames listed in
 `project.import_scan_skip_dirs` before spending filesystem-entry budget, is
 kept in a short-lived cache keyed by path, root, config generation, root
 metadata, and scan limits, and |:TypstClearCache| clears it immediately. Buffer
-attach defers the scan so opening a leaf file can use a fast fallback first;
-command paths force any pending scan before they operate.
+attach runs the deferred scan incrementally so opening a leaf file can use a
+fast fallback first; completed deferred scans record suggestions that are
+accepted only on a later command-time project lookup.
 When a scan root exceeds the entry cap, typst.nvim abandons that import-scan
 attempt and falls back to later main-file heuristics before candidate files are
 read.
 If deferred import scanning is still too expensive, inspect |:TypstInfo|, lower
 `project.import_scan_max_entries`, disable `project.import_scan`, or set a
 `.typstmain`/`:TypstSetMain` decision.
-For project indexing, `project.index.large_file_policy = "headings-only"` avoids
-expensive label/reference/path scans for oversized unloaded files, but it still
-reads those files to recover headings and local imports/includes.
+For project indexing, `project.index.max_files`, `project.index.max_entries`,
+and `project.index.max_depth` bound import-graph traversal. If a cap is hit,
+`:TypstStatus` and `:TypstInfo` report a partial index and the first skipped
+path. `project.index.large_file_policy = "headings-only"` avoids expensive
+label/reference/path scans for oversized unloaded files, but it still reads
+those files to recover headings and local imports/includes.
 
 Window feature application is idempotent by buffer and window signatures so
 ordinary `WinEnter`/`BufWinEnter` events do not repeatedly reapply folds and

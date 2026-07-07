@@ -8,13 +8,13 @@ operating systems, or large-project latency.
 
 `tests/run_stability_gate.sh` is the feature-freeze gate for lifecycle-critical
 contracts. It runs a focused set of API, command, cache, output-lock, provider,
-process-tree, project lifecycle, compiler lifecycle, watch, resource-supervisor,
+process-tree, project lifecycle, compiler lifecycle, watch, resource-manager,
 and native-preview fast-event specs. This gate should stay short enough for
 every pull request and strict enough to block new feature work when core
 stability regresses.
 
 `tests/run_lifecycle_matrix.sh` is the broader lifecycle matrix. It covers
-attach/detach, compiler, watch, preview, process, and resource-supervisor
+attach/detach, compiler, watch, preview, process, and resource-manager
 combinations that are too broad for the short stability gate but still need a
 named CI lane before stable-core release.
 

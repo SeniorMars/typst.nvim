@@ -104,6 +104,17 @@ assert(
     blocker_kinds.operation_retained and blocker_kinds.output_lease,
     "Typst status should expose retained-operation and output-lease blockers"
 )
+local saw_recovery_command = false
+for _, blocker in ipairs(snapshot.blockers or {}) do
+    if blocker.command or blocker.recovery then
+        saw_recovery_command = true
+        break
+    end
+end
+assert(
+    saw_recovery_command,
+    "Typst status should expose manager recovery commands for blockers"
+)
 _, status_lines = typst.ui.status_report({ echo = false })
 local status_text = table.concat(status_lines, "\n")
 assert(
@@ -111,6 +122,10 @@ assert(
         and status_text:find("operation_retained", 1, true)
         and status_text:find("output_lease", 1, true),
     "status_report should list resource blockers"
+)
+assert(
+    status_text:find("recovery=", 1, true),
+    "status_report should list blocker recovery commands"
 )
 output_ownership.release(blocker_lease)
 operations.finish(live_project, retained, {

@@ -93,6 +93,24 @@ filter so a broad bang cannot delete unrelated external locks.
 
 ## Operation Cancellation
 
+`typst.core.operation` owns process-backed operations that are not already
+represented by a project operation record. Runtime reset calls
+`core.operation.reset()` through `resources.session` and
+`runtime.resource_manager`; forced reset abandons unresolved callbacks after the
+cancel attempt so late process exits cannot mutate stale project/cache state.
+`resources.session.global_snapshot()` is the runtime-wide liveness surface for
+global operation counts and blockers. New long-running work should still prefer
+a project operation record or resource-session owner when a project exists.
+
+## Buffer Path Selection
+
+When multiple loaded buffers share the same file path, typst.nvim path lookup
+prefers the current buffer if it is one of the matching loaded buffers.
+Otherwise it chooses the highest-numbered loaded buffer. APIs that must operate
+on a particular source buffer must pass `bufnr`; path-only lookup is a
+best-effort compatibility policy for diagnostics, source sync, bibliography,
+and completion callers.
+
 `typst.project.services.operations.cancel_project()` returns both counters and
 per-record `outcomes`. The outcome names are stable internal policy:
 
@@ -107,6 +125,14 @@ per-record `outcomes`. The outcome names are stable internal policy:
 Reset and exit cleanup may report retained or failed outcomes, but they must not
 silently prune a project while retained operations or active leases still keep
 the project discoverable.
+
+## Compiler Output Paths
+
+Workflow entry points must not throw for user-configured output paths. The
+low-level `compiler.output_path.output_path()` helper remains strict, but
+compile/watch/export-style controllers should call the non-throwing safe helper
+and return a structured `output_path_invalid` result before acquiring an output
+lease or spawning a process.
 
 ## Conceal
 
