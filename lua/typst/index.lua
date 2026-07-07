@@ -1,9 +1,9 @@
-local aggregate = require("typst.project.index.aggregate")
+local aggregate = require("typst.project.aggregate")
 local heading_scanner = require("typst.project.headings")
-local index_cache = require("typst.project.index.cache")
-local index_files = require("typst.project.index.files")
-local index_providers = require("typst.project.index.providers")
-local index_traversal = require("typst.project.index.traversal")
+local index_cache = require("typst.project.index_cache")
+local index_files = require("typst.project.index_files")
+local index_providers = require("typst.project.index_providers")
+local index_traversal = require("typst.project.index_traversal")
 local import_enrichment = require("typst.project.imports")
 local project_context = require("typst.project.context")
 local project_store = require("typst.project.store")
@@ -122,6 +122,7 @@ local function collect_impl(opts)
         -- but the traversal itself is cheap after file records are cached and
         -- preserves the semantic-provider contract.
         local traversal = index_traversal.collect(project)
+        project_index.traversal = vim.deepcopy(traversal.summary or {})
         return merge_semantic_overlay(project, syntactic, opts, traversal)
     end
 
@@ -148,6 +149,7 @@ local function collect_impl(opts)
     end
 
     local traversal = index_traversal.collect(project)
+    project_index.traversal = vim.deepcopy(traversal.summary or {})
     local signature = index_traversal.signature(project, traversal)
         .. "\nindex_providers\n"
         .. tostring(project_index.provider_generation or 0)
@@ -171,6 +173,8 @@ local function collect_impl(opts)
         project_index.aggregate.bibliography_count =
             vim.tbl_count(traversal.bibliography_records or {})
         project_index.aggregate.watched_paths = watched_paths
+        project_index.aggregate.traversal =
+            vim.deepcopy(traversal.summary or {})
         index_cache.sync_file_watchers(project_index, watched_paths)
         local buffer_map = util.loaded_buffers_by_path()
         project_index.buffer_ticks = index_cache.current_buffer_ticks(
@@ -225,6 +229,7 @@ local function collect_impl(opts)
                 traversal.bibliography_records or {}
             ),
             watched_paths = watched_paths,
+            traversal = vim.deepcopy(traversal.summary or {}),
         }
         index_cache.sync_file_watchers(project_index, watched_paths)
         local buffer_map = util.loaded_buffers_by_path()

@@ -3,10 +3,52 @@ vim.opt.runtimepath:prepend(root)
 
 local typst = require("typst")
 local log = require("typst.core.log")
+local project_registry = require("typst.project")
 local state_store = require("typst.core.state")
 local project_store = require("typst.project.store")
 local project_services = require("typst.project.services")
 local util = require("typst.core.util")
+
+local function wait_for_import_scan_finished(bufnr, message)
+    if bufnr == nil or bufnr == 0 then
+        bufnr = vim.api.nvim_get_current_buf()
+    end
+    assert(
+        vim.wait(1000, function()
+            local state = project_registry.get(bufnr)
+            return state ~= nil and state.resolution_pending ~= "import_scan"
+        end, 10),
+        message
+    )
+    return assert(typst.project.get(bufnr), message)
+end
+
+local function accept_import_scan_suggestion(expected_main, message)
+    local bufnr = vim.api.nvim_get_current_buf()
+    local snapshot = assert(typst.project.get(bufnr), message)
+    if util.same_path(snapshot.main, expected_main) then
+        return snapshot
+    end
+    assert(
+        vim.wait(1000, function()
+            local state = project_registry.get(bufnr)
+            local resolution = state
+                    and state.resolutions
+                    and state.resolutions[bufnr]
+                or nil
+            local suggestion = resolution and resolution.import_scan_suggestion
+            return state ~= nil
+                and state.resolution_pending == nil
+                and type(suggestion) == "table"
+                and util.same_path(suggestion.main, expected_main)
+        end, 10),
+        message
+    )
+    snapshot = assert(typst.project.get(bufnr), message)
+    assert(util.same_path(snapshot.main, expected_main), message)
+    return snapshot
+end
+
 typst.reset()
 typst.setup({
     root = function()
@@ -394,7 +436,10 @@ typst.setup({
 })
 vim.cmd.edit(vim.fn.fnameescape(scan_chapter))
 vim.b.typst_main = nil
-local scan_project = typst.project.get(0)
+local scan_project = accept_import_scan_suggestion(
+    scan_main,
+    "import scan should suggest the referencing project main"
+)
 local scan_resolution = scan_project.resolutions[vim.api.nvim_get_current_buf()]
 assert(
     scan_project.root == util.normalize(scan_root),
@@ -439,7 +484,10 @@ typst.setup({
 })
 vim.cmd.edit(vim.fn.fnameescape(dot_scan_leaf))
 vim.b.typst_main = nil
-local dot_scan_project = typst.project.get(0)
+local dot_scan_project = accept_import_scan_suggestion(
+    dot_scan_main,
+    "import scan should suggest Typst mains under ordinary dot directories"
+)
 assert(
     dot_scan_project.root == util.normalize(dot_scan_root),
     "import scan should not treat ordinary hidden directories as skipped roots"
@@ -473,7 +521,11 @@ typst.setup({
 })
 vim.cmd.edit(vim.fn.fnameescape(ambiguous_chapter))
 vim.b.typst_main = nil
-local ambiguous_project = typst.project.get(0)
+typst.project.get(0)
+local ambiguous_project = wait_for_import_scan_finished(
+    0,
+    "ambiguous import scan should finish without a suggestion"
+)
 local ambiguous_resolution =
     ambiguous_project.resolutions[vim.api.nvim_get_current_buf()]
 assert(
@@ -505,6 +557,10 @@ typst.setup({
 vim.cmd.edit(vim.fn.fnameescape(exact_limit_leaf))
 vim.b.typst_main = nil
 typst.project.get(0)
+wait_for_import_scan_finished(
+    0,
+    "exact-limit import scan should finish before log assertions"
+)
 for _, entry in ipairs(log.entries()) do
     assert(
         entry.message ~= "import scan reached Typst file limit",
@@ -533,6 +589,10 @@ typst.setup({
 vim.cmd.edit(vim.fn.fnameescape(limit_leaf))
 vim.b.typst_main = nil
 typst.project.get(0)
+wait_for_import_scan_finished(
+    0,
+    "limit import scan should finish before log assertions"
+)
 local saw_scan_limit = false
 for _, entry in ipairs(log.entries()) do
     if
@@ -569,7 +629,10 @@ typst.setup({
 })
 vim.cmd.edit(vim.fn.fnameescape(unicode_chapter))
 vim.b.typst_main = nil
-local unicode_project = typst.project.get(0)
+local unicode_project = accept_import_scan_suggestion(
+    unicode_main,
+    "import scan should suggest Unicode main files"
+)
 local unicode_resolution =
     unicode_project.resolutions[vim.api.nvim_get_current_buf()]
 assert(
@@ -608,7 +671,10 @@ assert(
 
 vim.cmd.edit(vim.fn.fnameescape(scan_chapter))
 vim.b.typst_main = nil
-scan_project = typst.project.get(0)
+scan_project = accept_import_scan_suggestion(
+    scan_main,
+    "import scan should restore the referencing main before toggle tests"
+)
 
 local local_toggle = typst.project.toggle_main({ notify = false })
 assert(

@@ -191,48 +191,32 @@ vim.fn.mkdir(outside_output_dir, "p")
 config.unsafe_get().output_dir = outside_output_dir
 
 vim.b.typst_main = main_commit_b
-local commit_failed_reload, commit_failed_err = typst.project.reload_state({
+local commit_reloaded, commit_reload_err = typst.project.reload_state({
     notify = false,
 })
 
 assert(
-    commit_failed_reload == nil,
-    "reload should fail when commit output validation fails"
+    commit_reloaded and commit_reloaded.main == main_commit_b,
+    "reload should tolerate invalid planned output and keep lifecycle stable"
 )
 assert(
-    type(commit_failed_err) == "table"
-        and commit_failed_err.reason == "reload_failed"
-        and commit_failed_err.stage == "commit"
-        and commit_failed_err.rollback_ok == true,
-    "commit failure should be structured and should roll back"
+    commit_reload_err == nil,
+    "safe planned-output resolution should not make reload fail"
 )
 
 local commit_current =
     project_store.project_for_buffer(vim.api.nvim_get_current_buf())
 assert(
-    commit_current and commit_current.main == main_commit_a,
-    "commit failure rollback should restore the original project"
+    commit_current and commit_current.main == main_commit_b,
+    "reload should move to the requested main despite invalid planned output"
 )
-
-local failed_candidate_key =
-    project_store.project_key(fixture_root_commit, main_commit_b)
 assert(
-    project_store.get(failed_candidate_key) == nil,
-    "failed reload candidate should not remain as a stale project"
+    typst_test_compiler(commit_current).output == nil,
+    "invalid planned output should not be stored on the compiler service"
 )
 assert(
     buffer_autocmd_count(commit_bufnr) == commit_autocmd_count,
-    "commit failure rollback should restore previous buffer autocmds"
-)
-local commit_restored_features =
-    core_lifecycle.apply_buffer_features_all_windows(commit_bufnr)
-assert(
-    commit_restored_features.buffer == false,
-    "commit failure rollback should restore buffer feature signatures"
-)
-assert(
-    commit_restored_features.window == false,
-    "commit failure rollback should restore window feature signatures"
+    "safe planned-output reload should preserve one buffer autocmd set"
 )
 
 typst.reset()

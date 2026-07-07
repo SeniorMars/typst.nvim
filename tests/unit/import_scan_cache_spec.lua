@@ -112,15 +112,15 @@ local cached_capped = root_discovery.import_scan_main(
     "buffer directory",
     capped_opts
 )
-assert(cached_capped == nil, "cached entry-capped import scan should stay nil")
+assert(cached_capped == nil, "entry-capped import scan should stay nil")
 local cached_capped_stats = root_discovery._import_scan_stats()
 assert(
-    cached_capped_stats.cache_hits == 1,
-    "entry-capped nil import scan should be cached"
+    cached_capped_stats.cache_hits == 0,
+    "entry-capped nil import scan should not be cached as not_found"
 )
 assert(
-    cached_capped_stats.scans == capped_stats.scans,
-    "cached entry-capped import scan should not rescan"
+    cached_capped_stats.scans == capped_stats.scans + 1,
+    "entry-capped import scan should rescan to preserve abort status"
 )
 
 root_discovery._clear_import_scan_cache()

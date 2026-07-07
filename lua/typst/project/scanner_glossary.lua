@@ -1,4 +1,4 @@
-local scanner_helpers = require("typst.project.index.scanner_helpers")
+local scanner_helpers = require("typst.project.scanner_helpers")
 
 local M = {}
 

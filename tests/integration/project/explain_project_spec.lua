@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local root_discovery = require("typst.project.root")
+local registry = require("typst.project")
 local typst = require("typst")
 local util = require("typst.core.util")
 
@@ -44,6 +45,17 @@ local ok, err = xpcall(function()
 
     vim.cmd.edit(vim.fn.fnameescape(leaf))
     vim.bo.filetype = "typst"
+    local bufnr = vim.api.nvim_get_current_buf()
+    typst.project.detach(bufnr)
+    root_discovery._clear_import_scan_cache()
+    typst.project.attach(bufnr)
+    assert(
+        vim.wait(1000, function()
+            local state = registry.get(bufnr)
+            return state and state.resolution_pending == nil
+        end, 10),
+        "late import deferred scan should settle before explanation"
+    )
     local report, lines =
         typst.ui.explain_project({ echo = false, settle_pending = true })
     assert(report and report.ok, "explain_project should return a report")

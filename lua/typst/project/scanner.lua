@@ -1,9 +1,9 @@
-local aggregate = require("typst.project.index.aggregate")
+local aggregate = require("typst.project.aggregate")
 local heading_scanner = require("typst.project.headings")
-local index_files = require("typst.project.index.files")
-local index_paths = require("typst.project.index.paths")
-local scanner_glossary = require("typst.project.index.scanner_glossary")
-local scanner_helpers = require("typst.project.index.scanner_helpers")
+local index_files = require("typst.project.index_files")
+local index_paths = require("typst.project.index_paths")
+local scanner_glossary = require("typst.project.scanner_glossary")
+local scanner_helpers = require("typst.project.scanner_helpers")
 
 local M = {}
 

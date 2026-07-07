@@ -72,17 +72,34 @@ local ok, err = xpcall(function()
 
     local resolved = vim.wait(1000, function()
         local current = registry.get(bufnr)
-        return current ~= nil and util.same_path(current.main, main)
+        local resolution = current
+            and current.resolutions
+            and current.resolutions[bufnr]
+        local suggestion = resolution and resolution.import_scan_suggestion
+        return current ~= nil
+            and util.same_path(current.main, leaf)
+            and current.resolution_pending == nil
+            and suggestion
+            and util.same_path(suggestion.main, main)
     end, 10)
-    assert(resolved, "deferred import scan should resolve the importing main")
+    assert(resolved, "deferred import scan should suggest the importing main")
     project = assert(registry.get(bufnr), "deferred scan should keep project")
     assert(
-        project.resolutions[bufnr].main_source == "import scan",
-        "deferred project attach should record import-scan main source"
+        project.resolutions[bufnr].import_scan_status == "suggested",
+        "deferred project attach should record import-scan suggestion"
     )
     assert(
         project.resolution_pending == nil,
         "deferred import scan should clear project pending state"
+    )
+    project = assert(typst.project.get(bufnr))
+    assert(
+        util.same_path(project.main, main),
+        "command-time lookup should accept the deferred suggestion"
+    )
+    assert(
+        project.resolutions[bufnr].main_source == "import scan",
+        "accepted suggestion should record import-scan main source"
     )
     local first_stats = root_discovery._import_scan_stats()
     assert(first_stats.scans == 1, "first attach should run import scan")
@@ -103,17 +120,29 @@ local ok, err = xpcall(function()
     )
     resolved = vim.wait(1000, function()
         local current = registry.get(bufnr)
-        return current ~= nil and util.same_path(current.main, main)
+        local resolution = current
+            and current.resolutions
+            and current.resolutions[bufnr]
+        local suggestion = resolution and resolution.import_scan_suggestion
+        return current ~= nil
+            and util.same_path(current.main, leaf)
+            and suggestion
+            and util.same_path(suggestion.main, main)
     end, 10)
     assert(
         resolved,
-        "cached deferred import scan should resolve the importing main"
+        "cached deferred import scan should suggest the importing main"
     )
     local cached_resolved_project =
         assert(registry.get(bufnr), "cached deferred scan should keep project")
     assert(
+        util.same_path(cached_resolved_project.main, leaf),
+        "cached large import scan should not reassign in the background"
+    )
+    cached_resolved_project = assert(typst.project.get(bufnr))
+    assert(
         util.same_path(cached_resolved_project.main, main),
-        "cached large import scan should resolve the same main"
+        "cached large import scan suggestion should be accepted on lookup"
     )
     local second_stats = root_discovery._import_scan_stats()
     assert(
@@ -244,11 +273,23 @@ local ok, err = xpcall(function()
     )
     local skipped_resolved = vim.wait(1000, function()
         local current = registry.get(bufnr)
-        return current ~= nil and util.same_path(current.main, skipped_main)
+        local resolution = current
+            and current.resolutions
+            and current.resolutions[bufnr]
+        local suggestion = resolution and resolution.import_scan_suggestion
+        return current ~= nil
+            and util.same_path(current.main, skipped_leaf)
+            and suggestion
+            and util.same_path(suggestion.main, skipped_main)
     end, 10)
     assert(
         skipped_resolved,
-        "configured import-scan skip dirs should preserve entry budget for the real main"
+        "configured import-scan skip dirs should suggest the real main"
+    )
+    local accepted_skipped = assert(typst.project.get(bufnr))
+    assert(
+        util.same_path(accepted_skipped.main, skipped_main),
+        "configured import-scan skip-dir suggestion should be accepted on lookup"
     )
     local skipped_stats = root_discovery._import_scan_stats()
     assert(

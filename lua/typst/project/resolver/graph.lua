@@ -11,12 +11,30 @@ local M = {}
 ---@param resolve_opts table Resolver controls.
 ---@return table? candidate Existing-project candidate, if one matched.
 function M.existing_project(bufnr, path, resolve_opts)
+    resolve_opts = resolve_opts or {}
     local existing, ambiguous, graph_source = graph_match.existing_project_for(
         project_store.all(),
         path,
         resolve_opts.ignore_project_key
     )
     if existing then
+        local existing_resolution = existing.resolutions
+                and existing.resolutions[bufnr]
+            or nil
+        if
+            resolve_opts.import_scan == "defer"
+            and (
+                existing.resolution_pending == "import_scan"
+                or (
+                    existing_resolution
+                    and existing_resolution.resolution_pending
+                        == "import_scan"
+                )
+            )
+        then
+            return nil
+        end
+
         return {
             bufnr = bufnr,
             path = path,

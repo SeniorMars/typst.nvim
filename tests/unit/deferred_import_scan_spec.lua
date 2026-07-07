@@ -4,9 +4,33 @@ vim.opt.runtimepath:prepend(root)
 local registry = require("typst.project")
 local project_store = require("typst.project.store")
 local root_discovery = require("typst.project.root")
+local lifecycle = require("typst.project.lifecycle")
 local operations = require("typst.project.services.operations")
 local typst = require("typst")
 local util = require("typst.core.util")
+
+local function wait_for_suggestion(bufnr, expected_main)
+    return vim.wait(1000, function()
+        local state = registry.get(bufnr)
+        local resolution = state
+                and state.resolutions
+                and state.resolutions[bufnr]
+            or nil
+        local suggestion = resolution and resolution.import_scan_suggestion
+        return state ~= nil
+            and state.resolution_pending == nil
+            and suggestion ~= nil
+            and util.same_path(suggestion.main, expected_main)
+    end, 10)
+end
+
+local function assert_no_deferred_state(bufnr, message)
+    local state = lifecycle._deferred_import_scan_state()
+    assert(
+        state.tokens[bufnr] == nil and state.handles[bufnr] == nil,
+        message
+    )
+end
 
 typst.reset({ force = true })
 root_discovery._clear_import_scan_cache()
@@ -60,22 +84,51 @@ assert(
 assert(
     vim.wait(1000, function()
         local state = registry.get(bufnr)
+        local resolution = state
+                and state.resolutions
+                and state.resolutions[bufnr]
+            or nil
+        local suggestion = resolution and resolution.import_scan_suggestion
         return state ~= nil
-            and util.same_path(state.main, main)
+            and util.same_path(state.main, leaf)
             and state.resolution_pending == nil
+            and suggestion
+            and util.same_path(suggestion.main, main)
     end),
-    "initial attach should schedule and settle deferred import scan"
+    "initial attach should schedule and settle deferred import-scan suggestion"
 )
 assert(
     background_events[1]
         and background_events[1].resolution_pending == "import_scan",
     "initial attach event should expose pending resolution"
 )
+local background_resolved = assert(typst.project.get(bufnr))
+assert(
+    util.same_path(background_resolved.main, main),
+    "command-time lookup should accept the settled import-scan suggestion"
+)
+local background_transition =
+    ((background_resolved.services or {}).lifecycle or {}).last_transition
+assert(
+    background_transition
+        and background_transition.reason == "import scan suggestion accepted",
+    "accepted suggestion should record lifecycle transition metadata"
+)
+assert(
+    background_transition.previous_resolution
+        and util.same_path(background_transition.previous_resolution.buffer, leaf)
+        and background_transition.previous_resolution.import_scan_suggestion
+        and util.same_path(
+            background_transition.previous_resolution.import_scan_suggestion.main,
+            main
+        ),
+    "accepted suggestion transition should preserve previous resolution metadata"
+)
 assert(
     background_events[#background_events]
         and background_events[#background_events].resolution_pending == nil
         and util.same_path(background_events[#background_events].main, main),
-    "settled attach event should expose the resolved main"
+    "accepted suggestion should emit the resolved main"
 )
 vim.api.nvim_del_augroup_by_id(background_group)
 
@@ -132,8 +185,17 @@ local resolved = assert(
     "command-time project lookup should return a project"
 )
 assert(
+    util.same_path(resolved.main, leaf),
+    "lookup before scan completion should keep the fast fallback"
+)
+assert(
+    wait_for_suggestion(bufnr, main),
+    "deferred scan should settle a suggestion before command-time acceptance"
+)
+resolved = assert(typst.project.get(bufnr))
+assert(
     util.same_path(resolved.main, main),
-    "command-time project lookup should force pending import scan"
+    "command-time project lookup should accept completed import-scan suggestion"
 )
 assert(
     resolved.resolution_pending == nil,
@@ -195,6 +257,375 @@ assert(
     registry.get(bufnr) == nil,
     "reset should clear deferred import-scan tokens without reattaching stale buffers"
 )
+assert_no_deferred_state(bufnr, "reset should clear deferred scan local state")
+
+typst.reset({ force = true })
+root_discovery._clear_import_scan_cache()
+local original_import_scan_main_async = root_discovery.import_scan_main_async
+local fake_scan_called = false
+local fake_scan_cancelled = false
+local fake_scan_finish = nil
+local fake_scan_handle = {
+    pending = true,
+    on_finish = function(self_or_callback, maybe_callback)
+        fake_scan_finish = self_or_callback == fake_scan_handle
+                and maybe_callback
+            or self_or_callback
+        return fake_scan_handle
+    end,
+    cancel = function(self)
+        fake_scan_cancelled = true
+        self.pending = false
+        return true, { stopped = true, reason = "cancelled" }
+    end,
+}
+root_discovery.import_scan_main_async = function()
+    fake_scan_called = true
+    return fake_scan_handle
+end
+typst.setup({
+    root_markers = {},
+    output_dir = typst_test_cache_path(
+        "deferred-import-scan-output-reset-handle"
+    ),
+    project = {
+        import_scan = true,
+        import_scan_max_depth = 1,
+        import_scan_max_files = 20,
+    },
+})
+vim.cmd.edit(vim.fn.fnameescape(leaf))
+bufnr = vim.api.nvim_get_current_buf()
+typst.project.detach(bufnr)
+root_discovery._clear_import_scan_cache()
+local fake_handle_pending =
+    assert(typst.project.attach(bufnr), "buffer should attach before reset")
+assert(
+    fake_handle_pending.resolution_pending == "import_scan",
+    "fake-handle fixture should start with pending import scan"
+)
+assert(
+    vim.wait(1000, function()
+        return fake_scan_called
+    end, 10),
+    "deferred import scan should create a pending handle before reset"
+)
+typst.reset({ force = true })
+root_discovery.import_scan_main_async = original_import_scan_main_async
+assert(
+    fake_scan_cancelled,
+    "lifecycle reset should cancel pending deferred import-scan handles"
+)
+assert_no_deferred_state(
+    bufnr,
+    "reset should clear pending deferred scan handle state"
+)
+if type(fake_scan_finish) == "function" then
+    fake_scan_finish({
+        ok = true,
+        found = true,
+        main = main,
+        root = project_root,
+        main_source = "import scan",
+        root_source = "import scan root",
+    })
+end
+vim.wait(80, function()
+    return false
+end)
+assert(
+    registry.get(bufnr) == nil,
+    "late deferred import-scan callback after reset should not reattach"
+)
+
+typst.reset({ force = true })
+root_discovery._clear_import_scan_cache()
+local throwing_import_scan_main_async = root_discovery.import_scan_main_async
+local throwing_scan_called = false
+root_discovery.import_scan_main_async = function()
+    throwing_scan_called = true
+    error("unit deferred import scan startup failure")
+end
+typst.setup({
+    root_markers = {},
+    output_dir = typst_test_cache_path(
+        "deferred-import-scan-output-startup-error"
+    ),
+    project = {
+        import_scan = true,
+        import_scan_max_depth = 1,
+        import_scan_max_files = 20,
+    },
+})
+vim.cmd.edit(vim.fn.fnameescape(leaf))
+bufnr = vim.api.nvim_get_current_buf()
+typst.project.detach(bufnr)
+root_discovery._clear_import_scan_cache()
+local startup_error_pending = assert(
+    typst.project.attach(bufnr),
+    "buffer should attach before startup-error scan"
+)
+assert(
+    startup_error_pending.resolution_pending == "import_scan",
+    "startup-error fixture should start with pending import scan"
+)
+local startup_error_cleared = vim.wait(1000, function()
+    local state = registry.get(bufnr)
+    local resolution = state and state.resolutions and state.resolutions[bufnr]
+        or nil
+    return throwing_scan_called
+        and state ~= nil
+        and state.resolution_pending == nil
+        and resolution ~= nil
+        and resolution.import_scan_status == "failed"
+end, 10)
+root_discovery.import_scan_main_async = throwing_import_scan_main_async
+assert(
+    startup_error_cleared,
+    "deferred import scan startup errors should clear pending state"
+)
+assert_no_deferred_state(
+    bufnr,
+    "deferred import scan startup errors should clear local token state"
+)
+
+typst.reset({ force = true })
+root_discovery._clear_import_scan_cache()
+local disabled_import_scan_main_async = root_discovery.import_scan_main_async
+local disabled_scan_called = false
+root_discovery.import_scan_main_async = function()
+    disabled_scan_called = true
+    return nil
+end
+typst.setup({
+    root_markers = {},
+    output_dir = typst_test_cache_path(
+        "deferred-import-scan-output-disabled"
+    ),
+    project = {
+        import_scan = true,
+        import_scan_max_depth = 1,
+        import_scan_max_files = 20,
+    },
+})
+vim.cmd.edit(vim.fn.fnameescape(leaf))
+bufnr = vim.api.nvim_get_current_buf()
+typst.project.detach(bufnr)
+root_discovery._clear_import_scan_cache()
+local disabled_pending = assert(
+    typst.project.attach(bufnr),
+    "buffer should attach before disabled scan"
+)
+assert(
+    disabled_pending.resolution_pending == "import_scan",
+    "disabled fixture should start with pending import scan"
+)
+local disabled_cleared = vim.wait(1000, function()
+    local state = registry.get(bufnr)
+    local resolution = state and state.resolutions and state.resolutions[bufnr]
+        or nil
+    return disabled_scan_called
+        and state ~= nil
+        and state.resolution_pending == nil
+        and resolution ~= nil
+        and resolution.import_scan_status == "disabled"
+end, 10)
+root_discovery.import_scan_main_async = disabled_import_scan_main_async
+assert(
+    disabled_cleared,
+    "deferred import scan disabled result should clear pending state"
+)
+assert_no_deferred_state(
+    bufnr,
+    "deferred import scan disabled result should clear local token state"
+)
+
+typst.reset({ force = true })
+root_discovery._clear_import_scan_cache()
+local reresolve_import_scan_main_async = root_discovery.import_scan_main_async
+local reresolve_scan_called = false
+local reresolve_scan_cancelled = false
+local reresolve_scan_handle = {
+    pending = true,
+    on_finish = function()
+        return reresolve_scan_handle
+    end,
+    cancel = function(self)
+        reresolve_scan_cancelled = true
+        self.pending = false
+        return true, { stopped = true, reason = "buffer_reresolved" }
+    end,
+}
+root_discovery.import_scan_main_async = function()
+    reresolve_scan_called = true
+    return reresolve_scan_handle
+end
+typst.setup({
+    root_markers = {},
+    output_dir = typst_test_cache_path(
+        "deferred-import-scan-output-reresolve-cancel"
+    ),
+    project = {
+        import_scan = true,
+        import_scan_max_depth = 1,
+        import_scan_max_files = 20,
+    },
+})
+vim.cmd.edit(vim.fn.fnameescape(leaf))
+bufnr = vim.api.nvim_get_current_buf()
+typst.project.detach(bufnr)
+root_discovery._clear_import_scan_cache()
+local reresolve_pending = assert(
+    typst.project.attach(bufnr),
+    "buffer should attach before reresolve cancellation"
+)
+local reresolve_pending_live = assert(
+    registry.get(bufnr),
+    "reresolve fixture should expose live pending project state"
+)
+assert(
+    reresolve_pending.resolution_pending == "import_scan",
+    "reresolve fixture should start with pending import scan"
+)
+assert(
+    vim.wait(1000, function()
+        return reresolve_scan_called
+    end, 10),
+    "deferred import scan should create a pending handle before reresolve"
+)
+util.set_buf_var(bufnr, "typst_main", main)
+local reresolved = assert(
+    typst.project.get(bufnr),
+    "command-time reresolve should return a project"
+)
+root_discovery.import_scan_main_async = reresolve_import_scan_main_async
+assert(
+    reresolve_scan_cancelled,
+    "command-time reresolve should cancel the pending deferred scan"
+)
+assert(
+    util.same_path(reresolved.main, main),
+    "command-time reresolve should honor the explicit main"
+)
+local reresolve_resolution = reresolve_pending_live.resolutions
+        and reresolve_pending_live.resolutions[bufnr]
+    or nil
+assert(
+    reresolve_pending_live.resolution_pending == nil
+        and (
+            reresolve_resolution == nil
+            or (
+                reresolve_resolution.import_scan_pending ~= true
+                and reresolve_resolution.resolution_pending == nil
+                and reresolve_resolution.import_scan_request == nil
+                and reresolve_resolution.import_scan_token == nil
+            )
+        ),
+    "reresolve cancellation should clear stale pending import-scan metadata: "
+        .. vim.inspect({
+            project_pending = reresolve_pending_live.resolution_pending,
+            resolution = reresolve_resolution,
+        })
+)
+assert_no_deferred_state(
+    bufnr,
+    "reresolve cancellation should clear local token state"
+)
+util.del_buf_var(bufnr, "typst_main")
+typst.reset({ force = true })
+root_discovery._clear_import_scan_cache()
+
+local failing_reresolve_import_scan_main_async =
+    root_discovery.import_scan_main_async
+local original_project_resolve = registry.resolve
+local failing_reresolve_scan_called = false
+local failing_reresolve_scan_cancelled = false
+local failing_reresolve_handle = {
+    pending = true,
+    on_finish = function()
+        return failing_reresolve_handle
+    end,
+    cancel = function(self)
+        failing_reresolve_scan_cancelled = true
+        self.pending = false
+        return true, { stopped = true, reason = "buffer_reresolved" }
+    end,
+}
+root_discovery.import_scan_main_async = function()
+    failing_reresolve_scan_called = true
+    return failing_reresolve_handle
+end
+typst.setup({
+    root_markers = {},
+    output_dir = typst_test_cache_path(
+        "deferred-import-scan-output-reresolve-failure"
+    ),
+    project = {
+        import_scan = true,
+        import_scan_max_depth = 1,
+        import_scan_max_files = 20,
+    },
+})
+vim.cmd.edit(vim.fn.fnameescape(leaf))
+bufnr = vim.api.nvim_get_current_buf()
+typst.project.detach(bufnr)
+root_discovery._clear_import_scan_cache()
+local failing_reresolve_pending = assert(
+    typst.project.attach(bufnr),
+    "buffer should attach before failing reresolve cancellation"
+)
+local failing_reresolve_live = assert(
+    registry.get(bufnr),
+    "failing reresolve fixture should expose live pending project state"
+)
+assert(
+    failing_reresolve_pending.resolution_pending == "import_scan",
+    "failing reresolve fixture should start with pending import scan"
+)
+assert(
+    vim.wait(1000, function()
+        return failing_reresolve_scan_called
+    end, 10),
+    "deferred import scan should create a pending handle before failing reresolve"
+)
+util.set_buf_var(bufnr, "typst_main", main)
+registry.resolve = function()
+    error("synthetic reresolve failure")
+end
+local failed_ok = pcall(typst.project.get, bufnr)
+registry.resolve = original_project_resolve
+root_discovery.import_scan_main_async = failing_reresolve_import_scan_main_async
+assert(
+    failed_ok == false,
+    "failing reresolve fixture should exercise the reresolve error path"
+)
+assert(
+    failing_reresolve_scan_cancelled,
+    "failing command-time reresolve should cancel pending deferred scan"
+)
+local failing_reresolve_resolution = failing_reresolve_live.resolutions
+        and failing_reresolve_live.resolutions[bufnr]
+    or nil
+assert(
+    failing_reresolve_live.resolution_pending == nil
+        and failing_reresolve_resolution
+        and failing_reresolve_resolution.import_scan_pending ~= true
+        and failing_reresolve_resolution.resolution_pending == nil
+        and failing_reresolve_resolution.import_scan_request == nil
+        and failing_reresolve_resolution.import_scan_token == nil,
+    "failing reresolve should clear stale pending import-scan metadata: "
+        .. vim.inspect({
+            project_pending = failing_reresolve_live.resolution_pending,
+            resolution = failing_reresolve_resolution,
+        })
+)
+assert_no_deferred_state(
+    bufnr,
+    "failing reresolve cancellation should clear local token state"
+)
+util.del_buf_var(bufnr, "typst_main")
+typst.reset({ force = true })
+root_discovery._clear_import_scan_cache()
 
 typst.setup({
     root_markers = {},
@@ -266,6 +697,10 @@ assert(
     path_changed_cleared,
     "deferred scan should clear pending state when buffer path changes"
 )
+assert_no_deferred_state(
+    bufnr,
+    "deferred scan path change should clear local token state"
+)
 
 typst.reset({ force = true })
 root_discovery._clear_import_scan_cache()
@@ -324,6 +759,10 @@ assert(
     command_pending.resolution_pending == "import_scan",
     "command fixture should start with pending import scan"
 )
+assert(
+    wait_for_suggestion(bufnr, main),
+    "command fixture should record a suggestion before compile"
+)
 local original_notify = vim.notify
 rawset(vim, "notify", function() end)
 local command_ok, command_err = pcall(function()
@@ -333,7 +772,7 @@ rawset(vim, "notify", original_notify)
 assert(command_ok, tostring(command_err))
 assert(
     command_calls[1] and util.same_path(command_calls[1].main, main),
-    ":TypstCompile should resolve pending import scan before provider call"
+    ":TypstCompile should accept completed import-scan suggestion before provider call"
 )
 assert(
     command_calls[1].method == "compile",
@@ -365,6 +804,10 @@ assert(
     watch_pending.resolution_pending == "import_scan",
     "watch fixture should start with pending import scan"
 )
+assert(
+    wait_for_suggestion(bufnr, main),
+    "watch fixture should record a suggestion before watch"
+)
 original_notify = vim.notify
 rawset(vim, "notify", function() end)
 local watch_ok, watch_err = pcall(function()
@@ -376,7 +819,7 @@ assert(
     command_calls[1]
         and command_calls[1].method == "start"
         and util.same_path(command_calls[1].main, main),
-    ":TypstWatch should resolve pending import scan before provider start"
+    ":TypstWatch should accept completed import-scan suggestion before provider start"
 )
 
 typst.reset({ force = true })
@@ -410,6 +853,10 @@ assert(
     preview_pending.resolution_pending == "import_scan",
     "preview fixture should start with pending import scan"
 )
+assert(
+    wait_for_suggestion(bufnr, main),
+    "preview fixture should record a suggestion before preview"
+)
 original_notify = vim.notify
 rawset(vim, "notify", function() end)
 local preview_ok, preview_err = pcall(function()
@@ -421,7 +868,7 @@ assert(
     preview_calls[1]
         and preview_calls[1].mode == "document"
         and util.same_path(preview_calls[1].main, main),
-    ":TypstPreview should resolve pending import scan before opening preview"
+    ":TypstPreview should accept completed import-scan suggestion before opening preview"
 )
 
 typst.reset({ force = true })
@@ -451,6 +898,10 @@ assert(
     toc_pending.resolution_pending == "import_scan",
     "TOC fixture should start with pending import scan"
 )
+assert(
+    wait_for_suggestion(bufnr, main),
+    "TOC fixture should record a suggestion before navigation"
+)
 original_notify = vim.notify
 rawset(vim, "notify", function() end)
 local toc_ok, toc_err = pcall(function()
@@ -463,7 +914,7 @@ assert(
     toc_state
         and toc_state.resolution_pending == nil
         and util.same_path(toc_state.main, main),
-    ":TypstToc should resolve pending import scan before collecting navigation"
+    ":TypstToc should accept completed import-scan suggestion before collecting navigation"
 )
 
 typst.reset({ force = true })
@@ -499,6 +950,10 @@ assert(
     pick_pending.resolution_pending == "import_scan",
     "picker fixture should start with pending import scan"
 )
+assert(
+    wait_for_suggestion(bufnr, main),
+    "picker fixture should record a suggestion before picker collection"
+)
 original_notify = vim.notify
 rawset(vim, "notify", function() end)
 local pick_ok, pick_err = pcall(function()
@@ -513,7 +968,7 @@ assert(
         and pick_state.resolution_pending == nil
         and util.same_path(pick_state.main, main)
         and util.same_path(pick_calls[1].main, main),
-    ":TypstPick should resolve pending import scan before collecting picker items"
+    ":TypstPick should accept completed import-scan suggestion before collecting picker items"
 )
 
 typst.reset({ force = true })
@@ -588,14 +1043,6 @@ vim.api.nvim_create_autocmd("User", {
             return
         end
         settled_attach_seen = true
-        vim.schedule(function()
-            if vim.api.nvim_buf_is_valid(bufnr) then
-                local ok, err = pcall(typst.compiler.watch, { bufnr = bufnr })
-                if not ok then
-                    watch_errors[#watch_errors + 1] = tostring(err)
-                end
-            end
-        end)
     end,
 })
 original_notify = vim.notify
@@ -608,6 +1055,20 @@ assert(
     event_pending.resolution_pending == "import_scan",
     "event-watch fixture should start with pending import scan"
 )
+assert(
+    wait_for_suggestion(bufnr, event_main),
+    "event-watch fixture should record a suggestion"
+)
+assert(
+    settled_attach_seen == false,
+    "deferred import scan should not emit a background settled attach event"
+)
+if vim.api.nvim_buf_is_valid(bufnr) then
+    local ok, err = pcall(typst.compiler.watch, { bufnr = bufnr })
+    if not ok then
+        watch_errors[#watch_errors + 1] = tostring(err)
+    end
+end
 local event_watch_ok = vim.wait(1000, function()
     return watch_calls[1] and util.same_path(watch_calls[1].main, event_main)
 end)
@@ -618,12 +1079,12 @@ assert(
     "attach-event handlers should be able to observe pending import scan"
 )
 assert(
-    settled_attach_seen,
-    "deferred import scan should emit a settled attach event"
+    settled_attach_seen == true,
+    "accepting a suggestion should emit the resolved attach event"
 )
 assert(
     event_watch_ok,
-    "settled attach event should let handlers start watch on the resolved main: "
+    "command-time watch should accept the suggested main: "
         .. table.concat(watch_errors, "; ")
 )
 

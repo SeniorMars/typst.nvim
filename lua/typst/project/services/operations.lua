@@ -1,10 +1,14 @@
 local log = require("typst.core.log")
-local cancel = require("typst.core.cancel")
 local pending = require("typst.core.pending")
 local core_result = require("typst.core.result")
+local provider_adapter = require("typst.integrations.provider_adapter")
 local services = require("typst.project.services")
 
 local M = {}
+
+local function cancel_handle(handle, opts, callback)
+    return pending.cancel(handle, opts, { callback = callback })
+end
 
 -- Per-project operation registry for user-triggered async work. Compiler/watch
 -- state owns the actual Typst processes; this layer gives commands a common
@@ -373,7 +377,7 @@ function M.cancel_project(project, opts)
             summary.total = summary.total + 1
             local handle = cancellable_handle(active_record)
             if handle then
-                local ok, cancel_result = cancel.call(handle, opts)
+                local ok, cancel_result = cancel_handle(handle, opts)
                 local raw_handle = active_record and active_record.handle
                 local operation = raw_handle and raw_handle.operation
                 if
@@ -505,18 +509,26 @@ local function terminal_result(result)
     if type(result) ~= "table" then
         return true
     end
-    if result.pending then
-        return false
+    local function cancelable_provider_handle(value)
+        return type(value) == "table"
+            and not provider_adapter.result_like(value)
+            and (
+                value.pending == true
+                or type(value.cancel) == "function"
+                or type(value.stop) == "function"
+                or type(value.kill) == "function"
+            )
     end
-    return result.ok ~= nil
-        or result.code ~= nil
-        or result.reason ~= nil
-        or result.stopped ~= nil
-        or result.idle ~= nil
-        or result.artifacts ~= nil
-        or result.outputs ~= nil
-        or result.path ~= nil
-        or result.output ~= nil
+    return provider_adapter.is_terminal_result(result, {
+        accept_table_result = true,
+        result_fields = {
+            artifacts = true,
+            output = true,
+            outputs = true,
+            path = true,
+        },
+        is_handle = cancelable_provider_handle,
+    })
 end
 
 local function copy_terminal_fields(proxy, result)
@@ -607,6 +619,20 @@ local function run(project, kind, callback, runner, opts)
         return runner(callback)
     end
 
+    if not opts.allow_during_reset then
+        local ok, manager = pcall(require, "typst.runtime.resource_manager")
+        if ok and manager.in_reset() then
+            local result = {
+                ok = false,
+                pending = false,
+                reason = "reset_in_progress",
+                message = "typst.nvim is resetting; operation was not started",
+            }
+            protected_callback(callback, result)
+            return result
+        end
+    end
+
     if not opts.allow_reentrant then
         local events = require("typst.core.events")
         if events.in_user_event() then
@@ -622,6 +648,20 @@ local function run(project, kind, callback, runner, opts)
                 cancel_style = "dot",
                 kind = kind,
             }
+            local function cancel_deferred(reason)
+                if proxy.finished == true then
+                    return
+                end
+                local result = {
+                    ok = false,
+                    pending = false,
+                    stopped = true,
+                    reason = reason or "reset",
+                    message = "Deferred Typst operation was cancelled by reset",
+                }
+                settle_deferred_proxy(proxy, result)
+                protected_callback(callback, result)
+            end
             proxy.cancel = function(cancel_opts, cancel_callback)
                 if actual then
                     local handle = actual.operation or actual
@@ -630,7 +670,7 @@ local function run(project, kind, callback, runner, opts)
                         and type(handle.cancel) == "function"
                     then
                         local stopped, result =
-                            cancel.call(handle, cancel_opts, cancel_callback)
+                            cancel_handle(handle, cancel_opts, cancel_callback)
                         if not (type(result) == "table" and result.pending) then
                             settle_deferred_proxy(proxy, result)
                         end
@@ -660,18 +700,38 @@ local function run(project, kind, callback, runner, opts)
                     })
                     return
                 end
-                actual = run(
-                    project,
-                    kind,
-                    callback,
-                    runner,
-                    vim.tbl_extend("force", opts, { allow_reentrant = true })
-                )
+                local ok, result = xpcall(function()
+                    return run(
+                        project,
+                        kind,
+                        callback,
+                        runner,
+                        vim.tbl_extend(
+                            "force",
+                            opts,
+                            { allow_reentrant = true }
+                        )
+                    )
+                end, debug.traceback)
+                if not ok then
+                    local failure = {
+                        ok = false,
+                        pending = false,
+                        reason = "exception",
+                        message = result,
+                    }
+                    settle_deferred_proxy(proxy, failure)
+                    protected_callback(callback, failure)
+                    error(result, 0)
+                end
+                actual = result
                 proxy.handle = actual
                 proxy.operation = type(actual) == "table" and actual.operation
                     or nil
                 subscribe_deferred_proxy(proxy, actual)
-            end)
+            end, {
+                on_cancel = cancel_deferred,
+            })
             return proxy
         end
     end
@@ -812,6 +872,18 @@ function M.stop(project, callback, notify)
         return missing_project_result("stop", callback)
     end
 
+    local manager_ok, manager = pcall(require, "typst.runtime.resource_manager")
+    if manager_ok and manager.in_reset() then
+        local result = {
+            ok = false,
+            pending = false,
+            reason = "reset_in_progress",
+            message = "typst.nvim is resetting; operation was not started",
+        }
+        protected_callback(callback, result)
+        return result
+    end
+
     local events = require("typst.core.events")
     if events.in_user_event() then
         local cancelled = false
@@ -823,10 +895,24 @@ function M.stop(project, callback, notify)
             cancel_style = "dot",
             kind = "stop",
         }
+        local function cancel_deferred(reason)
+            if proxy.finished == true then
+                return
+            end
+            local result = {
+                ok = false,
+                pending = false,
+                stopped = true,
+                reason = reason or "reset",
+                message = "Deferred Typst operation was cancelled by reset",
+            }
+            settle_deferred_proxy(proxy, result)
+            protected_callback(callback, result)
+        end
         proxy.cancel = function(cancel_opts, cancel_callback)
             if actual and type(actual.cancel) == "function" then
                 local stopped, result =
-                    cancel.call(actual, cancel_opts, cancel_callback)
+                    cancel_handle(actual, cancel_opts, cancel_callback)
                 if not (type(result) == "table" and result.pending) then
                     settle_deferred_proxy(proxy, result)
                 end
@@ -854,12 +940,28 @@ function M.stop(project, callback, notify)
                 })
                 return
             end
-            actual = M.stop(project, callback, notify)
+            local ok, result = xpcall(function()
+                return M.stop(project, callback, notify)
+            end, debug.traceback)
+            if not ok then
+                local failure = {
+                    ok = false,
+                    pending = false,
+                    reason = "exception",
+                    message = result,
+                }
+                settle_deferred_proxy(proxy, failure)
+                protected_callback(callback, failure)
+                error(result, 0)
+            end
+            actual = result
             proxy.handle = actual
             proxy.operation = type(actual) == "table" and actual.operation
                 or nil
             subscribe_deferred_proxy(proxy, actual)
-        end)
+        end, {
+            on_cancel = cancel_deferred,
+        })
         return proxy
     end
 

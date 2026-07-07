@@ -92,14 +92,25 @@ local function warning_lines(report)
     end
 
     local scan = import_scan_stage(report.stages)
-    if scan and (scan.status == "not_found" or scan.status == "deferred") then
+    if
+        scan
+        and (
+            scan.status == "not_found"
+            or scan.status == "deferred"
+            or scan.status == "suggested"
+        )
+    then
         warnings[#warnings + 1] = ("import scan is heuristic: it reads only the first %d lines of each candidate and recognizes literal #include/#import paths"):format(
             scan.line_limit or report.import_scan_line_limit or 500
         )
     end
+    if report.import_scan_suggestion then
+        warnings[#warnings + 1] =
+            "deferred import scan found a suggested main; the next command-time project lookup may accept it"
+    end
     if report.resolution_pending then
         warnings[#warnings + 1] =
-            "resolution is still pending; command-time project lookup can force deferred import scan to settle"
+            "resolution is still pending; command-time project lookup keeps the current fast fallback until deferred import scan finishes"
     end
     return warnings
 end
@@ -154,6 +165,7 @@ function M.report(state, bufnr, opts)
             or state.main_confidence_source,
         resolution_pending = resolution.resolution_pending
             or state.resolution_pending,
+        import_scan_suggestion = resolution.import_scan_suggestion,
         import_scan_line_limit = resolution.import_scan_line_limit
             or project_root.import_scan_line_limit(),
         import_scan_stats = project_root._import_scan_stats(),
@@ -180,6 +192,11 @@ function M.lines(report)
         ("  main confidence: %s"):format(report.main_confidence or "unknown"),
         ("  resolution pending: %s"):format(
             report.resolution_pending or "none"
+        ),
+        ("  import scan suggestion: %s"):format(
+            report.import_scan_suggestion
+                    and rel(report.import_scan_suggestion.main, report.root)
+                or "none"
         ),
         ("  import scan line limit: %d"):format(
             report.import_scan_line_limit or 500

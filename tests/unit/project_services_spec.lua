@@ -16,7 +16,14 @@ local provider = {
         typst_test_compiler(project).output = typst_test_cache_path(
             "project-services/"
         ) .. (run_config.compile.profile or "default") .. ".pdf"
-        return { kind = "compile", pid = 6101 }
+        return {
+            kind = "compile",
+            pid = 6101,
+            pending = true,
+            cancel = function()
+                return true, { stopped = true }
+            end,
+        }
     end,
     start = function(project, callback)
         callbacks.watch = callback
@@ -26,7 +33,14 @@ local provider = {
             project.main,
         }
         typst_test_compiler(project).last_cwd = project.root
-        return { kind = "watch", pid = 6102 }
+        return {
+            kind = "watch",
+            pid = 6102,
+            pending = true,
+            cancel = function()
+                return true, { stopped = true }
+            end,
+        }
     end,
     stop = function(_, callback)
         if callback then
@@ -141,7 +155,7 @@ assert(
 )
 assert(
     project.services.operations.active_by_kind.compile ~= nil,
-    "compile should be tracked by the project operation supervisor"
+    "compile should be tracked by the project operation registry"
 )
 local compile_record_id =
     next(project.services.operations.active_by_kind.compile)
@@ -181,7 +195,7 @@ local watch_handle = typst.compiler.watch()
 assert(watch_handle.kind == "watch", "watch handle should be returned")
 assert(
     project.services.operations.active_by_kind.watch ~= nil,
-    "watch should be tracked by the project operation supervisor"
+    "watch should be tracked by the project operation registry"
 )
 assert(
     project.services.compiler.status == "watching",

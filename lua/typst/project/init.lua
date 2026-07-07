@@ -84,11 +84,22 @@ local function planned_compiler_output(root, main, key)
         or compiler_state.watcher
         or compiler_state.stopping_compile
     then
-        return compiler_state.output
-            or project_model.output_path(output_project)
+        if compiler_state.output then
+            return compiler_state.output
+        end
     end
 
-    return project_model.output_path(output_project)
+    local output, output_error = project_model.safe_output_path(output_project)
+    if output_error then
+        log.add("warn", "invalid configured Typst output path during attach", {
+            root = root,
+            main = main,
+            key = key,
+            reason = output_error.reason,
+            message = output_error.message,
+        })
+    end
+    return output
 end
 
 ---@param root string Project root.

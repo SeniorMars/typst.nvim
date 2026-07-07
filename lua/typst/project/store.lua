@@ -1,8 +1,8 @@
-local index_cache = require("typst.project.index.cache")
+local index_cache = require("typst.project.index_cache")
 local log = require("typst.core.log")
 local project_model = require("typst.project.model")
 local project_registry = require("typst.project.registry")
-local resource_supervisor = require("typst.resources.supervisor")
+local resource_manager = require("typst.runtime.resource_manager")
 
 local M = {}
 
@@ -78,7 +78,7 @@ function M.prune_if_empty(state, reason)
     if
         not state
         or next(state.bufs or {}) ~= nil
-        or resource_supervisor.has_active_resources(state)
+        or resource_manager.has_active_resources(state)
     then
         return false
     end

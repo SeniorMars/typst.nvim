@@ -1,6 +1,6 @@
 local events = require("typst.core.events")
 local project = require("typst.project")
-local resources = require("typst.resources.supervisor")
+local resources = require("typst.runtime.resource_manager")
 
 local M = {}
 
@@ -89,7 +89,10 @@ function M.emit_reassign(
 end
 
 function M.stop_previous(previous, log_message, prune_reason)
-    return resources.stop_before_prune(previous, log_message, prune_reason)
+    return resources.stop_before_prune(previous, {
+        log_message = log_message,
+        reason = prune_reason,
+    })
 end
 
 return M

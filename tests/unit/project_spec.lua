@@ -172,34 +172,38 @@ vim.fn.mkdir(outside_output_dir, "p")
 output_cfg.output_dir = outside_output_dir
 output_cfg.allow_external_output = false
 local previous_project_key = project_store.key_for_buffer(bufnr)
-local output_failed_ok, output_failed_err = pcall(function()
-    typst.project.set_main(chapter, nil, { persist = true })
-end)
+local output_reloaded = typst.project.set_main(chapter, nil, { persist = true })
+local output_reloaded_live =
+    assert(project_store.get(output_reloaded.key), "output fixture project")
+local output_compile_result = typst.compiler.compile({ notify = false })
 output_cfg.output_dir = original_output_dir
 output_cfg.allow_external_output = original_allow_external_output
 assert(
-    not output_failed_ok,
-    "set_main should surface output path validation failures"
+    output_reloaded and output_reloaded.main == chapter,
+    "set_main should tolerate invalid planned output config"
 )
 assert(
-    tostring(output_failed_err):find("allow_external_output", 1, true),
-    "set_main output failure should report the output ownership policy"
+    typst_test_compiler(output_reloaded_live).output == nil,
+    "invalid planned output should not be stored during set_main"
 )
 assert(
-    vim.b.typst_main == main,
-    "set_main output failure should roll back buffer-local main"
+    type(output_compile_result) == "table"
+        and output_compile_result.reason == "output_path_invalid",
+    "compile should surface output path validation failures"
 )
 assert(
-    state_store.explicit_main(chapter) == main,
-    "set_main output failure should roll back persisted main"
+    vim.b.typst_main == chapter,
+    "set_main should keep the requested buffer-local main"
 )
+assert(
+    state_store.explicit_main(chapter) == chapter,
+    "set_main should persist the requested main"
+)
+
+project = typst.project.set_main(main, nil, { persist = true })
 assert(
     project_store.key_for_buffer(bufnr) == previous_project_key,
-    "set_main output failure should keep previous buffer ownership"
-)
-assert(
-    project_store.get(project_store.project_key(root, chapter)) == nil,
-    "set_main output failure should not leave a candidate project"
+    "test fixture should be restored to the previous project"
 )
 
 local graph_sources = require("typst.project.graph.sources")

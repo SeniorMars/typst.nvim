@@ -1,14 +1,17 @@
 local bibliography_index = require("typst.bibliography.index")
-local aggregate = require("typst.project.index.aggregate")
-local index_cache = require("typst.project.index.cache")
-local index_files = require("typst.project.index.files")
+local aggregate = require("typst.project.aggregate")
+local index_cache = require("typst.project.index_cache")
+local index_files = require("typst.project.index_files")
 local log = require("typst.core.log")
-local scanner = require("typst.project.index.scanner")
+local scanner = require("typst.project.scanner")
 local util = require("typst.core.util")
 
 local M = {}
 local uv = vim.uv or vim.loop
 local DEFAULT_STATIC_INDEX_FILE_BYTES = 1024 * 1024
+local DEFAULT_INDEX_MAX_FILES = 512
+local DEFAULT_INDEX_MAX_ENTRIES = 4096
+local DEFAULT_INDEX_MAX_DEPTH = 32
 
 local file_version = index_files.file_version
 local initial_files = index_files.initial_files
@@ -94,8 +97,23 @@ local function traversal_config()
     if max_bytes == nil then
         max_bytes = DEFAULT_STATIC_INDEX_FILE_BYTES
     end
+    local max_files = tonumber(index.max_files)
+    if max_files == nil or max_files < 1 then
+        max_files = DEFAULT_INDEX_MAX_FILES
+    end
+    local max_entries = tonumber(index.max_entries)
+    if max_entries == nil or max_entries < 1 then
+        max_entries = DEFAULT_INDEX_MAX_ENTRIES
+    end
+    local max_depth = tonumber(index.max_depth)
+    if max_depth == nil or max_depth < 0 then
+        max_depth = DEFAULT_INDEX_MAX_DEPTH
+    end
     return {
         max_file_bytes = max_bytes,
+        max_files = max_files,
+        max_entries = max_entries,
+        max_depth = max_depth,
         large_file_policy = index.large_file_policy or "skip",
         config_generation = generation or 0,
     }
@@ -247,21 +265,58 @@ function M.merge_bibliography_records(out, seen, records)
     end
 end
 
+local function empty_traversal_summary(config)
+    return {
+        partial = false,
+        partial_reason = nil,
+        partial_reasons = {},
+        scanned_files = 0,
+        queued_files = 0,
+        import_entries = 0,
+        skipped_files = 0,
+        skipped_entries = 0,
+        first_skipped_path = nil,
+        max_files = config.max_files,
+        max_entries = config.max_entries,
+        max_depth = config.max_depth,
+    }
+end
+
+local function mark_partial(summary, reason, path)
+    summary.partial = true
+    summary.partial_reason = summary.partial_reason or reason
+    summary.partial_reasons[reason] = true
+    summary.first_skipped_path = summary.first_skipped_path or path
+end
+
 --- Traverse project source and bibliography files for cached index records.
 ---@param project table Project state to traverse.
 ---@return table traversal Traversal records, visited files, and bibliography paths.
 function M.collect(project)
     local queue, queued = initial_files(project)
     local initial_paths = vim.deepcopy(queue)
+    local depths = {}
+    for _, path in ipairs(queue) do
+        depths[util.path_key(path)] = 0
+    end
     local visited = {}
     local records = {}
     local bibliography_paths = {}
     local config = traversal_config()
+    local summary = empty_traversal_summary(config)
 
     local index = 1
     while index <= #queue do
+        if #records >= config.max_files then
+            summary.skipped_files = summary.skipped_files + #queue - index + 1
+            mark_partial(summary, "max_files", queue[index])
+            break
+        end
+
         local path = queue[index]
-        visited[util.path_key(path)] = path
+        local key = util.path_key(path)
+        local depth = depths[key] or 0
+        visited[key] = path
         local record = cached_file_record(project, path, config)
         records[#records + 1] = record
 
@@ -269,25 +324,50 @@ function M.collect(project)
             bibliography_paths[bibliography_path] = true
         end
 
-        for _, imported_path in ipairs(record.imports or {}) do
-            local imported_key = util.path_key(imported_path)
-            if
-                vim.fn.filereadable(imported_path) == 1
-                and not queued[imported_key]
-            then
-                queued[imported_key] = true
-                queue[#queue + 1] = imported_path
+        local imports = record.imports or {}
+        if depth >= config.max_depth then
+            for _, imported_path in ipairs(imports) do
+                summary.import_entries = summary.import_entries + 1
+                summary.skipped_entries = summary.skipped_entries + 1
+                mark_partial(summary, "max_depth", imported_path)
+            end
+        else
+            for _, imported_path in ipairs(imports) do
+                summary.import_entries = summary.import_entries + 1
+                local imported_key = util.path_key(imported_path)
+                if summary.import_entries > config.max_entries then
+                    summary.skipped_entries = summary.skipped_entries + 1
+                    mark_partial(summary, "max_entries", imported_path)
+                elseif
+                    vim.fn.filereadable(imported_path) == 1
+                    and not queued[imported_key]
+                then
+                    if #queue >= config.max_files then
+                        summary.skipped_files = summary.skipped_files + 1
+                        mark_partial(summary, "max_files", imported_path)
+                    else
+                        queued[imported_key] = true
+                        depths[imported_key] = depth + 1
+                        queue[#queue + 1] = imported_path
+                    end
+                end
             end
         end
 
         index = index + 1
     end
 
+    summary.scanned_files = #records
+    summary.queued_files = #queue
+
     return {
         initial_paths = initial_paths,
         records = records,
         visited = visited,
         bibliography_paths = bibliography_paths,
+        partial = summary.partial,
+        partial_reason = summary.partial_reason,
+        summary = summary,
         bibliography_records = collect_bibliography_records(
             project,
             bibliography_paths
@@ -332,6 +412,14 @@ function M.signature(project, traversal)
             entry and entry.version or "missing"
         )
     end
+
+    local summary = traversal.summary or {}
+    parts[#parts + 1] = "partial"
+    parts[#parts + 1] = tostring(summary.partial == true)
+    parts[#parts + 1] = tostring(summary.partial_reason or "")
+    parts[#parts + 1] = tostring(summary.first_skipped_path or "")
+    parts[#parts + 1] = tostring(summary.scanned_files or 0)
+    parts[#parts + 1] = tostring(summary.import_entries or 0)
 
     return table.concat(parts, "\n")
 end

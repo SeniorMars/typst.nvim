@@ -200,7 +200,7 @@ end
 ---@return boolean active True when pruning should keep the project alive.
 function M.has_active_resources(project)
     M.ensure(project)
-    return require("typst.resources.supervisor").has_active_resources(project)
+    return require("typst.runtime.resource_manager").has_active_resources(project)
 end
 
 --- Return a summary-safe snapshot of project service state.

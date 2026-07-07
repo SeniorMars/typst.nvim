@@ -62,6 +62,7 @@ function M.ensure(project)
     index.fs_watch_first_failed_path = index.fs_watch_first_failed_path or nil
     index.fs_watch_partial = index.fs_watch_partial or false
     index.fs_watch_cap = index.fs_watch_cap or DEFAULT_FS_WATCHER_CAP
+    index.traversal = index.traversal or {}
     index.stats = index.stats or {}
     for key, value in pairs(empty_stats()) do
         index.stats[key] = index.stats[key] or value
@@ -128,6 +129,7 @@ function M.reset(project)
         fs_watch_first_failed_path = nil,
         fs_watch_partial = false,
         fs_watch_cap = DEFAULT_FS_WATCHER_CAP,
+        traversal = {},
         stats = empty_stats(),
     }
 end

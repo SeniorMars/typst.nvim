@@ -254,4 +254,14 @@ function M.output_path(project)
     return output_path_util.output_path(project, config.unsafe_get())
 end
 
+--- Resolve the current configured output path without throwing.
+---@param project TypstProject Project state with root/main paths.
+---@return string? path Output path from current config.
+---@return TypstCompilerResult? err Structured failure when config is invalid.
+function M.safe_output_path(project)
+    return output_path_util.safe_output_path(project, config.unsafe_get(), {
+        operation = "project",
+    })
+end
+
 return M

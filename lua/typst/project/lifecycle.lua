@@ -8,6 +8,7 @@ local log = require("typst.core.log")
 local main_file = require("typst.project.main_file")
 local project = require("typst.project")
 local project_model = require("typst.project.model")
+local resource_manager = require("typst.runtime.resource_manager")
 local integration_service = require("typst.project.services.integrations")
 local lifecycle_service = require("typst.project.services.lifecycle")
 local root_discovery = require("typst.project.root")
@@ -17,6 +18,7 @@ local util = require("typst.core.util")
 local normalize_bufnr = require("typst.core.buffer").normalize_bufnr
 
 local deferred_import_scan_tokens = {}
+local deferred_import_scan_handles = {}
 local next_deferred_import_scan_token = 0
 local transition_buffer
 
@@ -49,8 +51,126 @@ local function clear_deferred_import_scan(state, bufnr, token, status)
     resolution.resolution_pending = nil
     resolution.import_scan_request = nil
     resolution.import_scan_token = nil
+    resolution.import_scan_epoch_token = nil
     resolution.import_scan_status = status or "finished"
     project_model.refresh_resolution_pending(state)
+end
+
+local function clear_deferred_import_scan_local(bufnr, token)
+    if deferred_import_scan_tokens[bufnr] ~= token then
+        return false
+    end
+    deferred_import_scan_tokens[bufnr] = nil
+    deferred_import_scan_handles[bufnr] = nil
+    return true
+end
+
+local function finish_deferred_import_scan(bufnr, token, state, status)
+    clear_deferred_import_scan_local(bufnr, token)
+    clear_deferred_import_scan(state, bufnr, token, status)
+end
+
+local function cancel_deferred_import_scan(bufnr, reason, state)
+    local resolution = state and state.resolutions and state.resolutions[bufnr]
+    local token = deferred_import_scan_tokens[bufnr]
+        or (resolution and resolution.import_scan_token)
+    local handle = deferred_import_scan_handles[bufnr]
+    if token ~= nil then
+        clear_deferred_import_scan(
+            state,
+            bufnr,
+            token,
+            reason or "cancelled"
+        )
+    end
+    deferred_import_scan_handles[bufnr] = nil
+    deferred_import_scan_tokens[bufnr] = nil
+    if type(handle) == "table" and handle.pending == true then
+        pcall(handle.cancel, handle, { reason = reason or "cancelled" })
+    end
+end
+
+local function cancel_all_deferred_import_scans(reason)
+    local bufnrs = {}
+    for bufnr in pairs(deferred_import_scan_tokens) do
+        bufnrs[#bufnrs + 1] = bufnr
+    end
+    for bufnr in pairs(deferred_import_scan_handles) do
+        if deferred_import_scan_tokens[bufnr] == nil then
+            bufnrs[#bufnrs + 1] = bufnr
+        end
+    end
+    for _, bufnr in ipairs(bufnrs) do
+        cancel_deferred_import_scan(bufnr, reason)
+    end
+    deferred_import_scan_tokens = {}
+    deferred_import_scan_handles = {}
+end
+
+local function import_scan_suggestion(state, bufnr)
+    local resolution = state and state.resolutions and state.resolutions[bufnr]
+    local suggestion = resolution and resolution.import_scan_suggestion
+    if
+        type(suggestion) == "table"
+        and type(suggestion.main) == "string"
+        and suggestion.main ~= ""
+    then
+        return suggestion, resolution
+    end
+end
+
+local function record_import_scan_suggestion(state, bufnr, token, result)
+    local resolution = state and state.resolutions and state.resolutions[bufnr]
+    if not resolution or resolution.import_scan_token ~= token then
+        return false
+    end
+
+    local suggestion = {
+        main = result.main,
+        main_source = result.main_source or "import scan",
+        root = result.root or state.root,
+        root_source = result.root_source or "import scan root",
+        confidence = main_file.confidence_for_source(
+            result.main_source or "import scan"
+        ),
+    }
+    resolution.import_scan_suggestion = suggestion
+    local updated_trace = false
+    for _, entry in ipairs(resolution.trace or {}) do
+        if entry.stage == "import_scan" then
+            entry.status = "suggested"
+            entry.settled = true
+            entry.main = suggestion.main
+            entry.source = suggestion.main_source
+            entry.root = suggestion.root
+            entry.root_source = suggestion.root_source
+            entry.confidence = suggestion.confidence
+            updated_trace = true
+            break
+        end
+    end
+    if not updated_trace then
+        resolution.trace = resolution.trace or {}
+        resolution.trace[#resolution.trace + 1] = {
+            stage = "import_scan",
+            status = "suggested",
+            settled = true,
+            main = suggestion.main,
+            source = suggestion.main_source,
+            root = suggestion.root,
+            root_source = suggestion.root_source,
+            confidence = suggestion.confidence,
+            line_limit = root_discovery.import_scan_line_limit(),
+        }
+    end
+    resolution.import_scan_pending = false
+    resolution.resolution_pending = nil
+    resolution.import_scan_request = nil
+    resolution.import_scan_token = nil
+    resolution.import_scan_epoch_token = nil
+    resolution.import_scan_status = "suggested"
+    project_model.refresh_resolution_pending(state)
+    return true
 end
 
 local function schedule_deferred_import_scan(bufnr, state, candidate)
@@ -60,13 +180,16 @@ local function schedule_deferred_import_scan(bufnr, state, candidate)
         return
     end
 
+    cancel_deferred_import_scan(bufnr, "rescheduled", state)
     next_deferred_import_scan_token = next_deferred_import_scan_token + 1
     local token = next_deferred_import_scan_token
+    local epoch_token = resource_manager.token(state, "import_scan")
     deferred_import_scan_tokens[bufnr] = token
 
     local stored_resolution = state.resolutions and state.resolutions[bufnr]
     if stored_resolution then
         stored_resolution.import_scan_token = token
+        stored_resolution.import_scan_epoch_token = epoch_token
     end
 
     local expected_key = state.key
@@ -77,11 +200,17 @@ local function schedule_deferred_import_scan(bufnr, state, candidate)
         if deferred_import_scan_tokens[bufnr] ~= token then
             return
         end
-        deferred_import_scan_tokens[bufnr] = nil
+        local epoch_valid, epoch_reason =
+            resource_manager.valid_token(epoch_token)
 
         local current = project.get(bufnr)
         local function clear_current(status)
-            clear_deferred_import_scan(current, bufnr, token, status)
+            finish_deferred_import_scan(bufnr, token, current, status)
+        end
+
+        if not epoch_valid then
+            clear_current(epoch_reason or "stale")
+            return
         end
 
         if expected_config_generation ~= config.generation() then
@@ -90,6 +219,7 @@ local function schedule_deferred_import_scan(bufnr, state, candidate)
         end
 
         if not current then
+            finish_deferred_import_scan(bufnr, token, nil, "missing_project")
             return
         end
 
@@ -110,6 +240,12 @@ local function schedule_deferred_import_scan(bufnr, state, candidate)
                 and current.resolutions[bufnr]
             or nil
         if not current_resolution then
+            finish_deferred_import_scan(
+                bufnr,
+                token,
+                current,
+                "missing_resolution"
+            )
             project_model.refresh_resolution_pending(current)
             return
         end
@@ -119,107 +255,229 @@ local function schedule_deferred_import_scan(bufnr, state, candidate)
         end
 
         local scan_started = telemetry.start()
-        local ok, main, main_source, scan_root, scan_root_source = pcall(
-            root_discovery.import_scan_main,
+        local ok_handle, handle = pcall(
+            root_discovery.import_scan_main_async,
             request.path,
             request.root,
             request.root_source,
-            config.unsafe_get()
+            config.unsafe_get(),
+            { mode = "deferred" }
         )
-        telemetry.finish("project.deferred_import_scan", scan_started, {
-            ok = ok,
-            bufnr = bufnr,
-            project_key = current.key,
-            root = request.root,
-        })
-        if not ok then
-            clear_deferred_import_scan(current, bufnr, token, "failed")
-            log.add("warn", "deferred import scan failed", {
+        if not ok_handle then
+            finish_deferred_import_scan(bufnr, token, current, "failed")
+            telemetry.finish("project.deferred_import_scan", scan_started, {
+                ok = false,
+                bufnr = bufnr,
+                project_key = expected_key,
+                root = request.root,
+                mode = "deferred",
+                abort_reason = "startup_error",
+            })
+            log.add("warn", "deferred import scan failed to start", {
                 bufnr = bufnr,
                 path = request.path,
-                error = main,
+                error = tostring(handle),
             })
             return
         end
-
-        if not main then
-            clear_deferred_import_scan(current, bufnr, token, "not_found")
+        if type(handle) ~= "table" then
+            finish_deferred_import_scan(bufnr, token, current, "disabled")
+            telemetry.finish("project.deferred_import_scan", scan_started, {
+                ok = false,
+                bufnr = bufnr,
+                project_key = expected_key,
+                root = request.root,
+                mode = "deferred",
+                abort_reason = "disabled",
+            })
             return
         end
-
-        local previous_resolution = vim.deepcopy(current_resolution)
-        local trace = vim.deepcopy(current_resolution.trace or {})
-        local updated_import_scan_trace = false
-        for _, entry in ipairs(trace) do
-            if entry.stage == "import_scan" then
-                entry.status = "matched"
-                entry.settled = true
-                entry.main = main
-                entry.source = main_source
-                entry.root = scan_root
-                entry.root_source = scan_root_source
-                entry.confidence = main_file.confidence_for_source(main_source)
-                updated_import_scan_trace = true
-                break
+        deferred_import_scan_handles[bufnr] = handle
+        handle:on_finish(function(result)
+            if deferred_import_scan_tokens[bufnr] ~= token then
+                return
             end
-        end
-        if not updated_import_scan_trace then
-            trace[#trace + 1] = {
-                stage = "import_scan",
-                status = "matched",
-                settled = true,
-                main = main,
-                source = main_source,
-                root = scan_root,
-                root_source = scan_root_source,
-                confidence = main_file.confidence_for_source(main_source),
-                line_limit = root_discovery.import_scan_line_limit(),
-            }
-        end
-        local attach_candidate = {
-            bufnr = bufnr,
-            path = request.path,
-            root = scan_root,
-            main = main,
-            previous_key = current.key,
-            resolution = {
-                root_source = scan_root_source,
-                main_source = main_source,
-                main_confidence = main_file.confidence_for_source(main_source),
-                main_confidence_source = main_source,
-                import_scan_line_limit = root_discovery.import_scan_line_limit(),
-                trace = trace,
-            },
-        }
+            clear_deferred_import_scan_local(bufnr, token)
 
-        local commit_ok, next_state =
-            pcall(project.commit_attach, attach_candidate)
-        if not commit_ok then
-            clear_deferred_import_scan(current, bufnr, token, "commit_failed")
-            log.add("warn", "failed to commit deferred import-scan project", {
+            local scan_stats = root_discovery._import_scan_stats()
+            telemetry.finish("project.deferred_import_scan", scan_started, {
+                ok = type(result) == "table" and result.ok ~= false,
                 bufnr = bufnr,
-                path = request.path,
-                main = main,
-                error = next_state,
+                project_key = expected_key,
+                root = request.root,
+                mode = scan_stats.last_mode,
+                files = scan_stats.last_files,
+                dirs = scan_stats.last_dirs,
+                reads = scan_stats.reads,
+                abort_reason = scan_stats.last_abort_reason,
             })
-            return
-        end
 
-        log.add("info", "deferred import scan resolved Typst main", {
-            bufnr = bufnr,
-            path = request.path,
-            main = main,
-            root = scan_root,
-        })
-        transition_buffer(bufnr, current, next_state, {
-            reason = "deferred import scan",
-            previous_resolution = previous_resolution,
-            reapply_features = true,
-            schedule_deferred = false,
-            stop_log_message = "stopping compiler after deferred import scan reassigned buffer",
-            stop_prune_reason = "compiler stopped after deferred import scan",
-        })
+            local finished_current = project.get(bufnr)
+            local epoch_current, epoch_reason =
+                resource_manager.valid_token(epoch_token)
+            if
+                not finished_current
+                or finished_current.key ~= expected_key
+            then
+                clear_deferred_import_scan(
+                    finished_current,
+                    bufnr,
+                    token,
+                    "project_changed"
+                )
+                return
+            end
+            if expected_config_generation ~= config.generation() then
+                clear_deferred_import_scan(
+                    finished_current,
+                    bufnr,
+                    token,
+                    "config_changed"
+                )
+                return
+            end
+            if not epoch_current then
+                clear_deferred_import_scan(
+                    finished_current,
+                    bufnr,
+                    token,
+                    epoch_reason or "stale"
+                )
+                return
+            end
+            local current_path = buffer_path(bufnr)
+            if
+                not current_path
+                or not util.same_path(current_path, expected_path)
+            then
+                clear_deferred_import_scan(
+                    finished_current,
+                    bufnr,
+                    token,
+                    "path_changed"
+                )
+                return
+            end
+
+            if type(result) ~= "table" or result.ok == false then
+                clear_deferred_import_scan(
+                    finished_current,
+                    bufnr,
+                    token,
+                    result and result.status or "failed"
+                )
+                log.add("warn", "deferred import scan failed", {
+                    bufnr = bufnr,
+                    path = request.path,
+                    error = result and result.error or result,
+                })
+                return
+            end
+
+            if not result.found or not result.main then
+                clear_deferred_import_scan(
+                    finished_current,
+                    bufnr,
+                    token,
+                    result.status or "not_found"
+                )
+                return
+            end
+
+            if
+                record_import_scan_suggestion(
+                    finished_current,
+                    bufnr,
+                    token,
+                    result
+                )
+            then
+                log.add("info", "deferred import scan suggested Typst main", {
+                    bufnr = bufnr,
+                    path = request.path,
+                    main = result.main,
+                    root = result.root,
+                })
+            end
+        end)
     end, 20)
+end
+
+local function consume_import_scan_suggestion(
+    bufnr,
+    previous,
+    suggestion,
+    resolution
+)
+    local path = buffer_path(bufnr)
+    if not path then
+        return nil
+    end
+    local resolution_buffer = resolution and resolution.buffer
+    if
+        type(resolution_buffer) == "string"
+        and resolution_buffer ~= ""
+        and not util.same_path(path, resolution_buffer)
+    then
+        resolution.import_scan_suggestion = nil
+        return nil
+    end
+
+    local trace = vim.deepcopy(resolution and resolution.trace or {})
+    for _, entry in ipairs(trace) do
+        if entry.stage == "import_scan" then
+            entry.status = "accepted"
+            entry.settled = true
+            entry.main = suggestion.main
+            entry.source = suggestion.main_source or "import scan"
+            entry.root = suggestion.root or previous.root
+            entry.root_source = suggestion.root_source or "import scan root"
+            entry.confidence = suggestion.confidence
+                or main_file.confidence_for_source(
+                    suggestion.main_source or "import scan"
+                )
+            break
+        end
+    end
+
+    local next_resolution = vim.deepcopy(resolution or {})
+    next_resolution.root_source = suggestion.root_source or "import scan root"
+    next_resolution.main_source = suggestion.main_source or "import scan"
+    next_resolution.main_confidence = suggestion.confidence
+        or main_file.confidence_for_source(
+            suggestion.main_source or "import scan"
+        )
+    next_resolution.main_confidence_source = suggestion.main_source
+        or "import scan"
+    next_resolution.resolution_pending = nil
+    next_resolution.import_scan_pending = false
+    next_resolution.import_scan_request = nil
+    next_resolution.import_scan_token = nil
+    next_resolution.import_scan_epoch_token = nil
+    next_resolution.import_scan_status = "accepted"
+    next_resolution.import_scan_suggestion = nil
+    next_resolution.import_scan_line_limit =
+        root_discovery.import_scan_line_limit()
+    next_resolution.trace = trace
+
+    local commit_ok, state = pcall(project.commit_attach, {
+        bufnr = bufnr,
+        path = path,
+        root = suggestion.root or previous.root,
+        main = suggestion.main,
+        previous_key = previous.key,
+        resolution = next_resolution,
+    })
+    if not commit_ok then
+        log.add("warn", "failed to accept deferred import-scan suggestion", {
+            bufnr = bufnr,
+            path = path,
+            main = suggestion.main,
+            error = state,
+        })
+        return nil
+    end
+    return state
 end
 
 local function finalize_attached_buffer(bufnr, state, candidate, opts)
@@ -258,6 +516,32 @@ local function stop_previous_project(previous, opts)
     end
     local log_message, prune_reason = stop_messages(opts)
     return lifecycle_events.stop_previous(previous, log_message, prune_reason)
+end
+
+local function compact_resolution(resolution)
+    if type(resolution) ~= "table" then
+        return nil
+    end
+    local suggestion = type(resolution.import_scan_suggestion) == "table"
+            and resolution.import_scan_suggestion
+        or nil
+    return {
+        buffer = resolution.buffer,
+        root = resolution.root,
+        main = resolution.main,
+        root_source = resolution.root_source,
+        main_source = resolution.main_source,
+        resolution_pending = resolution.resolution_pending,
+        import_scan_status = resolution.import_scan_status,
+        import_scan_suggestion = suggestion
+                and {
+                    root = suggestion.root,
+                    main = suggestion.main,
+                    root_source = suggestion.root_source,
+                    main_source = suggestion.main_source,
+                }
+            or nil,
+    }
 end
 
 -- Single post-commit transition boundary for buffer/project ownership changes.
@@ -352,6 +636,7 @@ transition_buffer = function(bufnr, previous, state, opts)
             bufnr = result.bufnr,
             previous_key = result.previous_key,
             project_key = result.project_key,
+            previous_resolution = compact_resolution(opts.previous_resolution),
         }
         lifecycle_service.set(state, {
             last_transition = snapshot,
@@ -488,8 +773,8 @@ end
 ---@return table|nil state Project state the buffer belonged to before detach.
 function M.detach(bufnr)
     bufnr = normalize_bufnr(bufnr)
-    deferred_import_scan_tokens[bufnr] = nil
     local previous = project.get(bufnr)
+    cancel_deferred_import_scan(bufnr, "buffer_detached", previous)
     local resolution = previous
             and previous.resolutions
             and vim.deepcopy(previous.resolutions[bufnr])
@@ -523,15 +808,48 @@ function M.get_project(bufnr)
         previous
         and not core_lifecycle.explicit_main_changed(bufnr, previous)
         and not project.main_stale(previous, bufnr)
-        and not previous.resolution_pending
     then
-        return previous
+        local suggestion, suggestion_resolution =
+            import_scan_suggestion(previous, bufnr)
+        if suggestion then
+            local accepted = consume_import_scan_suggestion(
+                bufnr,
+                previous,
+                suggestion,
+                suggestion_resolution
+            )
+            if accepted then
+                local accepted_previous_resolution = vim.deepcopy(
+                    suggestion_resolution
+                        or (
+                            previous.resolutions
+                            and previous.resolutions[bufnr]
+                        )
+                        or {}
+                )
+                transition_buffer(bufnr, previous, accepted, {
+                    reason = "import scan suggestion accepted",
+                    previous_resolution = accepted_previous_resolution,
+                    reapply_features = true,
+                    schedule_deferred = false,
+                    stop_log_message = "stopping compiler after import scan suggestion changed main",
+                    stop_prune_reason = "compiler stopped after import scan suggestion",
+                })
+                return accepted
+            end
+        end
+        if previous.resolution_pending == "import_scan" then
+            return previous
+        end
+        if not previous.resolution_pending then
+            return previous
+        end
     end
 
     -- Commands call get_project lazily so changes to vim.b.typst_main,
     -- deleted main files, or renamed buffers are reflected before compile,
     -- preview, navigation, or diagnostics operate on project state.
-    deferred_import_scan_tokens[bufnr] = nil
+    cancel_deferred_import_scan(bufnr, "buffer_reresolved", previous)
     local state = project.resolve(
         bufnr,
         previous and { ignore_project_key = previous.key } or nil
@@ -960,8 +1278,15 @@ end
 
 --- Clear lifecycle-local deferred resolver state.
 function M.reset()
-    deferred_import_scan_tokens = {}
+    cancel_all_deferred_import_scans("lifecycle_reset")
     next_deferred_import_scan_token = 0
+end
+
+function M._deferred_import_scan_state()
+    return {
+        tokens = vim.deepcopy(deferred_import_scan_tokens),
+        handles = vim.deepcopy(deferred_import_scan_handles),
+    }
 end
 
 return M

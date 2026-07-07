@@ -37,7 +37,9 @@ function M.resolve(path, root, root_source, opts, resolve_opts)
     local scan_root, scan_root_source
     local main, main_source
     main, main_source, scan_root, scan_root_source =
-        root_discovery.import_scan_main(path, root, root_source, opts)
+        root_discovery.import_scan_main(path, root, root_source, opts, {
+            mode = "sync",
+        })
     if main then
         return main, main_source, scan_root, scan_root_source
     end

@@ -49,6 +49,14 @@ local function can_create_project_from_buffer(bufnr, opts)
     return type(name) == "string" and name:match("%.typ$") ~= nil
 end
 
+local function has_import_scan_suggestion(state, bufnr)
+    local resolution = state and state.resolutions and state.resolutions[bufnr]
+    local suggestion = resolution and resolution.import_scan_suggestion
+    return type(suggestion) == "table"
+        and type(suggestion.main) == "string"
+        and suggestion.main ~= ""
+end
+
 local function copyable_key(key)
     return key == nil or scalar_types[type(key)] == true
 end
@@ -112,7 +120,14 @@ function M.resolve(opts, resolve_opts)
     local bufnr = normalize_bufnr(opts.bufnr)
     local registry = require("typst.project")
     local state = registry.get(bufnr)
-    if state and state.resolution_pending and resolve_opts.settle_pending then
+    if
+        state
+        and resolve_opts.settle_pending
+        and (
+            state.resolution_pending
+            or has_import_scan_suggestion(state, bufnr)
+        )
+    then
         local ok, resolved =
             pcall(require("typst.project.lifecycle").get_project, bufnr)
         return ok and resolved or state
