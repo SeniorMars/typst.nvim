@@ -11,7 +11,7 @@ specs=(
   tests/integration/watch/lifecycle_spec.lua
   tests/integration/watch/process_spec.lua
   tests/integration/preview/lifecycle_spec.lua
-  tests/integration/resources/supervisor_spec.lua
+  tests/integration/resources/resource_manager_prune_spec.lua
 )
 
 for spec in "${specs[@]}"; do

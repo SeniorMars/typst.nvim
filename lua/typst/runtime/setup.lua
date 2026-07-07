@@ -25,6 +25,7 @@ end
 ---@param api table Public API facade receiving runtime methods.
 ---@param notify fun(message:string, level?:integer)?
 function M.setup_once(api, notify)
+    require("typst.api.exports").install_globals()
     if did_setup_once then
         install_runtime_api(api, notify)
         return {
@@ -159,36 +160,10 @@ end
 
 local function reset_impl(opts)
     opts = opts or {}
-    local log = require("typst.core.log")
-    local reset_result = require("typst.resources.supervisor").reset(opts)
-    local hook_summary = require("typst.runtime.hooks").reset(opts)
-    local retain_projects = reset_result
-        and reset_result.ok == false
-        and opts.force ~= true
-    require("typst.core.ftplugin_state").reset()
-    require("typst.core.buffer").reset()
-    if retain_projects then
-        log.add(
-            "warn",
-            "retaining projects after reset because active resources remain",
-            reset_result
-        )
-    else
-        require("typst.project").reset()
-    end
-
-    require("typst.core.cache_registry").reset({
-        retain_projects = retain_projects,
-    })
-    if not retain_projects then
-        log.clear()
-    end
+    local reset_result = require("typst.runtime.resource_manager").reset(opts)
     did_setup_once = false
     did_configure = false
     package_prewarm_scheduled = false
-    if type(reset_result) == "table" then
-        reset_result.runtime_hooks = hook_summary
-    end
     return reset_result
 end
 

@@ -17,7 +17,7 @@ end
 -- Shared teardown and editor-state lifecycle.
 --
 -- Buffer/window feature cleanup lives here. Project liveness cleanup belongs
--- to resources.supervisor; compatibility wrappers below delegate there.
+-- to runtime.resource_manager.
 function M.buffer_augroup_name(bufnr)
     return ("typst_nvim_buf_%d"):format(bufnr)
 end
@@ -122,10 +122,12 @@ end
 ---@param prune_reason string Reason passed through to project pruning.
 ---@return boolean attempted True when teardown or prune work was attempted.
 function M.stop_before_prune(state, log_message, prune_reason)
-    return require("typst.resources.supervisor").stop_before_prune(
+    return require("typst.runtime.resource_manager").stop_before_prune(
         state,
-        log_message,
-        prune_reason
+        {
+            log_message = log_message,
+            reason = prune_reason,
+        }
     )
 end
 
@@ -133,7 +135,7 @@ end
 ---@param opts? table Reset controls; `force=true` clears state even when stops fail.
 ---@return table summary Reset status with failed project details.
 function M.reset_project_resources(opts)
-    return require("typst.resources.supervisor").reset(opts)
+    return require("typst.runtime.resource_manager").reset(opts)
 end
 
 --- Check whether a buffer-local main setting no longer matches project state.
@@ -277,7 +279,7 @@ function M.register_autocmds()
     vim.api.nvim_create_autocmd("VimLeavePre", {
         group = group,
         callback = function()
-            require("typst.resources.supervisor").stop_for_exit_all()
+            require("typst.runtime.resource_manager").stop_for_exit_all()
         end,
     })
     vim.api.nvim_create_autocmd("WinClosed", {

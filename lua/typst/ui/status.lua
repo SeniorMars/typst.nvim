@@ -7,8 +7,8 @@ local compiler_service = require("typst.project.services.compiler")
 local diagnostics_service = require("typst.project.services.diagnostics")
 local graph_service = require("typst.project.services.graph")
 local index_service = require("typst.project.services.index")
-local preview_service = require("typst.project.services.preview")
-local resource_session = require("typst.resources.session")
+local preview = require("typst.preview.controller")
+local resource_manager = require("typst.runtime.resource_manager")
 local viewer_service = require("typst.project.services.viewer")
 local telemetry = require("typst.core.telemetry")
 local semantic_provider = require("typst.integrations.semantic_provider")
@@ -88,11 +88,11 @@ function M.snapshot(bufnr, opts)
 
     local counts = count.buffer(resolved_bufnr)
     local compiler_state = compiler_service.get(state) or {}
-    local preview_state = preview_service.get(state) or {}
+    local preview_state = preview.status(state, { cache = false }) or {}
     local viewer_state = viewer_service.get(state) or {}
     local graph = graph_service.get(state) or {}
     local index_state = index_service.get(state) or {}
-    local resources = resource_session.snapshot(state) or {}
+    local resources = resource_manager.snapshot(state) or {}
     local service_state = state.services or {}
     local integrations_state = service_state.integrations or {}
     local lifecycle_state = service_state.lifecycle or {}
@@ -146,15 +146,10 @@ function M.snapshot(bufnr, opts)
         viewer_backend = viewer_state.backend,
         viewer_command = copy_list(viewer_state.command),
         viewer_cwd = viewer_state.cwd,
-        preview_backend = preview_state.active and preview_state.active_backend
-            or preview_state.last_backend,
-        preview_command = preview_state.active and copy_list(
-            preview_state.active_command
-        ) or copy_list(preview_state.last_command),
-        preview_cwd = preview_state.active and preview_state.active_cwd
-            or preview_state.last_cwd,
-        preview_mode = preview_state.active and preview_state.active_mode
-            or preview_state.last_mode,
+        preview_backend = preview_state.backend,
+        preview_command = copy_list(preview_state.command),
+        preview_cwd = preview_state.cwd,
+        preview_mode = preview_state.mode,
         preview_active = preview_state.active == true,
         diagnostics = diagnostic_count(state),
         words = counts.words,
@@ -178,6 +173,7 @@ function M.snapshot(bufnr, opts)
         dependencies = vim.tbl_count(graph.dependencies or {}),
         index_generation = index_state.generation or 0,
         index_stats = copy_table(index_state.stats),
+        index_traversal = copy_table(index_state.traversal),
         index_fs_watchers = {
             mode = index_state.fs_watch_mode,
             reason = index_state.fs_watch_disabled_reason,
@@ -190,6 +186,7 @@ function M.snapshot(bufnr, opts)
             cap = index_state.fs_watch_cap,
         },
         resources = resources,
+        last_reset = copy_table(resource_manager.last_reset()),
         blockers = copy_table(resources.blockers) or {},
         blocker_count = resources.blocker_count or 0,
     }, opts)
@@ -201,7 +198,7 @@ function M.project_snapshot(state)
     local compiler_state = compiler_service.get(state) or {}
     local graph = graph_service.get(state) or {}
     local index_state = index_service.get(state) or {}
-    local resources = resource_session.snapshot(state) or {}
+    local resources = resource_manager.snapshot(state) or {}
     local watcher = compiler_state.watcher
     local output = compiler_state.output
     if not snapshot.attached then
@@ -225,6 +222,7 @@ function M.project_snapshot(state)
             dependencies = vim.tbl_count(graph.dependencies or {}),
             index_generation = index_state.generation or 0,
             index_stats = copy_table(index_state.stats),
+            index_traversal = copy_table(index_state.traversal),
             index_fs_watchers = {
                 mode = index_state.fs_watch_mode,
                 reason = index_state.fs_watch_disabled_reason,
@@ -237,6 +235,7 @@ function M.project_snapshot(state)
                 cap = index_state.fs_watch_cap,
             },
             resources = resources,
+            last_reset = copy_table(resource_manager.last_reset()),
             blockers = copy_table(resources.blockers) or {},
             blocker_count = resources.blocker_count or 0,
         }
@@ -264,6 +263,7 @@ function M.project_snapshot(state)
     snapshot.dependencies = vim.tbl_count(graph.dependencies or {})
     snapshot.index_generation = index_state.generation or 0
     snapshot.index_stats = copy_table(index_state.stats)
+    snapshot.index_traversal = copy_table(index_state.traversal)
     snapshot.index_fs_watchers = {
         mode = index_state.fs_watch_mode,
         reason = index_state.fs_watch_disabled_reason,
@@ -276,6 +276,7 @@ function M.project_snapshot(state)
         cap = index_state.fs_watch_cap,
     }
     snapshot.resources = resources
+    snapshot.last_reset = copy_table(resource_manager.last_reset())
     snapshot.blockers = copy_table(resources.blockers) or {}
     snapshot.blocker_count = resources.blocker_count or 0
     snapshot.tinymist_ensure =

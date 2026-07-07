@@ -4,7 +4,7 @@ vim.opt.runtimepath:prepend(root)
 local helpers = dofile(root .. "/tests/helpers.lua")
 local registry = require("typst.project")
 local project_store = require("typst.project.store")
-local toc = require("typst.edit.toc")
+local toc = require("typst.navigation.toc")
 local typst = require("typst")
 
 typst.reset()

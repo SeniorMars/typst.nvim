@@ -1,9 +1,9 @@
 local compiler_service = require("typst.project.services.compiler")
+local core_operation = require("typst.core.operation")
 local diagnostics_service = require("typst.project.services.diagnostics")
 local index_service = require("typst.project.services.index")
 local operation_service = require("typst.project.services.operation_state")
 local output_ownership = require("typst.resources.outputs")
-local preview_service = require("typst.project.services.preview")
 
 local M = {}
 
@@ -37,12 +37,127 @@ local function kind_counts(records)
     return counts
 end
 
+local function operation_records(records)
+    local out = {}
+    for id, record in pairs(records or {}) do
+        out[#out + 1] = {
+            id = record.id or id,
+            kind = record.kind or "unknown",
+            owner = record.owner,
+            project_key = record.project_key,
+            state = record.state,
+            pending = record.pending == true,
+            command = type(record.command) == "table" and vim.deepcopy(
+                record.command
+            ) or record.command,
+            cwd = record.cwd,
+            reason = record.reason,
+            retained = record.retained == true
+                or record.orphan_retained == true
+                or nil,
+            orphaned = record.orphaned == true or nil,
+        }
+    end
+    table.sort(out, function(left, right)
+        return tostring(left.id or "") < tostring(right.id or "")
+    end)
+    return out
+end
+
+local function global_only(records)
+    local out = {}
+    for id, record in pairs(records or {}) do
+        if record.owner == nil or record.owner == "global" then
+            out[id] = record
+        end
+    end
+    return out
+end
+
+local function operation_summary(active, retained)
+    return {
+        active = count(active),
+        retained = count(retained),
+        active_kinds = kind_counts(active),
+        retained_kinds = kind_counts(retained),
+        active_records = operation_records(active),
+        retained_records = operation_records(retained),
+    }
+end
+
 local function add(blockers, kind, severity, message, fields)
     fields = fields or {}
     fields.kind = kind
     fields.severity = severity
     fields.message = message
     blockers[#blockers + 1] = fields
+end
+
+local function preview_status(project)
+    return require("typst.preview.controller").status(project, {
+        raw = true,
+        cache = false,
+    })
+end
+
+---Return global process-backed operations managed outside project services.
+---@return table snapshot Summary-safe global operation liveness.
+function M.global_operations()
+    return operation_summary(
+        global_only(core_operation.active()),
+        global_only(core_operation.retained())
+    )
+end
+
+---Return blockers for global resources not owned by a single project.
+---@return table[] blockers Runtime-wide blockers.
+function M.global_blockers()
+    local blockers = {}
+    local global = M.global_operations()
+    if global.active > 0 then
+        add(
+            blockers,
+            "global_operation_active",
+            "active",
+            "global operations active",
+            {
+                count = global.active,
+                kinds = global.active_kinds,
+            }
+        )
+    end
+    if global.retained > 0 then
+        add(
+            blockers,
+            "global_operation_retained",
+            "blocked",
+            "global retained operations require cleanup",
+            {
+                count = global.retained,
+                kinds = global.retained_kinds,
+            }
+        )
+    end
+    return blockers
+end
+
+---Return a runtime-wide live-resource snapshot.
+---@return table snapshot Runtime resource-session state.
+function M.global_snapshot()
+    local blockers = M.global_blockers()
+    return {
+        operations = M.global_operations(),
+        blockers = blockers,
+        blocker_count = #blockers,
+    }
+end
+
+---Reset runtime-wide operations through the resource-session boundary.
+---@param opts? table Reset controls forwarded to `typst.core.operation.reset`.
+---@return table summary Global operation reset summary.
+function M.reset_global_operations(opts)
+    opts = vim.tbl_extend("force", { scope = "global" }, opts or {})
+    return core_operation.reset(opts)
 end
 
 function M.blockers(project)
@@ -52,7 +167,7 @@ function M.blockers(project)
 
     local blockers = {}
     local compiler = compiler_service.get(project) or {}
-    local preview = preview_service.get(project) or {}
+    local preview = preview_status(project)
     local operations = operation_service.get(project) or {}
     local index = index_service.get(project) or {}
     local outputs = output_ownership.snapshot(project)
@@ -98,8 +213,13 @@ function M.blockers(project)
 
     if preview.active == true then
         add(blockers, "preview_active", "active", "preview active", {
-            backend = preview.active_backend or preview.last_backend,
-            output = preview.active_output,
+            backend = preview.backend,
+            output = preview.output,
+        })
+    end
+    if preview.opening == true then
+        add(blockers, "preview_opening", "active", "preview open in progress", {
+            backend = preview.backend,
         })
     end
     if preview.stopping == true then
@@ -237,10 +357,11 @@ function M.snapshot(project)
     end
 
     local compiler = compiler_service.get(project) or {}
-    local preview = preview_service.get(project) or {}
+    local preview = preview_status(project)
     local operations = operation_service.get(project) or {}
     local diagnostics = diagnostics_service.get(project) or {}
     local outputs = output_ownership.active_for_project(project)
+    local global = M.global_operations()
     local blockers = M.blockers(project)
     return {
         compiler = {
@@ -252,14 +373,18 @@ function M.snapshot(project)
         },
         preview = {
             active = preview.active == true,
+            opening = preview.opening == true,
             status = preview.status,
-            backend = preview.active_backend or preview.last_backend,
+            backend = preview.backend,
             stopping = preview.stopping == true,
+            output = preview.output,
+            retained_open_count = preview.retained_open_count,
         },
         operations = {
             active = count(operations.active_by_id),
             retained = count(operations.retained_by_id),
         },
+        global_operations = global,
         diagnostics = {
             buffers = count(diagnostics.buffers),
         },
@@ -280,6 +405,8 @@ function M.has_active(project)
 
     return snapshot.compiler.active
         or snapshot.preview.active
+        or snapshot.preview.opening
+        or snapshot.preview.stopping
         or snapshot.operations.active > 0
         or snapshot.operations.retained > 0
         or snapshot.outputs.active > 0

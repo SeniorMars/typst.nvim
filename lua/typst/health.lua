@@ -1,21 +1,20 @@
 local M = {}
 
+local api_exports = require("typst.api.exports")
 local compiler = require("typst.compiler")
 local config = require("typst.config")
 local diagnostics = require("typst.diagnostics")
 local metadata = require("typst.metadata")
-local native_preview_session = require("typst.preview.native.session")
 local semantic_provider = require("typst.integrations.semantic_provider")
 local tinymist = require("typst.integrations.tinymist")
-local preview = require("typst.integrations.typst_preview")
+local preview = require("typst.preview.controller")
 local project = require("typst.project")
 local project_root = require("typst.project.root")
 local project_store = require("typst.project.store")
 local artifacts_service = require("typst.project.services.artifacts")
 local compiler_service = require("typst.project.services.compiler")
 local index_service = require("typst.project.services.index")
-local preview_service = require("typst.project.services.preview")
-local resource_session = require("typst.resources.session")
+local resource_manager = require("typst.runtime.resource_manager")
 local output_ownership = require("typst.resources.outputs")
 local util = require("typst.core.util")
 local viewer = require("typst.viewer")
@@ -475,12 +474,61 @@ local function blocker_count_label(blockers)
     return table.concat(labels, ",")
 end
 
+local function blocker_recovery_label(blockers)
+    if type(blockers) ~= "table" or #blockers == 0 then
+        return nil
+    end
+    local seen = {}
+    local commands = {}
+    for _, blocker in ipairs(blockers) do
+        local command = blocker.command or blocker.recovery
+        if command and not seen[command] then
+            seen[command] = true
+            commands[#commands + 1] = command
+        end
+    end
+    if #commands == 0 then
+        return nil
+    end
+    table.sort(commands)
+    return table.concat(commands, ",")
+end
+
+local function reset_recovery_label(reset)
+    if type(reset) ~= "table" or type(reset.recovery) ~= "table" then
+        return nil
+    end
+    if #reset.recovery == 0 then
+        return nil
+    end
+    return table.concat(reset.recovery, ",")
+end
+
+local function reset_failed_phase_label(reset)
+    if type(reset) ~= "table" or type(reset.phases) ~= "table" then
+        return nil
+    end
+    local failed = {}
+    for _, phase in ipairs(reset.phases) do
+        if phase.ok == false then
+            failed[#failed + 1] = phase.name or "unknown"
+        end
+    end
+    if #failed == 0 then
+        return nil
+    end
+    return table.concat(failed, ",")
+end
+
 local function project_status_line(state)
     local resolution = state.last_resolution or {}
     local compiler_state = compiler_service.get(state) or {}
     local index_state = index_service.get(state) or {}
-    local preview_state = preview_service.get(state) or {}
-    local resource_state = resource_session.snapshot(state) or {}
+    local preview_state = preview.status(state, {
+        raw = true,
+        cache = false,
+    }) or {}
+    local resource_state = resource_manager.snapshot(state) or {}
     local integration_state = state.services and state.services.integrations
         or {}
     local tinymist_last_ensure = integration_state.tinymist
@@ -497,7 +545,7 @@ local function project_status_line(state)
             tinymist_last_ensure = "not_checked"
         end
     end
-    local native_preview = native_preview_session.project_state(state)
+    local native_preview = preview_state.native or {}
     local index_stats = index_state.stats or {}
     local fields = {
         ("main=%s"):format(state.main),
@@ -543,6 +591,22 @@ local function project_status_line(state)
         ),
     }
 
+    local traversal = index_state.traversal or {}
+    if traversal.partial == true then
+        fields[#fields + 1] = ("index_partial=%s scanned=%d/%s entries=%d/%s"):format(
+            traversal.partial_reason or "budget",
+            traversal.scanned_files or 0,
+            tostring(traversal.max_files or "?"),
+            traversal.import_entries or 0,
+            tostring(traversal.max_entries or "?")
+        )
+        if traversal.first_skipped_path then
+            fields[#fields + 1] = ("index_partial_first_skipped=%s"):format(
+                traversal.first_skipped_path
+            )
+        end
+    end
+
     if index_state.fs_watch_mode then
         fields[#fields + 1] = ("index_fs_watch=%s active=%d wanted=%d failed=%d"):format(
             index_state.fs_watch_mode,
@@ -560,7 +624,8 @@ local function project_status_line(state)
         end
     end
 
-    local lease_count = #output_ownership.snapshot(state)
+    local lease_count = resource_state.outputs and resource_state.outputs.active
+        or 0
     if lease_count > 0 then
         fields[#fields + 1] = ("active_leases=%d"):format(lease_count)
     end
@@ -602,9 +667,7 @@ local function project_status_line(state)
         fields[#fields + 1] = ("cwd=%s"):format(compiler_state.last_cwd)
     end
 
-    local preview_backend = preview_state.active
-            and preview_state.active_backend
-        or preview_state.last_backend
+    local preview_backend = preview_state.backend
     if preview_backend then
         fields[#fields + 1] = ("preview_backend=%s"):format(preview_backend)
     end
@@ -626,14 +689,11 @@ local function project_status_line(state)
                 native_preview.output
             )
         end
-    elseif preview_state.active and preview_state.active_output then
-        fields[#fields + 1] = ("preview_output=%s"):format(
-            preview_state.active_output
-        )
+    elseif preview_state.active and preview_state.output then
+        fields[#fields + 1] = ("preview_output=%s"):format(preview_state.output)
     end
 
-    local preview_export =
-        export_label(preview_state.active_export or preview_state.last_export)
+    local preview_export = export_label(preview_state.export)
     if preview_export then
         fields[#fields + 1] = ("preview_export=%s"):format(preview_export)
     end
@@ -689,6 +749,10 @@ local function project_status_line(state)
     if blocker_counts then
         fields[#fields + 1] = ("blockers=%s"):format(blocker_counts)
     end
+    local blocker_recovery = blocker_recovery_label(resource_state.blockers)
+    if blocker_recovery then
+        fields[#fields + 1] = ("recovery=%s"):format(blocker_recovery)
+    end
 
     return table.concat(fields, " ")
 end
@@ -717,6 +781,30 @@ function M.check()
     local provider_label = config.provider_label()
     ok(("Compiler provider: %s"):format(provider_label))
     check_compiler_provider_contract(opts.compile and opts.compile.provider)
+
+    local global_status = api_exports.global_status()
+    if (global_status.skipped_count or 0) > 0 then
+        warn(
+            ("Owned v:lua globals: %d installed, %d skipped"):format(
+                global_status.installed_count or 0,
+                global_status.skipped_count or 0
+            )
+        )
+        for _, skipped in ipairs(global_status.skipped or {}) do
+            warn(
+                ("Skipped %s: %s"):format(
+                    skipped.name or "<unknown>",
+                    skipped.reason or "unknown"
+                )
+            )
+        end
+    else
+        ok(
+            ("Owned v:lua globals: %d installed, 0 skipped"):format(
+                global_status.installed_count or global_status.owned_count or 0
+            )
+        )
+    end
 
     if provider_label ~= "typst" then
         ok("Typst executable: not required by configured compiler provider")
@@ -903,6 +991,14 @@ function M.check()
             #locks
         )
     )
+    local lock_failure = output_ownership.last_release_failure()
+    if lock_failure then
+        warn(
+            ("Last output lock release failure: %s (use :TypstLocks / :TypstCleanLocks! for recovery)"):format(
+                lock_failure.error or "unknown"
+            )
+        )
+    end
     ok(
         ("Import scan: %s (%d files, %d ancestors, %d entries)"):format(
             opts.project.import_scan and "enabled" or "disabled",
@@ -915,6 +1011,14 @@ function M.check()
     ok(
         ("Import scan stats: %s"):format(
             project_root.import_scan_stats_summary(import_scan_stats)
+        )
+    )
+    local index_opts = opts.project.index or {}
+    ok(
+        ("Project index caps: %d files, %d imports, depth %d"):format(
+            index_opts.max_files or 512,
+            index_opts.max_entries or 4096,
+            index_opts.max_depth or 32
         )
     )
     ok(
@@ -1077,6 +1181,44 @@ function M.check()
     end
 
     start("typst.nvim projects")
+    local resources = resource_manager.snapshot()
+    ok(
+        ("Resource manager: epoch=%d projects=%d blockers=%d"):format(
+            resources.epoch or 0,
+            vim.tbl_count(resources.projects or {}),
+            resources.blocker_count or 0
+        )
+    )
+    local last_reset = resource_manager.last_reset()
+    if last_reset then
+        local failed_phases = reset_failed_phase_label(last_reset)
+        local recovery = reset_recovery_label(last_reset)
+        local message = ("Last reset: ok=%s retained_projects=%s phases=%d"):format(
+            tostring(last_reset.ok ~= false),
+            tostring(last_reset.retained_projects == true),
+            type(last_reset.phases) == "table" and #last_reset.phases or 0
+        )
+        if failed_phases then
+            message = message .. " failed=" .. failed_phases
+        end
+        if recovery then
+            message = message .. " recovery=" .. recovery
+        end
+        if last_reset.ok == false then
+            warn(message)
+        else
+            ok(message)
+        end
+    end
+    local global_ops = resources.global and resources.global.operations or {}
+    if (global_ops.active or 0) > 0 or (global_ops.retained or 0) > 0 then
+        warn(
+            ("Global operations: active=%d retained=%d (recovery: :TypstReset!)"):format(
+                global_ops.active or 0,
+                global_ops.retained or 0
+            )
+        )
+    end
     local projects = project_store.all()
     if next(projects) == nil then
         warn("No Typst projects are attached yet")

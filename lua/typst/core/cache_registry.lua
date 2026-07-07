@@ -4,21 +4,13 @@ local entries = {
     {
         name = "project_attachments",
         module = "typst.project.attachments",
-        reset = "reset",
         forget = "forget",
         forget_args = "bufnr",
         optional = true,
     },
     {
-        name = "project_lifecycle",
-        module = "typst.project.lifecycle",
-        reset = "reset",
-        optional = true,
-    },
-    {
         name = "conceal",
         module = "typst.conceal",
-        reset = "reset",
         optional = true,
         clear = "refresh",
         clear_args = "bufnr",
@@ -32,7 +24,6 @@ local entries = {
     {
         name = "match_highlight",
         module = "typst.edit.match_highlight",
-        reset = "reset",
         detach = "detach",
         detach_args = "bufnr",
         optional = true,
@@ -40,7 +31,6 @@ local entries = {
     {
         name = "indent",
         module = "typst.edit.indent",
-        reset = "reset",
         forget = "forget",
         forget_args = "bufnr",
         optional = true,
@@ -48,7 +38,6 @@ local entries = {
     {
         name = "bibliography_edit",
         module = "typst.bibliography.edit",
-        reset = "reset",
         forget = "forget",
         forget_args = "bufnr",
         optional = true,
@@ -56,7 +45,6 @@ local entries = {
     {
         name = "formatting",
         module = "typst.formatting",
-        reset = "reset",
         forget = "forget",
         forget_args = "bufnr",
         optional = true,
@@ -71,92 +59,37 @@ local entries = {
     {
         name = "completion",
         module = "typst.completion",
-        reset = "reset",
         optional = true,
         clear = "reset",
-        reload = true,
+        reload = "reset",
     },
     {
         name = "completion_context",
         module = "typst.completion.context",
-        reset = "clear_cache",
         forget = "clear_cache",
         forget_args = "bufnr",
         optional = true,
     },
     {
-        name = "completion_packages",
-        module = "typst.completion.packages",
-        reset = "reset",
-        optional = true,
-    },
-    {
-        name = "diagnostics",
-        module = "typst.diagnostics",
-        reset = "reset",
-        optional = true,
-    },
-    {
-        name = "artifacts",
-        module = "typst.workflows.artifacts",
-        reset = "reset",
-        optional = true,
-        requires_pruned_projects = true,
-    },
-    {
         name = "package",
         module = "typst.package",
-        reset = "reset",
         optional = true,
         clear = "reset",
-        reload = true,
+        reload = "reset",
     },
     {
         name = "symbol",
         module = "typst.metadata.symbol",
-        reset = "reset",
         optional = true,
         clear = "reset",
-        reload = true,
+        reload = "reset",
     },
     {
         name = "metadata",
         module = "typst.metadata",
-        reset = "reset",
         optional = true,
         clear = "reset",
-        reload = true,
-    },
-    {
-        name = "follow_buffer",
-        module = "typst.preview.follow_buffer",
-        reset = "reset",
-        optional = true,
-    },
-    {
-        name = "typst_query_source_maps",
-        module = "typst.preview.source_maps.typst_query",
-        reset = "reset",
-        optional = true,
-    },
-    {
-        name = "preview_native_server",
-        module = "typst.preview.native.server",
-        reset = "reset",
-        optional = true,
-    },
-    {
-        name = "outputs",
-        module = "typst.resources.outputs",
-        reset = "reset",
-        optional = false,
-        requires_pruned_projects = true,
-    },
-    {
-        name = "state",
-        module = "typst.core.state",
-        reset = "reset_cache",
-        optional = false,
+        reload = "reset",
     },
     {
         name = "index",
@@ -166,7 +99,6 @@ local entries = {
     {
         name = "import_scan",
         module = "typst.project.root",
-        reset = "clear_import_scan_cache",
         clear = "clear_import_scan_cache",
     },
     {
@@ -250,28 +182,6 @@ local function sorted_names(names)
     return names
 end
 
---- Reset registered plugin-owned caches and transient state.
----@param opts? {retain_projects?:boolean}
----@return table<string, boolean> summary Reset entry names keyed by reset status.
-function M.reset(opts)
-    opts = opts or {}
-    local summary = {}
-    for _, entry in ipairs(entries) do
-        if
-            entry.reset
-            and not (
-                entry.requires_pruned_projects
-                and opts.retain_projects == true
-            )
-        then
-            summary[entry.name] = call_entry(entry, entry.reset, {
-                force = not entry.optional,
-            }, "reset")
-        end
-    end
-    return summary
-end
-
 --- Clear user-facing derived caches for `:TypstClearCache`.
 ---@param opts? {bufnr?:integer}
 ---@return table<string, boolean> summary Cleared entry names keyed by success.
@@ -350,9 +260,7 @@ function M.reload(opts)
     local summary = {}
     for _, entry in ipairs(entries) do
         if entry.reload then
-            local method_name = entry.reload == true and entry.reset
-                or entry.reload
-            summary[entry.name] = call_entry(entry, method_name, {
+            summary[entry.name] = call_entry(entry, entry.reload, {
                 force = true,
             }, "reload")
         end
@@ -395,6 +303,12 @@ function M._entries_for_tests()
     return vim.deepcopy(entries)
 end
 
+---Return a copy of registered cache entries for reset manifest/catalog views.
+---@return table[] entries_snapshot Cache registry entry metadata.
+function M.entries()
+    return vim.deepcopy(entries)
+end
+
 --- Return loaded/reset status for registered cache entries.
 ---@return table status Cache registry status summary.
 function M.status()
@@ -407,13 +321,18 @@ function M.status()
         local loaded = package.loaded[entry.module] ~= nil
         local item = {
             name = entry.name,
+            owner_key = entry.owner_key or entry.name,
             module = entry.module,
+            optional = entry.optional == true,
             loaded = loaded,
-            reset = entry.reset ~= nil,
             clear = entry.clear ~= nil,
+            clear_method = entry.clear,
             forget = entry.forget ~= nil,
+            forget_method = entry.forget,
             detach = entry.detach ~= nil,
+            detach_method = entry.detach,
             forget_window = entry.forget_window ~= nil,
+            forget_window_method = entry.forget_window,
         }
         status.entries[#status.entries + 1] = item
         local bucket = loaded and status.loaded or status.unloaded
@@ -432,7 +351,6 @@ function M.stats()
         total = #status.entries,
         loaded = #status.loaded,
         unloaded = #status.unloaded,
-        reset = 0,
         clear = 0,
         reload = 0,
         forget = 0,
@@ -444,9 +362,6 @@ function M.stats()
     }
 
     for _, entry in ipairs(entries) do
-        if entry.reset then
-            stats.reset = stats.reset + 1
-        end
         if entry.clear then
             stats.clear = stats.clear + 1
         end

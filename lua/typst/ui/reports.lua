@@ -10,9 +10,9 @@ local compiler_service = require("typst.project.services.compiler")
 local diagnostics_service = require("typst.project.services.diagnostics")
 local graph_service = require("typst.project.services.graph")
 local preview_cache = require("typst.preview.cache")
-local native_preview_session = require("typst.preview.native.session")
+local preview_controller = require("typst.preview.controller")
 local project_root = require("typst.project.root")
-local preview_service = require("typst.project.services.preview")
+local resource_manager = require("typst.runtime.resource_manager")
 local viewer_service = require("typst.project.services.viewer")
 local status = require("typst.ui.status")
 local semantic_provider = require("typst.integrations.semantic_provider")
@@ -215,11 +215,70 @@ local function blocker_label(blocker)
     if blocker.path then
         fields[#fields + 1] = ("path=%s"):format(blocker.path)
     end
+    if blocker.command or blocker.recovery then
+        fields[#fields + 1] = ("recovery=%s"):format(
+            blocker.command or blocker.recovery
+        )
+    end
     local kinds = count_label(blocker.kinds)
     if kinds ~= "" then
         fields[#fields + 1] = ("kinds=%s"):format(kinds)
     end
     return table.concat(fields, " ")
+end
+
+local function reset_phase_label(phase)
+    local fields = {
+        phase.name or "unknown",
+        phase.ok == false and "failed" or "ok",
+    }
+    if phase.elapsed_ms then
+        fields[#fields + 1] = ("%.1fms"):format(phase.elapsed_ms)
+    end
+    if type(phase.failures) == "table" and #phase.failures > 0 then
+        fields[#fields + 1] = ("failures=%d"):format(#phase.failures)
+    end
+    if type(phase.recovery) == "table" and #phase.recovery > 0 then
+        fields[#fields + 1] = ("recovery=%s"):format(
+            table.concat(phase.recovery, ",")
+        )
+    end
+    return table.concat(fields, " ")
+end
+
+local function append_reset_summary(lines, reset)
+    if type(reset) ~= "table" then
+        return
+    end
+
+    lines[#lines + 1] = "  last reset:"
+    lines[#lines + 1] = ("    ok=%s force=%s retained_projects=%s epoch=%s"):format(
+        tostring(reset.ok ~= false),
+        tostring(reset.force == true),
+        tostring(reset.retained_projects == true),
+        tostring(reset.epoch or "?")
+    )
+    if type(reset.recovery) == "table" and #reset.recovery > 0 then
+        lines[#lines + 1] = ("    recovery: %s"):format(
+            table.concat(reset.recovery, ", ")
+        )
+    end
+    if type(reset.phases) == "table" and #reset.phases > 0 then
+        lines[#lines + 1] = "    phases:"
+        for _, phase in ipairs(reset.phases) do
+            lines[#lines + 1] = ("      %s"):format(reset_phase_label(phase))
+            for _, failure in ipairs(phase.failures or {}) do
+                local label = failure.reason or "failed"
+                if failure.entry then
+                    label = ("%s %s"):format(failure.entry, label)
+                end
+                if failure.recovery then
+                    label = ("%s recovery=%s"):format(label, failure.recovery)
+                end
+                lines[#lines + 1] = ("        %s"):format(label)
+            end
+        end
+    end
 end
 
 local function bytes_label(bytes)
@@ -338,16 +397,19 @@ local function copy_preview_url(url)
 end
 
 function M.preview_status_lines(state)
-    local preview_state = preview_service.get(state) or {}
-    local native_preview = native_preview_session.project_state(state)
-    local cache_status = preview_cache.status(state)
+    local preview_state = preview_controller.status(state, {
+        raw = true,
+        cache = true,
+    })
+    local raw_preview = preview_state.raw or {}
+    local native_preview = preview_state.native or {}
+    local cache_status = preview_state.cache or preview_cache.status(state)
     local browser_config = (config.unsafe_get().preview or {}).browser or {}
     local lines = {
         "typst.nvim preview",
         ("  active: %s"):format(preview_state.active and "yes" or "no"),
     }
-    local backend = preview_state.active and preview_state.active_backend
-        or preview_state.last_backend
+    local backend = preview_state.backend
     if backend then
         lines[#lines + 1] = ("  backend: %s"):format(backend)
     end
@@ -364,32 +426,28 @@ function M.preview_status_lines(state)
         if native_preview.output then
             lines[#lines + 1] = ("  output: %s"):format(native_preview.output)
         end
-    elseif preview_state.active_output then
-        lines[#lines + 1] = ("  output: %s"):format(preview_state.active_output)
+    elseif preview_state.output then
+        lines[#lines + 1] = ("  output: %s"):format(preview_state.output)
     end
-    local last_url = preview_state.last_failed_url or preview_state.last_url
+    local last_url = raw_preview.last_failed_url or raw_preview.last_url
     if not native_preview.active and last_url then
         lines[#lines + 1] = ("  last url: %s"):format(last_url)
-        if preview_state.last_failed_url and copy_preview_url(last_url) then
+        if raw_preview.last_failed_url and copy_preview_url(last_url) then
             lines[#lines + 1] = "  copy url: copied to + register"
         else
             lines[#lines + 1] =
                 "  copy url: :let @+ = g:typst_nvim_last_preview_url"
         end
     end
-    if preview_state.last_transport then
+    if raw_preview.last_transport then
         lines[#lines + 1] = ("  last transport: %s"):format(
-            preview_state.last_transport
+            raw_preview.last_transport
         )
     end
-    if preview_state.last_shell then
-        lines[#lines + 1] = ("  last shell: %s"):format(
-            preview_state.last_shell
-        )
+    if raw_preview.last_shell then
+        lines[#lines + 1] = ("  last shell: %s"):format(raw_preview.last_shell)
     end
-    local export_label = preview_export_label(
-        preview_state.active_export or preview_state.last_export
-    )
+    local export_label = preview_export_label(preview_state.export)
     if export_label then
         lines[#lines + 1] = ("  export: %s"):format(export_label)
     end
@@ -411,9 +469,9 @@ function M.preview_status_lines(state)
             )
         end
     end
-    if preview_state.last_browser_refresh_skipped_ms then
+    if raw_preview.last_browser_refresh_skipped_ms then
         lines[#lines + 1] = ("  reload throttle: skipped, %sms remaining"):format(
-            preview_state.last_browser_refresh_skipped_ms
+            raw_preview.last_browser_refresh_skipped_ms
         )
     end
     if
@@ -452,7 +510,10 @@ end
 function M.project_lines(state, bufnr, opts)
     opts = opts or {}
     local compiler_state = compiler_service.get(state) or {}
-    local preview_state = preview_service.get(state) or {}
+    local preview_state = preview_controller.status(state, {
+        raw = true,
+        cache = false,
+    })
     local diagnostic_state = diagnostics_service.get(state) or {}
     local viewer_state = viewer_service.get(state) or {}
     local graph = graph_service.get(state) or {}
@@ -564,6 +625,17 @@ function M.project_lines(state, bufnr, opts)
             retained_orphans
         )
     end
+    local global_operations = (resource_manager.snapshot(state) or {}).global_operations
+        or {}
+    if
+        (global_operations.active or 0) > 0
+        or (global_operations.retained or 0) > 0
+    then
+        lines[#lines + 1] = ("  global operations: active=%d retained=%d"):format(
+            global_operations.active or 0,
+            global_operations.retained or 0
+        )
+    end
 
     if
         artifact_counts.document > 0
@@ -588,12 +660,14 @@ function M.project_lines(state, bufnr, opts)
         vim.list_extend(lines, preview_cache_detail_lines(state))
         local cache_status = cache_registry.status()
         local cache_stats = cache_registry.stats()
-        lines[#lines + 1] = ("  cache registry: loaded=%d unloaded=%d reset=%d clear=%d reload=%d"):format(
+        lines[#lines + 1] = ("  cache registry: loaded=%d unloaded=%d clear=%d reload=%d forget=%d detach=%d window=%d"):format(
             cache_stats.loaded,
             cache_stats.unloaded,
-            cache_stats.reset,
             cache_stats.clear,
-            cache_stats.reload
+            cache_stats.reload,
+            cache_stats.forget,
+            cache_stats.detach,
+            cache_stats.forget_window
         )
         if #cache_status.loaded > 0 then
             lines[#lines + 1] = ("    loaded: %s"):format(
@@ -623,6 +697,14 @@ function M.project_lines(state, bufnr, opts)
         lines[#lines + 1] = ("  resolution pending: %s"):format(
             resolution.resolution_pending or state.resolution_pending or "none"
         )
+        if
+            type(resolution.import_scan_suggestion) == "table"
+            and type(resolution.import_scan_suggestion.main) == "string"
+        then
+            lines[#lines + 1] = ("  import scan suggestion: %s"):format(
+                util.relpath(resolution.import_scan_suggestion.main, state.root)
+            )
+        end
     end
 
     if compiler_state.last_command then
@@ -693,16 +775,10 @@ function M.project_lines(state, bufnr, opts)
         lines[#lines + 1] = ("  viewer cwd: %s"):format(viewer_state.cwd)
     end
 
-    local preview_backend = preview_state.active
-            and preview_state.active_backend
-        or preview_state.last_backend
-    local preview_mode = preview_state.active and preview_state.active_mode
-        or preview_state.last_mode
-    local preview_command = preview_state.active
-            and preview_state.active_command
-        or preview_state.last_command
-    local preview_cwd = preview_state.active and preview_state.active_cwd
-        or preview_state.last_cwd
+    local preview_backend = preview_state.backend
+    local preview_mode = preview_state.mode
+    local preview_command = preview_state.command
+    local preview_cwd = preview_state.cwd
 
     if preview_backend then
         lines[#lines + 1] = ("  preview backend: %s"):format(preview_backend)
@@ -722,7 +798,7 @@ function M.project_lines(state, bufnr, opts)
         lines[#lines + 1] = ("  preview cwd: %s"):format(preview_cwd)
     end
 
-    local native_preview = native_preview_session.project_state(state)
+    local native_preview = preview_state.native or {}
     if native_preview.active then
         lines[#lines + 1] = ("  preview transport: %s"):format(
             native_preview.mode
@@ -740,15 +816,13 @@ function M.project_lines(state, bufnr, opts)
                 native_preview.output
             )
         end
-    elseif preview_state.active and preview_state.active_output then
+    elseif preview_state.active and preview_state.output then
         lines[#lines + 1] = ("  preview output: %s"):format(
-            preview_state.active_output
+            preview_state.output
         )
     end
 
-    local export_label = preview_export_label(
-        preview_state.active_export or preview_state.last_export
-    )
+    local export_label = preview_export_label(preview_state.export)
     if export_label then
         lines[#lines + 1] = ("  preview export: %s"):format(export_label)
     end
@@ -811,6 +885,17 @@ function M.status_report_lines(snapshot)
             stats.bibliography_misses or 0
         )
     end
+    local traversal = snapshot.index_traversal
+    if type(traversal) == "table" and traversal.partial == true then
+        lines[#lines + 1] = ("  index partial: %s scanned=%d/%s entries=%d/%s first=%s"):format(
+            traversal.partial_reason or "budget",
+            traversal.scanned_files or 0,
+            tostring(traversal.max_files or "?"),
+            traversal.import_entries or 0,
+            tostring(traversal.max_entries or "?"),
+            traversal.first_skipped_path or "<none>"
+        )
+    end
     local fs_watchers = snapshot.index_fs_watchers
     if type(fs_watchers) == "table" and fs_watchers.mode then
         local suffix = ""
@@ -837,6 +922,7 @@ function M.status_report_lines(snapshot)
             lines[#lines + 1] = "    " .. line
         end
     end
+    append_reset_summary(lines, snapshot.last_reset)
     return lines
 end
 

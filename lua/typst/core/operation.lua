@@ -20,6 +20,8 @@ local retained = {}
 ---@field state "starting"|"running"|"stopping"|"finished"|"orphaned-running"|"orphaned-retained"|nil
 ---@field pending boolean
 ---@field generation number|nil
+---@field owner "global"|"project"|nil Resource-session ownership scope.
+---@field project_key string|nil Project key when `owner == "project"`.
 ---@field command string|nil
 ---@field cwd string|nil
 ---@field stdout string
@@ -175,6 +177,28 @@ end
 
 local function wait_released_state(state)
     return state == "finished" or state == "orphaned-retained"
+end
+
+local function operation_in_scope(operation, opts)
+    local scope = opts.scope or "global"
+    if scope == "all" then
+        return true
+    end
+    if scope == "project" then
+        return operation.owner == "project"
+            and operation.project_key == opts.project_key
+    end
+    return operation.owner == nil or operation.owner == "global"
+end
+
+local function scoped_values(records, opts)
+    local out = {}
+    for _, operation in pairs(records or {}) do
+        if operation_in_scope(operation, opts) then
+            out[#out + 1] = operation
+        end
+    end
+    return out
 end
 
 --- Register a callback to run when the process-backed operation really exits.
@@ -384,6 +408,64 @@ function Operation:_force_finish(result)
         reason = "orphaned",
         message = "operation did not exit after forced termination",
     })
+end
+
+--- Abandon operation callbacks during forced runtime reset.
+---
+--- This does not claim that an external process stopped. It only releases
+--- typst.nvim's references and prevents late process exits from running stale
+--- cleanup or result callbacks after project/cache state has been reset.
+---@param result? table Metadata explaining why the operation was abandoned.
+---@return typst.Operation operation This operation after local reset cleanup.
+function Operation:_abandon(result)
+    if self.abandoned == true then
+        return self
+    end
+
+    self.abandoned = true
+    self.pending = false
+    self.finished_at = uv.hrtime()
+    self.state = "finished"
+    close_timer(self._timeout_timer)
+    close_timer(self._kill_timer)
+    close_timer(self._force_finish_timer)
+    active[self.id] = nil
+    retained[self.id] = nil
+    self._callbacks = {}
+    self._cancel_callbacks = {}
+    self.cleanup = nil
+    self.on_cancel = nil
+    self.on_cancel_failed = nil
+    copy_result_fields(
+        self,
+        vim.tbl_extend("force", {
+            ok = false,
+            code = 1,
+            stopped = false,
+            abandoned = true,
+            reason = "reset",
+            message = "operation callbacks abandoned during runtime reset",
+        }, type(result) == "table" and result or {})
+    )
+    return self
+end
+
+--- Drop reset-unsafe callbacks while preserving operation visibility.
+---@param opts? {keep_cleanup?:boolean,keep_cancel_handlers?:boolean}
+---@return typst.Operation operation This operation after callback cleanup.
+function Operation:_quiesce_for_reset(opts)
+    opts = opts or {}
+    self.reset_quiesced = true
+    self._callbacks = {}
+    self._cancel_callbacks = {}
+    if opts.keep_cleanup ~= true then
+        self.cleanup = nil
+    end
+    if opts.keep_cancel_handlers ~= true then
+        self.on_cancel = nil
+        self.on_cancel_failed = nil
+    end
+    return self
 end
 
 --- Cancel an active operation using graceful then forceful process termination.
@@ -607,6 +689,8 @@ function M.new(kind, opts)
         state = "starting",
         pending = true,
         generation = opts.generation,
+        owner = opts.owner,
+        project_key = opts.project_key,
         command = opts.command,
         cwd = opts.cwd,
         stdout = "",
@@ -642,6 +726,8 @@ function M.run(kind, command, opts, handlers)
         command = command,
         cwd = opts.cwd,
         generation = handlers.generation,
+        owner = handlers.owner,
+        project_key = handlers.project_key,
         cleanup = handlers.cleanup,
         on_cancel = handlers.on_cancel,
         on_cancel_failed = handlers.on_cancel_failed,
@@ -736,6 +822,8 @@ function M.attach(result, kind, command, opts, handlers)
     local operation = M.run(kind, command, opts, handlers)
     result.operation = operation
     result.handle = operation.handle
+    result.cancel_style = "dot"
+    result.on_finish_style = "dot"
     result.cancel = function(cancel_opts, callback)
         return operation:_cancel(cancel_opts, callback)
     end
@@ -790,6 +878,111 @@ function M.cancel_all(opts)
         end
     end
     return ok, results
+end
+
+--- Cancel or clear all global process-backed operations during runtime reset.
+---
+--- Project-scoped operation records are reset by project services. This covers
+--- generic `core.operation` handles that are not otherwise visible to the
+--- resource manager. Forced reset abandons unresolved callbacks after the
+--- cancel attempt so late exits cannot mutate stale runtime state.
+---@param opts? {force?:boolean,reason?:string,timeout_ms?:number,kill_timeout_ms?:number,wait?:boolean,clear_retained?:boolean,scope?:"global"|"project"|"all",project_key?:string}
+---@return table summary Reset summary for diagnostics and tests.
+function M.reset(opts)
+    opts = opts or {}
+    opts.scope = opts.scope or "global"
+    local active_scope = scoped_values(active, opts)
+    local retained_scope = scoped_values(retained, opts)
+    local summary = {
+        ok = true,
+        scope = opts.scope,
+        project_key = opts.project_key,
+        active = #active_scope,
+        retained = #retained_scope,
+        cancelled = 0,
+        failed = 0,
+        pending = 0,
+        abandoned = 0,
+        cleared_retained = 0,
+        outcomes = {},
+    }
+
+    local cancel_opts = {
+        reason = opts.reason or "reset",
+        timeout_ms = opts.timeout_ms or 250,
+        kill_timeout_ms = opts.kill_timeout_ms or 250,
+        wait = opts.wait == true,
+    }
+    for _, operation in ipairs(active_scope) do
+        local stopped, result = operation:_cancel(cancel_opts)
+        if type(result) ~= "table" then
+            result = { stopped = stopped == true, result = result }
+        end
+
+        local outcome = {
+            id = operation.id,
+            kind = operation.kind,
+            stopped = stopped == true,
+            pending = result.pending == true,
+            orphaned = result.orphaned == true,
+            retained = operation.state == "orphaned-retained"
+                or result.retained == true
+                or result.orphan_retained == true,
+            reason = result.reason,
+        }
+        summary.outcomes[#summary.outcomes + 1] = outcome
+
+        if stopped then
+            summary.cancelled = summary.cancelled + 1
+        elseif outcome.pending then
+            summary.pending = summary.pending + 1
+            summary.ok = false
+        else
+            summary.failed = summary.failed + 1
+            summary.ok = false
+        end
+
+        if opts.force == true and not stopped then
+            operation:_abandon({
+                reason = result.reason or "reset_forced",
+                message = result.message
+                    or "operation abandoned during forced runtime reset",
+                orphaned = result.orphaned,
+                retained = result.retained,
+                error = result.error,
+            })
+            summary.abandoned = summary.abandoned + 1
+            outcome.abandoned = true
+        elseif not stopped then
+            operation:_quiesce_for_reset({
+                keep_cleanup = true,
+                keep_cancel_handlers = true,
+            })
+        end
+    end
+
+    if opts.force == true or opts.clear_retained == true then
+        for _, operation in ipairs(retained_scope) do
+            operation:_abandon({
+                reason = "reset_retained_cleared",
+                message = "retained operation cleared during runtime reset",
+                orphaned = true,
+                retained = true,
+            })
+            summary.cleared_retained = summary.cleared_retained + 1
+            summary.abandoned = summary.abandoned + 1
+        end
+    elseif #retained_scope > 0 then
+        summary.ok = false
+    end
+
+    summary.active_after = #scoped_values(active, opts)
+    summary.retained_after = #scoped_values(retained, opts)
+    if summary.active_after > 0 or summary.retained_after > 0 then
+        summary.ok = false
+    end
+
+    return summary
 end
 
 --- Run a provider-style function and deliver exactly one terminal notification.

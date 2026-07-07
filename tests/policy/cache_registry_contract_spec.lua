@@ -8,24 +8,18 @@ assert(#entries > 0, "cache registry should expose contract entries")
 
 local seen = {}
 local required_names = {
-    artifacts = true,
     completion = true,
     conceal = true,
-    diagnostics = true,
     import_scan = true,
     index = true,
     metadata = true,
-    outputs = true,
     package = true,
     project_attachments = true,
-    project_lifecycle = true,
-    state = true,
     symbol = true,
     treesitter = true,
 }
 
 local operations = {
-    "reset",
     "clear",
     "forget",
     "detach",
@@ -34,9 +28,6 @@ local operations = {
 
 local function hook_name(entry, operation)
     local value = entry[operation]
-    if value == true and operation == "reload" then
-        return entry.reset
-    end
     if value == true then
         return operation
     end
@@ -54,6 +45,10 @@ for _, entry in ipairs(entries) do
     assert(
         type(entry.module) == "string" and entry.module ~= "",
         "bad cache module for " .. entry.name
+    )
+    assert(
+        entry.reset == nil,
+        "cache registry must not own reset hook: " .. entry.name
     )
 
     local has_hook = false
@@ -102,7 +97,7 @@ for _, entry in ipairs(entries) do
         end
     end
     if entry.reload ~= nil then
-        local method = entry.reload == true and entry.reset or entry.reload
+        local method = entry.reload
         assert(
             type(method) == "string" and type(module[method]) == "function",
             ("cache entry %s missing reload hook"):format(entry.name)

@@ -16,6 +16,28 @@ local deferred_state_changes = {}
 local draining_deferred = false
 local reset_generation = 0
 
+local function clear_event_state()
+    emitting_depth = 0
+    deferred_state_changes = {}
+    draining_deferred = false
+end
+
+local function cancel_deferred_items(items, reason)
+    for _, item in ipairs(items or {}) do
+        if type(item.on_cancel) == "function" then
+            local ok, err = xpcall(function()
+                item.on_cancel(reason or "reset")
+            end, debug.traceback)
+            if not ok then
+                log.add("error", "deferred Typst state cancellation failed", {
+                    label = item.label,
+                    error = err,
+                })
+            end
+        end
+    end
+end
+
 -- `TypstEvent*` names are the documented autocmd surface. The shorter
 -- `TypstCompileStarted`-style names remain as compatibility aliases, so event
 -- payload changes should be additive unless the public API version changes.
@@ -96,11 +118,20 @@ local function drain_deferred()
         return
     end
 
+    local generation = reset_generation
     draining_deferred = true
-    while #deferred_state_changes > 0 do
+    while #deferred_state_changes > 0 and reset_generation == generation do
         local pending = deferred_state_changes
         deferred_state_changes = {}
-        for _, item in ipairs(pending) do
+        for index, item in ipairs(pending) do
+            if reset_generation ~= generation then
+                local remaining = {}
+                for remaining_index = index, #pending do
+                    remaining[#remaining + 1] = pending[remaining_index]
+                end
+                cancel_deferred_items(remaining, "reset")
+                break
+            end
             local ok, err = xpcall(item.fn, debug.traceback)
             if not ok then
                 log.add("error", "deferred Typst state change failed", {
@@ -110,22 +141,40 @@ local function drain_deferred()
             end
         end
     end
-    draining_deferred = false
+    if reset_generation ~= generation then
+        clear_event_state()
+    else
+        draining_deferred = false
+    end
 end
 
 local function emit_batch(items)
     local generation = reset_generation
     emitting_depth = emitting_depth + 1
-    for _, item in ipairs(items) do
-        emit_one(item.pattern, item.data)
-        if reset_generation ~= generation then
-            return
+
+    local ok, err = xpcall(function()
+        for _, item in ipairs(items) do
+            emit_one(item.pattern, item.data)
+            if reset_generation ~= generation then
+                break
+            end
+        end
+    end, debug.traceback)
+    if reset_generation ~= generation then
+        -- Keep the finalizer explicit so future generation changes cannot
+        -- strand event emission depth.
+        clear_event_state()
+    else
+        emitting_depth = math.max(0, emitting_depth - 1)
+        if emitting_depth == 0 then
+            drain_deferred()
         end
     end
 
-    emitting_depth = emitting_depth - 1
-    if emitting_depth == 0 then
-        drain_deferred()
+    if not ok then
+        log.add("error", "Typst event batch failed", {
+            error = err,
+        })
     end
 end
 
@@ -173,27 +222,54 @@ end
 --- Queue a lifecycle mutation until active Typst user events finish.
 ---@param label? string Human-readable label used in error logs.
 ---@param fn fun() Mutation to run after the outermost event emission.
----@return boolean deferred True when the mutation was queued instead of run immediately.
-function M.defer_state_change(label, fn)
+---@param opts? {on_cancel?:fun(reason:string)} Cancellation hook called when reset drops the queued mutation.
+---@return boolean deferred True when the mutation was queued for later.
+function M.defer_state_change(label, fn, opts)
     -- Lifecycle code calls this only while publishing a User event; outside that
     -- path the caller should perform the mutation immediately.
     if type(fn) ~= "function" or emitting_depth == 0 then
         return false
     end
 
+    opts = opts or {}
     deferred_state_changes[#deferred_state_changes + 1] = {
         label = label or "state-change",
         fn = fn,
+        on_cancel = opts.on_cancel,
     }
     return true
+end
+
+--- Cancel queued deferred lifecycle mutations.
+---@param opts? {reason?:string} Cancellation controls.
+---@return table result Cancellation summary.
+function M.cancel_deferred(opts)
+    opts = opts or {}
+    local pending = deferred_state_changes
+    deferred_state_changes = {}
+    cancel_deferred_items(pending, opts.reason or "reset")
+    return {
+        ok = true,
+        cancelled = #pending,
+    }
+end
+
+--- Return a summary-safe deferred event queue snapshot.
+---@return table snapshot Deferred queue state.
+function M.deferred_snapshot()
+    return {
+        count = #deferred_state_changes,
+        emitting_depth = emitting_depth,
+        draining = draining_deferred,
+        reset_generation = reset_generation,
+    }
 end
 
 --- Clear active event/deferred lifecycle state during runtime reset.
 function M.reset()
     reset_generation = reset_generation + 1
-    emitting_depth = 0
-    deferred_state_changes = {}
-    draining_deferred = false
+    M.cancel_deferred({ reason = "reset" })
+    clear_event_state()
 end
 
 M._reset_for_tests = M.reset

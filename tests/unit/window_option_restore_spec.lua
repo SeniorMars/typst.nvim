@@ -22,8 +22,8 @@ vim.api.nvim_set_current_buf(other_buf)
 vim.wo[winid].foldlevel = 99
 ftplugin_state.restore(typst_buf)
 assert(
-    vim.wo[winid].foldlevel == 3,
-    "tracked window options should restore after the window switches buffers"
+    vim.wo[winid].foldlevel == 99,
+    "tracked window options should not restore into a window showing another buffer"
 )
 
 vim.api.nvim_set_current_buf(typst_buf)
@@ -54,8 +54,8 @@ vim.api.nvim_set_current_buf(other_buf)
 vim.wo[winid].conceallevel = 2
 conceal.detach(typst_buf)
 assert(
-    vim.wo[winid].conceallevel == 0,
-    "conceallevel should restore after the window switches buffers"
+    vim.wo[winid].conceallevel == 2,
+    "conceallevel should not restore into a window showing another buffer"
 )
 
 local typst_buf_user = vim.api.nvim_create_buf(false, true)
@@ -69,6 +69,26 @@ conceal.detach(typst_buf_user)
 assert(
     vim.wo[winid].conceallevel == 3,
     "conceal restore should not overwrite user-modified conceallevel"
+)
+
+local typst_buf_a = vim.api.nvim_create_buf(false, true)
+vim.api.nvim_set_current_buf(typst_buf_a)
+vim.bo[typst_buf_a].filetype = "typst"
+vim.wo[winid].conceallevel = 0
+assert(conceal.apply(typst_buf_a, winid))
+
+local typst_buf_b = vim.api.nvim_create_buf(false, true)
+vim.api.nvim_set_current_buf(typst_buf_b)
+vim.bo[typst_buf_b].filetype = "typst"
+assert(
+    vim.wo[winid].conceallevel == 2,
+    "second Typst buffer should inherit the installed window conceallevel"
+)
+assert(conceal.apply(typst_buf_b, winid))
+conceal.detach(typst_buf_b)
+assert(
+    vim.wo[winid].conceallevel == 0,
+    "conceal restore should preserve the pre-Typst baseline across Typst buffers"
 )
 
 vim.cmd("qa!")

@@ -1,7 +1,6 @@
 local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
-local log = require("typst.core.log")
 local registry = require("typst.core.cache_registry")
 
 local status = registry.status()
@@ -11,7 +10,6 @@ local stats = registry.stats()
 assert(stats.total == #status.entries, "cache stats should count entries")
 assert(stats.loaded == #status.loaded, "cache stats should count loaded")
 assert(stats.unloaded == #status.unloaded, "cache stats should count unloaded")
-assert(stats.reset > 0, "cache stats should count reset-capable entries")
 assert(stats.clear > 0, "cache stats should count clear-capable entries")
 assert(stats.reload > 0, "cache stats should count reload-capable entries")
 assert(stats.forget > 0, "cache stats should count buffer-forget entries")
@@ -100,7 +98,6 @@ package.loaded["typst.tests.cache_registry_reload"] = {
 registry._register_for_tests({
     name = "test_reload_only",
     module = "typst.tests.cache_registry_reload",
-    reset = "reset",
     reload = "reload",
     optional = true,
 })
@@ -160,37 +157,9 @@ assert(
     "registry window forget should call registered window cleanup"
 )
 
-local reset = registry.reset({ retain_projects = true })
-assert(reset.state == true, "registry reset should clear persisted state cache")
 assert(
-    reset.outputs ~= true,
-    "retain-project reset should not clear output leases"
+    registry.reset == nil,
+    "cache registry should not expose a reset owner; use runtime.resource_manifest"
 )
-
-local original_indent = package.loaded["typst.edit.indent"]
-package.loaded["typst.edit.indent"] = {
-    reset = function()
-        error("indent reset failed")
-    end,
-}
-log.clear()
-local guarded = registry.reset({ retain_projects = true })
-package.loaded["typst.edit.indent"] = original_indent
-assert(
-    guarded.indent == false,
-    "registry should report a failing cache entry without aborting reset"
-)
-local saw_failure = false
-for _, entry in ipairs(log.entries()) do
-    if
-        entry.message == "cache registry entry failed"
-        and entry.fields
-        and entry.fields.name == "indent"
-    then
-        saw_failure = true
-        break
-    end
-end
-assert(saw_failure, "registry should log cache entry reset failures")
 
 vim.cmd("qa!")

@@ -11,7 +11,7 @@ local preview_service = require("typst.project.services.preview")
 local project_services = require("typst.project.services")
 local project_registry = require("typst.project")
 local project_store = require("typst.project.store")
-local resource_supervisor = require("typst.resources.supervisor")
+local resource_manager = require("typst.runtime.resource_manager")
 
 local fixture_dir =
     typst_test_cache_path(("lifecycle-matrix-%d"):format(vim.uv.hrtime()))
@@ -74,12 +74,11 @@ for _, kind in ipairs({ "export", "render_image", "format" }) do
             .. " work"
     )
     assert(
-        resource_supervisor.stop_before_prune(
-            project,
-            "checking active operation retention in lifecycle matrix test",
-            "active operation retention"
-        ) == true,
-        "resources.supervisor should report active operation retention"
+        resource_manager.stop_before_prune(project, {
+            log_message = "checking active operation retention in lifecycle matrix test",
+            reason = "active operation retention",
+        }) == true,
+        "runtime.resource_manager should report active operation retention"
     )
 
     operations.finish(project, record, { ok = true, kind = kind })
@@ -104,12 +103,11 @@ assert(
     "last-buffer detach should retain a project with an active output lease"
 )
 assert(
-    resource_supervisor.stop_before_prune(
-        lease_project,
-        "checking active output lease retention in lifecycle matrix test",
-        "active output lease retention"
-    ) == true,
-    "resources.supervisor should report active output lease retention"
+    resource_manager.stop_before_prune(lease_project, {
+        log_message = "checking active output lease retention in lifecycle matrix test",
+        reason = "active output lease retention",
+    }) == true,
+    "runtime.resource_manager should report active output lease retention"
 )
 local invariant_result = debug_tools.check_invariants()
 for _, finding in ipairs(invariant_result.findings or {}) do

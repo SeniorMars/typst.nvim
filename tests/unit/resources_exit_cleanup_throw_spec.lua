@@ -3,10 +3,10 @@ vim.opt.runtimepath:prepend(root)
 
 local compiler = require("typst.compiler")
 local operations = require("typst.project.services.operations")
-local preview = require("typst.integrations.typst_preview")
+local preview = require("typst.preview.controller")
 local preview_service = require("typst.project.services.preview")
 local project_store = require("typst.project.store")
-local supervisor = require("typst.resources.supervisor")
+local resource_manager = require("typst.runtime.resource_manager")
 local typst = require("typst")
 
 typst.reset({ force = true })
@@ -47,7 +47,7 @@ local ok, err = xpcall(function()
         return { failed = 0, retained = 0 }
     end)
 
-    local summary = supervisor.stop_for_exit_all()
+    local summary = resource_manager.stop_for_exit_all()
     assert(summary.ok == false, "compiler throw should mark summary failed")
     assert(
         vim.tbl_contains(calls.compiler, project_b.key),
@@ -78,7 +78,7 @@ local ok, err = xpcall(function()
         return { failed = 0, retained = 0 }
     end)
 
-    summary = supervisor.stop_for_exit_all()
+    summary = resource_manager.stop_for_exit_all()
     assert(summary.ok == false, "operation throw should mark summary failed")
     assert(
         vim.tbl_contains(calls.operations, project_b.key),
@@ -108,7 +108,7 @@ local ok, err = xpcall(function()
         end
         return { failed = 0, retained = 0 }
     end)
-    summary = supervisor.stop_for_exit_all()
+    summary = resource_manager.stop_for_exit_all()
     if timer_for_cancel and not timer_for_cancel:is_closing() then
         timer_for_cancel:close()
     end
@@ -128,6 +128,26 @@ local ok, err = xpcall(function()
     rawset(operations, "cancel_project", function()
         return { failed = 0, retained = 0 }
     end)
+
+    local live_preview_stop_calls = {}
+    rawset(preview, "stop_for_exit", function(state)
+        live_preview_stop_calls[#live_preview_stop_calls + 1] = state.key
+        return { ok = true, stopped = true }
+    end)
+    for _, fields in ipairs({
+        { opening = true, stopping = false, status = "opening" },
+        { opening = false, stopping = true, status = "stopping" },
+    }) do
+        preview_service.set(project_a, vim.tbl_extend("force", {
+            active = false,
+        }, fields))
+        summary = resource_manager.stop_for_exit_all()
+        assert(summary.ok == true, "live preview exit stop should succeed")
+    end
+    assert(
+        #live_preview_stop_calls == 2,
+        "exit cleanup should stop preview opening/stopping states"
+    )
 
     for _, case in ipairs({
         {
@@ -157,7 +177,7 @@ local ok, err = xpcall(function()
             return case.result
         end)
 
-        summary = supervisor.stop_for_exit_all()
+        summary = resource_manager.stop_for_exit_all()
         assert(
             summary.ok == false,
             case.reason .. " should mark exit summary failed"
@@ -185,7 +205,7 @@ local ok, err = xpcall(function()
     rawset(preview, "stop_for_exit", function()
         return cyclic
     end)
-    summary = supervisor.stop_for_exit_all()
+    summary = resource_manager.stop_for_exit_all()
     if timer and not timer:is_closing() then
         timer:close()
     end
@@ -212,7 +232,7 @@ local ok, err = xpcall(function()
     rawset(preview, "clear_state", function()
         error("preview clear boom")
     end)
-    summary = supervisor.stop_for_exit_all()
+    summary = resource_manager.stop_for_exit_all()
     local saw_stop_error = false
     local saw_clear_error = false
     for _, failure in ipairs(summary.failed or {}) do

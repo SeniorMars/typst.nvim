@@ -6,7 +6,8 @@ local project_helper = require("tests.helpers.project")
 local project_store = require("typst.project.store")
 local compiler_service = require("typst.project.services.compiler")
 local operations = require("typst.project.services.operations")
-local resource_supervisor = require("typst.resources.supervisor")
+local preview_service = require("typst.project.services.preview")
+local resource_manager = require("typst.runtime.resource_manager")
 
 local function open_project(name)
     return project_helper.open_typst_project({
@@ -25,14 +26,14 @@ local function detach_for_prune(opened)
     project_store.clear_buffer(opened.bufnr)
 end
 
-local active_compile = open_project("resource-supervisor-active-compiler")
+local active_compile = open_project("resource-manager-active-compiler")
 compiler_service.set(active_compile.project, {
     process = { pid = 9001 },
     status = "compiling",
 })
 detach_for_prune(active_compile)
 assert(
-    resource_supervisor.has_active_resources(active_compile.project),
+    resource_manager.has_active_resources(active_compile.project),
     "active compiler process should block project pruning"
 )
 assert(
@@ -54,7 +55,7 @@ assert(
 )
 
 local retained_operation =
-    open_project("resource-supervisor-retained-operation")
+    open_project("resource-manager-retained-operation")
 local retained_record =
     assert(operations.begin(retained_operation.project, "export"))
 operations.retain(retained_operation.project, retained_record, {
@@ -64,7 +65,7 @@ operations.retain(retained_operation.project, retained_record, {
 })
 detach_for_prune(retained_operation)
 assert(
-    resource_supervisor.has_active_resources(retained_operation.project),
+    resource_manager.has_active_resources(retained_operation.project),
     "retained operations should block project pruning"
 )
 assert(
@@ -81,16 +82,16 @@ assert(
     "finished retained operations should allow detached project pruning"
 )
 
-local output_lease = open_project("resource-supervisor-output-lease")
+local output_lease = open_project("resource-manager-output-lease")
 local lease = assert(
     output_ownership.acquire(
-        typst_test_cache_path("resource-supervisor-output-lease/main.pdf"),
-        output_ownership.owner("resource-supervisor-test", output_lease.project)
+        typst_test_cache_path("resource-manager-output-lease/main.pdf"),
+        output_ownership.owner("resource-manager-test", output_lease.project)
     )
 )
 detach_for_prune(output_lease)
 assert(
-    resource_supervisor.has_active_resources(output_lease.project),
+    resource_manager.has_active_resources(output_lease.project),
     "active output leases should block project pruning"
 )
 assert(
@@ -103,7 +104,54 @@ assert(
     "released output leases should allow project pruning"
 )
 
-local reset_retained = open_project("resource-supervisor-reset-retained")
+local pending_preview_open = open_project("resource-manager-pending-preview-open")
+local preview_cancel_calls = 0
+preview_service.set(pending_preview_open.project, {
+    active = false,
+    opening = true,
+    status = "opening",
+    open_generation = 1,
+    open_handle = {
+        handle = {
+            cancel_style = "dot",
+            cancel = function()
+                preview_cancel_calls = preview_cancel_calls + 1
+                return false, {
+                    ok = false,
+                    stopped = false,
+                    reason = "preview_cancel_unconfirmed",
+                }
+            end,
+        },
+    },
+})
+detach_for_prune(pending_preview_open)
+assert(
+    resource_manager.has_active_resources(pending_preview_open.project),
+    "pending preview open should block project pruning"
+)
+local prune_attempted, prune_summary = resource_manager.stop_before_prune(
+    pending_preview_open.project,
+    { reason = "pending preview prune" }
+)
+assert(prune_attempted == true, "pending preview prune should be attempted")
+assert(
+    preview_cancel_calls == 1,
+    "prune should try to cancel a pending preview open"
+)
+assert(
+    prune_summary.ok == false
+        and prune_summary.reason == "preview_stop_failed"
+        and prune_summary.retained == true,
+    "unconfirmed pending preview cancellation should retain the project"
+)
+assert(
+    project_store.all()[pending_preview_open.project.key]
+        == pending_preview_open.project,
+    "pending preview project should remain registered after failed prune cleanup"
+)
+
+local reset_retained = open_project("resource-manager-reset-retained")
 local reset_record = assert(operations.begin(reset_retained.project, "export"))
 local cancel_calls = 0
 local fake_operation = {

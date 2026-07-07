@@ -68,6 +68,10 @@ local function select_buffer(candidates)
         return nil
     end
 
+    -- Multiple loaded buffers can intentionally share one file path in Neovim.
+    -- Prefer the current buffer when it matches; otherwise choose the newest
+    -- loaded buffer by number. Callers that need a specific source must pass
+    -- that bufnr instead of relying on path lookup.
     local current = vim.api.nvim_get_current_buf()
     for _, bufnr in ipairs(buffers) do
         if bufnr == current then

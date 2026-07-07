@@ -2,7 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local typst = require("typst")
-local hooks = require("typst.runtime.hooks")
+local manifest = require("typst.runtime.resource_manifest")
 
 local function autocmd_count(group)
     local ok, autocmds = pcall(vim.api.nvim_get_autocmds, { group = group })
@@ -132,7 +132,7 @@ assert(
 )
 
 local hook_names = {}
-for _, hook in ipairs(hooks.status()) do
+for _, hook in ipairs(manifest.runtime_hook_entries()) do
     hook_names[hook.name] = true
 end
 assert(

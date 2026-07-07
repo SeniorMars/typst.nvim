@@ -34,11 +34,10 @@ function M.register(ctx)
     create(
         "TypstExplainProject",
         function(args)
-            local result, lines, buf =
-                api.ui.explain_project({
-                    open = args.bang,
-                    echo = not args.bang,
-                })
+            local result, lines, buf = api.ui.explain_project({
+                open = args.bang,
+                echo = not args.bang,
+            })
             if type(result) == "table" and result.ok == false then
                 if args.bang then
                     local reports = require("typst.ui.reports")
