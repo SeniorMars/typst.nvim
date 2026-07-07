@@ -222,6 +222,24 @@ typst.setup({
     root = root,
     output_dir = typst_test_cache_path("preview-callback-error-output"),
     preview = {
+        refresh = function()
+            error("refresh exploded")
+        end,
+    },
+})
+local refresh_project = edit_main()
+local refresh_result = require("typst.preview.controller").refresh(
+    refresh_project,
+    { code = 0, cycle = 1 },
+    { notify = false }
+)
+assert_callback_error(refresh_result, "refresh")
+
+typst.reset({ force = true })
+typst.setup({
+    root = root,
+    output_dir = typst_test_cache_path("preview-callback-error-output"),
+    preview = {
         forward = function()
             error("forward exploded")
         end,

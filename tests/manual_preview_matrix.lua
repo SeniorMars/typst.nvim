@@ -203,7 +203,7 @@ if mode == "browser" then
     refresh_timer:start(refresh_after_ms, 0, function()
         vim.schedule(function()
             local result =
-                require("typst.integrations.typst_preview").refresh(project, {
+                require("typst.preview.controller").refresh(project, {
                     code = 0,
                     generation = 2,
                     cycle = 1,

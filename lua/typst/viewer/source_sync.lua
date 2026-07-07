@@ -23,6 +23,34 @@ local function failed_result(result)
     return type(result) == "table" and result.ok == false
 end
 
+local function viewer_failure(viewer, action, reason, message, extra)
+    local result = {
+        ok = false,
+        reason = reason or "viewer_failed",
+        message = message,
+        provider = viewer.provider,
+        capabilities = vim.deepcopy(viewer.capabilities or {}),
+    }
+    if type(extra) == "table" then
+        result = vim.tbl_extend("force", result, extra)
+    end
+    log.add("warn", ("viewer %s failed"):format(action), result)
+    return result
+end
+
+local function missing_output_result(viewer, action, project, path)
+    return viewer_failure(
+        viewer,
+        action,
+        "missing_output",
+        ("Typst output does not exist: %s"):format(path or "<nil>"),
+        {
+            main = project and project.main or nil,
+            output = path,
+        }
+    )
+end
+
 local function has_sync_capability(viewer, action)
     local capabilities = viewer.capabilities or {}
     return capabilities[action] == true or capabilities.source_maps == true
@@ -55,12 +83,12 @@ end
 ---@return table|boolean|nil result Viewer callback/operation result or failure payload.
 function M.forward(project, opts)
     opts = opts or {}
+    local viewer = effective_viewer()
     local path = (compiler_service.get(project) or {}).output
     if not path or vim.fn.filereadable(path) ~= 1 then
-        error(("typst.nvim: output does not exist: %s"):format(path or "<nil>"))
+        return missing_output_result(viewer, "forward", project, path)
     end
 
-    local viewer = effective_viewer()
     local forward = viewer.forward
     if forward == nil then
         return unsupported_result(
@@ -156,10 +184,19 @@ function M.forward(project, opts)
     else
         local opener = util.command_executable(forward)
         if vim.fn.executable(opener) ~= 1 then
-            error(
-                ("typst.nvim: viewer forward executable not found in PATH: %s"):format(
-                    opener
-                )
+            return viewer_failure(
+                viewer,
+                "forward",
+                "viewer_failed",
+                ("Typst viewer forward executable not found in PATH: %s"):format(
+                    opener or "<nil>"
+                ),
+                {
+                    detail = "executable_not_found",
+                    executable = opener,
+                    main = project.main,
+                    output = path,
+                }
             )
         end
 
@@ -183,11 +220,21 @@ function M.forward(project, opts)
             viewer_operation.handle
             and viewer_operation.handle._typst_spawn_error
         then
-            error(
-                ("typst.nvim: failed to start viewer forward %s: %s"):format(
+            return viewer_failure(
+                viewer,
+                "forward",
+                "viewer_failed",
+                ("Typst viewer forward failed to start %s: %s"):format(
                     opener,
                     viewer_operation.handle._typst_spawn_error.error
-                )
+                ),
+                {
+                    detail = "spawn_failed",
+                    executable = opener,
+                    main = project.main,
+                    output = path,
+                    error = viewer_operation.handle._typst_spawn_error.error,
+                }
             )
         end
         record_last_viewer(
@@ -322,10 +369,20 @@ function M.inverse(project, opts)
     elseif inverse ~= nil then
         local opener = util.command_executable(inverse)
         if vim.fn.executable(opener) ~= 1 then
-            error(
-                ("typst.nvim: viewer inverse executable not found in PATH: %s"):format(
-                    opener
-                )
+            return viewer_failure(
+                viewer,
+                "inverse",
+                "viewer_failed",
+                ("Typst viewer inverse executable not found in PATH: %s"):format(
+                    opener or "<nil>"
+                ),
+                {
+                    detail = "executable_not_found",
+                    executable = opener,
+                    main = project.main,
+                    output = location.output,
+                    source = location.path,
+                }
             )
         end
 
@@ -356,11 +413,22 @@ function M.inverse(project, opts)
             viewer_operation.handle
             and viewer_operation.handle._typst_spawn_error
         then
-            error(
-                ("typst.nvim: failed to start viewer inverse %s: %s"):format(
+            return viewer_failure(
+                viewer,
+                "inverse",
+                "viewer_failed",
+                ("Typst viewer inverse failed to start %s: %s"):format(
                     opener,
                     viewer_operation.handle._typst_spawn_error.error
-                )
+                ),
+                {
+                    detail = "spawn_failed",
+                    executable = opener,
+                    main = project.main,
+                    output = location.output,
+                    source = location.path,
+                    error = viewer_operation.handle._typst_spawn_error.error,
+                }
             )
         end
         record_last_viewer(

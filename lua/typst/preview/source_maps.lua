@@ -3,7 +3,7 @@ local events = require("typst.core.events")
 local log = require("typst.core.log")
 local provider_adapter = require("typst.integrations.provider_adapter")
 local providers = require("typst.integrations.providers")
-local location = require("typst.integrations.typst_preview.location")
+local location = require("typst.preview.location")
 local project_store = require("typst.project.store")
 local preview_service = require("typst.project.services.preview")
 

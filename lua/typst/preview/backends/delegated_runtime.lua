@@ -125,7 +125,7 @@ end
 ---@param position? table Source position with line and column.
 ---@return string cwd Project root used for command execution.
 function M.run_at_position(project, command, position)
-    local location = require("typst.integrations.typst_preview.location")
+    local location = require("typst.preview.location")
     local original = vim.api.nvim_win_get_cursor(0)
     local moved = false
 

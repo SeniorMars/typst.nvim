@@ -391,7 +391,7 @@ rawset(vim, "notify", original_notify)
 
 finish_open = nil
 opened_events = 0
-local typst_preview = require("typst.integrations.typst_preview")
+local typst_preview = require("typst.preview.controller")
 project = setup_project(function()
     local handle = {
         pending = true,
@@ -456,6 +456,10 @@ assert(finish_open)({ ok = true, opened = true })
 assert(
     pending.pending == false and pending.result and pending.result.stale == true,
     "late open completion after prune should finish as stale"
+)
+assert(
+    pending.result.reason == "project_changed",
+    "late open completion after prune should report project_changed"
 )
 assert(
     typst_test_preview(pruned_project).active ~= true,

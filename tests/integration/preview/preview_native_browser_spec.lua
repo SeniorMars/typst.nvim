@@ -200,7 +200,7 @@ assert(
     "native browser should not claim a source-sync provider"
 )
 
-local preview_backend = require("typst.integrations.typst_preview")
+local preview_backend = require("typst.preview.controller")
 local refresh_callbacks_before_native = refresh_callbacks
 preview_service.set(project, {
     last_error = {

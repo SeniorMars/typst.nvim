@@ -528,7 +528,12 @@ end
 function M.reset()
     local stopped = M.stop()
     session.reset()
-    return stopped
+    return {
+        ok = true,
+        status = stopped and "reset" or "skipped",
+        stopped = stopped,
+        reason = stopped and nil or "not_running",
+    }
 end
 
 function M.is_running()

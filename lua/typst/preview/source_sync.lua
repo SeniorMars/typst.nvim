@@ -1,12 +1,11 @@
 local config = require("typst.config")
 local events = require("typst.core.events")
-local location = require("typst.integrations.typst_preview.location")
+local location = require("typst.preview.location")
 local log = require("typst.core.log")
 local preview_service = require("typst.project.services.preview")
-local preview_capabilities =
-    require("typst.integrations.typst_preview.capabilities")
+local preview_capabilities = require("typst.preview.capabilities")
 local source_map_service = require("typst.preview.source_maps")
-local runtime = require("typst.integrations.typst_preview.runtime")
+local runtime = require("typst.preview.backends.delegated_runtime")
 
 local M = {}
 

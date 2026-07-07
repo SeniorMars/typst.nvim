@@ -247,7 +247,7 @@ assert(
 )
 
 local refreshed = wait_for_handle(
-    require("typst.integrations.typst_preview").refresh(project, {
+    require("typst.preview.controller").refresh(project, {
         code = 0,
         generation = 99,
     }),

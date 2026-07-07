@@ -144,7 +144,13 @@ assert(
     "stopped native preview routes should return 410"
 )
 
-assert(server.reset() == true, "native preview server reset should stop it")
+local reset_result = server.reset()
+assert(
+    reset_result
+        and reset_result.ok == true
+        and reset_result.stopped == true,
+    "native preview server reset should stop it"
+)
 assert(not server.is_running(), "native preview server should stop after reset")
 assert(session.route_count() == 0, "native preview reset should clear routes")
 

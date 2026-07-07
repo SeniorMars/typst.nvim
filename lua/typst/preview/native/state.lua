@@ -7,7 +7,7 @@ function M.record(project, backend, opts, fields, active)
     local cwd = fields.cwd
     local service_fields = vim.deepcopy(fields)
     service_fields.cwd = nil
-    require("typst.integrations.typst_preview.state").record(
+    require("typst.preview.state_machine").record(
         project,
         backend,
         opts,
