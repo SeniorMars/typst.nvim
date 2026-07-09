@@ -79,9 +79,7 @@ end
 --- Clear the last successful viewer backend recorded for a project.
 ---@param project table Project state whose viewer service is mutated.
 function M.clear_last_viewer(project)
-    viewer_service.set(project, {
-        clear = { "provider", "backend", "command", "cwd" },
-    })
+    viewer_service.clear_last(project)
 end
 
 --- Record the viewer backend that successfully handled a project action.
@@ -91,8 +89,7 @@ end
 ---@param command? string[] Command used by executable backends.
 ---@param cwd? string Working directory used by executable backends.
 function M.record_last_viewer(project, viewer, backend, command, cwd)
-    viewer_service.set(project, {
-        clear = { "provider", "backend", "command", "cwd" },
+    viewer_service.record_last(project, {
         provider = viewer.provider,
         backend = backend,
         command = command,

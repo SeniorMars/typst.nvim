@@ -140,7 +140,7 @@ function M.open(project, opts)
         return backend_err
     end
 
-    if backend.kind == "callback" then
+    if backend.kind == "custom" or backend.kind == "callback" then
         local result = backend:open(project, opts)
         if type(result) == "table" and result.ok == false then
             return result
@@ -154,7 +154,7 @@ function M.open(project, opts)
         return result
     end
 
-    if backend.kind == "native" then
+    if backend.kind == "browser" or backend.kind == "viewer" then
         return backend:open(project, opts)
     end
 
@@ -167,15 +167,6 @@ function M.open(project, opts)
             return result
         end
         return state.to_active_delegated(project, opts, result)
-    end
-
-    if backend.kind == "viewer" then
-        log.add(
-            "warn",
-            "preview backend unavailable; falling back to viewer",
-            { main = project.main, provider = preview.provider }
-        )
-        return backend:open(project, opts)
     end
 
     return backend_err

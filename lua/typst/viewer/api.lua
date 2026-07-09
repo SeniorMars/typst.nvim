@@ -4,8 +4,8 @@ local preview_cache = require("typst.preview.cache")
 local preview_results = require("typst.preview.results")
 local typst_preview = require("typst.preview.controller")
 local preview_service = require("typst.project.services.preview")
-local util = require("typst.core.util")
-local viewer = require("typst.viewer")
+local path_util = require("typst.core.path")
+local viewer = require("typst.viewer.generic")
 
 local M = {}
 
@@ -68,7 +68,7 @@ function M.view(state, opts, notify)
     if path ~= false then
         notify_user(
             notify,
-            ("Opened %s"):format(util.relpath(path, state.root))
+            ("Opened %s"):format(path_util.relpath(path, state.root))
         )
     end
     return path
@@ -113,7 +113,7 @@ function M.view_forward(state, opts, notify)
         notify_user(
             notify,
             ("Forwarded %s:%d:%d"):format(
-                util.relpath(state.main, state.root),
+                path_util.relpath(state.main, state.root),
                 position.line,
                 position.column
             )
@@ -143,7 +143,7 @@ function M.view_inverse(state, opts, notify)
         notify_user(
             notify,
             ("Viewer inverse jump %s:%d:%d"):format(
-                util.relpath(
+                path_util.relpath(
                     location.path or opts.path or state.main,
                     state.root
                 ),
@@ -217,7 +217,7 @@ function M.preview(state, opts, notify)
     elseif result == true then
         notify_user(
             notify,
-            ("Previewing %s"):format(util.relpath(state.main, state.root))
+            ("Previewing %s"):format(path_util.relpath(state.main, state.root))
         )
     end
     return result
@@ -342,7 +342,7 @@ function M.preview_stop(state, opts, notify)
         notify_user(
             notify,
             ("Preview stopped for %s"):format(
-                util.relpath(state.main, state.root)
+                path_util.relpath(state.main, state.root)
             )
         )
     end
@@ -369,19 +369,19 @@ function M.preview_toggle(state, opts, notify)
         notify_user(
             notify,
             ("Preview opening for %s"):format(
-                util.relpath(state.main, state.root)
+                path_util.relpath(state.main, state.root)
             )
         )
     elseif (preview_service.get(state) or {}).active then
         notify_user(
             notify,
-            ("Previewing %s"):format(util.relpath(state.main, state.root))
+            ("Previewing %s"):format(path_util.relpath(state.main, state.root))
         )
     else
         notify_user(
             notify,
             ("Preview stopped for %s"):format(
-                util.relpath(state.main, state.root)
+                path_util.relpath(state.main, state.root)
             )
         )
     end
@@ -409,7 +409,7 @@ function M.preview_inverse(state, opts, notify)
         notify_user(
             notify,
             ("Preview inverse jump %s:%d:%d"):format(
-                util.relpath(location.path or state.main, state.root),
+                path_util.relpath(location.path or state.main, state.root),
                 location.line or opts.line or 1,
                 location.column or opts.column or 1
             )

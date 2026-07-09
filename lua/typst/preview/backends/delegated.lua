@@ -1,4 +1,5 @@
 local runtime = require("typst.preview.backends.delegated_runtime")
+local interface = require("typst.preview.backends.interface")
 local results = require("typst.preview.results")
 
 local M = {}
@@ -23,9 +24,10 @@ end
 ---Create a backend wrapper for typst-preview.nvim delegation.
 ---@return table backend Delegated preview backend.
 function M.create()
-    return {
+    return interface.create({
         name = "typst-preview.nvim",
         kind = "delegated",
+        advanced = true,
 
         open = function(_, project, opts)
             if not runtime.command_available("TypstPreview") then
@@ -85,7 +87,7 @@ function M.create()
                 mode = opts and opts.mode,
             }
         end,
-    }
+    })
 end
 
 return M

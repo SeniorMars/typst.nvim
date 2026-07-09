@@ -1,4 +1,5 @@
 local capabilities = require("typst.preview.capabilities")
+local core_result = require("typst.core.result")
 
 local M = {}
 
@@ -30,7 +31,7 @@ end
 ---@return table result Structured failure.
 function M.unobservable(stage, err)
     return M.failed(
-        "finish_subscription_failed",
+        core_result.reason.finish_subscription_failed,
         ("Pending Typst preview %s could not be observed"):format(stage),
         { error = err }
     )
@@ -46,7 +47,7 @@ function M.open_cancelled(reason)
         stopped = false,
         cancelled = true,
         superseded = true,
-        reason = reason or "cancelled",
+        reason = reason or core_result.reason.cancelled,
         message = "Typst preview open was cancelled before it became active",
     }
 end
@@ -80,13 +81,18 @@ function M.stale_open(result, reason)
     local out = type(result) == "table" and vim.deepcopy(result) or {}
     out.ok = false
     out.stale = true
-    if reason == "reset" or reason == "project_changed" then
+    if
+        reason == core_result.reason.reset
+        or reason == core_result.reason.project_changed
+    then
         out.reason = reason
-        out.message = reason == "reset"
+        out.message = reason == core_result.reason.reset
                 and "Typst preview open result was ignored after typst.nvim reset"
             or "Typst preview open result was ignored after the project changed"
     else
-        out.reason = out.reason or reason or "stale_preview_open"
+        out.reason = out.reason
+            or reason
+            or core_result.reason.stale_preview_open
         out.message = out.message
             or "Typst preview open result was ignored because a newer open replaced it"
     end

@@ -3,9 +3,9 @@ local config = require("typst.config")
 local log = require("typst.core.log")
 local pending_handle = require("typst.core.pending")
 local operations = require("typst.project.services.operations")
+local path = require("typst.core.path")
 local preview_cache = require("typst.preview.cache")
 local session = require("typst.preview.native.session")
-local util = require("typst.core.util")
 local xdg = require("typst.core.xdg")
 
 local M = {}
@@ -48,6 +48,12 @@ local function non_empty_list(value)
     return type(value) == "table" and #value > 0
 end
 
+local export_modes = {
+    compile = true,
+    profile = true,
+    provider = true,
+}
+
 local function inherited_export(preview, target)
     local base = copy_export(preview.export)
     if target ~= "browser" then
@@ -72,13 +78,18 @@ end
 
 local function apply_overrides(export, opts)
     opts = opts or {}
-    local override = opts.preview_export or opts.export or opts
+    local nested_override = opts.preview_export or opts.export
+    local override = nested_override or opts
     if type(override) ~= "table" then
         return export
     end
 
-    if override.export_mode or override.mode == "compile" then
-        export.mode = override.export_mode or override.mode
+    local mode = override.export_mode
+    if mode == nil and (nested_override or export_modes[override.mode]) then
+        mode = override.mode
+    end
+    if mode ~= nil then
+        export.mode = mode
     end
     if override.profile then
         export.mode = override.export_mode or "profile"
@@ -113,7 +124,7 @@ end
 local function default_output_dir(preview)
     local browser = preview.browser or {}
     local base = browser.output_dir or xdg.preview_output_dir()
-    return util.join(base, "exports")
+    return path.join(base, "exports")
 end
 
 local function default_output_name(project, export)
@@ -121,7 +132,7 @@ local function default_output_name(project, export)
         return export.output_name
     end
     return ("%s-%s"):format(
-        util.stem(project.main),
+        path.stem(project.main),
         session.project_id(project)
     )
 end

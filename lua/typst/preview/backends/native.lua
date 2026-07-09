@@ -2,12 +2,13 @@ local native = require("typst.preview.native")
 
 local M = {}
 
----Create a backend wrapper for typst.nvim native preview.
----@return table backend Native preview backend.
+---Deprecated compatibility facade for the old native preview backend path.
+---@return table backend Native preview backend shim.
 function M.create()
     return {
         name = "native",
         kind = "native",
+        compat = true,
 
         open = function(_, project, opts)
             return native.open(project, opts)

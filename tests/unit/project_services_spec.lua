@@ -46,7 +46,7 @@ local provider = {
         if callback then
             callback({ code = 0, stale = false, stopped = true })
         end
-        return { kind = "stop", pid = 6103 }
+        return nil
     end,
     status = function(project)
         return typst_test_compiler(project).status

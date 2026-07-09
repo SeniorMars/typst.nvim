@@ -7,6 +7,29 @@ local state = require("typst.preview.state_machine")
 
 local M = {}
 
+local preview_backend_policy = {
+    extensible = false,
+    default = "viewer",
+    fixed = {
+        "viewer",
+        "browser",
+        "delegated",
+        "custom",
+    },
+    advanced = {
+        browser = true,
+        delegated = true,
+        custom = true,
+    },
+}
+
+local native_targets = {
+    auto = true,
+    browser = true,
+    view = true,
+    viewer = true,
+}
+
 ---Return true when preview config explicitly delegates to typst-preview.nvim.
 ---@param preview table Preview config.
 ---@return boolean delegated True when delegated.
@@ -14,12 +37,58 @@ function M.delegates_to_typst_preview(preview)
     return preview and preview.provider == "typst-preview.nvim"
 end
 
+---Return the intentionally small preview backend policy.
+---
+---Preview backends are explicit built-ins, not a dynamic registry. New backend
+---kinds should justify a separate module and tests before joining this list.
+---@return table policy Compact immutable-ish backend policy snapshot.
+function M.policy()
+    return vim.deepcopy(preview_backend_policy)
+end
+
+local function native_target(preview, opts)
+    preview = preview or {}
+    opts = opts or {}
+    local target = opts.native or opts.target or preview.native
+        or preview_backend_policy.default
+    if target == "view" then
+        target = "viewer"
+    end
+    if native_targets[target] then
+        return target
+    end
+    return nil, target
+end
+
 local function delegated()
     return require("typst.preview.backends.delegated")
 end
 
-local function callback_backend(preview)
-    return require("typst.preview.backends.callback").create(preview)
+local function custom_backend(preview)
+    return require("typst.preview.backends.custom").create(preview)
+end
+
+local function native_backend(preview, opts)
+    local target, invalid = native_target(preview, opts)
+
+    if target == "viewer" then
+        return require("typst.preview.backends.viewer").create(preview)
+    end
+    if target == "browser" then
+        return require("typst.preview.backends.browser").create(preview)
+    end
+    if target == "auto" then
+        return require("typst.preview.backends.browser").create({
+            fallback = "viewer",
+        })
+    end
+
+    return nil,
+        results.failed(
+            "invalid_preview_native",
+            'preview.native must be "browser", "viewer", or "auto"',
+            { native = invalid }
+        )
 end
 
 ---Return whether the active preview is the native browser backend.
@@ -91,7 +160,7 @@ function M.stop(project, opts)
     end
 
     if type(preview.stop) == "function" then
-        local result = callback_backend(preview):stop(project, opts)
+        local result = custom_backend(preview):stop(project, opts)
         if type(result) == "table" then
             if result.pending == true then
                 state.to_stopping(project, { handle = result })
@@ -176,7 +245,7 @@ function M.refresh(project, compile_result, opts)
     end
 
     local refresh_result =
-        callback_backend(preview):refresh(project, compile_result, opts)
+        custom_backend(preview):refresh(project, compile_result, opts)
     if type(refresh_result) == "table" and refresh_result.ok == false then
         refresh_result.native = native_result
         return refresh_result
@@ -247,11 +316,11 @@ function M.resolve(_project, _opts)
     local preview = config.unsafe_get().preview or {}
 
     if type(preview.open) == "function" then
-        return require("typst.preview.backends.callback").create(preview)
+        return custom_backend(preview)
     end
 
     if preview.provider == nil or preview.provider == "native" then
-        return require("typst.preview.backends.native").create(preview)
+        return native_backend(preview, _opts)
     end
 
     if
@@ -264,7 +333,7 @@ function M.resolve(_project, _opts)
     end
 
     if preview.fallback == "view" then
-        return require("typst.preview.backends.viewer_fallback").create(preview)
+        return require("typst.preview.backends.viewer").create(preview)
     end
 
     return nil,

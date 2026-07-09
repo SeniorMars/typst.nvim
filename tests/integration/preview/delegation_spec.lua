@@ -43,8 +43,7 @@ typst.setup({
 })
 local command = vim.api.nvim_get_commands({ builtin = false }).TypstPreview
 assert(
-    command.definition
-        ~= require("typst.integrations.typst_preview").own_command_definition,
+    command.definition ~= require("typst.preview.controller").own_command_definition,
     "typst.nvim should not clobber an existing TypstPreview command"
 )
 

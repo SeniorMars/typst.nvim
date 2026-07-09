@@ -61,6 +61,26 @@ local project = typst.project.set_main(main)
 local old_path = typst.viewer.preview({ mode = "document" })
 assert(old_path == opened, "preview should open old provider output")
 assert(vim.fn.filereadable(old_path) == 1, "old preview artifact should exist")
+local viewer_preview_state = typst_test_preview(project)
+assert(
+    viewer_preview_state.last_backend == "viewer",
+    "viewer preview should record the boring viewer backend"
+)
+assert(
+    viewer_preview_state.active ~= true,
+    "viewer preview should not pretend to own a long-lived active backend"
+)
+local viewer_stop = typst.viewer.preview_stop({ notify = false })
+assert(
+    type(viewer_stop) == "table" and viewer_stop.reason == "unsupported",
+    "viewer preview stop should be a structured unsupported no-op"
+)
+local after_viewer_stop = typst_test_preview(project)
+assert(
+    after_viewer_stop.last_backend == "viewer"
+        and after_viewer_stop.active ~= true,
+    "viewer preview stop should preserve boring viewer backend state"
+)
 
 require("typst.config").unsafe_get().preview.export.output_name = "preview-new"
 local new_path = typst.viewer.preview({

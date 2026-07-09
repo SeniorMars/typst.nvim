@@ -50,7 +50,7 @@ function M.on_buffer(bufnr)
         bufnr = bufnr,
     }, {
         create = false,
-        settle_pending = true,
+        settle_pending = false,
     })
     if not current then
         return nil

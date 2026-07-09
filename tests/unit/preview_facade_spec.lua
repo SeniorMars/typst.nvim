@@ -1,5 +1,4 @@
 local controller = require("typst.preview.controller")
-local integration = require("typst.integrations.typst_preview")
 local capabilities = require("typst.preview.capabilities")
 local delegated_runtime = require("typst.preview.backends.delegated_runtime")
 local location = require("typst.preview.location")
@@ -7,8 +6,8 @@ local source_sync = require("typst.preview.source_sync")
 local state = require("typst.preview.state_machine")
 
 assert(
-    integration == controller,
-    "typst_preview integration module should be a controller facade"
+    require("typst.integrations.typst_preview") == controller,
+    "typst_preview integration compatibility facade should delegate to controller"
 )
 
 for _, removed in ipairs({
@@ -43,8 +42,8 @@ for _, name in ipairs({
     "own_inverse_command_definition",
 }) do
     assert(
-        integration[name] ~= nil,
-        ("integration facade should expose %s"):format(name)
+        controller[name] ~= nil,
+        ("preview controller should expose %s"):format(name)
     )
 end
 

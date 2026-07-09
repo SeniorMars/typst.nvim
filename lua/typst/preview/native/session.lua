@@ -1,4 +1,4 @@
-local util = require("typst.core.util")
+local path_util = require("typst.core.path")
 local project_id = require("typst.core.project_id")
 
 local uv = vim.uv or vim.loop
@@ -352,7 +352,7 @@ function M.state_payload(route)
         id = route.id,
         output = route.output,
         output_url = M.relative_resource_path(route, "artifact"),
-        output_name = route.output and util.basename(route.output) or nil,
+        output_name = route.output and path_util.basename(route.output) or nil,
         output_format = metadata.output_format,
         output_kind = metadata.output_kind,
         output_size = metadata.output_size,

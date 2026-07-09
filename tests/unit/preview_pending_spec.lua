@@ -1,3 +1,6 @@
+local root = vim.fn.getcwd()
+vim.opt.runtimepath:prepend(root)
+
 local preview_pending = require("typst.preview.pending")
 
 local function project(name)
@@ -110,3 +113,5 @@ assert(
     wrapper.result and wrapper.result.reason == "cancel_finished",
     "late original stop should not replace cancel completion"
 )
+
+vim.cmd("qa!")

@@ -715,7 +715,7 @@ run_case("executable source sync requires declared capability", function()
     )
 end)
 run_case("inverse source-sync and executable backend", function(group)
-    local util = require("typst.core.util")
+    local buffer_util = require("typst.core.buffer")
 
     typst.setup({
         root = root,
@@ -795,9 +795,9 @@ run_case("inverse source-sync and executable backend", function(group)
 
     local main_bufnr = vim.fn.bufnr(main)
     vim.cmd.edit(chapter)
-    local original_edit_existing_or_path = util.edit_existing_or_path
+    local original_edit_existing_or_path = buffer_util.edit_existing_or_path
     local helper_path = nil
-    util.edit_existing_or_path = function(path)
+    buffer_util.edit_existing_or_path = function(path)
         helper_path = path
         vim.api.nvim_set_current_buf(main_bufnr)
         return main_bufnr
@@ -824,7 +824,7 @@ run_case("inverse source-sync and executable backend", function(group)
         )
     end, debug.traceback)
 
-    util.edit_existing_or_path = original_edit_existing_or_path
+    buffer_util.edit_existing_or_path = original_edit_existing_or_path
     if not ok then
         error(err)
     end
@@ -1032,7 +1032,7 @@ run_case("viewer provider preset capabilities and state", function(group)
     vim.env.TYPST_NVIM_FAKE_VIEWER_LOG = log_path
     local executable = helpers.fake_viewer(root)
 
-    local viewer = require("typst.viewer")
+    local viewer = require("typst.viewer.generic")
     typst.setup({
         root = root,
         output_dir = typst_test_cache_path("viewer-provider-output"),

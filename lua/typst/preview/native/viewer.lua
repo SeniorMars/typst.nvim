@@ -1,6 +1,6 @@
 local events = require("typst.core.events")
 local native_state = require("typst.preview.native.state")
-local viewer_api = require("typst.viewer")
+local viewer_api = require("typst.viewer.generic")
 local viewer_service = require("typst.project.services.viewer")
 
 local M = {}
