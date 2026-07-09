@@ -121,16 +121,10 @@ function M.new(opts)
             end
             if returned_value == nil then
                 return true,
-                    finish(
-                        opts.cancel_result(cancel_opts, true),
-                        "cancel"
-                    )
+                    finish(opts.cancel_result(cancel_opts, true), "cancel")
             end
-            local terminal = opts.cancel_result(
-                cancel_opts,
-                ok ~= false,
-                result
-            )
+            local terminal =
+                opts.cancel_result(cancel_opts, ok ~= false, result)
             return ok, finish(terminal, "cancel")
         end,
     })
@@ -174,14 +168,12 @@ function M.new(opts)
                 if pending.result ~= nil then
                     return
                 end
-                local cancel_ok, cancel_result = cancel_returned(
-                    returned_value,
-                    {
+                local cancel_ok, cancel_result =
+                    cancel_returned(returned_value, {
                         reason = opts.timeout_reason,
                         timeout_ms = 0,
                         kill_timeout_ms = 0,
-                    }
-                )
+                    })
                 if pending.result ~= nil then
                     return
                 end
@@ -200,7 +192,10 @@ function M.new(opts)
                     ) or timeout_ms
                     if cancel_timeout_ms <= 0 then
                         pending.finish(
-                            cancel_timeout_result(cancel_timeout_ms, cancel_result),
+                            cancel_timeout_result(
+                                cancel_timeout_ms,
+                                cancel_result
+                            ),
                             "cancel_timeout"
                         )
                         return
@@ -208,7 +203,10 @@ function M.new(opts)
                     cancel_timer = uv.new_timer()
                     if not cancel_timer then
                         pending.finish(
-                            cancel_timeout_result(cancel_timeout_ms, cancel_result),
+                            cancel_timeout_result(
+                                cancel_timeout_ms,
+                                cancel_result
+                            ),
                             "cancel_timeout"
                         )
                         return
@@ -219,7 +217,10 @@ function M.new(opts)
                                 return
                             end
                             pending.finish(
-                                cancel_timeout_result(cancel_timeout_ms, cancel_result),
+                                cancel_timeout_result(
+                                    cancel_timeout_ms,
+                                    cancel_result
+                                ),
                                 "cancel_timeout"
                             )
                         end)
@@ -292,11 +293,8 @@ function M.new(opts)
                 return ok ~= false, result
             end
 
-            local terminal = opts.cancel_result(
-                cancel_opts,
-                ok ~= false,
-                result
-            )
+            local terminal =
+                opts.cancel_result(cancel_opts, ok ~= false, result)
             return ok ~= false, pending.finish(terminal, "cancel")
         end
 

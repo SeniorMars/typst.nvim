@@ -61,15 +61,12 @@ local function cancel_watcher_operation(project, watcher, callback)
         return false
     end
 
-    local cancel_ok, stopped, cancel_result = pcall(
-        watcher.operation.cancel,
-        watcher.operation,
-        {
+    local cancel_ok, stopped, cancel_result =
+        pcall(watcher.operation.cancel, watcher.operation, {
             reason = "watcher_stop",
             timeout_ms = 1500,
             kill_timeout_ms = 1500,
-        }
-    )
+        })
     if not cancel_ok then
         watcher.stopping = false
         compiler_service.set(project, { status = "error" })
@@ -88,7 +85,10 @@ local function cancel_watcher_operation(project, watcher, callback)
         stopped == true
         or (
             type(cancel_result) == "table"
-            and (cancel_result.pending == true or cancel_result.stopping == true)
+            and (
+                cancel_result.pending == true
+                or cancel_result.stopping == true
+            )
         )
     then
         if stopped ~= true then

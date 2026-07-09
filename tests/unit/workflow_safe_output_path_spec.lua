@@ -87,36 +87,6 @@ assert(
 )
 
 setup_project({
-    compile = {
-        profiles = {
-            bad_profile_output = {
-                output_name = "../bad-profile",
-            },
-        },
-    },
-})
-local profile_callbacks = 0
-local profile_callback_result = nil
-local profile_result = typst.development.profile(
-    { profile = "bad_profile_output", open = false },
-    function(result)
-        profile_callbacks = profile_callbacks + 1
-        profile_callback_result = result
-    end
-)
-assert(
-    profile_result.ok == false
-        and profile_result.pending == false
-        and profile_result.reason == "output_path_invalid"
-        and profile_result.kind == "profile",
-    "development profile should return structured invalid output path failures"
-)
-assert(
-    profile_callbacks == 1 and profile_callback_result == profile_result,
-    "development profile invalid output should invoke callback once with returned failure"
-)
-
-setup_project({
     output_name = "../bad-clean",
 })
 local clean_result = typst.viewer.clean({ all = true })

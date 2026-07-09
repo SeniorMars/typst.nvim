@@ -1,10 +1,10 @@
 local M = {}
 
---- Install artifact, eval, template, development, and semantic API methods.
+--- Install artifact, template, and semantic API methods.
 ---@param api table Public API table mutated in place.
 ---@param notify fun(message:string, level?:vim.log.levels|integer) Notification sink passed through to workflows.
----@param normalize_bufnr fun(bufnr?:integer):integer Shared buffer resolver for selection-sensitive workflows.
-function M.install(api, notify, normalize_bufnr)
+---@param _normalize_bufnr fun(bufnr?:integer):integer Shared buffer resolver for selection-sensitive workflows.
+function M.install(api, notify, _normalize_bufnr)
     local api_context = require("typst.api.context")
 
     local function project_or_error(opts, operation)
@@ -61,49 +61,6 @@ function M.install(api, notify, normalize_bufnr)
         return require("typst.workflows.artifacts").clean(state, opts, notify)
     end
 
-    local function eval(opts, callback)
-        opts = opts or {}
-        local state, err = project_or_error(opts, "evaluation.eval")
-        if not state then
-            return nil, err
-        end
-        return require("typst.project.services.operations").eval(
-            state,
-            opts,
-            callback,
-            notify
-        )
-    end
-
-    local function eval_selection(opts, callback)
-        opts = opts or {}
-        opts.bufnr = normalize_bufnr(opts.bufnr)
-        local state, err = project_or_error(opts, "evaluation.selection")
-        if not state then
-            return nil, err
-        end
-        return require("typst.project.services.operations").eval_selection(
-            state,
-            opts,
-            callback,
-            notify
-        )
-    end
-
-    local function inspect(opts, callback)
-        opts = opts or {}
-        local state, err = project_or_error(opts, "evaluation.inspect")
-        if not state then
-            return nil, err
-        end
-        return require("typst.project.services.operations").inspect(
-            state,
-            opts,
-            callback,
-            notify
-        )
-    end
-
     local function init(opts, callback)
         return require("typst.workflows.templates").init(
             opts or {},
@@ -114,66 +71,6 @@ function M.install(api, notify, normalize_bufnr)
 
     local function templates(opts)
         return require("typst.workflows.templates").templates(opts or {})
-    end
-
-    ---@return any, any?
-    local function profile(opts, callback)
-        opts = opts or {}
-        local state, err = project_or_error(opts, "development.profile")
-        if not state then
-            return nil, err
-        end
-        return require("typst.project.services.operations").profile(
-            state,
-            opts,
-            callback,
-            notify
-        )
-    end
-
-    ---@return any, any?
-    local function test(opts, callback)
-        opts = opts or {}
-        local state, err = project_or_error(opts, "development.test")
-        if not state then
-            return nil, err
-        end
-        return require("typst.project.services.operations").test(
-            state,
-            opts,
-            callback,
-            notify
-        )
-    end
-
-    ---@return any, any?
-    local function bench(opts, callback)
-        opts = opts or {}
-        local state, err = project_or_error(opts, "development.bench")
-        if not state then
-            return nil, err
-        end
-        return require("typst.project.services.operations").bench(
-            state,
-            opts,
-            callback,
-            notify
-        )
-    end
-
-    ---@return any, any?
-    local function coverage(opts, callback)
-        opts = opts or {}
-        local state, err = project_or_error(opts, "development.coverage")
-        if not state then
-            return nil, err
-        end
-        return require("typst.project.services.operations").coverage(
-            state,
-            opts,
-            callback,
-            notify
-        )
     end
 
     local function inlay_hints_toggle(opts)
@@ -329,20 +226,9 @@ function M.install(api, notify, normalize_bufnr)
         open = artifact_open,
         clean = artifact_clean,
     }
-    api.evaluation = {
-        eval = eval,
-        selection = eval_selection,
-        inspect = inspect,
-    }
     api.template = {
         init = init,
         list = templates,
-    }
-    api.development = {
-        profile = profile,
-        test = test,
-        bench = bench,
-        coverage = coverage,
     }
     api.semantic = {
         inlay_hints_toggle = inlay_hints_toggle,

@@ -8,8 +8,7 @@ local viewer_backend = require("typst.preview.backends.viewer")
 local M = {}
 
 local function browser_failed(result)
-    return result == false
-        or (type(result) == "table" and result.ok == false)
+    return result == false or (type(result) == "table" and result.ok == false)
 end
 
 local function failure_message(result)

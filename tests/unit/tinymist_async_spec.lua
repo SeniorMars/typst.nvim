@@ -64,7 +64,10 @@ assert(
 )
 
 project.get = function(target)
-    assert(target == bufnr, "Tinymist async request should inspect target buffer")
+    assert(
+        target == bufnr,
+        "Tinymist async request should inspect target buffer"
+    )
     return {
         root = root .. "/expected-root",
         main = root .. "/expected-root/main.typ",
@@ -90,9 +93,7 @@ local wrong_root = request_async.request(
     end
 )
 assert(
-    wrong_root
-        and wrong_root.ok == false
-        and wrong_root.reason == "wrong_root",
+    wrong_root and wrong_root.ok == false and wrong_root.reason == "wrong_root",
     "Tinymist async request should reject wrong-root clients from inferred project"
 )
 assert(

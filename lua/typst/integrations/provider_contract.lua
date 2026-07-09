@@ -12,18 +12,9 @@ local aliases = {
     artifacts = "export",
     export = "export",
     exports = "export",
-    eval = "eval",
-    evaluator = "eval",
     init = "init",
     template = "init",
     templates = "init",
-    profile = "profile",
-    profiler = "profile",
-    test = "test",
-    tests = "test",
-    bench = "bench",
-    benchmark = "bench",
-    coverage = "coverage",
     semantic = "semantic",
     render = "render",
     renderer = "render",
@@ -50,12 +41,7 @@ local methods = {
     lint = { "lint", "run" },
     grammar = { "grammar", "run" },
     export = { "export", "run" },
-    eval = { "eval", "run" },
     init = { "init", "run" },
-    profile = { "profile", "run" },
-    test = { "test", "run" },
-    bench = { "bench", "run" },
-    coverage = { "coverage", "run" },
     semantic = {
         "color_info",
         "document_links",
@@ -96,12 +82,6 @@ local kind_stability = {
     source_map = "experimental",
     toc = "experimental",
     viewer = "core",
-
-    bench = "experimental",
-    coverage = "experimental",
-    eval = "experimental",
-    profile = "experimental",
-    test = "experimental",
 }
 
 local fixture_matrix = {
@@ -267,12 +247,7 @@ local structural_results = {
     export = { "path", "output", "outputs", "artifacts" },
     render = { "path", "output", "outputs", "artifacts" },
     viewer = { "opened", "path", "output" },
-    eval = { "output", "stdout", "stderr", "text", "value", "values" },
     init = { "path", "files", "created", "template", "output" },
-    profile = { "output", "stdout", "stderr", "text", "report" },
-    test = { "output", "stdout", "stderr", "text", "report" },
-    bench = { "output", "stdout", "stderr", "text", "report" },
-    coverage = { "output", "stdout", "stderr", "text", "coverage" },
 }
 
 local function sorted_keys(tbl)

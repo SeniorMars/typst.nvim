@@ -111,8 +111,6 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `conceal.viewport_margin` | `number` | `25` |
 | `diagnostics.enabled` | `boolean` | `true` |
 | `diagnostics.external_paths` | `string` | `"bufadd"` |
-| `diagnostics.font_scan_timeout_ms` | `number` | `250` |
-| `diagnostics.fonts` | `boolean` | `true` |
 | `diagnostics.list` | `string` | `"quickfix"` |
 | `diagnostics.max_external_buffers` | `integer` | `256` |
 | `diagnostics.overflow` | `string` | `"quickfix-only"` |

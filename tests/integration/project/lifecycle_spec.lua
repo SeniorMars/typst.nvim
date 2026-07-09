@@ -292,13 +292,8 @@ assert(
     "deleted explicit main should record fallback source"
 )
 assert(
-    util.same_path(
-        util.get_buf_var(deleted_bufnr, "typst_main"),
-        deleted_main
-    ),
-    (
-        "deleted buffer-local main should be retained as user-owned state; got %s expected %s"
-    ):format(
+    util.same_path(util.get_buf_var(deleted_bufnr, "typst_main"), deleted_main),
+    ("deleted buffer-local main should be retained as user-owned state; got %s expected %s"):format(
         vim.inspect(util.get_buf_var(deleted_bufnr, "typst_main")),
         util.normalize(deleted_main)
     )
@@ -342,10 +337,7 @@ assert(
     "moved main recovery should record import scan as the source"
 )
 assert(
-    util.same_path(
-        util.get_buf_var(moved_bufnr, "typst_main"),
-        moved_old_main
-    ),
+    util.same_path(util.get_buf_var(moved_bufnr, "typst_main"), moved_old_main),
     "stale moved buffer-local main should be retained as user-owned state"
 )
 assert(

@@ -180,16 +180,10 @@ local function compile_stop_payload(stopping, result)
 end
 
 local function operation_stop_callback(operation_handle)
-    if
-        operation_handle
-        and type(operation_handle.on_settle) == "function"
-    then
+    if operation_handle and type(operation_handle.on_settle) == "function" then
         return "on_settle"
     end
-    if
-        operation_handle
-        and type(operation_handle.on_result) == "function"
-    then
+    if operation_handle and type(operation_handle.on_result) == "function" then
         return "on_result"
     end
 end
@@ -202,8 +196,9 @@ function M.add_stop_callback(stopping, callback)
         return
     end
 
-    local callback_method =
-        stopping and operation_stop_callback(stopping.operation) or nil
+    local callback_method = stopping
+            and operation_stop_callback(stopping.operation)
+        or nil
     if callback_method then
         stopping.operation[callback_method](stopping.operation, function(result)
             protected_stop_callback(

@@ -12,7 +12,6 @@ ideas from the broader Vim and Typst ecosystem.
 - [Tinymist](https://github.com/Myriad-Dreamin/tinymist) provides the optional
   semantic language-service layer for hover, definitions, formatting, code
   actions, preview/export integration, and richer Typst analysis.
-- [typst-preview.nvim](https://github.com/chomosuke/typst-preview.nvim)
   provides an optional low-latency browser preview and source-jump backend.
 - [tree-sitter-typst](https://github.com/SeniorMars/tree-sitter-typst)
   provides the parser foundation for Neovim queries, motions, folds,

@@ -225,15 +225,14 @@ local function command_callback(name, callback)
     end
 end
 
---- Create a typst.nvim user command unless delegation is requested.
+--- Create a typst.nvim user command unless an integration requests delegation.
 ---@param name string User command name.
 ---@param callback function Command callback.
 ---@param opts? TypstCommandOptions Command options.
 function M.create(name, callback, opts)
     opts = opts or {}
-    -- Some command names, especially TypstPreview*, may already belong to
-    -- companion plugins. force=false means typst.nvim delegates instead of
-    -- shadowing the user's existing integration.
+    -- force=false is reserved for integrations that intentionally leave an
+    -- existing command in place.
     if opts.force == false and command_exists(name) then
         log.add("info", "kept existing command", { command = name })
         return

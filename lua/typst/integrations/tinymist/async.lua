@@ -334,11 +334,9 @@ function M.request(bufnr, method, params_for_client, opts, callback, normalize)
                 end
 
                 if type(normalize) == "function" then
-                    local ok_norm, normalized = async_state.protect(
-                        function()
-                            return normalize(result, client, params)
-                        end
-                    )
+                    local ok_norm, normalized = async_state.protect(function()
+                        return normalize(result, client, params)
+                    end)
                     if ok_norm and type(normalized) == "table" then
                         finish(normalized)
                     else

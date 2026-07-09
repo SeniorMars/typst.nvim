@@ -54,8 +54,7 @@ assert(
     "released compiler resources should allow pruning"
 )
 
-local retained_operation =
-    open_project("resource-manager-retained-operation")
+local retained_operation = open_project("resource-manager-retained-operation")
 local retained_record =
     assert(operations.begin(retained_operation.project, "export"))
 operations.retain(retained_operation.project, retained_record, {
@@ -104,7 +103,8 @@ assert(
     "released output leases should allow project pruning"
 )
 
-local pending_preview_open = open_project("resource-manager-pending-preview-open")
+local pending_preview_open =
+    open_project("resource-manager-pending-preview-open")
 local preview_cancel_calls = 0
 preview_service.set(pending_preview_open.project, {
     active = false,
@@ -116,11 +116,12 @@ preview_service.set(pending_preview_open.project, {
             cancel_style = "dot",
             cancel = function()
                 preview_cancel_calls = preview_cancel_calls + 1
-                return false, {
-                    ok = false,
-                    stopped = false,
-                    reason = "preview_cancel_unconfirmed",
-                }
+                return false,
+                    {
+                        ok = false,
+                        stopped = false,
+                        reason = "preview_cancel_unconfirmed",
+                    }
             end,
         },
     },

@@ -1,7 +1,6 @@
 local backend = require("typst.preview.backend")
 local browser_backend = require("typst.preview.backends.browser")
 local custom_backend = require("typst.preview.backends.custom")
-local delegated = require("typst.preview.backends.delegated")
 local interface = require("typst.preview.backends.interface")
 local viewer_backend = require("typst.preview.backends.viewer")
 
@@ -32,13 +31,11 @@ assert(policy.default == "viewer", "viewer should stay the default backend")
 assert(
     vim.tbl_contains(policy.fixed, "viewer")
         and vim.tbl_contains(policy.fixed, "browser")
-        and vim.tbl_contains(policy.fixed, "delegated")
         and vim.tbl_contains(policy.fixed, "custom"),
     "preview backend policy should list the fixed backend kinds"
 )
 assert(
     policy.advanced.browser
-        and policy.advanced.delegated
         and policy.advanced.custom
         and not policy.advanced.viewer,
     "only non-viewer preview backends should be marked advanced"
@@ -48,19 +45,13 @@ assert(
     not vim.tbl_contains(backend.policy().fixed, "registry"),
     "preview backend policy snapshots should not expose mutable state"
 )
-assert(
-    backend.delegates_to_typst_preview({ provider = "typst-preview.nvim" }),
-    "backend helper should detect typst-preview.nvim delegation"
-)
-assert(
-    not backend.delegates_to_typst_preview({ provider = "native" }),
-    "backend helper should not treat native as delegated"
-)
-
 local browser = browser_backend.create()
 local viewer = viewer_backend.create()
 assert(browser.kind == "browser", "browser backend should be explicit")
-assert(browser.name == "native-browser", "browser backend should name native browser")
+assert(
+    browser.name == "native-browser",
+    "browser backend should name native browser"
+)
 assert(browser.advanced == true, "browser backend should be marked advanced")
 assert(viewer.kind == "viewer", "viewer backend should be explicit")
 assert(viewer.advanced == false, "viewer backend should stay boring")
@@ -93,10 +84,7 @@ assert(open_seen, "custom backend should pass open opts")
 assert(open_result.opened == true, "custom backend should return open result")
 
 local stop_result = wrapped:stop({}, {})
-assert(
-    stop_result.stopped == true,
-    "custom backend should return stop result"
-)
+assert(stop_result.stopped == true, "custom backend should return stop result")
 
 local refresh_result = wrapped:refresh({}, { code = 0 }, {})
 assert(
@@ -140,10 +128,6 @@ assert(
 )
 
 assert(
-    type(delegated.own_command_definition) == "string",
-    "delegated backend should expose command definitions"
-)
-assert(
-    delegated.command_available("__TypstPreviewMissingCommand__") == false,
-    "delegated backend should report missing commands"
+    not pcall(require, "typst.preview.backends.delegated"),
+    "typst-preview.nvim delegated backend should not be installed"
 )

@@ -3,7 +3,6 @@ vim.opt.runtimepath:prepend(root)
 
 local typst = require("typst")
 local output_ownership = require("typst.resources.outputs")
-local preview = require("typst.preview.controller")
 
 local case_id = 0
 
@@ -73,26 +72,6 @@ local function has_message(messages, level, pattern)
     return false
 end
 
-local function with_preview_unavailable(fn)
-    local old_available = preview.available
-    local old_command_available = preview.command_available
-
-    rawset(preview, "available", function()
-        return false
-    end)
-    rawset(preview, "command_available", function()
-        return false
-    end)
-    local ok, err = xpcall(fn, debug.traceback)
-
-    preview.available = old_available
-    preview.command_available = old_command_available
-
-    if not ok then
-        error(err)
-    end
-end
-
 run_case("native preview and project report", function()
     typst.setup({
         root = root,
@@ -104,10 +83,7 @@ run_case("native preview and project report", function()
     vim.cmd.edit(main)
     typst.project.set_main(main)
 
-    local messages
-    with_preview_unavailable(function()
-        messages = capture_health()
-    end)
+    local messages = capture_health()
     local saw_native_preview = false
     local saw_project_decision = false
     local saw_project_diagnostics = false
@@ -263,9 +239,7 @@ run_case("missing treesitter is warning-only", function()
     end)
     local messages
     local ok, err = xpcall(function()
-        with_preview_unavailable(function()
-            messages = capture_health()
-        end)
+        messages = capture_health()
     end, debug.traceback)
 
     vim.treesitter.language.get_lang = old_get_lang

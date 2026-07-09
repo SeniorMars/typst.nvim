@@ -207,7 +207,8 @@ function M.start(project, callback, run_config)
                     local compiler_state = compiler_service.get(project) or {}
                     local stopping = compiler_state.stopping_compile
                     if
-                        compiler_state.process_operation == compile_operation
+                        compiler_state.process_operation
+                            == compile_operation
                         or (
                             stopping
                             and stopping.operation == compile_operation
@@ -223,11 +224,7 @@ function M.start(project, callback, run_config)
                     end
                     return
                 end
-                compiler_process.finish_stopped_compile(
-                    project,
-                    handle,
-                    result
-                )
+                compiler_process.finish_stopped_compile(project, handle, result)
             end,
             on_finish = function(result)
                 if

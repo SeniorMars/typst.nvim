@@ -8,14 +8,6 @@ local M = {}
 
 local open_generation = 0
 
-local function typst_preview_command(mode)
-    local command = "TypstPreview"
-    if mode and mode ~= "" then
-        command = command .. " " .. mode
-    end
-    return { command }
-end
-
 ---Return the current preview service state.
 ---@param project table Project state.
 ---@return table state Preview service state.
@@ -372,33 +364,12 @@ function M.to_active_callback(project, opts, result)
     return result
 end
 
----Record a delegated typst-preview.nvim open/toggle success.
----@param project table Project state.
----@param opts? table Preview options.
----@param result table Delegated backend result with command/cwd.
----@return boolean active True when active was recorded.
-function M.to_active_delegated(project, opts, result)
-    local command = result and result.command or nil
-    local cwd = result and result.cwd or nil
-    M.record(project, "typst-preview.nvim", opts, command, cwd, true)
-    log.add("info", "preview delegated to typst-preview.nvim", {
-        command = command and command[1],
-        cwd = cwd,
-    })
-    events.emit("TypstPreviewOpened", project, {
-        backend = "typst-preview.nvim",
-        command = command,
-        mode = opts and opts.mode,
-    })
-    return true
-end
-
 ---Record preview backend metadata on project state.
 ---@param project table Project state whose preview service is mutated.
 ---@param backend string Backend label.
 ---@param opts? table Preview options containing mode.
----@param command? string[] Command used by delegated preview backend.
----@param cwd? string Working directory used by delegated preview backend.
+---@param command? string[] Backend command.
+---@param cwd? string Backend working directory.
 ---@param active boolean True when the backend is now active.
 function M.record(project, backend, opts, command, cwd, active)
     local fields = {
@@ -445,24 +416,12 @@ function M.record_reused(project, opts)
     end
 
     if
-        (
-            not (fields.active_mode or preview.active_mode)
-            or (fields.active_mode or preview.active_mode) == ""
-        )
+        not (fields.active_mode or preview.active_mode)
         and opts
         and opts.mode
         and opts.mode ~= ""
     then
         fields.active_mode = opts.mode
-        if
-            (fields.active_backend or preview.active_backend)
-            == "typst-preview.nvim"
-        then
-            fields.active_command = typst_preview_command(opts.mode)
-            fields.active_cwd = fields.active_cwd
-                or preview.active_cwd
-                or project.root
-        end
     end
 
     fields.last_backend = fields.active_backend or preview.active_backend
@@ -512,8 +471,8 @@ end
 ---Mark preview inactive and emit the stopped event.
 ---@param project table Project state whose preview service is mutated.
 ---@param backend? string Backend label to record.
----@param command? string[] Command used by delegated preview backend.
----@param cwd? string Working directory used by delegated preview backend.
+---@param command? string[] Backend command.
+---@param cwd? string Backend working directory.
 ---@param result? any Stop result to record before stopped event emission.
 function M.emit_stopped(project, backend, command, cwd, result)
     local preview = preview_service.get(project) or {}

@@ -191,16 +191,6 @@ function M.register(ctx)
         )
     )
 
-    create(
-        "TypstFontDiagnostics",
-        function(args)
-            return api.tools.font_diagnostics({ open = args.bang })
-        end,
-        vim.tbl_extend("force", opts("Check referenced Typst font families"), {
-            bang = true,
-        })
-    )
-
     create("TypstLog", function()
         log.open()
     end, opts("Open the typst.nvim log"))

@@ -29,7 +29,7 @@ assert(
         and vim.tbl_contains(
             api_contract.event_aliases.TypstProjectPruned,
             "TypstEventProjectPruned"
-    ),
+        ),
     "event contract should expose project-pruned event"
 )
 assert(
@@ -234,10 +234,7 @@ assert(
     seen.TypstEventCompiling and seen.TypstEventCompiling[1],
     "deprecated compile progress alias should be emitted"
 )
-assert_payload_documented(
-    "TypstEventCompiling",
-    seen.TypstEventCompiling[1]
-)
+assert_payload_documented("TypstEventCompiling", seen.TypstEventCompiling[1])
 assert(
     seen.TypstEventCompileStarted[1].output:match(
         "event%-alias%-output/main%.pdf$"

@@ -149,10 +149,6 @@ assert(
     "runtime project operation helpers should not become stable by namespace introspection"
 )
 assert(
-    not vim.tbl_contains(stable_symbols, "development.profile"),
-    "development workflows should not be part of the stable pre-1.0 API"
-)
-assert(
     not vim.tbl_contains(stable_symbols, "compiler.force_clear"),
     "destructive compiler force-clear should not become stable accidentally"
 )
@@ -199,10 +195,6 @@ assert(
 assert(
     vim.tbl_contains(experimental_symbols, "ui.bug_report"),
     "bug report UI helper should be reported as experimental"
-)
-assert(
-    vim.tbl_contains(experimental_symbols, "development.profile"),
-    "broad pre-1.0 namespaces should be reported as experimental"
 )
 local api_doc = table.concat(vim.fn.readfile(root .. "/API.md"), "\n")
 assert(
@@ -403,7 +395,6 @@ assert_namespace(typst.tools, {
     "format",
     "lint",
     "grammar",
-    "font_diagnostics",
 })
 for _, name in ipairs({
     "doc",
@@ -617,22 +608,7 @@ for _, name in ipairs(public_artifact_functions) do
     )
 end
 
-local public_evaluation_functions = {
-    "eval",
-    "selection",
-    "inspect",
-}
-
-assert(
-    type(typst.evaluation) == "table",
-    "missing public Lua namespace: evaluation"
-)
-for _, name in ipairs(public_evaluation_functions) do
-    assert(
-        type(typst.evaluation[name]) == "function",
-        ("missing public Lua function: evaluation.%s"):format(name)
-    )
-end
+assert(typst.evaluation == nil, "evaluation namespace should not be installed")
 
 local public_template_functions = {
     "init",
@@ -650,23 +626,10 @@ for _, name in ipairs(public_template_functions) do
     )
 end
 
-local public_development_functions = {
-    "profile",
-    "test",
-    "bench",
-    "coverage",
-}
-
 assert(
-    type(typst.development) == "table",
-    "missing public Lua namespace: development"
+    typst.development == nil,
+    "development namespace should not be installed"
 )
-for _, name in ipairs(public_development_functions) do
-    assert(
-        type(typst.development[name]) == "function",
-        ("missing public Lua function: development.%s"):format(name)
-    )
-end
 
 local public_semantic_functions = {
     "inlay_hints_toggle",

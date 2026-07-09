@@ -16,10 +16,11 @@ local function path_failure(kind, path_error)
 end
 
 local function lease_failure(path, lease_err)
-    lease_err = lease_err or {
-        reason = "lease_failed",
-        message = "Failed to acquire render output lease",
-    }
+    lease_err = lease_err
+        or {
+            reason = "lease_failed",
+            message = "Failed to acquire render output lease",
+        }
     return {
         ok = false,
         pending = false,
@@ -161,11 +162,8 @@ function M.prepare_source(project, kind, source, opts, generation, plan)
 end
 
 function M.plan_page(project, opts, generation)
-    local key, path, _, _, path_error = planner.output_path(
-        project,
-        "page",
-        opts
-    )
+    local key, path, _, _, path_error =
+        planner.output_path(project, "page", opts)
     if path_error or not path then
         return rollback_failure(
             project,

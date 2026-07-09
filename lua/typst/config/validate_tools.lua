@@ -144,19 +144,6 @@ function M.diagnostics(diagnostics)
         )
     end
 
-    if type(diagnostics.fonts) ~= "boolean" then
-        error("typst.nvim: diagnostics.fonts must be a boolean")
-    end
-
-    if
-        type(diagnostics.font_scan_timeout_ms) ~= "number"
-        or diagnostics.font_scan_timeout_ms < 0
-    then
-        error(
-            "typst.nvim: diagnostics.font_scan_timeout_ms must be a non-negative number"
-        )
-    end
-
     non_negative_integer(
         diagnostics.max_external_buffers,
         "diagnostics.max_external_buffers"
@@ -202,7 +189,7 @@ function M.preview(preview)
     validate_tool_provider(
         preview.provider,
         "preview.provider",
-        { "native", "typst-preview.nvim" },
+        { "native" },
         "preview"
     )
 

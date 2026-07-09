@@ -90,16 +90,8 @@ assert(
     "provider docs should not document old shape-based terminal detection"
 )
 assert(
-    docs:find(
-        "async table handles must include `pending = true`",
-        1,
-        true
-    )
-        and docs:find(
-            "otherwise the adapter reports `invalid_result`",
-            1,
-            true
-        ),
+    docs:find("async table handles must include `pending = true`", 1, true)
+        and docs:find("otherwise the adapter reports `invalid_result`", 1, true),
     "provider docs should document strict pending-handle table contracts"
 )
 for kind, fields in pairs(structural_results) do
@@ -125,13 +117,11 @@ for _, kind in ipairs(contract.experimental_kinds()) do
     classified[kind] = "experimental"
 end
 assert(
-    classified.compiler == "core"
-        and classified.viewer == "core",
+    classified.compiler == "core" and classified.viewer == "core",
     "provider contract should classify compiler/viewer as core workflow providers"
 )
 assert(
-    classified.format == "supported"
-        and classified.lint == "supported",
+    classified.format == "supported" and classified.lint == "supported",
     "provider contract should keep only formatter/linter as supported providers"
 )
 assert(
@@ -143,12 +133,7 @@ assert(
         and classified.grammar == "experimental"
         and classified.index == "experimental"
         and classified.picker == "experimental"
-        and classified.toc == "experimental"
-        and classified.eval == "experimental"
-        and classified.profile == "experimental"
-        and classified.test == "experimental"
-        and classified.bench == "experimental"
-        and classified.coverage == "experimental",
+        and classified.toc == "experimental",
     "broad provider workflows should remain experimental while core hardens"
 )
 
@@ -245,8 +230,6 @@ local structural_provider_paths = {
     ["lua/typst/workflows/render/provider.lua"] = "normalize",
     ["lua/typst/viewer/generic.lua"] = "normalize",
     ["lua/typst/viewer/source_sync.lua"] = "normalize",
-    ["lua/typst/workflows/development.lua"] = "result_fields",
-    ["lua/typst/workflows/eval.lua"] = "result_fields",
     ["lua/typst/workflows/templates.lua"] = "result_fields",
 }
 for rel, expected in pairs(structural_provider_paths) do
@@ -292,8 +275,6 @@ local expected_adapter_users = {
     "lua/typst/viewer/generic.lua",
     "lua/typst/viewer/source_sync.lua",
     "lua/typst/workflows/artifacts.lua",
-    "lua/typst/workflows/development.lua",
-    "lua/typst/workflows/eval.lua",
     "lua/typst/workflows/render/provider.lua",
     "lua/typst/workflows/templates.lua",
 }

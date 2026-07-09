@@ -146,9 +146,7 @@ assert(
 
 local reset_result = server.reset()
 assert(
-    reset_result
-        and reset_result.ok == true
-        and reset_result.stopped == true,
+    reset_result and reset_result.ok == true and reset_result.stopped == true,
     "native preview server reset should stop it"
 )
 assert(not server.is_running(), "native preview server should stop after reset")

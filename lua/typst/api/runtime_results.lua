@@ -28,14 +28,19 @@ local function notify_level(policy, fallback)
 end
 
 function M.error_payload(endpoint, reason, message, fields)
-    return vim.tbl_extend("force", {
-        operation = symbol(endpoint),
-        namespace = endpoint and endpoint.namespace or nil,
-        method = endpoint and endpoint.name or nil,
-    }, core_result.failed(
-        reason or "runtime_error",
-        message or reason or "Typst runtime API error"
-    ), fields or {})
+    return vim.tbl_extend(
+        "force",
+        {
+            operation = symbol(endpoint),
+            namespace = endpoint and endpoint.namespace or nil,
+            method = endpoint and endpoint.name or nil,
+        },
+        core_result.failed(
+            reason or "runtime_error",
+            message or reason or "Typst runtime API error"
+        ),
+        fields or {}
+    )
 end
 
 function M.route_resolution_error(endpoint, err, callback, notify, opts)

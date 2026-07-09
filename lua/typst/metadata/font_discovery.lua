@@ -115,7 +115,7 @@ function M.available(opts)
     opts = opts or {}
     local timeout_ms = opts.timeout_ms
     if timeout_ms == nil then
-        timeout_ms = config.unsafe_get().diagnostics.font_scan_timeout_ms
+        timeout_ms = config.unsafe_get().completion.font_scan_timeout_ms
     end
 
     local names = {}

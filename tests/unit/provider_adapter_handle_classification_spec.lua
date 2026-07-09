@@ -54,8 +54,7 @@ local output_handle = invoke_returning(cancelable({
     output = "/tmp/output.pdf",
 }))
 assert(
-    type(output_handle) == "table"
-        and output_handle.reason == "invalid_result",
+    type(output_handle) == "table" and output_handle.reason == "invalid_result",
     "cancelable output tables without pending=true should be invalid"
 )
 

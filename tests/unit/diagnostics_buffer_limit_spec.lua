@@ -159,7 +159,10 @@ local zero_cap_paths = {
 }
 for _, path in ipairs(zero_cap_paths) do
     vim.fn.writefile({ "= File" }, path)
-    assert(path and vim.fn.bufnr(path) == -1, "zero-cap fixture starts unloaded")
+    assert(
+        path and vim.fn.bufnr(path) == -1,
+        "zero-cap fixture starts unloaded"
+    )
 end
 
 local zero_cap, zero_cap_meta = diagnostics.parse(

@@ -38,16 +38,10 @@ function M.payload(watcher, result)
 end
 
 local function operation_stop_callback(operation_handle)
-    if
-        operation_handle
-        and type(operation_handle.on_settle) == "function"
-    then
+    if operation_handle and type(operation_handle.on_settle) == "function" then
         return "on_settle"
     end
-    if
-        operation_handle
-        and type(operation_handle.on_result) == "function"
-    then
+    if operation_handle and type(operation_handle.on_result) == "function" then
         return "on_result"
     end
 end
@@ -60,8 +54,9 @@ function M.add_callback(watcher, callback)
         return
     end
 
-    local callback_method =
-        watcher and operation_stop_callback(watcher.operation) or nil
+    local callback_method = watcher
+            and operation_stop_callback(watcher.operation)
+        or nil
     if callback_method then
         watcher.operation[callback_method](watcher.operation, function(result)
             protected_stop_callback(callback, M.payload(watcher, result))

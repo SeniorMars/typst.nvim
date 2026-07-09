@@ -71,7 +71,7 @@ local function export_opts(argument)
     return { format = argument }
 end
 
---- Register artifact, template, bibliography, and development workflow commands.
+--- Register artifact, template, bibliography, and semantic workflow commands.
 ---@param ctx table Runtime command context with `api` and notification helpers.
 function M.register(ctx)
     local api = ctx.api
@@ -119,48 +119,6 @@ function M.register(ctx)
     end, opts("Clean generated Typst artifacts", "?", complete.export))
 
     create(
-        "TypstEval",
-        function(args)
-            return api.evaluation.eval({
-                expression = args.args,
-                open = args.bang or nil,
-            })
-        end,
-        vim.tbl_extend("force", opts("Evaluate a Typst expression", "+"), {
-            bang = true,
-        })
-    )
-
-    create(
-        "TypstEvalSelection",
-        function(args)
-            return api.evaluation.selection({
-                line1 = args.line1,
-                line2 = args.line2,
-                range = args.range,
-                open = args.bang or nil,
-            })
-        end,
-        vim.tbl_extend("force", opts("Evaluate the selected Typst source"), {
-            bang = true,
-            range = true,
-        })
-    )
-
-    create(
-        "TypstInspect",
-        function(args)
-            return api.evaluation.inspect({
-                expression = args.args ~= "" and args.args or nil,
-                open = args.bang or nil,
-            })
-        end,
-        vim.tbl_extend("force", opts("Inspect a Typst expression", "?"), {
-            bang = true,
-        })
-    )
-
-    create(
         "TypstInit",
         function(args)
             local values = split_args(args.args)
@@ -187,35 +145,6 @@ function M.register(ctx)
     create("TypstTemplates", function()
         return api.template.list({ open = true })
     end, opts("List cached Typst templates"))
-
-    create(
-        "TypstProfile",
-        function(args)
-            return api.development.profile({
-                profile = args.args ~= "" and args.args or nil,
-                open = not args.bang,
-            })
-        end,
-        vim.tbl_extend(
-            "force",
-            opts("Profile a Typst compile", "?", complete.profile),
-            {
-                bang = true,
-            }
-        )
-    )
-
-    create("TypstTest", function(args)
-        return api.development.test({ args = args.args })
-    end, opts("Run Typst project tests through a provider", "*"))
-
-    create("TypstBench", function(args)
-        return api.development.bench({ args = args.args })
-    end, opts("Run Typst project benchmarks through a provider", "*"))
-
-    create("TypstCoverage", function(args)
-        return api.development.coverage({ args = args.args })
-    end, opts("Run Typst project coverage through a provider", "*"))
 
     create("TypstInlayHintsToggle", function()
         return api.semantic.inlay_hints_toggle()

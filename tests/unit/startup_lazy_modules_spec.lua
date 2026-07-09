@@ -10,7 +10,6 @@ local heavy_modules = {
     "typst.preview.native.server",
     "typst.integrations.tinymist.features",
     "typst.integrations.tinymist.requests",
-    "typst.metadata.fonts",
     "typst.package.registry_scan",
     "typst.viewer",
     "typst.viewer.api",

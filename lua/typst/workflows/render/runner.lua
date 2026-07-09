@@ -33,7 +33,8 @@ end
 function M.source(project, kind, source, opts, callback, notify, cache_api)
     opts = opts or {}
     opts.source = source
-    opts.format = opts.format or planner.render_config(opts).output_format
+    opts.format = opts.format
+        or planner.render_config(opts).output_format
         or "svg"
     cache_api = cache_api_or_empty(cache_api)
 
@@ -74,15 +75,14 @@ function M.source(project, kind, source, opts, callback, notify, cache_api)
         return render_display.display(hit, opts, notify)
     end
 
-    local prepared, failure, failure_meta =
-        render_preflight.prepare_source(
-            project,
-            kind,
-            source,
-            opts,
-            generation,
-            plan
-        )
+    local prepared, failure, failure_meta = render_preflight.prepare_source(
+        project,
+        kind,
+        source,
+        opts,
+        generation,
+        plan
+    )
     if not prepared then
         if failure_meta and failure_meta.callback then
             callback_result(callback, failure, project)
@@ -115,7 +115,8 @@ end
 
 function M.page(project, opts, callback, notify, cache_api)
     opts = opts or {}
-    opts.format = opts.format or planner.render_config(opts).output_format
+    opts.format = opts.format
+        or planner.render_config(opts).output_format
         or "svg"
     opts.source = project.main
     opts.page = opts.page or 1

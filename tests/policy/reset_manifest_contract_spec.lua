@@ -151,8 +151,7 @@ assert(
 )
 
 local original_completion = package.loaded["typst.completion"]
-local original_completion_context =
-    package.loaded["typst.completion.context"]
+local original_completion_context = package.loaded["typst.completion.context"]
 local completion_context_resets = 0
 package.loaded["typst.completion"] = nil
 package.loaded["typst.completion.context"] = {
@@ -199,10 +198,8 @@ for name in pairs(runtime_owned_reset_entries) do
             .. name
     )
 end
-local conceal_source = table.concat(
-    vim.fn.readfile(root .. "/lua/typst/conceal/init.lua"),
-    "\n"
-)
+local conceal_source =
+    table.concat(vim.fn.readfile(root .. "/lua/typst/conceal/init.lua"), "\n")
 assert(
     not conceal_source:find("metadata%.reset%(", 1),
     "conceal.reset should not reset metadata; reset manifest owns metadata"

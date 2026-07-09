@@ -54,7 +54,8 @@ local function default_max_external_buffers()
         return 256
     end
     local diagnostics = (config.unsafe_get().diagnostics or {})
-    return normalize_max_external_buffers(diagnostics.max_external_buffers) or 256
+    return normalize_max_external_buffers(diagnostics.max_external_buffers)
+        or 256
 end
 
 local function default_external_paths()
@@ -261,10 +262,8 @@ function M.parse(project, text, opts)
     local by_buffer = {}
     local pending_pretty = nil
     local max_buffers = normalize_max_external_buffers(
-        parse_opts.max_external_buffers
-            or parse_opts.max_buffers_per_publish
-    )
-        or default_max_external_buffers()
+        parse_opts.max_external_buffers or parse_opts.max_buffers_per_publish
+    ) or default_max_external_buffers()
     local external_paths = normalize_external_paths(
         parse_opts.external_paths or default_external_paths()
     )

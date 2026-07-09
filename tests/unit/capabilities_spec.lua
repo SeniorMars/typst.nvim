@@ -21,7 +21,7 @@ typst.setup({
         provider = provider,
     },
     preview = {
-        provider = "typst-preview.nvim",
+        provider = "native",
         native = "auto",
     },
     diagnostics = {
@@ -43,10 +43,6 @@ assert(
 assert(
     capabilities.preview.native_viewer == true,
     "preview.native=auto should report viewer fallback capability"
-)
-assert(
-    capabilities.preview.typst_preview == true,
-    "preview.provider=typst-preview.nvim should report typst-preview capability"
 )
 assert(
     capabilities.diagnostics.compiler == false,

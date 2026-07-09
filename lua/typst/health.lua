@@ -1144,19 +1144,7 @@ function M.check()
         )
     )
 
-    if opts.preview.provider == "typst-preview.nvim" then
-        if preview.available() or preview.command_available() then
-            ok("typst-preview.nvim compatibility preview is available")
-        elseif opts.preview.fallback == "view" then
-            warn(
-                "Preview: typst-preview.nvim command unavailable; :TypstPreview falls back to :TypstView"
-            )
-        else
-            warn(
-                "Preview: typst-preview.nvim command unavailable; configure preview.open or use the native provider"
-            )
-        end
-    elseif type(opts.preview.open) == "function" then
+    if type(opts.preview.open) == "function" then
         ok("Preview: configured Lua callback")
     elseif opts.preview.native == "browser" then
         ok("Preview: native browser")

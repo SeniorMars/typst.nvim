@@ -52,23 +52,4 @@ assert(
     "invalid native preview config should be structured"
 )
 
-typst.reset({ force = true })
-typst.setup({
-    root = root,
-    output_dir = typst_test_cache_path("preview-error-unavailable"),
-    preview = {
-        provider = "typst-preview.nvim",
-        fallback = "error",
-    },
-})
-vim.cmd.edit(main)
-typst.project.set_main(main)
-local unavailable = typst.viewer.preview({ notify = false })
-assert(
-    type(unavailable) == "table"
-        and unavailable.ok == false
-        and unavailable.reason == "preview_backend_unavailable",
-    "unavailable preview backend should be structured"
-)
-
 vim.cmd("qa!")

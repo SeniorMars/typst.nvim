@@ -44,8 +44,4 @@ function M.preview_output_dir()
     return M.cache_dir("preview")
 end
 
-function M.coverage_output_dir()
-    return M.cache_dir("coverage")
-end
-
 return M

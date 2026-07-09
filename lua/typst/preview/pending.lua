@@ -13,8 +13,8 @@ M.cancel = pending_handle.cancel
 
 ---Subscribe to a preview pending handle with explicit-style support.
 ---
----Legacy typst-preview.nvim callback handles are dot-style. typst.nvim-owned
----handles set `on_finish_style = "colon"` so they do not rely on guessing.
+---typst.nvim-owned handles set `on_finish_style = "colon"` so they do not rely
+---on guessing callback style.
 ---@param handle table Pending handle.
 ---@param callback fun(result:any)
 ---@return boolean ok True when subscribed.
@@ -483,18 +483,24 @@ function M.native_stop_after_pending(project, pending, stop_fn)
                         stopped = false,
                     }
             end
-            local stopped, cancel_result = pending_handle.cancel(pending, opts, {
-                style = pending.cancel_style or pending._typst_cancel_style,
-            })
-            if type(cancel_result) == "table" and cancel_result.pending == true then
-                local subscribed, subscribe_error =
-                    M.subscribe(cancel_result, function(final)
+            local stopped, cancel_result =
+                pending_handle.cancel(pending, opts, {
+                    style = pending.cancel_style or pending._typst_cancel_style,
+                })
+            if
+                type(cancel_result) == "table"
+                and cancel_result.pending == true
+            then
+                local subscribed, subscribe_error = M.subscribe(
+                    cancel_result,
+                    function(final)
                         if handle.finished == true then
                             return
                         end
                         terminal_cancel = true
                         handle:finish(final, "cancel")
-                    end)
+                    end
+                )
                 if subscribed then
                     return stopped, cancel_result
                 end
@@ -566,9 +572,12 @@ function M.native_refresh_after_pending(project, native_result, refresh_result)
         end,
     })
 
-    local subscribed, subscribe_error = M.subscribe(native_result, function(result)
-        handle:finish(result)
-    end)
+    local subscribed, subscribe_error = M.subscribe(
+        native_result,
+        function(result)
+            handle:finish(result)
+        end
+    )
     if not subscribed then
         return M.refresh_payload({
             ok = false,

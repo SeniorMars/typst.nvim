@@ -1,19 +1,13 @@
 local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
-local helpers = dofile(root .. "/tests/helpers.lua")
 local typst = require("typst")
 typst.reset()
 
 local calls = {
     export = 0,
     async_export = 0,
-    eval = 0,
     init = 0,
-    profile = 0,
-    test = 0,
-    bench = 0,
-    coverage = 0,
     semantic = 0,
 }
 
@@ -85,15 +79,6 @@ typst.providers.register("export", "phase3-undeclared-export", {
         }
     end,
 })
-typst.providers.register("eval", "phase3-eval", {
-    eval = function(_, opts)
-        calls.eval = calls.eval + 1
-        return {
-            expression = opts.expression,
-            value = "evaluated:" .. opts.expression,
-        }
-    end,
-})
 typst.providers.register("init", "phase3-init", {
     init = function(opts)
         calls.init = calls.init + 1
@@ -104,19 +89,6 @@ typst.providers.register("init", "phase3-init", {
         }
     end,
 })
-for _, kind in ipairs({ "profile", "test", "bench", "coverage" }) do
-    typst.providers.register(kind, "phase3-" .. kind, {
-        run = function(_, opts)
-            calls[kind] = calls[kind] + 1
-            return {
-                kind = kind,
-                args = opts.args,
-                report = "phase3-" .. kind .. "-report",
-                output = typst_test_cache_path("phase3-" .. kind .. ".txt"),
-            }
-        end,
-    })
-end
 
 typst.providers.register("semantic", "phase3-semantic", {
     color_info = function()
@@ -143,28 +115,8 @@ assert(
     "export provider should be listed"
 )
 assert(
-    vim.tbl_contains(typst.providers.names("eval"), "phase3-eval"),
-    "eval provider should be listed"
-)
-assert(
     vim.tbl_contains(typst.providers.names("init"), "phase3-init"),
     "init provider should be listed"
-)
-assert(
-    vim.tbl_contains(typst.providers.names("profile"), "phase3-profile"),
-    "profile provider should be listed"
-)
-assert(
-    vim.tbl_contains(typst.providers.names("test"), "phase3-test"),
-    "test provider should be listed"
-)
-assert(
-    vim.tbl_contains(typst.providers.names("bench"), "phase3-bench"),
-    "bench provider should be listed"
-)
-assert(
-    vim.tbl_contains(typst.providers.names("coverage"), "phase3-coverage"),
-    "coverage provider should be listed"
 )
 assert(
     vim.tbl_contains(typst.providers.names("semantic"), "phase3-semantic"),
@@ -329,14 +281,6 @@ assert(
     "artifact_clean should delete async provider artifacts"
 )
 
-local evaluated =
-    typst.evaluation.eval({ provider = "phase3-eval", expression = "1 + 1" })
-assert(
-    evaluated.value == "evaluated:1 + 1",
-    "eval provider should accept structural-only value result"
-)
-assert(calls.eval == 1, "eval provider should be called once")
-
 local initialized = typst.template.init({
     provider = "phase3-init",
     template = "@preview/example:1.0.0",
@@ -397,31 +341,6 @@ assert(
     calls.init == 2,
     "template init selection should initialize the chosen template"
 )
-
-assert(
-    typst.development.profile({ provider = "phase3-profile" }).report
-        == "phase3-profile-report",
-    "profile provider should accept structural-only report result"
-)
-assert(
-    typst.development.test({ provider = "phase3-test", args = "--all" }).report
-        == "phase3-test-report",
-    "test provider should accept structural-only report result"
-)
-assert(
-    typst.development.bench({ provider = "phase3-bench" }).report
-        == "phase3-bench-report",
-    "bench provider should accept structural-only report result"
-)
-assert(
-    typst.development.coverage({ provider = "phase3-coverage" }).report
-        == "phase3-coverage-report",
-    "coverage provider should accept structural-only report result"
-)
-assert(calls.profile == 1, "profile provider should be called once")
-assert(calls.test == 1, "test provider should be called once")
-assert(calls.bench == 1, "bench provider should be called once")
-assert(calls.coverage == 1, "coverage provider should be called once")
 
 local semantic = typst.semantic.color_info({ provider = "phase3-semantic" })
 assert(
@@ -560,166 +479,6 @@ assert(
 assert(
     code_lens.ok and code_lens.count == 1,
     "code_lens should list Tinymist code lenses"
-)
-
-local fake_tinymist =
-    helpers.python_command(root .. "/tests/fixtures/fake-tinymist-dev.py")
-local util = require("typst.core.util")
----@type any
-local default_test = nil
-local default_test_run = typst.development.test({
-    executable = fake_tinymist,
-    args = { "--update" },
-    open = false,
-    bufnr = semantic_source_buf,
-}, function(result)
-    default_test = result
-end)
-assert(
-    default_test_run.ok and default_test_run.pending,
-    "default Tinymist test provider should run asynchronously"
-)
-assert(
-    vim.wait(5000, function()
-        return default_test ~= nil
-    end, 20),
-    "default Tinymist test provider did not finish"
-)
-assert(
-    default_test.ok and default_test.provider == "tinymist",
-    "default test provider should use tinymist"
-)
-assert(
-    default_test.stdout:find("fake%-tinymist test|%-%-root|", 1, false),
-    "default test should invoke tinymist test"
-)
-assert(
-    default_test.stdout:find("%-%-update", 1, false),
-    "default test should pass user args"
-)
-
----@type any
-local default_coverage = nil
-local coverage_path =
-    typst_test_cache_path("tinymist coverage/coverage with spaces.json")
-typst.development.coverage({
-    executable = fake_tinymist,
-    env = {
-        TINYMIST_COVERAGE_PATH = coverage_path,
-    },
-    full = true,
-    open = false,
-    bufnr = semantic_source_buf,
-}, function(result)
-    default_coverage = result
-end)
-assert(
-    vim.wait(5000, function()
-        return default_coverage ~= nil
-    end, 20),
-    "default Tinymist coverage provider did not finish"
-)
-assert(
-    default_coverage.ok and default_coverage.provider == "tinymist",
-    "coverage provider should use tinymist"
-)
-assert(
-    default_coverage.coverage == coverage_path,
-    "coverage should report the generated XDG-backed coverage path with spaces"
-)
-assert(
-    vim.fn.filereadable(default_coverage.coverage) == 1,
-    "coverage provider should create coverage output"
-)
-assert(
-    default_coverage.stdout:find("%-%-coverage", 1, false)
-        and default_coverage.stdout:find("%-%-print%-coverage=full", 1, false),
-    "coverage provider should pass Tinymist coverage flags"
-)
-
-vim.fn.delete(util.coverage_output_dir(), "rf")
----@type any
-local unreported_coverage = nil
-typst.development.coverage({
-    executable = {
-        "sh",
-        "-c",
-        "printf 'coverage completed without artifact path\\n'",
-        "sh",
-    },
-    open = false,
-    bufnr = semantic_source_buf,
-}, function(result)
-    unreported_coverage = result
-end)
-assert(
-    vim.wait(5000, function()
-        return unreported_coverage ~= nil
-    end, 20),
-    "coverage command without a reported artifact path did not finish"
-)
-assert(
-    unreported_coverage.ok and unreported_coverage.coverage == nil,
-    "coverage should not report an uncreated fallback artifact"
-)
-assert(
-    unreported_coverage.coverage_expected
-        and util.path_within(
-            unreported_coverage.coverage_expected,
-            util.coverage_output_dir()
-        )
-        and util.basename(unreported_coverage.coverage_expected)
-            == "coverage.json",
-    "coverage should retain the expected XDG fallback for diagnostics"
-)
-assert(
-    vim.fn.filereadable(unreported_coverage.coverage_expected) == 0,
-    "unreported coverage fallback should not exist"
-)
-
-local fake_crityp =
-    helpers.python_command(root .. "/tests/fixtures/fake-crityp.py")
----@type any
-local default_bench = nil
-typst.development.bench({
-    executable = fake_crityp,
-    args = { "--warmup", "1" },
-    open = false,
-    bufnr = semantic_source_buf,
-}, function(result)
-    default_bench = result
-end)
-assert(
-    vim.wait(5000, function()
-        return default_bench ~= nil
-    end, 20),
-    "default crityp bench provider did not finish"
-)
-assert(
-    default_bench.ok and default_bench.provider == "crityp",
-    "default bench provider should use crityp"
-)
-assert(
-    default_bench.stdout:find("fake%-crityp", 1, false),
-    "default bench should invoke crityp"
-)
-assert(
-    default_bench.stdout:find("%-%-warmup|1", 1, false),
-    "default bench should pass user args"
-)
-
-local missing_test_provider = typst.development.test({
-    notify = false,
-    executable = root .. "/does-not-exist-tinymist",
-    bufnr = semantic_source_buf,
-})
-assert(
-    not missing_test_provider.ok,
-    "test without executable should not pretend success"
-)
-assert(
-    missing_test_provider.reason == "missing_executable",
-    "test without executable should report missing_executable"
 )
 
 assert(

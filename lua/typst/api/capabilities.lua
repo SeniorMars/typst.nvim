@@ -124,8 +124,6 @@ end
 local function preview_status()
     local opts = config.unsafe_get()
     local native = opts.preview and opts.preview.native
-    local provider = type(opts.preview) == "table" and opts.preview.provider
-        or nil
     return {
         native_viewer = native == "viewer"
             or native == "view"
@@ -133,8 +131,6 @@ local function preview_status()
             or native == "auto",
         native_browser = native == "browser" or native == "auto",
         native_auto = native == "auto",
-        typst_preview = provider == "typst-preview.nvim"
-            or provider == "typst-preview",
     }
 end
 

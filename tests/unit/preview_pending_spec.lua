@@ -42,9 +42,12 @@ local function pending_stop_with_pending_cancel()
         return false, cancel_handle
     end
 
-    return stop_handle, stop_callbacks, cancel_callbacks, function()
-        return cancel_reason
-    end
+    return stop_handle,
+        stop_callbacks,
+        cancel_callbacks,
+        function()
+            return cancel_reason
+        end
 end
 
 local stop_handle, stop_callbacks, cancel_callbacks, cancel_reason =
@@ -76,7 +79,10 @@ assert(#stop_callbacks == 1, "pending stop should remain observable")
 assert(#cancel_callbacks == 1, "pending cancellation should be observable")
 
 stop_callbacks[1]({ source = "stop_finished" })
-assert(wrapper.finished == true, "original stop completion should finish wrapper")
+assert(
+    wrapper.finished == true,
+    "original stop completion should finish wrapper"
+)
 assert(
     wrapper.result and wrapper.result.source == "stop_finished",
     "original stop completion should win when it arrives before cancel completion"
@@ -87,7 +93,8 @@ assert(
     "late cancel completion should not replace an already finished stop wrapper"
 )
 
-stop_handle, stop_callbacks, cancel_callbacks = pending_stop_with_pending_cancel()
+stop_handle, stop_callbacks, cancel_callbacks =
+    pending_stop_with_pending_cancel()
 wrapper = preview_pending.native_stop_after_pending(
     project("native-stop-cancel-wins"),
     stop_handle,

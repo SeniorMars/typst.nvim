@@ -90,7 +90,8 @@ local alias_ok, alias_err = pcall(function()
 end)
 assert(
     alias_ok,
-    alias_err or "strict validation should accept deprecated diagnostics buffer cap alias"
+    alias_err
+        or "strict validation should accept deprecated diagnostics buffer cap alias"
 )
 assert(
     config.get().diagnostics.max_external_buffers == 1,

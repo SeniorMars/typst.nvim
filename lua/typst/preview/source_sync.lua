@@ -5,16 +5,11 @@ local log = require("typst.core.log")
 local preview_service = require("typst.project.services.preview")
 local preview_capabilities = require("typst.preview.capabilities")
 local source_map_service = require("typst.preview.source_maps")
-local runtime = require("typst.preview.backends.delegated_runtime")
 
 local M = {}
 
 local unsupported = preview_capabilities.unsupported
 local callback_error = preview_capabilities.callback_error
-
-local function delegate_to_typst_preview(preview)
-    return preview.provider == "typst-preview.nvim"
-end
 
 local function failed_result(result)
     return type(result) == "table" and result.ok == false
@@ -48,33 +43,6 @@ function M.forward(project, opts)
     end
 
     if type(forward) ~= "function" then
-        if
-            delegate_to_typst_preview(preview)
-            and runtime.command_available("TypstPreviewSyncCursor")
-        then
-            local command = "TypstPreviewSyncCursor"
-            local cwd = runtime.run_at_position(project, command, position)
-            preview_service.set(project, {
-                last_backend = "typst-preview.nvim-forward-command",
-                last_command = { command },
-                last_cwd = cwd,
-            })
-            log.add("info", "preview forwarded through typst-preview.nvim", {
-                main = project.main,
-                line = position.line,
-                column = position.column,
-                command = command,
-            })
-            events.emit("TypstPreviewForwarded", project, {
-                backend = "typst-preview.nvim",
-                command = { command },
-                line = position.line,
-                column = position.column,
-                source_sync = "forward",
-            })
-            return true
-        end
-
         local result = unsupported(
             project,
             "forward",

@@ -436,8 +436,7 @@ function M.start(project, callback, run_config)
                 output_ownership.release(lease)
             end,
             on_settle = function(result)
-                local active_watcher =
-                    (compiler_service.get(project) or {}).watcher
+                local active_watcher = (compiler_service.get(project) or {}).watcher
                 if
                     active_watcher ~= watcher_state
                     or not watcher_state.stopping

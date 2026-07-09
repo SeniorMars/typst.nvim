@@ -18,10 +18,7 @@ early adopters and should not broaden further while stable-core hardening is
 active. Experimental does not mean removed: it means the implementation remains
 available while its lifecycle/result/API contract is still allowed to change.
 
-- `bench` - experimental
 - `compiler` - core
-- `coverage` - experimental
-- `eval` - experimental
 - `export` - experimental
 - `format` - supported
 - `grammar` - experimental
@@ -30,17 +27,15 @@ available while its lifecycle/result/API contract is still allowed to change.
 - `lint` - supported
 - `picker` - experimental
 - `preview` - experimental
-- `profile` - experimental
 - `render` - experimental
 - `semantic` - experimental
 - `source_map` - experimental
-- `test` - experimental
 - `toc` - experimental
 - `viewer` - core
 
 The stable-provider target for this phase is intentionally small:
 `compiler`, `viewer`, `format`, and `lint`. Preview, render, export,
-semantic/source-map, grammar, picker/TOC, and development workflow providers are
+semantic/source-map, grammar, and picker/TOC providers are
 advanced or experimental until the compile/view/editing core is boring.
 
 ## Semantic Providers
@@ -190,9 +185,7 @@ declare those fields or normalize the table before classification:
 | `export` | `path`, `output`, `outputs`, `artifacts` |
 | `render` | `path`, `output`, `outputs`, `artifacts` |
 | `viewer` | `opened`, `path`, `output` |
-| `eval` | `output`, `stdout`, `stderr`, `text`, `value`, `values` |
 | `init` | `path`, `files`, `created`, `template`, `output` |
-| `profile`, `test`, `bench`, `coverage` | `output`, `stdout`, `stderr`, `text`, `report` or workflow-specific coverage fields |
 
 Examples:
 
@@ -472,9 +465,6 @@ Relationships to other provider surfaces:
   source-sync declarations. Native browser preview does not declare source maps
   by default, and reports unavailable source sync for PDF output unless a
   provider explicitly supports that artifact.
-- `preview.provider = "typst-preview.nvim"` is explicit compatibility
-  delegation to that plugin's commands. It is not selected automatically just
-  because those commands exist.
 
 Preview export configuration controls the artifact a native preview target
 displays:

@@ -6,7 +6,6 @@ local required_examples = {
     "docs/examples/tinymist-detect.lua",
     "docs/examples/coc-tinymist.lua",
     "docs/examples/native-preview-browser.lua",
-    "docs/examples/typst-preview-compat.lua",
     "docs/examples/custom-compiler-provider.lua",
     "docs/examples/custom-source-map-provider.lua",
     "docs/examples/completion-cmp.lua",
@@ -27,7 +26,6 @@ local executable_examples = {
 local syntax_only_examples = {
     ["docs/examples/completion-cmp.lua"] = true,
     ["docs/examples/completion-blink.lua"] = true,
-    ["docs/examples/typst-preview-compat.lua"] = true,
 }
 
 for _, path in ipairs(required_examples) do

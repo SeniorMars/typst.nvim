@@ -269,10 +269,9 @@ function M.new(opts)
 
         if finished then
             return true,
-                handle.result
-                    or core_result.idle({
-                        already_finished = true,
-                    })
+                handle.result or core_result.idle({
+                    already_finished = true,
+                })
         end
 
         local stopped, result

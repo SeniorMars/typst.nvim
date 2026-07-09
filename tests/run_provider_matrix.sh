@@ -40,7 +40,6 @@ workflow_specs=(
 
 tools_viewer_specs=(
   tests/integration/viewer_spec.lua
-  tests/integration/preview/delegation_spec.lua
   tests/integration/tinymist/stale_callbacks_spec.lua
   tests/unit/tinymist_format_async_spec.lua
   tests/unit/format_async_spec.lua

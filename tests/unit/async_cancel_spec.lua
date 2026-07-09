@@ -89,50 +89,6 @@ local ok, err = xpcall(function()
     vim.cmd.edit(main)
     typst.project.set_main(main)
 
-    local eval_callback = false
-    reset_fakes()
-    local eval_result = typst.evaluation.eval(
-        { expression = "1 + 1", open = false },
-        function()
-            eval_callback = true
-        end
-    )
-    assert(
-        eval_result.ok and eval_result.pending,
-        "eval should start as an async pending result"
-    )
-    assert(
-        type(eval_result.cancel) == "function",
-        "eval async result should expose cancel()"
-    )
-    local stopped =
-        eval_result.cancel({ timeout_ms = 1000, kill_timeout_ms = 1000 })
-    assert(not stopped, "eval cancel should not report an unconfirmed stop")
-    assert(
-        eval_result.cancelled
-            and eval_result.pending
-            and eval_result.state == "cancelling",
-        "eval cancel should keep the result pending while shutdown is unconfirmed"
-    )
-    assert(
-        #kills >= 1 and kills[1].handle == handles[1],
-        "eval cancel should signal its process handle"
-    )
-    handles[1]:finish({ code = 0, stdout = "late", stderr = "" })
-    flush_scheduled()
-    assert(
-        eval_result.pending == false and eval_result.state == "cancelled",
-        "eval cancel should become non-pending after the process exits"
-    )
-    assert(
-        not eval_callback,
-        "late eval exit should not invoke callback after cancel"
-    )
-    assert(
-        eval_result.stdout == nil,
-        "late eval exit should not mutate cancelled result output"
-    )
-
     local export_callback = false
     reset_fakes()
     local export_result = typst.artifact.export({
@@ -151,7 +107,7 @@ local ok, err = xpcall(function()
         type(export_result.cancel) == "function",
         "export async result should expose cancel()"
     )
-    stopped = export_result.cancel({
+    local stopped = export_result.cancel({
         timeout_ms = 1000,
         kill_timeout_ms = 1000,
     })
@@ -269,76 +225,6 @@ local ok, err = xpcall(function()
     assert(
         not init_callback,
         "late template init exit should not invoke callback after cancel"
-    )
-
-    local profile_callback = false
-    reset_fakes()
-    local profile_result = typst.development.profile(
-        { open = false },
-        function()
-            profile_callback = true
-        end
-    )
-    assert(
-        profile_result.ok and profile_result.pending,
-        "profile should start as an async pending result"
-    )
-    assert(
-        type(profile_result.cancel) == "function",
-        "profile async result should expose cancel()"
-    )
-    stopped = profile_result.cancel({
-        timeout_ms = 1000,
-        kill_timeout_ms = 1000,
-    })
-    assert(
-        not stopped and #kills >= 1,
-        "profile cancel should signal without reporting a confirmed stop"
-    )
-    handles[1]:finish({ code = 0, stdout = "", stderr = "" })
-    flush_scheduled()
-    assert(
-        profile_result.pending == false and profile_result.state == "cancelled",
-        "profile cancel should become non-pending after exit"
-    )
-    assert(
-        not profile_callback,
-        "late profile exit should not invoke callback after cancel"
-    )
-
-    local test_callback = false
-    reset_fakes()
-    local test_result = typst.development.test(
-        { executable = vim.v.progpath, open = false },
-        function()
-            test_callback = true
-        end
-    )
-    assert(
-        test_result.ok and test_result.pending,
-        "test should start as an async pending result"
-    )
-    assert(
-        type(test_result.cancel) == "function",
-        "test async result should expose cancel()"
-    )
-    stopped = test_result.cancel({
-        timeout_ms = 1000,
-        kill_timeout_ms = 1000,
-    })
-    assert(
-        not stopped and #kills >= 1,
-        "test cancel should signal without reporting a confirmed stop"
-    )
-    handles[1]:finish({ code = 0, stdout = "", stderr = "" })
-    flush_scheduled()
-    assert(
-        test_result.pending == false and test_result.state == "cancelled",
-        "test cancel should become non-pending after exit"
-    )
-    assert(
-        not test_callback,
-        "late test exit should not invoke callback after cancel"
     )
 
     config.setup({

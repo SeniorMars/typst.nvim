@@ -41,11 +41,7 @@ local function stop_preview_before_prune(project, prune_reason)
     local preview_live = preview_state.active == true
         or preview_state.opening == true
         or preview_state.stopping == true
-    if
-        not project
-        or next(project.bufs or {}) ~= nil
-        or not preview_live
-    then
+    if not project or next(project.bufs or {}) ~= nil or not preview_live then
         return nil
     end
 

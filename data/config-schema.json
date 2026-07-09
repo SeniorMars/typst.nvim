@@ -107,8 +107,6 @@
     { "path": "conceal.viewport_margin", "type": "number", "default": "25" },
     { "path": "diagnostics.enabled", "type": "boolean", "default": "true" },
     { "path": "diagnostics.external_paths", "type": "string", "default": "\"bufadd\"" },
-    { "path": "diagnostics.font_scan_timeout_ms", "type": "number", "default": "250" },
-    { "path": "diagnostics.fonts", "type": "boolean", "default": "true" },
     { "path": "diagnostics.list", "type": "string", "default": "\"quickfix\"" },
     { "path": "diagnostics.max_external_buffers", "type": "integer", "default": "256" },
     { "path": "diagnostics.overflow", "type": "string", "default": "\"quickfix-only\"" },

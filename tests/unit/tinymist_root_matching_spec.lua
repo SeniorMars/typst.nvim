@@ -148,8 +148,7 @@ local ok, err = xpcall(function()
         name = "tinymist",
     }
     assert(
-        clients.root_compatible(attached[1], nil_root_config.root_dir)
-            == false,
+        clients.root_compatible(attached[1], nil_root_config.root_dir) == false,
         "rootless startup should not reuse an arbitrary rooted client"
     )
 

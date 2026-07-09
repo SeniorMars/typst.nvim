@@ -13,12 +13,10 @@ local preview_backend_policy = {
     fixed = {
         "viewer",
         "browser",
-        "delegated",
         "custom",
     },
     advanced = {
         browser = true,
-        delegated = true,
         custom = true,
     },
 }
@@ -29,13 +27,6 @@ local native_targets = {
     view = true,
     viewer = true,
 }
-
----Return true when preview config explicitly delegates to typst-preview.nvim.
----@param preview table Preview config.
----@return boolean delegated True when delegated.
-function M.delegates_to_typst_preview(preview)
-    return preview and preview.provider == "typst-preview.nvim"
-end
 
 ---Return the intentionally small preview backend policy.
 ---
@@ -49,7 +40,9 @@ end
 local function native_target(preview, opts)
     preview = preview or {}
     opts = opts or {}
-    local target = opts.native or opts.target or preview.native
+    local target = opts.native
+        or opts.target
+        or preview.native
         or preview_backend_policy.default
     if target == "view" then
         target = "viewer"
@@ -58,10 +51,6 @@ local function native_target(preview, opts)
         return target
     end
     return nil, target
-end
-
-local function delegated()
-    return require("typst.preview.backends.delegated")
 end
 
 local function custom_backend(preview)
@@ -196,24 +185,6 @@ function M.stop(project, opts)
         )
     end
 
-    if
-        M.delegates_to_typst_preview(preview)
-        and delegated().command_available("TypstPreviewStop")
-    then
-        local result = delegated().create(preview):stop(project, opts)
-        if type(result) == "table" and result.ok == false then
-            return result
-        end
-        state.to_inactive(
-            project,
-            "typst-preview.nvim",
-            result.command,
-            result.cwd,
-            true
-        )
-        return true
-    end
-
     local result = {
         ok = false,
         reason = "unsupported",
@@ -266,7 +237,7 @@ function M.refresh(project, compile_result, opts)
     return refresh_result
 end
 
----Toggle preview through delegated toggle or controller open/stop callbacks.
+---Toggle preview through controller open/stop callbacks.
 ---@param project table Project state.
 ---@param opts? table Toggle options.
 ---@param open_fn fun(project:table, opts:table):any
@@ -274,31 +245,6 @@ end
 ---@return any result Toggle result.
 function M.toggle(project, opts, open_fn, stop_fn)
     opts = opts or {}
-
-    local preview = config.unsafe_get().preview
-    if
-        M.delegates_to_typst_preview(preview)
-        and delegated().command_available("TypstPreviewToggle")
-    then
-        local preview_state = state.current(project)
-        local was_active = preview_state.active == true
-        local result = delegated().create(preview):toggle(project, opts)
-        if type(result) == "table" and result.ok == false then
-            return result
-        end
-        if was_active then
-            state.to_inactive(
-                project,
-                "typst-preview.nvim",
-                result.command,
-                result.cwd,
-                false
-            )
-            return false
-        end
-
-        return state.to_active_delegated(project, opts, result)
-    end
 
     if state.is_active(project) then
         return stop_fn(project, opts)
@@ -321,15 +267,6 @@ function M.resolve(_project, _opts)
 
     if preview.provider == nil or preview.provider == "native" then
         return native_backend(preview, _opts)
-    end
-
-    if
-        M.delegates_to_typst_preview(preview)
-        and require("typst.preview.backends.delegated").command_available(
-            "TypstPreview"
-        )
-    then
-        return require("typst.preview.backends.delegated").create(preview)
     end
 
     if preview.fallback == "view" then

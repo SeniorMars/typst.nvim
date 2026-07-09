@@ -18,7 +18,10 @@ local main, source = main_file.discard_unreadable(
     "buffer variable vim.b.typst_main"
 )
 
-assert(main == nil and source == nil, "unreadable buffer main should be ignored")
+assert(
+    main == nil and source == nil,
+    "unreadable buffer main should be ignored"
+)
 assert(
     vim.b[bufnr].typst_main == missing_main,
     "unreadable buffer-local Typst main should not be deleted"

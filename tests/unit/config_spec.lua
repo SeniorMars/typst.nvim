@@ -524,14 +524,6 @@ local invalid_configs = {
         message = "diagnostics.list",
     },
     {
-        opts = { diagnostics = { fonts = "yes" } },
-        message = "diagnostics.fonts",
-    },
-    {
-        opts = { diagnostics = { font_scan_timeout_ms = -1 } },
-        message = "diagnostics.font_scan_timeout_ms",
-    },
-    {
         opts = { diagnostics = { max_external_buffers = -1 } },
         message = "diagnostics.max_external_buffers",
     },
@@ -1393,8 +1385,6 @@ local ok, err = pcall(function()
         },
         diagnostics = {
             list = "loclist",
-            fonts = false,
-            font_scan_timeout_ms = 25,
             max_external_buffers = 32,
             overflow = "drop",
             external_paths = "open-files-only",
@@ -1491,7 +1481,7 @@ local ok, err = pcall(function()
             max_entries = 0,
         },
         preview = {
-            provider = "typst-preview.nvim",
+            provider = "native",
             native = "browser",
             reuse = false,
             cache = {
@@ -1764,14 +1754,6 @@ assert(
     "diagnostics list backend should be configurable"
 )
 assert(
-    config.get().diagnostics.fonts == false,
-    "font diagnostics should be configurable"
-)
-assert(
-    config.get().diagnostics.font_scan_timeout_ms == 25,
-    "font diagnostics scan timeout should be configurable"
-)
-assert(
     config.get().diagnostics.max_external_buffers == 32,
     "diagnostic buffer cap should be configurable"
 )
@@ -1846,7 +1828,7 @@ assert(
     "log.max_entries=0 should remain supported"
 )
 assert(
-    config.get().preview.provider == "typst-preview.nvim",
+    config.get().preview.provider == "native",
     "preview provider should be configurable"
 )
 assert(

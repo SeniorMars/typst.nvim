@@ -56,7 +56,11 @@ function M.failed(reason, message, fields)
 end
 
 function M.fail(reason, fields)
-    return M.failed(reason or "failed", fields and fields.message or nil, fields)
+    return M.failed(
+        reason or "failed",
+        fields and fields.message or nil,
+        fields
+    )
 end
 
 function M.pending(kind, fields)
@@ -78,10 +82,14 @@ function M.stale(reason, fields)
 end
 
 function M.timeout(fields)
-    return M.failed(M.reason.timeout, "operation timed out", merge(fields, {
-        timeout = true,
-        stopped = false,
-    }))
+    return M.failed(
+        M.reason.timeout,
+        "operation timed out",
+        merge(fields, {
+            timeout = true,
+            stopped = false,
+        })
+    )
 end
 
 function M.stopped(fields)
@@ -227,9 +235,9 @@ function M.normalize_compiler(result, invalid_message)
         elseif result.ok == false then
             result.code = 1
         elseif result.stopped or result.idle then
-            result.code = (
-                result.error or result.reason == M.reason.timeout
-            ) and 1 or 0
+            result.code = (result.error or result.reason == M.reason.timeout)
+                    and 1
+                or 0
         elseif result.error or result.reason then
             result.code = 1
         end

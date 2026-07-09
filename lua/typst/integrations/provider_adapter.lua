@@ -199,7 +199,8 @@ local function strict_handle_violation(control, value, handle_mode)
     if type(control.is_handle) == "function" and control.is_handle(value) then
         return false
     end
-    return handle_mode or type(value.cancel) == "function"
+    return handle_mode
+        or type(value.cancel) == "function"
         or type(value.stop) == "function"
         or type(value.kill) == "function"
 end
@@ -218,7 +219,8 @@ function M.classify_return(value, control)
         or control.expect_handle == true
     local pending = type(value) == "table" and value.pending == true
     local explicit_result = explicit_terminal_result(value)
-    local provider_handle = explicit_provider_handle(control, value, handle_mode)
+    local provider_handle =
+        explicit_provider_handle(control, value, handle_mode)
     local result_like = value ~= nil
         and not pending
         and returned_result_like(control, value, handle_mode)
@@ -556,12 +558,7 @@ function M.invoke(provider, method, context, opts, control)
 
     if invalid_return then
         return finish(
-            strict_contract_result(
-                kind,
-                name,
-                handle_mode,
-                returned_class.kind
-            ),
+            strict_contract_result(kind, name, handle_mode, returned_class.kind),
             "strict_contract"
         )
     end

@@ -11,7 +11,10 @@ local raw_items = completion.complete({
     base = "lu",
     limit = 5,
 })
-assert(type(raw_items) == "table", "raw-language completion should return items")
+assert(
+    type(raw_items) == "table",
+    "raw-language completion should return items"
+)
 
 local markup_items = completion.complete({
     context = "markup",
@@ -34,6 +37,7 @@ assert(
 )
 assert(
     metrics["completion.source.stdlib"]
-        and metrics["completion.source.stdlib"].last_fields.context == "markup",
+        and metrics["completion.source.stdlib"].last_fields.context
+            == "markup",
     "markup completion should record stdlib source timing"
 )

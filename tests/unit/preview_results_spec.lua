@@ -50,22 +50,16 @@ assert(
     results.stop_failed({ ok = false, stopped = true }),
     "ok=false stopped=true should remain failed without warning metadata"
 )
-assert(
-    not results.stop_failed({
-        ok = false,
-        stopped = true,
-        warning = true,
-    }),
-    "warning stopped=true stop result should not block cleanup"
-)
-assert(
-    not results.stop_failed({
-        ok = false,
-        stopped = true,
-        backend_stopped = true,
-    }),
-    "backend-stopped stop result should not block cleanup"
-)
+assert(not results.stop_failed({
+    ok = false,
+    stopped = true,
+    warning = true,
+}), "warning stopped=true stop result should not block cleanup")
+assert(not results.stop_failed({
+    ok = false,
+    stopped = true,
+    backend_stopped = true,
+}), "backend-stopped stop result should not block cleanup")
 assert(
     results.cancel_confirmed({ ok = true, stopped = true }),
     "confirmed cancel should require stopped=true"

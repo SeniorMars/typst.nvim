@@ -64,7 +64,7 @@ Core workflow:
 - one-shot compile, continuous watch, stop, status, logs, and cleanup;
 - compiler diagnostics through `vim.diagnostic` and quickfix;
 - viewer opening plus capability-gated forward and inverse source jumps;
-- native browser/viewer preview plus optional typst-preview.nvim compatibility.
+- native browser/viewer preview.
 
 Navigation and document understanding:
 
@@ -117,8 +117,7 @@ Recommended:
   rename previews, inlay hints, document links, and color information are
   desired;
 - typstyle for the default non-Tinymist formatter path;
-- a browser, configured PDF viewer, custom preview provider, or optional
-  typst-preview.nvim compatibility for source-map-style synchronization;
+- a browser, configured PDF viewer, or custom preview provider;
 - Telescope, fzf-lua, fzf.vim, Snacks, or `vim.ui.select` for picker UIs;
 - optional external tools such as textidote, vlty/Vale-style checkers,
   crityp, or terminal image support depending on configured workflows.
@@ -414,20 +413,6 @@ Native typst.nvim preview only:
   })
 <
 
-typst-preview.nvim for live preview, typst.nvim for workflow:
->
-  require("typst").setup({
-    preview = {
-      provider = "typst-preview.nvim",
-      native = "viewer",
-    },
-  })
-<
-
-In the hybrid setup, use typst-preview.nvim for its live/incremental browser
-frontend and typst.nvim for root/main ownership, compile/watch/view, export
-profiles, bibliography, navigation, health, logs, and cleanup.
-
 Forward and inverse synchronization are capability-gated. PDF viewers do not
 claim SyncTeX-style support by default because normal Typst PDF output does not
 carry SyncTeX data. Native browser preview uses the default `typst-query`
@@ -436,9 +421,8 @@ browser source-sync capability unless another provider supplies it. Legacy
 `preview.forward`, `preview.inverse`, and `preview.capabilities` remain
 supported; new source-map integrations should prefer
 `preview.source_maps.provider`, `forward`, `inverse`, and `capabilities`.
-Browser preview source-map workflows, including explicit typst-preview.nvim
-compatibility through `TypstPreviewSyncCursor`, are the Typst-native equivalent
-of VimTeX's galley preview workflow.
+Browser preview source-map workflows are the Typst-native equivalent of VimTeX's
+galley preview workflow.
 
 Registered source-map integrations use the `source_map` provider kind. A
 provider may implement `forward`, `inverse`, `generate`, `resolve`, or
@@ -561,11 +545,9 @@ Command groups:
 
   External workflows:
     |:TypstFormat|, |:TypstLint|, |:TypstGrammar|,
-    |:TypstFontDiagnostics|, |:TypstExport|, |:TypstArtifacts|,
-    |:TypstArtifactOpen|, |:TypstArtifactClean|, |:TypstEval|,
-    |:TypstEvalSelection|, |:TypstInspect|, |:TypstInit|,
-    |:TypstTemplates|, |:TypstProfile|, |:TypstTest|, |:TypstBench|,
-    |:TypstCoverage|, |:TypstHtmlPreview|, |:TypstPresentation|
+    |:TypstExport|, |:TypstArtifacts|, |:TypstArtifactOpen|,
+    |:TypstArtifactClean|, |:TypstInit|, |:TypstTemplates|,
+    |:TypstHtmlPreview|, |:TypstPresentation|
 
   Navigation, metadata, and context:
     |:TypstToc|, |:TypstTocRefresh|, |:TypstTocToggle|, |:TypstLabels|,
@@ -824,13 +806,6 @@ Command groups:
     also populate and open quickfix for the grammar result. Built-in parsers
     normalize textidote line/column output and Vale/vlty-style JSON output.
 
-                                                        *:TypstFontDiagnostics*
-:TypstFontDiagnostics[!]
-    Check current-buffer `font:` family references against configured
-    `completion.font_families` and families reported by `typst fonts`.
-    Diagnostics are published through `vim.diagnostic` with source `typst
-    fonts`. With bang, also populate and open quickfix for missing families.
-
                                                         *:TypstView*
 :TypstView
     Open the generated output for the current project. By default this uses
@@ -845,9 +820,7 @@ Command groups:
 :TypstViewForward
     Forward-search the current cursor position through `viewer.forward` when a
     backend is configured, or through `preview.forward` when a preview source
-    sync callback is configured. When `preview.provider = "typst-preview.nvim"`,
-    this can call `:TypstPreviewSyncCursor` as the Typst-native replacement for
-    VimTeX's galley preview workflow. Without a backend, this reports that
+    sync callback is configured. Without a backend, this reports that
     forward search is unavailable. String and list-prefix backends use
     `viewer.forward_args`, with `{output}`, `{main}`, `{root}`, `{line}`, and
     `{column}` placeholders, and only run when the selected viewer declares
@@ -906,20 +879,6 @@ Command groups:
 :TypstArtifactClean [format]
     Delete registered generated artifacts, optionally filtered by format.
 
-                                                        *:TypstEval*
-:TypstEval[!] {expression}
-    Evaluate a Typst expression with `typst eval --in <main>` in the current
-    project context and show serialized output in a scratch buffer.
-
-                                                        *:TypstEvalSelection*
-:TypstEvalSelection[!]
-    Evaluate the selected Typst source range.
-
-                                                        *:TypstInspect*
-:TypstInspect[!] [expression]
-    Inspect a Typst expression or the word under the cursor through the same
-    eval path.
-
                                                         *:TypstInit*
 :TypstInit[!] [template] [directory]
     Initialize a project with Typst's `typst init`. Without [template], select
@@ -931,26 +890,6 @@ Command groups:
 :TypstTemplates
     List cached Typst template packages and configured Universe-index template
     metadata.
-
-                                                        *:TypstProfile*
-:TypstProfile[!] [profile]
-    Compile with Typst's `--timings` JSON output. With bang, skip opening the
-    profile report scratch buffer.
-
-                                                        *:TypstTest*
-:TypstTest [args]
-    Run project tests with `tinymist test`. Registered `test` providers
-    override the default command.
-
-                                                        *:TypstBench*
-:TypstBench [args]
-    Run project benchmarks with `crityp` when available. Registered `bench`
-    providers override the default command.
-
-                                                        *:TypstCoverage*
-:TypstCoverage [args]
-    Run project coverage with `tinymist test --coverage`. Registered
-    `coverage` providers override the default command.
 
                                                         *:TypstInlayHintsToggle*
 :TypstInlayHintsToggle
@@ -1016,9 +955,8 @@ Command groups:
     preview provider. The native provider opens the configured viewer by
     default; set `preview.native = "browser"` for typst.nvim's local browser
     preview shell, or `preview.native = "auto"` to try browser preview with
-    viewer fallback. Set `preview.provider = "typst-preview.nvim"` only when
-    explicit compatibility delegation is wanted. Preview runs against the
-    resolved project main, so included files preview their project main.
+    viewer fallback. Preview runs against the resolved project main, so included
+    files preview their project main.
     Repeated preview opens reuse the active project preview by default;
     `require("typst").viewer.preview({ restart = true })` or `preview.reuse = false`
     stops and reopens active previews. Set `preview.follow_buffer = true` to
@@ -1061,17 +999,14 @@ Command groups:
 
                                                         *:TypstPreviewStop*
 :TypstPreviewStop
-    Stop the active preview through `preview.stop` when configured, clear an
-    active native browser preview session, or delegate to typst-preview.nvim
-    when `preview.provider = "typst-preview.nvim"`. During VimLeavePre,
-    pending stop results are recorded as unconfirmed instead of clearing active
-    preview state.
+    Stop the active preview through `preview.stop` when configured, or clear an
+    active native browser preview session. During VimLeavePre, pending stop
+    results are recorded as unconfirmed instead of clearing active preview state.
 
                                                         *:TypstPreviewToggle*
 :TypstPreviewToggle [document|slide]
     Toggle the tracked active preview or open a new preview with the same
-    backend selection as `:TypstPreview`. With `preview.provider =
-    "typst-preview.nvim"`, this may delegate to that provider's toggle command.
+    backend selection as `:TypstPreview`.
 
                                                         *:TypstPreviewFragment*
 :TypstPreviewFragment[!] [svg|png]
@@ -2807,8 +2742,7 @@ When using coc.nvim, including `coc-tinymist`, configure Coc's
 `tinymist.serverPath` and `tinymist.serverArgs`; typst.nvim does not read Coc
 settings or send requests to Coc's private LSP client.
 `integrations.tinymist.capabilities` and `integrations.tinymist.on_attach` are
-passed through to `vim.lsp.start()`. Tinymist CLI workflows such as
-|:TypstTest| are separate from this LSP setting.
+passed through to `vim.lsp.start()`.
 Citation completion is controlled separately by `bibliography.completion`.
 The default `"auto"` keeps project-index citation completion for offline/no-LSP
 sessions and `include_tinymist = false`, but avoids fallback citation candidates
@@ -2829,9 +2763,10 @@ and typst.nvim wrappers:
   policy use typst.nvim wrappers where stale-result guards, project-index
   merging, report buffers, picker/context integration, or fallbacks matter.
 - Plugin-owned: compile/watch, exports, artifact cleanup, template init,
-  tests, benchmarks, coverage, lint workflows, statusline data, package
-  resources, and profile reports are typst.nvim workflows. Tinymist may supply
-  a provider or returned command, but it does not own the state model.
+  lint workflows, statusline data, and package resources are typst.nvim
+  workflows. Evaluation, profiling, tests, benchmarks, and coverage stay
+  direct Typst/Tinymist/crityp usage or pass-through LSP commands, not
+  typst.nvim-owned workflows.
 
 See `docs/tinymist_parity.md` for the full method-by-method matrix.
 
@@ -2862,11 +2797,6 @@ passing the current file path. Arguments in `grammar.extra_args` may use
 `grammar.file_arg` override those provider defaults. textidote line/column
 output and Vale/vlty-style JSON output are normalized before diagnostics are
 published.
-
-`diagnostics.fonts` enables missing font-family warnings from
-|:TypstFontDiagnostics|. The checker compares `font:` references with
-configured `completion.font_families` and `typst fonts`.
-`diagnostics.font_scan_timeout_ms = 0` skips the CLI font scan.
 
 `structural_actions.patterns` controls how typst.nvim selects a Tinymist code
 action for the structural commands. Patterns are Lua patterns matched against
@@ -3083,9 +3013,8 @@ expanded before the viewer command starts.
 
 `viewer.forward` is capability-gated. It may be a callback, string executable,
 list prefix, or `nil`; without it, |:TypstViewForward| tries a configured
-`preview.forward` callback, then `:TypstPreviewSyncCursor` only when
-`preview.provider = "typst-preview.nvim"`, and otherwise returns an unsupported
-result. String and list-prefix commands return an unsupported result with
+`preview.forward` callback and otherwise returns an unsupported result. String
+and list-prefix commands return an unsupported result with
 `detail = "capability_required"` until `capabilities.forward` or
 `capabilities.source_maps` is declared.
 Built-in PDF viewer presets open/reuse output but do not claim forward or
@@ -3206,10 +3135,10 @@ Provider registration is the public extension registry. *typst-provider-contract
 <
 
 Supported provider kinds are `compiler`, `format`, `lint`, `grammar`,
-`viewer`, `preview`, `source_map`, `picker`, `toc`, `index`, `export`, `eval`,
-`init`, `profile`, `test`, `bench`, `coverage`, `semantic`, and `render`.
+`viewer`, `preview`, `source_map`, `picker`, `toc`, `index`, `export`,
+`init`, `semantic`, and `render`.
 Aliases such as `compile`, `formatter`, `linter`, `view`, `exports`,
-`template`, `source_maps`, `sourcemap`, `benchmark`, and `terminal_image` are
+`template`, `source_maps`, `sourcemap`, and `terminal_image` are
 accepted. Registered provider names are valid string values in the
 matching config fields and per-call `opts.provider` where applicable.
 `unregister_provider()` removes and returns the provider, `get_provider()`
@@ -3374,9 +3303,9 @@ backend capabilities. PDF viewing, browser preview, forward search, and inverse
 search are separate capabilities in Typst workflows.
 
 If preview stop is pending or failed, check |:TypstPreviewStatus| and
-|:TypstLog|. Native preview, typst-preview.nvim delegation, and custom callback
-providers have different stop guarantees; a pending provider stop is not treated
-as confirmed process exit until the provider reports a terminal result.
+|:TypstLog|. Native preview and custom callback providers have different stop
+guarantees; a pending provider stop is not treated as confirmed process exit
+until the provider reports a terminal result.
 
 If cached project data looks stale, run |:TypstReloadState| to re-resolve the
 current buffer or |:TypstClearCache| to clear generated metadata selection,
@@ -3526,8 +3455,8 @@ merely because it exists. Stability is decided by dotted symbols:
 Stable symbols currently cover setup/contract introspection, project attach
 and main-file helpers, compiler compile/watch/stop/status/output helpers, and
 viewer open/source-sync capability helpers. Installed editing, completion,
-artifact, metadata, provider, navigation, preview-helper, development, and
-reset APIs are experimental unless their exact dotted name appears in
+artifact, metadata, provider, navigation, preview-helper, and reset APIs are
+experimental unless their exact dotted name appears in
 `stable_symbols()`.
 
 Internal implementation modules are not part of the user API even when they are
@@ -3560,8 +3489,8 @@ workflow surface and compatibility contract:
 - `docs/vimtex-parity.md`: VimTeX-inspired capability matrix and Typst-native
   reinterpretations.
 - `CREDITS.md`: acknowledgements for VimTeX, Typst, Tinymist,
-  typst-preview.nvim, tree-sitter-typst, math-conceal.nvim, Neovim, and the
-  preserved `nvim-oxi` prototype.
+  tree-sitter-typst, math-conceal.nvim, Neovim, and the preserved `nvim-oxi`
+  prototype.
 
 The local verification gate covers spaces and Unicode in Typst project paths,
 plus conservative runtime performance budgets for project indexing, TOC
@@ -3586,7 +3515,6 @@ workflow functions:
   require("typst").tools.format()
   require("typst").tools.lint()
   require("typst").tools.grammar()
-  require("typst").tools.font_diagnostics()
   require("typst").viewer.view()
   require("typst").viewer.view_forward()
   require("typst").viewer.view_inverse()
@@ -3736,8 +3664,8 @@ documented `TypstEvent*` names, payload fields, namespace tiers, and internal
 module prefixes. Stable API level 1 symbols are additive unless a migration is
 documented. Before 1.0, stability is symbol-based: `project`, `compiler`, and
 `viewer` are mixed namespaces with explicit stable entry points, while editing,
-completion, artifact, metadata, provider, navigation, preview-helper,
-development, and reset APIs are experimental unless promoted by exact dotted
+completion, artifact, metadata, provider, navigation, preview-helper, and
+reset APIs are experimental unless promoted by exact dotted
 name. `stable_symbols()` returns the exact stable list.
 `experimental_symbols()` returns installed helper APIs that are intentionally
 outside the stable compatibility contract for now. Set
@@ -3748,8 +3676,8 @@ has been narrowed before 1.0 without an API-level bump: installed namespaces
 remain available, but demoted helpers are experimental unless their exact
 dotted name appears in `stable_symbols()`.
 
-Process-backed async calls such as export, eval, template init,
-profile/test/bench/coverage, and rendered preview compiles return a pending
+Process-backed async calls such as export, template init, and rendered preview
+compiles return a pending
 result table with `cancel()`. Cancellation marks the result as cancelled and
 stops the originating process tree.
 If graceful and forceful shutdown cannot prove the process exited, the
@@ -3809,7 +3737,7 @@ User commands pass these structured failures through the shared command result
 handler. A command callback that returns `(nil, err)` or `{ ok = false, ... }`
 is logged and reported to the user instead of disappearing silently.
 
-Action APIs such as compile, watch, preview, render, export, eval, navigation,
+Action APIs such as compile, watch, preview, render, export, navigation,
 and semantic calls may resolve or create project state only for Typst source
 buffers. Calls from a non-Typst buffer fail closed with the same `no_project`
 reason instead of compiling an unintended main. Integrations should pass
@@ -3851,8 +3779,8 @@ tables or URLs without opening a scratch buffer or browser. Without `query`,
 cursor token resolution is used where applicable.
 
 Provider helpers register named Lua providers for `compiler`, `format`, `lint`,
-`grammar`, `viewer`, `picker`, `toc`, `index`, `export`, `eval`, `init`,
-`profile`, `test`, `bench`, `coverage`, `semantic`, and `render`. Registered
+`grammar`, `viewer`, `picker`, `toc`, `index`, `export`, `init`, `semantic`,
+and `render`. Registered
 names are accepted by the matching configuration keys, for example
 `format.provider = "my-format"` or `viewer.provider = "my-viewer"`.
 

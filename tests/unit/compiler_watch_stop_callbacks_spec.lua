@@ -94,21 +94,21 @@ local ok, err = xpcall(function()
         watcher.stop_callbacks == nil,
         "operation-backed watcher stop should not use watcher-local queue"
     )
-assert(
-    #fake_operation.settle_callbacks == 2,
-    "watcher stop callbacks should attach to operation settlement"
-)
-assert(
-    #fake_operation.result_callbacks == 0,
-    "watcher stop callbacks should not wait for final result when settle is available"
-)
+    assert(
+        #fake_operation.settle_callbacks == 2,
+        "watcher stop callbacks should attach to operation settlement"
+    )
+    assert(
+        #fake_operation.result_callbacks == 0,
+        "watcher stop callbacks should not wait for final result when settle is available"
+    )
 
-handle.closing = true
-local stop_result = { code = 0, stdout = "", stderr = "" }
-finish(stop_result)
-for _, settle_callback in ipairs(fake_operation.settle_callbacks) do
-    settle_callback(stop_result, fake_operation)
-end
+    handle.closing = true
+    local stop_result = { code = 0, stdout = "", stderr = "" }
+    finish(stop_result)
+    for _, settle_callback in ipairs(fake_operation.settle_callbacks) do
+        settle_callback(stop_result, fake_operation)
+    end
     if cleanup then
         cleanup()
     end

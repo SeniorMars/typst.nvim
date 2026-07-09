@@ -53,7 +53,6 @@ failures are reported in the relevant section instead of throwing:
     native_viewer = true,
     native_browser = false,
     native_auto = false,
-    typst_preview = false,
   },
   diagnostics = {
     compiler = true,
@@ -74,7 +73,7 @@ event names, provider kinds, and result-table fields are additive unless the
 project explicitly documents a migration. Namespaces can be installed without
 being stable as a whole: `project`, `compiler`, and `viewer` are mixed
 namespaces with explicit stable entry points, while editing, completion,
-artifacts, metadata, providers, navigation, preview helpers, and development
+artifacts, metadata, providers, navigation, and preview helpers
 workflows are pre-1.0 experimental unless a dotted symbol is listed in the
 stable block. Internal modules under `typst.core`, `typst.resources`,
 `typst.project.store`, `typst.project.registry`, `typst.project.services`,
@@ -87,7 +86,7 @@ level. That was pre-freeze wording from the reset phase. API level 1 now uses
 explicit dotted symbols as the compatibility source of truth while typst.nvim
 remains pre-1.0. The installed namespaces are kept for compatibility, but
 helpers such as artifact workflows, completion, editing transforms, metadata,
-provider registry helpers, preview helpers, development workflows, and
+provider registry helpers, preview helpers, and
 `reset()` are demoted to experimental unless they appear in the stable symbol
 list below. Use `stable_symbols()` and `experimental_symbols()` to audit the
 current tier of an installed helper. Set
@@ -177,7 +176,7 @@ result table whose `ok` is false and `reason` is `"no_project"`, depending on
 the namespace. If an explicit key cannot be resolved, wrappers return
 `unknown_project_key` or `ambiguous_project_key` instead of `no_project`.
 
-Action APIs, such as compile, watch, preview, render, export, eval, navigation,
+Action APIs, such as compile, watch, preview, render, export, navigation,
 and semantic actions, may resolve or create project state only for Typst source
 buffers. Calls from a non-Typst buffer fail closed with the same `no_project`
 reason instead of silently compiling an unintended main. Integrations that call
@@ -324,10 +323,6 @@ code and this document together when the public symbol surface changes.
 - `conceal.toggle`
 - `conceal.unregister`
 - `context.open`
-- `development.bench`
-- `development.coverage`
-- `development.profile`
-- `development.test`
 - `diagnostics.bibliography`
 - `diagnostics.errors`
 - `diagnostics.quickfix`
@@ -408,9 +403,6 @@ code and this document together when the public symbol surface changes.
 - `edit.toggle_strong`
 - `edit.toggle_trailing_comma`
 - `edit.unwrap_function`
-- `evaluation.eval`
-- `evaluation.inspect`
-- `evaluation.selection`
 - `imaps.active`
 - `imaps.lines`
 - `imaps.list`
@@ -519,7 +511,6 @@ code and this document together when the public symbol surface changes.
 - `syntax.refresh`
 - `template.init`
 - `template.list`
-- `tools.font_diagnostics`
 - `tools.format`
 - `tools.grammar`
 - `tools.lint`
@@ -604,7 +595,6 @@ is sent to `typst compile -` rather than the synthetic scratch path.
 - `require("typst").tools.format(opts)`
 - `require("typst").tools.lint(opts)`
 - `require("typst").tools.grammar(opts)`
-- `require("typst").tools.font_diagnostics(opts)`
 - `require("typst").viewer.view(opts)`
 - `require("typst").viewer.view_forward(opts)`
 - `require("typst").viewer.view_inverse(opts)`
@@ -720,20 +710,10 @@ The public artifact/export namespace is:
 - `require("typst").artifact.open(opts)`
 - `require("typst").artifact.clean(opts)`
 
-The public evaluation namespace is:
-
-- `require("typst").evaluation.eval({ expression = "..." }, callback)`
-- `require("typst").evaluation.selection(opts, callback)`
-- `require("typst").evaluation.inspect(opts, callback)`
-
-The public template/development/semantic namespaces are:
+The public template and semantic namespaces are:
 
 - `require("typst").template.init(opts, callback)`
 - `require("typst").template.list(opts)`
-- `require("typst").development.profile(opts, callback)`
-- `require("typst").development.test(opts, callback)`
-- `require("typst").development.bench(opts, callback)`
-- `require("typst").development.coverage(opts, callback)`
 - `require("typst").semantic.inlay_hints_toggle(opts)`
 - `require("typst").semantic.code_action(opts)`
 - `require("typst").semantic.color_info(opts)`
@@ -762,9 +742,8 @@ include command, cwd, root, main, and output where available.
 Provider registration is the public extension registry for named Lua
 providers. `register_provider(kind, name, provider)` stores a provider under
 one of the supported kinds: `compiler`, `format`, `lint`, `grammar`, `viewer`,
-`picker`, `toc`, `index`, `export`, `eval`, `init`, `profile`, `test`,
-`bench`, `coverage`, `semantic`, or `render`. Aliases such as `compile`,
-`formatter`, `linter`, `view`, `exports`, `template`, `benchmark`, and
+`picker`, `toc`, `index`, `export`, `init`, `semantic`, or `render`. Aliases
+such as `compile`, `formatter`, `linter`, `view`, `exports`, `template`, and
 `terminal_image` are
 accepted. Registered provider names are valid string values in matching config
 fields and per-call `opts.provider` where applicable, so a plugin can register
@@ -886,12 +865,6 @@ pipeline, and `presentation(opts)` targets a `presentation` export profile when
 configured. Custom export providers register with `register_provider("export",
 name, provider)` and implement `export(project, opts, callback)` or `run(...)`.
 
-`eval(opts, callback)` runs `typst eval --in <main>` with
-`opts.expression`; `eval_selection(opts, callback)` takes the requested range
-from the current buffer; and `inspect(opts, callback)` evaluates the supplied
-expression or cursor word and opens serialized JSON in a scratch buffer. Custom
-evaluators can register the `eval` provider kind.
-
 `init(opts, callback)` uses `typst init` for local or published templates.
 When `opts.select = true` and no template is supplied, it opens the template
 gallery and initializes the selected template. `templates(opts)` returns cached
@@ -900,15 +873,6 @@ template path, entrypoint, compiler, cache, and description metadata. Passing
 `offline = true` or `copy = true` to `init` uses the cached-template copier,
 which validates package containment, rejects recursive destination paths, stages
 the copy, and renames it into place on success.
-
-`profile(opts, callback)` compiles with Typst's `--timings` JSON output.
-`test(opts)` runs `tinymist test`, `coverage(opts)` runs
-`tinymist test --coverage`, and `bench(opts)` runs `crityp` by default when the
-executables are available. Each returns an async result with `command`, `stdout`,
-`stderr`, `code`, and an optional report buffer. Provider kinds are `profile`,
-`test`, `bench`, and `coverage`; these are experimental workflow providers
-while the compile/view/preview core hardens. Custom providers still override the
-default commands.
 
 Semantic helpers expose stable commands around Tinymist/LSP behavior:
 `inlay_hints_toggle(opts)`, `code_action(opts)`, `color_info(opts)`,
@@ -991,11 +955,6 @@ output and Vale/vlty-style JSON output are normalized before diagnostics are
 published. Passing `{ open = true }` populates and opens quickfix for the
 grammar result.
 
-`font_diagnostics(opts)` scans current-buffer `font:` references and reports
-families that are not in configured `completion.font_families` or `typst fonts`.
-It returns a diagnostic result table and publishes warnings through a dedicated
-diagnostic namespace. Passing `{ open = true }` populates and opens quickfix.
-
 The bibliography diagnostics API, `bibliography_diagnostics(opts)`, checks the current project bibliography
 workflow. It reports explicit undefined citations from `#cite(<key>)`, duplicate
 bibliography keys, unused bibliography entries, and label/citation name
@@ -1061,20 +1020,14 @@ loaded buffers or existing project graphs when the current buffer is unrelated.
 When no callback is configured, preview open/stop/toggle use typst.nvim's native provider. `preview.native =
 "viewer"` opens the configured output viewer, `"browser"` opens typst.nvim's
 local browser preview shell, and `"auto"` tries browser preview with viewer
-fallback. Set `preview.provider = "typst-preview.nvim"` only when explicit
-compatibility delegation is wanted. In that mode, `:TypstPreviewSyncCursor` may
-be used for `view_forward()`/`:TypstViewForward`. The galley preview workflow
-and browser preview source-map integration are available when that external
-command is available. `preview()` reuses an active project preview by default; pass
+fallback. `preview()` reuses an active project preview by default; pass
 `{ restart = true }` or set `preview.reuse = false` to stop and reopen active
 previews. Set `preview.follow_buffer = true` to make one active native browser
 preview follow the focused Typst buffer's resolved project/main without opening
 another browser tab. The default `preview.source_maps.provider = "typst-query"`
 can source-sync SVG browser previews by querying Typst block positions and
 matching them to local source text; it does not claim SyncTeX-style support for
-normal Typst PDF output. Use typst-preview.nvim for live/incremental browser
-frontend behavior, and typst.nvim native preview for project-aware viewer,
-browser, export-profile, and cleanup workflows.
+normal Typst PDF output.
 
 `preview.refresh` is an optional watch-cycle notification callback for preview
 backends. Callback form receives `(project, result, opts)` with the same
@@ -1504,7 +1457,6 @@ The public command surface is:
 - `:TypstFormat`
 - `:TypstLint[!]`
 - `:TypstGrammar[!]`
-- `:TypstFontDiagnostics[!]`
 - `:TypstView`
 - `:TypstViewForward`
 - `:TypstViewInverse [file] [line] [column]`
@@ -1513,15 +1465,8 @@ The public command surface is:
 - `:TypstArtifacts`
 - `:TypstArtifactOpen [format]`
 - `:TypstArtifactClean [format]`
-- `:TypstEval[!] {expression}`
-- `:TypstEvalSelection[!]`
-- `:TypstInspect[!] [expression]`
 - `:TypstInit[!] [template] [directory]`
 - `:TypstTemplates`
-- `:TypstProfile[!] [profile]`
-- `:TypstTest [args]`
-- `:TypstBench [args]`
-- `:TypstCoverage [args]`
 - `:TypstInlayHintsToggle`
 - `:TypstCodeAction [index]`
 - `:TypstColorInfo`

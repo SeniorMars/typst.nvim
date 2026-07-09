@@ -164,7 +164,8 @@ end
 
 local function root_compatible(client, root)
     local client_config = type(client) == "table" and client.config or nil
-    local client_root = type(client_config) == "table" and client_config.root_dir
+    local client_root = type(client_config) == "table"
+            and client_config.root_dir
         or nil
 
     if type(root) ~= "string" or root == "" then
@@ -519,8 +520,7 @@ function M.available_for_project(project)
 
     local main_bufnr = buffer.loaded_buffer_for_path(project.main)
     return main_bufnr
-            and M.select_client({ bufnr = main_bufnr, project = project }).ok
-                == true
+            and M.select_client({ bufnr = main_bufnr, project = project }).ok == true
         or false
 end
 

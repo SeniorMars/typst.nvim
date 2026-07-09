@@ -8,7 +8,10 @@ local result = require("typst.core.result")
 operation.reset({ scope = "all", force = true, clear_retained = true })
 
 local function assert_eq(actual, expected, message)
-    assert(actual == expected, message .. " (got " .. vim.inspect(actual) .. ")")
+    assert(
+        actual == expected,
+        message .. " (got " .. vim.inspect(actual) .. ")"
+    )
 end
 
 local ok, err = xpcall(function()
@@ -25,7 +28,11 @@ local ok, err = xpcall(function()
 
     local retained_result = result.retained({ kind = "compiler.compile" })
     assert_eq(retained_result.pending, false, "retained orphans should settle")
-    assert_eq(retained_result.stopped, false, "retained orphans are not stopped")
+    assert_eq(
+        retained_result.stopped,
+        false,
+        "retained orphans are not stopped"
+    )
     assert_eq(retained_result.orphaned, true, "retained implies orphaned")
     assert_eq(retained_result.retained, true, "retained should be explicit")
 
@@ -46,14 +53,11 @@ local ok, err = xpcall(function()
         operation.by_slot("project", "project-a", "compiler") == settle_op,
         "active slots should resolve to their operation"
     )
-    assert(
-        operation.by_slot({
-            owner = "project",
-            project_key = "project-a",
-            slot = "compiler",
-        }) == settle_op,
-        "option-table slot lookup should be supported"
-    )
+    assert(operation.by_slot({
+        owner = "project",
+        project_key = "project-a",
+        slot = "compiler",
+    }) == settle_op, "option-table slot lookup should be supported")
 
     local settled = nil
     local finished = nil
@@ -155,10 +159,9 @@ local ok, err = xpcall(function()
                 cancel_cleanup_order[#cancel_cleanup_order + 1] = "cleanup"
             end,
         })
-    cancel_cleanup_op._cancel_callbacks[#cancel_cleanup_op._cancel_callbacks + 1] =
-        function()
-            cancel_cleanup_order[#cancel_cleanup_order + 1] = "cancel"
-        end
+    cancel_cleanup_op._cancel_callbacks[#cancel_cleanup_op._cancel_callbacks + 1] = function()
+        cancel_cleanup_order[#cancel_cleanup_order + 1] = "cancel"
+    end
     cancel_cleanup_op:finish(result.stopped())
     assert_eq(
         cancel_cleanup_order[1],

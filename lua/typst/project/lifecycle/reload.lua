@@ -261,19 +261,15 @@ local function reload_attach_two_phase(
             }
     end
 
-    local transition_result = transition_buffer(
-        bufnr,
-        previous_attached,
-        state,
-        {
+    local transition_result =
+        transition_buffer(bufnr, previous_attached, state, {
             reason = "state reloaded",
             previous_resolution = previous_resolution,
             candidate = candidate,
             reapply_features = true,
             stop_log_message = "stopping compiler after state reload reassigned buffer",
             stop_prune_reason = "compiler stopped after state reload",
-        }
-    )
+        })
     if not transition_result.ok then
         state.last_attach_warning = {
             ok = false,

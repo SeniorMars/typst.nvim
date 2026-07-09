@@ -40,14 +40,12 @@ local function compact_resolution(resolution)
         main_source = resolution.main_source,
         resolution_pending = resolution.resolution_pending,
         import_scan_status = resolution.import_scan_status,
-        import_scan_suggestion = suggestion
-                and {
-                    root = suggestion.root,
-                    main = suggestion.main,
-                    root_source = suggestion.root_source,
-                    main_source = suggestion.main_source,
-                }
-            or nil,
+        import_scan_suggestion = suggestion and {
+            root = suggestion.root,
+            main = suggestion.main,
+            root_source = suggestion.root_source,
+            main_source = suggestion.main_source,
+        } or nil,
     }
 end
 
@@ -73,12 +71,7 @@ function M.transition_buffer(bufnr, previous, state, opts)
     local finalization_error = nil
     if state then
         local finalize_ok, finalize_err = xpcall(function()
-            feature_finalize.attached_buffer(
-                bufnr,
-                state,
-                opts.candidate,
-                opts
-            )
+            feature_finalize.attached_buffer(bufnr, state, opts.candidate, opts)
         end, debug.traceback)
         if not finalize_ok then
             finalization_error = tostring(finalize_err)

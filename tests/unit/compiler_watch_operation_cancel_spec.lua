@@ -23,12 +23,18 @@ operation.cancel = function(first, second)
     return false, { pending = true, stopping = true, stopped = false }
 end
 operation.on_result = function(self, callback)
-    assert(self == operation, "operation result callback should use colon style")
+    assert(
+        self == operation,
+        "operation result callback should use colon style"
+    )
     result_callbacks[#result_callbacks + 1] = callback
     return self
 end
 operation.on_settle = function(self, callback)
-    assert(self == operation, "operation settle callback should use colon style")
+    assert(
+        self == operation,
+        "operation settle callback should use colon style"
+    )
     settle_callbacks[#settle_callbacks + 1] = callback
     return self
 end

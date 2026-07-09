@@ -78,7 +78,6 @@ headless gates. The minimum checklist is:
 - Compile, watch, stop, reset, and force-clear recovery.
 - Native viewer preview.
 - Native browser preview.
-- typst-preview.nvim delegation.
 - Diagnostics external paths with `bufadd`, `quickfix-only`, and
   `open-files-only`.
 - Windows path with spaces and UNC-like paths on a real Windows runner.

@@ -391,7 +391,7 @@ rawset(vim, "notify", original_notify)
 
 finish_open = nil
 opened_events = 0
-local typst_preview = require("typst.preview.controller")
+local preview_controller = require("typst.preview.controller")
 project = setup_project(function()
     local handle = {
         pending = true,
@@ -411,7 +411,8 @@ assert(
 local live_project = require("typst.project.context").live(project)
 assert(live_project, "clear_state test should resolve the public snapshot")
 assert(
-    typst_preview.clear_state(live_project, { reason = "test_cleanup" }) == true,
+    preview_controller.clear_state(live_project, { reason = "test_cleanup" })
+        == true,
     "clear_state should clear opening-only preview state"
 )
 assert(

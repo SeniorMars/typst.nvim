@@ -32,10 +32,6 @@ local function source_key(source)
     if lowered:find("bibliography", 1, true) then
         return "bibliography"
     end
-    if lowered:find("font", 1, true) then
-        return "fonts"
-    end
-
     local key = lowered:gsub("[^%w_%-]+", "_"):gsub("^_+", ""):gsub("_+$", "")
     return key ~= "" and key or default_source
 end
@@ -66,9 +62,9 @@ function M.namespace_for(project, source)
         return global_namespaces[key]
     end
 
-    -- Keep compiler, lint, grammar, bibliography, and font diagnostics in
-    -- separate namespaces so clearing one source does not erase another source
-    -- that may have refreshed independently.
+    -- Keep compiler, lint, grammar, and bibliography diagnostics in separate
+    -- namespaces so clearing one source does not erase another source that may
+    -- have refreshed independently.
     local namespaces = ensure_project_namespaces(project)
     if not namespaces[key] then
         namespaces[key] = vim.api.nvim_create_namespace(

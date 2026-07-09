@@ -191,10 +191,7 @@ function M.get_project(bufnr)
             if accepted then
                 local accepted_previous_resolution = vim.deepcopy(
                     suggestion_resolution
-                        or (
-                            previous.resolutions
-                            and previous.resolutions[bufnr]
-                        )
+                        or (previous.resolutions and previous.resolutions[bufnr])
                         or {}
                 )
                 transition_buffer(bufnr, previous, accepted, {

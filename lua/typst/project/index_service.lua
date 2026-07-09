@@ -176,7 +176,8 @@ function M.category(project_or_opts, name, collect_fn)
     end
 
     local project_index = index_cache.ensure(project)
-    local aggregate_cache_enabled = index_scheduler.aggregate_cache_enabled(opts)
+    local aggregate_cache_enabled =
+        index_scheduler.aggregate_cache_enabled(opts)
     local refresh = nil
     if aggregate_cache_enabled then
         refresh = index_scheduler.prepare(project, opts)

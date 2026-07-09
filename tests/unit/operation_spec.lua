@@ -32,8 +32,7 @@ local ok, err = xpcall(function()
         "operations should expose the shared lifecycle handle contract"
     )
     assert(
-        pending.is_handle(op) == true
-            and pending.state(op).state == "starting",
+        pending.is_handle(op) == true and pending.state(op).state == "starting",
         "pending helpers should observe operation lifecycle handles"
     )
     op:on_result(function(result, finished)
@@ -43,7 +42,10 @@ local ok, err = xpcall(function()
     local subscribed = pending.subscribe_result(op, function(result, finished)
         shared_subscribe_callback = { result = result, operation = finished }
     end)
-    assert(subscribed == true, "pending.subscribe_result should accept operations")
+    assert(
+        subscribed == true,
+        "pending.subscribe_result should accept operations"
+    )
 
     op:finish({
         ok = true,

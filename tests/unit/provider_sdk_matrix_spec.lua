@@ -115,8 +115,7 @@ local function invoke_case(case)
         on_result = function(item)
             callbacks[#callbacks + 1] = item
         end,
-        return_mode = case.id == "pending_handle_timeout" and "handle"
-            or nil,
+        return_mode = case.id == "pending_handle_timeout" and "handle" or nil,
     })
     return result, callbacks
 end
@@ -143,7 +142,10 @@ for _, case in ipairs(contract.fixture_cases()) do
     elseif case.expected == "pending" then
         assert(result.pending == true, case.id .. " should return pending")
     elseif case.expected == "timeout" then
-        assert(result.pending == true, case.id .. " should expose pending handle")
+        assert(
+            result.pending == true,
+            case.id .. " should expose pending handle"
+        )
         assert(result.path, case.id .. " should preserve handle metadata")
         local terminal = wait_for_callback(callbacks)
         assert(terminal.reason == "timeout", case.id .. " should time out")

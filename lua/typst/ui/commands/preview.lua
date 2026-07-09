@@ -5,8 +5,7 @@ local M = {}
 
 local create = command.create
 local opts = command.opts
-local own_command_definition =
-    "Delegate to the configured Typst preview backend"
+local own_command_definition = "Open the configured Typst preview backend"
 local own_stop_command_definition = "Stop the configured Typst preview backend"
 local own_toggle_command_definition =
     "Toggle the configured Typst preview backend"
@@ -61,9 +60,7 @@ function M.register(ctx)
         vim.tbl_extend(
             "force",
             opts(own_command_definition, "*", complete.preview_args),
-            {
-                force = false,
-            }
+            {}
         )
     )
 
@@ -80,7 +77,6 @@ function M.register(ctx)
             opts(own_browser_command_definition, "*", complete.preview_args),
             {
                 bang = true,
-                force = false,
             }
         )
     )
@@ -93,9 +89,7 @@ function M.register(ctx)
         vim.tbl_extend(
             "force",
             opts(own_reload_command_definition, "*", complete.preview_args),
-            {
-                force = false,
-            }
+            {}
         )
     )
 
@@ -122,7 +116,6 @@ function M.register(ctx)
         end,
         vim.tbl_extend("force", opts(own_status_command_definition), {
             bang = true,
-            force = false,
         })
     )
 
@@ -139,20 +132,13 @@ function M.register(ctx)
             opts(own_clean_command_definition, "?", complete.preview_format),
             {
                 bang = true,
-                force = false,
             }
         )
     )
 
-    create(
-        "TypstPreviewStop",
-        function()
-            return api.viewer.preview_stop()
-        end,
-        vim.tbl_extend("force", opts(own_stop_command_definition), {
-            force = false,
-        })
-    )
+    create("TypstPreviewStop", function()
+        return api.viewer.preview_stop()
+    end, opts(own_stop_command_definition))
 
     create(
         "TypstPreviewToggle",
@@ -162,9 +148,7 @@ function M.register(ctx)
         vim.tbl_extend(
             "force",
             opts(own_toggle_command_definition, "*", complete.preview_args),
-            {
-                force = false,
-            }
+            {}
         )
     )
 
@@ -180,9 +164,7 @@ function M.register(ctx)
         vim.tbl_extend(
             "force",
             opts(own_inverse_command_definition, "*", "file"),
-            {
-                force = false,
-            }
+            {}
         )
     )
 end

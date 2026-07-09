@@ -64,7 +64,7 @@ lua/typst/
   completion/      Completion sources, cache, and frontend adapters.
   conceal/         Conceal matching, rendering, custom rules, inspection.
   edit/            Folds, indent, motions, text objects, transforms.
-  workflows/       Export, render, eval, template, clean, lint, format.
+  workflows/       Export, render, template, clean, lint, format.
   integrations/    Tinymist, provider adapter, and shallow external adapters.
   ui/              Commands, reports, status lines, notifications.
   core/            Dependency-light primitives only.
@@ -113,7 +113,7 @@ completion   completion sources/frontends
 conceal      visual conceal engine
 bibliography bibliography-specific support
 metadata     generated Typst metadata
-workflows    export/render/eval/lint/format/etc.
+workflows    export/render/lint/format/etc.
 integrations external plugin/tool adapters
 ui           command/report/status presentation
 internal     debug/compat/invariant checks
@@ -174,7 +174,7 @@ runtime.resource_manager is the reset/prune/exit cleanup entry point
 diagnostics publisher is the only diagnostic writer
 compiler.fanout routes compiler-state post-result consumers
 typst.compiler decides stop/timeout semantics
-typst.preview.controller decides delegated preview stop semantics
+typst.preview.controller decides native/callback preview stop semantics
 typst.viewer.api decides viewer/source-sync command semantics
 ```
 
@@ -221,9 +221,8 @@ document an exception.
 
 Viewer and preview are separate workflows. `typst.viewer.api` owns viewer
 commands and preview-facing public command orchestration. A viewer opens or
-controls existing artifacts. `typst.preview.controller` owns delegated and
-native preview lifecycle decisions; old require-path compatibility facades may
-exist only as tiny delegates and must not own preview lifecycle state.
+controls existing artifacts. `typst.preview.controller` owns custom and native
+preview lifecycle decisions.
 `preview/native/*` owns native browser preview details. Do not extract full
 viewer controllers before the stable-core boundary is pinned. Source-sync
 capability reporting should make this distinction explicit.
@@ -237,7 +236,7 @@ indent, insert mappings, match highlighting, and formatexpr. Project lifecycle
 may apply or detach editor hooks, but it should not know their internal behavior.
 
 Workflows own user-triggered jobs that are not the main compiler loop: export,
-render, eval, template init, clean, lint, format, grammar, and development tools.
+render, template init, clean, lint, format, and grammar.
 Output-producing workflows should use `resources.outputs`,
 `resources.operations`, `core.process`, and the provider adapter instead of
 talking directly to low-level lease tables.
@@ -519,7 +518,7 @@ implementation files move.
 
 Do not extract broad controller modules before tests pin ownership. Preview is
 the current approved extraction because its public facade, pending-handle
-contract, resource-manager driver, and callback/native/delegated behavior are
+contract, resource-manager driver, and callback/native behavior are
 covered by stability tests. This stabilization patch hardens behavior through
 small compatibility-preserving boundaries:
 
@@ -559,11 +558,8 @@ small compatibility-preserving boundaries:
      `typst.preview.state_machine`, and `typst.preview.backends.*` own preview
      result shape, pending observation, state mutation, and backend adapters.
    - `typst.preview.backends.viewer` is the boring default artifact opener.
-     `typst.preview.backends.browser`, `.delegated`, and `.custom` are explicit
-     advanced backends for browser server/source-map behavior,
-     typst-preview.nvim delegation, and user callbacks.
-   - Compatibility facades such as `typst.integrations.typst_preview` may
-     delegate to current owners, but must stay tiny and state-free.
+     `typst.preview.backends.browser` and `.custom` are explicit advanced
+     backends for browser server/source-map behavior and user callbacks.
    - `preview/native/*` may keep native browser/server/session details.
 4. Keep navigation and editor implementation files in their existing layout.
    - The current flat navigation/edit modules remain the implementation paths
@@ -665,8 +661,7 @@ coordinator keeps that idempotence boundary.
 `typst.preview.controller` owns preview lifecycle decisions. Concrete preview
 work lives behind explicit backends under `preview/backends/`: `viewer` for the
 boring artifact-to-viewer path, `browser` for advanced native browser/server
-work, `delegated` for typst-preview.nvim compatibility, and `custom` for user
-callbacks. Do not add a preview backend registry or marketplace layer during
+work, and `custom` for user callbacks. Do not add a preview backend registry or marketplace layer during
 stable-core hardening; new backends must be explicit modules that satisfy the
 small `preview.backends.interface` shape and delete duplicated controller logic.
 

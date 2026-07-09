@@ -2,7 +2,7 @@ local cursor_position = require("typst.completion.position")
 local cleanup = require("typst.viewer.cleanup")
 local preview_cache = require("typst.preview.cache")
 local preview_results = require("typst.preview.results")
-local typst_preview = require("typst.preview.controller")
+local preview_controller = require("typst.preview.controller")
 local preview_service = require("typst.project.services.preview")
 local path_util = require("typst.core.path")
 local viewer = require("typst.viewer.generic")
@@ -90,7 +90,7 @@ function M.view_forward(state, opts, notify)
         -- VimTeX users expect forward search to work through the active preview
         -- when the PDF viewer has no direct forward-search backend.
         local viewer_result = result
-        local preview_result = typst_preview.forward(state, opts)
+        local preview_result = preview_controller.forward(state, opts)
         if type(preview_result) == "table" and preview_result.ok == false then
             if preview_result.reason ~= "unsupported" then
                 result = preview_result
@@ -169,7 +169,7 @@ end
 ---@param state table Project state used to inspect preview configuration.
 ---@return table capabilities Preview backend capability flags.
 function M.preview_capabilities(state)
-    return typst_preview.capabilities(state)
+    return preview_controller.capabilities(state)
 end
 
 --- Remove temporary Typst artifacts and optionally the owned compiler output.
@@ -207,7 +207,7 @@ end
 ---@return table|boolean|string|nil result Preview backend result.
 function M.preview(state, opts, notify)
     opts = opts or {}
-    local result = typst_preview.open(state, opts)
+    local result = preview_controller.open(state, opts)
     if type(result) == "table" and result.ok == false then
         notify_user(
             notify,
@@ -253,7 +253,7 @@ function M.preview_reload(state, opts, notify)
         return result
     end
 
-    local result = typst_preview.refresh(state, {
+    local result = preview_controller.refresh(state, {
         code = 0,
         manual = true,
         generation = vim.uv.hrtime(),
@@ -293,7 +293,8 @@ end
 ---@return table status Preview status payload.
 function M.preview_status(state, opts, notify)
     opts = opts or {}
-    local status = typst_preview.status(state, { raw = true, cache = true })
+    local status =
+        preview_controller.status(state, { raw = true, cache = true })
     local cache_status = status.cache or preview_cache.status(state)
     local lines = require("typst.ui.reports").preview_status_lines(state)
     if opts.echo ~= false then
@@ -325,7 +326,7 @@ end
 ---@return table|boolean|string|nil result Preview backend result.
 function M.preview_stop(state, opts, notify)
     opts = opts or {}
-    local result = typst_preview.stop(state, opts)
+    local result = preview_controller.stop(state, opts)
 
     if stop_failed(result) then
         if opts.notify ~= false then
@@ -357,7 +358,7 @@ end
 ---@return table|boolean|string|nil result Preview backend result.
 function M.preview_toggle(state, opts, notify)
     opts = opts or {}
-    local result = typst_preview.toggle(state, opts)
+    local result = preview_controller.toggle(state, opts)
 
     if stop_failed(result) then
         notify_user(
@@ -396,7 +397,7 @@ end
 ---@return table|boolean|nil result Preview inverse-search result or failure payload.
 function M.preview_inverse(state, opts, notify)
     opts = opts or {}
-    local result = typst_preview.inverse(state, opts)
+    local result = preview_controller.inverse(state, opts)
 
     if type(result) == "table" and result.ok == false then
         notify_user(

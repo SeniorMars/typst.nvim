@@ -72,12 +72,7 @@ function M.cancel(bufnr, reason, state)
         or (resolution and resolution.import_scan_token)
     local handle = deferred_import_scan_handles[bufnr]
     if token ~= nil then
-        clear_deferred_import_scan(
-            state,
-            bufnr,
-            token,
-            reason or "cancelled"
-        )
+        clear_deferred_import_scan(state, bufnr, token, reason or "cancelled")
     end
     deferred_import_scan_handles[bufnr] = nil
     deferred_import_scan_tokens[bufnr] = nil
@@ -321,10 +316,7 @@ function M.schedule(bufnr, state, candidate)
             local finished_current = project.get(bufnr)
             local epoch_current, epoch_reason =
                 resource_manager.valid_token(epoch_token)
-            if
-                not finished_current
-                or finished_current.key ~= expected_key
-            then
+            if not finished_current or finished_current.key ~= expected_key then
                 clear_deferred_import_scan(
                     finished_current,
                     bufnr,

@@ -1,16 +1,17 @@
 local controller = require("typst.preview.controller")
 local capabilities = require("typst.preview.capabilities")
-local delegated_runtime = require("typst.preview.backends.delegated_runtime")
 local location = require("typst.preview.location")
 local source_sync = require("typst.preview.source_sync")
 local state = require("typst.preview.state_machine")
 
 assert(
-    require("typst.integrations.typst_preview") == controller,
-    "typst_preview integration compatibility facade should delegate to controller"
+    not pcall(require, "typst.integrations.typst_preview"),
+    "typst-preview integration compatibility facade should not be installed"
 )
 
 for _, removed in ipairs({
+    "typst.preview.backends.delegated",
+    "typst.preview.backends.delegated_runtime",
     "typst.integrations.typst_preview.runtime",
     "typst.integrations.typst_preview.capabilities",
     "typst.integrations.typst_preview.location",
@@ -24,8 +25,6 @@ for _, removed in ipairs({
 end
 
 for _, name in ipairs({
-    "available",
-    "command_available",
     "open",
     "stop",
     "stop_for_exit",
@@ -36,10 +35,6 @@ for _, name in ipairs({
     "inverse",
     "capabilities",
     "status",
-    "own_command_definition",
-    "own_stop_command_definition",
-    "own_toggle_command_definition",
-    "own_inverse_command_definition",
 }) do
     assert(
         controller[name] ~= nil,
@@ -54,10 +49,6 @@ for _, name in ipairs({ "forward", "inverse", "capabilities" }) do
     )
 end
 
-assert(
-    type(delegated_runtime.available) == "function",
-    "delegated runtime should live under preview.backends"
-)
 assert(
     type(capabilities.base) == "function",
     "preview capabilities helper should live under preview/"

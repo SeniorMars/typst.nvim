@@ -19,8 +19,8 @@ Feature stability is intentionally tiered:
   diagnostics, status/info, output leases, and public API/event compatibility.
 - Stabilizing editor UI: completion frontends, navigation/pickers, conceal,
   structural editing, native preview, and Tinymist semantic helpers.
-- Experimental/provider surface: custom providers, export/eval/profile/test
-  workflows, render fragments, and compatibility shims for external preview
+- Experimental/provider surface: custom providers, export/render workflows,
+  render fragments, and compatibility shims for external preview
   plugins.
 
 Implemented workflow groups:
@@ -34,8 +34,8 @@ Implemented workflow groups:
 - Tinymist-aware semantic helpers, completion frontend adapters, TOC/pickers,
   navigation/follow, folds, conceal, motions, text objects, structural editing,
   bibliography diagnostics, package resources, symbols, and metadata.
-- Provider-backed compile/view/preview/source-map/export/render/eval/format/
-  lint/grammar/profile/test/bench/coverage workflows with documented timeout,
+- Provider-backed compile/view/preview/source-map/export/render/format/
+  lint/grammar workflows with documented timeout,
   cancellation, and retained-resource behavior.
 - CI gates for unit, integration, policy, stable-core lifecycle, docs/API
   contracts, provider matrix, Windows edges, no Tree-sitter, fake Typst,
@@ -68,8 +68,6 @@ Optional integrations:
   typst` reports the selected mode, detected native Tinymist clients,
   advertised capabilities, the Coc skip reason, and the last project-local
   ensure reason such as `missing_executable`, `detect`, `disabled`, or `coc`.
-- `typst-preview.nvim` only when explicitly selected as a compatibility preview
-  provider for its source synchronization commands
 - Telescope, fzf-lua, fzf.vim, or Snacks for `:TypstPick` UI
 - [SeniorMars/tree-sitter-typst](https://github.com/SeniorMars/tree-sitter-typst)
   for structural editing and query-backed features
@@ -84,7 +82,6 @@ integrations only when you need them.
 | Built-in Typst CLI | You want project detection, `:TypstCompile`, `:TypstWatch`, diagnostics parsed from Typst output, and `:TypstView`. | Install `typst` and run `:checkhealth typst`. This path works without Tinymist or preview plugins. |
 | Typst CLI + Tinymist | You want LSP-backed completion, references, rename, color/code-lens actions, or Tinymist diagnostics. | Keep `integrations.tinymist.lsp = "auto"` for typst.nvim-managed nvim-lsp startup, use `"detect"` to reuse an existing nvim-lsp client, or use Coc's own Tinymist settings when coc.nvim owns the LSP session. |
 | Native preview | You want typst.nvim to open the compiler output in a viewer or browser shell. | Keep `preview.provider = "native"`. The default `preview.native = "viewer"` opens the current compiler output; set `"browser"` for the local browser shell. |
-| typst-preview.nvim compatibility | You already use typst-preview.nvim and want typst.nvim project commands around it. | Set `preview.provider = "typst-preview.nvim"`. typst.nvim delegates preview open/stop/source-sync commands instead of pretending to own that backend. |
 | Custom providers | You wrap another compiler, viewer, formatter, linter, renderer, or preview backend. | Register providers with `require("typst").providers.register(...)` and follow [docs/provider-contracts.md](docs/provider-contracts.md), especially timeout and pending-handle behavior. |
 
 Useful entry points:
@@ -116,7 +113,7 @@ Feature stability is grouped by workflow, not by module directory:
 | --- | --- | --- |
 | Core workflow | Setup, project discovery, main-file control, compile/watch/stop, diagnostics, viewer dispatch, status/info/log/cache/lock commands. | Supported user workflow; regressions should be treated as bugs. |
 | Editor workflow | Completion adapters, TOC/pickers, folds, motions, text objects, conceal, formatting, lint, grammar, and structural transforms. | Supported, but quality can depend on Tree-sitter, Typst CLI, Tinymist, and configured providers. |
-| Integration workflow | Tinymist, native preview, typst-preview.nvim delegation, custom providers, export/render/eval/profile/test/bench/coverage helpers. | Available but deliberately narrower than the stable core. Preview/render/export/semantic/source-map and development workflow providers remain experimental while core lifecycle contracts harden. |
+| Integration workflow | Tinymist, native preview, custom providers, and export/render helpers. | Available but deliberately narrower than the stable core. Preview/render/export/semantic/source-map providers remain experimental while core lifecycle contracts harden. |
 | Lua API | Exact dotted symbols in the stable-symbol block of [API.md](API.md). | Stable at the current API level. Installed helpers outside that list are experimental. |
 | Internals | Service tables, resolver/index/preview sessions, resource supervision, generated metadata loaders, and cache registries. | Internal; use commands or documented Lua wrappers instead of depending on these shapes. |
 
@@ -206,8 +203,8 @@ package info, font scans, and metadata version detection. Before 1.0, the
 stable Lua API is intentionally narrow and symbol-based, not namespace-based.
 Setup/contract introspection plus core `project`, `compiler`, and `viewer`
 workflow helpers are stable when listed by `stable_symbols()`. Editing,
-completion, artifact, metadata, provider, navigation, preview helper, and
-development APIs remain installed but experimental unless promoted to the
+completion, artifact, metadata, provider, navigation, and preview helper APIs
+remain installed but experimental unless promoted to the
 stable-symbol block in `API.md`;
 `experimental_symbols()` reports those helpers explicitly.
 Use `contract()` to inspect the versioned API/event contract, including
@@ -228,7 +225,7 @@ do not create scratch projects from dashboards, statuslines, timers, or other
 non-Typst buffers, and they do not notify by default when no project exists.
 Cleanup helpers such as `viewer.clean()` also use no-create resolution, but
 remain action APIs. Action helpers such as compile, watch, preview, render,
-export, eval, navigation, and semantic calls may resolve or create project
+export, navigation, and semantic calls may resolve or create project
 state only for Typst source buffers. From a non-Typst buffer they return
 `no_project` instead of silently compiling an unintended main. Integrations
 should pass `{ bufnr = typst_bufnr }`, `{ project = project }`, or an explicit
@@ -527,8 +524,6 @@ require("typst").setup({
     external_paths = "bufadd",
     max_external_buffers = 16,
     overflow = "quickfix-only",
-    fonts = true,
-    font_scan_timeout_ms = 250,
   },
   bibliography = {
     -- "auto" uses project-index citation completion only when native Tinymist
@@ -1027,22 +1022,6 @@ require("typst").setup({
 })
 ```
 
-typst-preview.nvim for live preview, typst.nvim for project workflow:
-
-```lua
-require("typst").setup({
-  preview = {
-    provider = "typst-preview.nvim",
-    native = "viewer",
-  },
-})
-```
-
-In that hybrid setup, use typst-preview.nvim for its live/incremental browser
-frontend and keep typst.nvim for root/main ownership, compile/watch/view,
-export profiles, bibliography, navigation, health, logs, and cleanup. Tinymist
-or coc-tinymist still owns semantic LSP features.
-
 `:TypstPreviewOpenBrowser[!]` opens the native browser target regardless of the
 default `preview.native`; bang restarts an active preview. `:TypstPreviewReload`
 refreshes an active preview, and `:TypstPreviewStatus[!]` shows backend,
@@ -1064,12 +1043,7 @@ source-map support; new integrations should prefer
 default `preview.source_maps.provider = "typst-query"` can source-sync SVG
 browser previews by querying Typst block positions and matching them to local
 source text. It does not claim SyncTeX-style support for normal Typst PDFs and
-does not replace Tinymist semantic features. Use
-`preview.provider = "typst-preview.nvim"` only when you explicitly want
-compatibility delegation to that plugin. In that mode,
-`:TypstViewForward` may call
-`:TypstPreviewSyncCursor` for the galley preview workflow when the external
-browser preview source-map command is available.
+does not replace Tinymist semantic features.
 
 Registered source-map integrations use the `source_map` provider kind. A
 provider may implement `forward`, `inverse`, `generate`, `resolve`, or
@@ -1161,11 +1135,6 @@ and `vlty` default to passing the current file path. textidote line/column
 output and Vale/vlty-style JSON output are normalized to Typst diagnostics.
 `:TypstGrammar!` opens quickfix for the result.
 
-`:TypstFontDiagnostics` checks `font:` family references in the current buffer
-against configured `completion.font_families` and families reported by
-`typst fonts`. `diagnostics.font_scan_timeout_ms = 0` skips the CLI scan.
-`:TypstFontDiagnostics!` opens quickfix for missing families.
-
 Compiler diagnostics can use either the global quickfix list or the current
 window's location list. Keep `diagnostics.list = "quickfix"` for the default
 behavior, or set `diagnostics.list = "loclist"` when `:TypstDiagnostics` and
@@ -1174,9 +1143,9 @@ automatic `diagnostics.use_quickfix` publishing should stay window-local.
 Plugin integrations can register named Lua providers with
 `require("typst").providers.register(kind, name, provider)`. Supported kinds are
 `compiler`, `format`, `lint`, `grammar`, `viewer`, `picker`, `toc`, `index`,
-`export`, `eval`, `init`, `profile`, `test`, `bench`, `coverage`, `semantic`,
-and `render`, with aliases such as `compile`, `formatter`, `linter`, `view`,
-`exports`, `template`, `benchmark`, and `terminal_image`. Registered names are
+`export`, `init`, `semantic`, and `render`, with aliases such as `compile`,
+`formatter`, `linter`, `view`, `exports`, `template`, and `terminal_image`.
+Registered names are
 valid string values in the matching config field, for example
 `compile.provider = "my-compiler"` or `format.provider = "my-format"`.
 `providers.names(kind)`, `providers.get(kind, name)`, and
@@ -1711,21 +1680,15 @@ require("typst").setup({
 })
 ```
 
-`:TypstEval {expression}` runs `typst eval --in <main>` in the current project
-context, `:TypstEvalSelection` evaluates the selected Typst source, and
-`:TypstInspect [expression]` opens serialized JSON for the expression or symbol
-under the cursor. `:TypstInit [template] [directory]` uses `typst init` for
+`:TypstInit [template] [directory]` uses `typst init` for
 local or published templates; without a template it can select from the template
 gallery. `:TypstTemplates` lists cached templates plus configured Universe-index
 template metadata. Passing `offline = true` or `copy = true` to
 `require("typst").init` uses the existing cached-template copier with package
 containment and staging checks.
 
-`:TypstProfile` runs a compile with Typst's `--timings` JSON output. `:TypstTest`
-runs `tinymist test`, `:TypstCoverage` runs `tinymist test --coverage`, and
-`:TypstBench` runs `crityp` when available; all can still be replaced with
-registered development providers. Semantic editor helpers include
-`:TypstInlayHintsToggle`, `:TypstCodeAction`, `:TypstColorInfo`,
+Semantic editor helpers include `:TypstInlayHintsToggle`, `:TypstCodeAction`,
+`:TypstColorInfo`,
 `:TypstColorPresentation`, `:TypstLinks`,
 `:TypstCodeLens`, `:TypstWorkspaceSymbols`, `:TypstReferences`,
 `:TypstRenamePreview`, `:TypstSelectionExpand`, and `:TypstOnEnter`.
@@ -1956,8 +1919,8 @@ for `diagnostics.max_external_buffers` during this migration window.
   `:TypstInfo!`, and use `:TypstCompilerForceClear[!]` only after handling the
   external process yourself.
 - Preview stop is pending or failed: check `:TypstPreviewStatus` and
-  `:TypstLog`. Native preview and delegated providers have different stop
-  guarantees; pending provider stops are not treated as confirmed process exit.
+  `:TypstLog`. Pending callback-provider stops are not treated as confirmed
+  process exit.
 - Tree-sitter-backed features are missing or stale: run `:checkhealth typst`
   and verify the Typst parser plus shipped queries load. Parser/query mismatch
   affects rich conceal, folds, motions, text objects, and package syntax.

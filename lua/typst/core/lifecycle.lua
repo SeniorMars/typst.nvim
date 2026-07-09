@@ -122,13 +122,10 @@ end
 ---@param prune_reason string Reason passed through to project pruning.
 ---@return boolean attempted True when teardown or prune work was attempted.
 function M.stop_before_prune(state, log_message, prune_reason)
-    return require("typst.runtime.resource_manager").stop_before_prune(
-        state,
-        {
-            log_message = log_message,
-            reason = prune_reason,
-        }
-    )
+    return require("typst.runtime.resource_manager").stop_before_prune(state, {
+        log_message = log_message,
+        reason = prune_reason,
+    })
 end
 
 --- Stop project resources and clear buffer lifecycle state during plugin reset.

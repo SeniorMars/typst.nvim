@@ -16,7 +16,7 @@ Classification legend:
 - `DIRECT`: Same feature and behavior category can exist in typst.nvim.
 - `REINTERPRETED`: Same user goal, but implemented with Typst-native concepts.
 - `DELEGATED`: typst.nvim owns the user-facing surface but delegates the engine
-  to Neovim, Tinymist, typst-preview.nvim, a picker, or an external tool.
+  to Neovim, Tinymist, a picker, or an external tool.
 - `NOT APPLICABLE`: LaTeX-only concept with a stated Typst replacement.
 
 Status legend:
@@ -61,7 +61,7 @@ Phase 2 ecosystem API baseline is implemented.
 | `|vimtex-multi-file|` | Support for multi-file projects | REINTERPRETED | Project registry keyed by `(root, main)`, dependency graph, buffer membership. | Implemented |
 | `|vimtex-tex-directives|` | Support for TeX specifiers | REINTERPRETED | Typst main-file configuration, buffer override, root/main decision reporting. | Partial |
 | `|vimtex-package-detection|` | Package detection | REINTERPRETED | Typst imports, package specs, cached package resources, project index. | Partial |
-| `|vimtex-and-friends|` | Integration with other plugins | DELEGATED | Tinymist, typst-preview.nvim, Telescope/fzf-lua/fzf.vim/Snacks pickers, formatters, linters, snippet engines. | Partial |
+| `|vimtex-and-friends|` | Integration with other plugins | DELEGATED | Tinymist, Telescope/fzf-lua/fzf.vim/Snacks pickers, formatters, linters, snippet engines. | Partial |
 | `|vimtex-usage|` | Usage | DIRECT | README command examples and `doc/typst.txt`. | Implemented |
 | `|vimtex-default-mappings|` | Default mappings | DIRECT | Buffer-local Typst mappings for motions, text objects, follow, repeat, match. | Implemented |
 | `|vimtex-options|` | Options | DIRECT | Validated `setup()` configuration in `lua/typst/config/`. | Implemented |
@@ -113,14 +113,14 @@ Phase 2 ecosystem API baseline is implemented.
 | `|vimtex-compiler-tectonic|` | Tectonic | NOT APPLICABLE | Typst CLI/provider interface replaces TeX engines. | N/A |
 | `|vimtex-compiler-arara|` | Arara | NOT APPLICABLE | Project-specific task/generic compiler providers replace TeX automation directives and are covered by provider lifecycle tests. | Implemented |
 | `|vimtex-compiler-generic|` | Generic | DIRECT | Custom compile/watch provider support. | Implemented |
-| `|vimtex-lint|` | Syntax Checking (Linting) | REINTERPRETED | Typst/Tinymist/command lint providers, font diagnostics, and quickfix integration. | Implemented |
+| `|vimtex-lint|` | Syntax Checking (Linting) | REINTERPRETED | Typst/Tinymist/command lint providers and quickfix integration. | Implemented |
 | `|vimtex-grammar|` | Grammar Checking | DELEGATED | `:TypstGrammar` runs external prose/grammar providers, normalizes provider output, and publishes diagnostics/quickfix. | Implemented |
 | `|vimtex-grammar-textidote|` | textidote | DELEGATED | `grammar.provider = "textidote"` command preset with textidote line/column output parsing. | Implemented |
 | `|vimtex-grammar-vlty|` | vlty | DELEGATED | `grammar.provider = "vlty"` command preset with Vale/vlty-style JSON output parsing through the grammar provider API. | Implemented |
 | `|vimtex-view|` | View | REINTERPRETED | Generic output opener plus native browser/viewer preview. | Partial |
 | `|vimtex-view-configuration|` | Viewer configuration | DIRECT | `viewer.open`, `viewer.args`, `viewer.forward`, and placeholders. | Implemented |
 | `|vimtex-view-evince|` | Evince | DELEGATED | Named PDF viewer preset opens/reuses Typst output; source sync remains capability-gated. | Partial |
-| `|vimtex-view-galley|` | Galley | REINTERPRETED | Native browser preview serves typst.nvim compiler output from a local loopback shell; source-map callbacks and explicit typst-preview.nvim compatibility remain capability-gated. | Implemented |
+| `|vimtex-view-galley|` | Galley | REINTERPRETED | Native browser preview serves typst.nvim compiler output from a local loopback shell; source-map callbacks remain capability-gated. | Implemented |
 | `|vimtex-view-mupdf|` | MuPDF | DELEGATED | Named PDF viewer preset opens/reuses Typst output; source sync remains capability-gated. | Partial |
 | `|vimtex-view-okular|` | Okular | DELEGATED | Named PDF viewer preset opens/reuses Typst output; source sync remains capability-gated. | Partial |
 | `|vimtex-view-qpdfview|` | qpdfview | DELEGATED | Named PDF viewer preset opens/reuses Typst output; source sync remains capability-gated. | Partial |
@@ -138,7 +138,7 @@ Phase 2 ecosystem API baseline is implemented.
 | `|vimtex-context-citation|` | Citation context | REINTERPRETED | Bibliography entry/DOI/URL/PDF actions for Typst citations. | Implemented |
 | `|vimtex-code|` | Code structure | DIRECT | Lua module boundaries, provider interfaces, public provider registration, and API docs. | Partial |
 | `|vimtex-code-api|` | API | DIRECT | `API.md`, provider registry docs, contract tests, documented commands/functions/events/plugs. | Implemented |
-| `|vimtex-credits|` | Credits | DIRECT | `CREDITS.md` acknowledges VimTeX, Typst, Tinymist, typst-preview.nvim, tree-sitter-typst, math-conceal.nvim, Neovim, and the preserved prototype. | Implemented |
+| `|vimtex-credits|` | Credits | DIRECT | `CREDITS.md` acknowledges VimTeX, Typst, Tinymist, tree-sitter-typst, math-conceal.nvim, Neovim, and the preserved prototype. | Implemented |
 
 ## Remaining Direct VimTeX Parity
 
@@ -450,26 +450,12 @@ Project state tracks `project.services.artifacts.items`, not only one compiler o
 Further work can make `TypstView` choose a viewer by artifact type
 automatically.
 
-### Evaluation And Introspection
+### Evaluation And Development Workflows
 
-The baseline uses `typst eval`; no new features are built around the deprecated
-query interface.
-
-```text
-:TypstEval {expression}
-:TypstEvalSelection
-:TypstInspect
-```
-
-Implemented use cases:
-
-- Evaluate an explicit expression.
-- Evaluate selected source.
-- Inspect the expression or word under the cursor.
-- Show serialized JSON in a scratch buffer.
-
-Future polish can add richer element-field, counter, show/set-rule, and module
-export inspection UIs.
+typst.nvim does not expose first-class eval, profiling, testing, benchmark, or
+coverage workflows. Users should call Typst/Tinymist/crityp directly or execute
+Tinymist commands through the LSP command bridge when those tools provide the
+operation.
 
 ### CLI-Backed Template Initialization
 
@@ -486,23 +472,6 @@ copying as an explicit offline fallback with containment checks and staged
 renames. The template gallery now combines cached template packages with
 configured Universe-index template metadata and can drive no-argument
 initialization.
-
-### Profiling, Tests, Benchmarks, Coverage
-
-The development namespace exists:
-
-```text
-:TypstProfile
-:TypstTest
-:TypstBench
-:TypstCoverage
-```
-
-`TypstProfile` generates Typst `--timings` JSON and opens a scratch report.
-`TypstTest` runs `tinymist test`, `TypstCoverage` runs
-`tinymist test --coverage`, and `TypstBench` runs `crityp` when available.
-Register providers with the `profile`, `test`, `bench`, and `coverage` provider
-kinds to override the default commands.
 
 ### Semantic Editor Integrations
 
@@ -605,16 +574,14 @@ Deliver:
 
 ### Phase 3: Complete Typst Suite
 
-Status: implemented with real Tinymist/crityp development commands, richer
-template gallery data, and semantic color/code-lens UI polish.
+Status: implemented with richer template gallery data and semantic
+color/code-lens UI polish; eval/profile/test/bench/coverage workflows are
+explicit non-goals for the stable core.
 
 Deliver:
 
 - Multi-artifact export. DONE.
-- `typst eval` integration. DONE.
 - Template gallery and `typst init`. DONE.
-- Profiling. DONE.
-- Testing, benchmarking, and coverage. DONE.
 - Semantic inlay/color/code-lens UX. DONE.
 - HTML live-server workflow. EXPORT HELPER DONE.
 - Presentation workflow. EXPORT HELPER DONE.
@@ -646,6 +613,6 @@ The suite is complete when:
 7. Editing operations honor counts, operators, visual mode, registers,
    dot-repeat, and one-step undo.
 8. The package extension API is stable.
-9. Export, eval, init, profiling, and testing workflows are first-class.
+9. Export and template initialization workflows are first-class.
 10. The public command, Lua, event, and provider APIs are versioned and
     documented.

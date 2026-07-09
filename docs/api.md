@@ -59,9 +59,7 @@ integrations, but their signatures can change before promotion:
 ```lua
 typst.artifact.export()
 typst.render.fragment()
-typst.evaluation.eval()
 typst.template.init()
-typst.development.test()
 typst.semantic.references()
 typst.edit.unwrap_function()
 typst.completion.complete()
@@ -89,7 +87,7 @@ under `typst.core.*`, `typst.resources.*`, `typst.project.store`,
 Earlier reset-phase docs treated several whole namespaces as stable. Before
 1.0, that promise has been narrowed to exact dotted symbols without bumping the
 API level: the namespaces still load, but artifact, completion, editing,
-metadata, provider, preview-helper, development, and reset helpers are
+metadata, provider, preview-helper, and reset helpers are
 experimental unless `typst.stable_symbols()` lists the exact name.
 
 CI runs `tests/run_api_stability.sh` as the public API stability gate. Provider
@@ -143,7 +141,7 @@ wrappers return `nil, { reason = "no_project", ... }` or a result table with
 resolved, wrappers return `unknown_project_key` or `ambiguous_project_key`
 instead of `no_project`.
 
-Action APIs such as compile, watch, preview, render, export, eval, navigation,
+Action APIs such as compile, watch, preview, render, export, navigation,
 and semantic calls may resolve or create project state only for Typst source
 buffers. Calls from a non-Typst buffer fail closed with the same `no_project`
 reason instead of compiling an unintended main. Integrations should pass
@@ -234,7 +232,7 @@ snapshot fails with `unknown_project_key` rather than operating on copied or
 unrelated state.
 
 Registered external providers receive these copied project contexts by default.
-This includes compiler, viewer, export, render, eval, development, semantic,
+This includes compiler, viewer, export, render, semantic,
 format, lint, grammar, index, and TOC providers. Built-in providers and
 typst.nvim internals keep using the mutable project object they own.
 

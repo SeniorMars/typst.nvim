@@ -26,10 +26,7 @@ end
 
 local function assert_no_deferred_state(bufnr, message)
     local state = lifecycle._deferred_import_scan_state()
-    assert(
-        state.tokens[bufnr] == nil and state.handles[bufnr] == nil,
-        message
-    )
+    assert(state.tokens[bufnr] == nil and state.handles[bufnr] == nil, message)
 end
 
 typst.reset({ force = true })
@@ -107,16 +104,21 @@ assert(
     util.same_path(background_resolved.main, main),
     "command-time lookup should accept the settled import-scan suggestion"
 )
-local background_transition =
-    ((background_resolved.services or {}).lifecycle or {}).last_transition
+local background_transition = (
+    (background_resolved.services or {}).lifecycle or {}
+).last_transition
 assert(
     background_transition
-        and background_transition.reason == "import scan suggestion accepted",
+        and background_transition.reason
+            == "import scan suggestion accepted",
     "accepted suggestion should record lifecycle transition metadata"
 )
 assert(
     background_transition.previous_resolution
-        and util.same_path(background_transition.previous_resolution.buffer, leaf)
+        and util.same_path(
+            background_transition.previous_resolution.buffer,
+            leaf
+        )
         and background_transition.previous_resolution.import_scan_suggestion
         and util.same_path(
             background_transition.previous_resolution.import_scan_suggestion.main,
@@ -399,9 +401,7 @@ root_discovery.import_scan_main_async = function()
 end
 typst.setup({
     root_markers = {},
-    output_dir = typst_test_cache_path(
-        "deferred-import-scan-output-disabled"
-    ),
+    output_dir = typst_test_cache_path("deferred-import-scan-output-disabled"),
     project = {
         import_scan = true,
         import_scan_max_depth = 1,

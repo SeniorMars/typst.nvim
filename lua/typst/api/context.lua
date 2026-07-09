@@ -474,7 +474,9 @@ local function project_from_path(opts, policy)
             or path_util.path_key(state.main) == path_key
         then
             add_match(state)
-        elseif graph_contains_path(services.graph(state), normalized, path_key) then
+        elseif
+            graph_contains_path(services.graph(state), normalized, path_key)
+        then
             add_match(state)
         end
     end

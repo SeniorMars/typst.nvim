@@ -57,7 +57,6 @@ for _, required in ipairs({
     "completion.package_cache_ttl_ms",
     "completion.package_cache_prewarm",
     "diagnostics.external_paths",
-    "diagnostics.font_scan_timeout_ms",
     "diagnostics.max_external_buffers",
     "diagnostics.overflow",
     "format.timeout_ms",

@@ -101,6 +101,9 @@ for _, path in ipairs({
     "lua/typst/resources/supervisor.lua",
     "lua/typst/runtime/hooks.lua",
     "lua/typst/preview/backends/registry.lua",
+    "lua/typst/preview/backends/delegated.lua",
+    "lua/typst/preview/backends/delegated_runtime.lua",
+    "lua/typst/integrations/typst_preview.lua",
     "lua/typst/compiler/result.lua",
     "lua/typst/viewer/init.lua",
 }) do
@@ -122,10 +125,6 @@ for _, shim in ipairs({
     {
         path = "lua/typst/preview/backends/native.lua",
         text = "typst.preview.native",
-    },
-    {
-        path = "lua/typst/integrations/typst_preview.lua",
-        text = "typst.preview.controller",
     },
 }) do
     local source = read(shim.path)

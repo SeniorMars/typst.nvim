@@ -48,8 +48,6 @@ local preview_source_sync = require("typst.preview.source_sync")
 local preview_status = require("typst.preview.status")
 local preview_capabilities = require("typst.preview.capabilities")
 local preview_location = require("typst.preview.location")
-local preview_delegated_runtime =
-    require("typst.preview.backends.delegated_runtime")
 local viewer_api = require("typst.viewer.api")
 local viewer_generic = require("typst.viewer.generic")
 local viewer_generic_helpers = require("typst.viewer.generic_helpers")
@@ -77,7 +75,7 @@ for _, phrase in ipairs({
     "compiler.fanout",
     "Controller Extraction Guardrails",
     "typst.compiler decides stop/timeout semantics",
-    "typst.preview.controller decides delegated preview stop semantics",
+    "typst.preview.controller decides native/callback preview stop semantics",
     "typst.viewer.api decides viewer/source-sync command semantics",
     "Do not extract broad controller modules before tests pin ownership",
     "diagnostics.publisher",
@@ -295,10 +293,6 @@ assert(
     "preview.controller should own preview lifecycle entrypoints"
 )
 assert(
-    require("typst.integrations.typst_preview") == preview_controller,
-    "typst-preview integration compatibility facade should delegate to preview.controller"
-)
-assert(
     require("typst.viewer.api") == viewer_api,
     "viewer.api should remain the viewer command entry point"
 )
@@ -346,8 +340,7 @@ assert(
     "compiler output helper path should remain available"
 )
 assert(
-    type(preview_delegated_runtime.command_available) == "function"
-        and type(preview_state_machine.to_active_callback) == "function"
+    type(preview_state_machine.to_active_callback) == "function"
         and type(preview_capabilities.base) == "function"
         and type(preview_location.current_position) == "function",
     "preview helper modules should live under preview/"
@@ -480,14 +473,17 @@ assert(
         == lease,
     "resources.outputs should expose raw project-owned leases when requested"
 )
-local copied_lease = output_ownership.active_for_project(prune_project)[lease.key]
+local copied_lease =
+    output_ownership.active_for_project(prune_project)[lease.key]
 assert(
     copied_lease ~= lease and copied_lease.path == lease.path,
     "resources.outputs should copy project-owned leases by default"
 )
 copied_lease.owner.project_key = "mutated-snapshot"
-local raw_lease =
-    output_ownership.active_for_project(prune_project, { raw = true })[lease.key]
+local raw_lease = output_ownership.active_for_project(
+    prune_project,
+    { raw = true }
+)[lease.key]
 assert(
     raw_lease.owner.project_key == prune_project.key,
     "mutating lease snapshots should not mutate live output leases"

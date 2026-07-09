@@ -382,31 +382,6 @@ function M.install(api, notify)
         })
     end
 
-    local function font_diagnostics(opts)
-        opts = opts or {}
-        local result = require("typst.metadata.fonts").diagnostics(opts)
-
-        if opts.notify ~= false then
-            if result.ok then
-                local total = result.diagnostics or 0
-                notify(
-                    ("Typst font diagnostics: %d diagnostic%s"):format(
-                        total,
-                        total == 1 and "" or "s"
-                    ),
-                    total > 0 and vim.log.levels.WARN or vim.log.levels.INFO
-                )
-            else
-                notify(
-                    result.message or "Typst font diagnostics failed",
-                    vim.log.levels.WARN
-                )
-            end
-        end
-
-        return result
-    end
-
     local function status(bufnr)
         if type(bufnr) == "table" then
             local status_opts = bufnr
@@ -442,7 +417,6 @@ function M.install(api, notify)
         format = format,
         lint = lint,
         grammar = grammar,
-        font_diagnostics = font_diagnostics,
     }
 end
 

@@ -26,7 +26,7 @@ explicit non-goals unless a patch removes older complexity at the same time:
 | --- | --- |
 | Stable core | Project identity, compile/watch/stop, output leases, reset/recovery, status/health, stable API symbols, and documented commands. |
 | Supported workflow | Preview, viewer, diagnostics, completion, conceal, index, export/render/clean, and provider adapter behavior covered by the stability/provider gates. |
-| Experimental integration | Optional integrations such as Tinymist extras, delegated preview, picker adapters, and provider-specific extensions. They must fail closed with structured errors. |
+| Experimental integration | Optional integrations such as Tinymist extras, native browser preview, picker adapters, and provider-specific extensions. They must fail closed with structured errors. |
 | Internal implementation | Module layout and helper functions not listed in `API.md`; these may move behind compatibility facades and contract tests. |
 
 ## Stability Guarantees
@@ -56,7 +56,6 @@ explicit non-goals unless a patch removes older complexity at the same time:
 | Tinymist native LSP | optional | fake client and smoke tests | fallback project/completion paths |
 | coc-tinymist | optional | detection tests | fallback diagnostics suppressed |
 | Windows | yes | edge gate | platform-specific process/path fallback |
-| typst-preview.nvim | compatibility | delegation smoke tests | native preview fallback |
 
 ## API And Deprecation Policy
 

@@ -15,7 +15,11 @@ for _, entry in ipairs(entries) do
         ("entry %s needs module"):format(entry.name or "?")
     )
     assert(
-        entry.clear or entry.reload or entry.forget or entry.detach or entry.forget_window,
+        entry.clear
+            or entry.reload
+            or entry.forget
+            or entry.detach
+            or entry.forget_window,
         ("entry %s needs at least one lifecycle hook"):format(entry.name)
     )
     assert(not by_name[entry.name], ("duplicate entry %s"):format(entry.name))

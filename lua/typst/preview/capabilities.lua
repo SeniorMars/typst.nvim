@@ -2,13 +2,8 @@ local config = require("typst.config")
 local log = require("typst.core.log")
 local preview_service = require("typst.project.services.preview")
 local source_map_service = require("typst.preview.source_maps")
-local runtime = require("typst.preview.backends.delegated_runtime")
 
 local M = {}
-
-local function delegate_to_typst_preview(preview)
-    return preview.provider == "typst-preview.nvim"
-end
 
 local function provider_label(provider)
     if type(provider) == "string" then
@@ -34,12 +29,6 @@ function M.backend(project)
     local preview_state = preview_service.get(project) or {}
     if project and preview_state.active and preview_state.active_backend then
         return preview_state.active_backend
-    end
-    if
-        delegate_to_typst_preview(preview)
-        and runtime.command_available("TypstPreview")
-    then
-        return "typst-preview.nvim"
     end
     if preview.provider == nil or preview.provider == "native" then
         local native = preview.native or "viewer"
@@ -121,18 +110,6 @@ function M.base(project)
     then
         source_sync_provider = source_map_provider
     end
-    if
-        delegate_to_typst_preview(preview)
-        and backend == "typst-preview.nvim"
-    then
-        capabilities.source_maps = true
-        capabilities.inverse = true
-        source_sync_provider = "typst-preview.nvim"
-        if runtime.command_available("TypstPreviewSyncCursor") then
-            capabilities.forward = true
-        end
-    end
-
     capabilities.source_sync_provider = source_sync_provider
     capabilities.configured_forward = configured_forward
     capabilities.configured_inverse = configured_inverse

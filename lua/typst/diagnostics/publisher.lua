@@ -63,18 +63,16 @@ local function maybe_warn_buffer_cap(project, key, parse_meta, opts)
     local overflow = parse_meta.overflow or "quickfix-only"
     local message
     if overflow == "quickfix-only" then
-        message =
-            ('typst.nvim capped %d external diagnostic buffer(s) after diagnostics.max_external_buffers=%d; overflow=quickfix-only preserved diagnostics in quickfix/location list'):format(
-                parse_meta.skipped_by_cap,
-                max_external_buffers
-            )
+        message = ("typst.nvim capped %d external diagnostic buffer(s) after diagnostics.max_external_buffers=%d; overflow=quickfix-only preserved diagnostics in quickfix/location list"):format(
+            parse_meta.skipped_by_cap,
+            max_external_buffers
+        )
     else
-        message =
-            ('typst.nvim dropped %d external diagnostic path(s) after diagnostics.max_external_buffers=%d; overflow=%s'):format(
-                parse_meta.skipped_by_cap,
-                max_external_buffers,
-                overflow
-            )
+        message = ("typst.nvim dropped %d external diagnostic path(s) after diagnostics.max_external_buffers=%d; overflow=%s"):format(
+            parse_meta.skipped_by_cap,
+            max_external_buffers,
+            overflow
+        )
     end
 
     notify.default(message, vim.log.levels.WARN)

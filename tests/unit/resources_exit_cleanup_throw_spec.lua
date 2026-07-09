@@ -138,9 +138,12 @@ local ok, err = xpcall(function()
         { opening = true, stopping = false, status = "opening" },
         { opening = false, stopping = true, status = "stopping" },
     }) do
-        preview_service.set(project_a, vim.tbl_extend("force", {
-            active = false,
-        }, fields))
+        preview_service.set(
+            project_a,
+            vim.tbl_extend("force", {
+                active = false,
+            }, fields)
+        )
         summary = resource_manager.stop_for_exit_all()
         assert(summary.ok == true, "live preview exit stop should succeed")
     end

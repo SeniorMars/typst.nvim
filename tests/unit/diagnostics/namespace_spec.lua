@@ -3,7 +3,6 @@ vim.opt.runtimepath:prepend(root)
 
 local bibliography_diagnostics = require("typst.bibliography.diagnostics")
 local diagnostics = require("typst.diagnostics")
-local fonts = require("typst.metadata.fonts")
 local typst = require("typst")
 
 typst.reset()
@@ -97,7 +96,6 @@ for _, source in ipairs({
     "lint",
     "typst grammar",
     "bibliography",
-    "typst fonts",
     "custom source!",
 }) do
     local ns_a = diagnostics.namespace_for(project_a, source)
@@ -123,14 +121,6 @@ assert(
         and namespace_a_bibliography ~= namespace_a_grammar,
     "bibliography diagnostics should not collide with compiler/lint/grammar namespaces"
 )
-assert(
-    fonts.namespace ~= namespace_a
-        and fonts.namespace ~= namespace_a_lint
-        and fonts.namespace ~= namespace_a_grammar
-        and fonts.namespace ~= namespace_a_bibliography,
-    "font diagnostics should have a dedicated namespace"
-)
-
 diagnostics.clear(project_a, { source = "lint" })
 assert(
     #vim.diagnostic.get(bufnr, { namespace = namespace_a_lint }) == 0,
@@ -173,7 +163,6 @@ local allowed_diagnostic_writers = {
     ["lua/typst/diagnostics/init.lua"] = true,
     ["lua/typst/diagnostics/publisher.lua"] = true,
     ["lua/typst/bibliography/diagnostics.lua"] = true,
-    ["lua/typst/metadata/fonts.lua"] = true,
 }
 local stray_writers = {}
 for _, file in

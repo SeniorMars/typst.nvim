@@ -423,11 +423,10 @@ end
 ---@return boolean attempted True when any cleanup/prune work was attempted.
 ---@return table summary Structured prune summary.
 function M.stop_before_prune(project, opts)
-    local result =
-        require("typst.resources.drivers.prune").stop_before_prune(
-            project,
-            opts or {}
-        )
+    local result = require("typst.resources.drivers.prune").stop_before_prune(
+        project,
+        opts or {}
+    )
     result.snapshot = project and M.snapshot(project) or nil
     return result.attempted == true, result
 end

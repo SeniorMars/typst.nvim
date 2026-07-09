@@ -1,6 +1,6 @@
 local completion = require("typst.completion")
 local config = require("typst.config")
-local fonts = require("typst.metadata.fonts")
+local font_discovery = require("typst.metadata.font_discovery")
 
 local M = {}
 
@@ -218,7 +218,7 @@ local function font_info(font_name, bufnr)
     local item = exact_completion_item("font_family", font_name, bufnr)
     local available = false
     for _, name in
-        ipairs(fonts.available({
+        ipairs(font_discovery.available({
             timeout_ms = config.unsafe_get().completion.font_scan_timeout_ms,
         }))
     do

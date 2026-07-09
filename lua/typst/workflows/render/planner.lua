@@ -29,11 +29,7 @@ local function table_is_list(value)
     local count = 0
     local max_index = 0
     for key in pairs(value) do
-        if
-            type(key) ~= "number"
-            or key < 1
-            or key % 1 ~= 0
-        then
+        if type(key) ~= "number" or key < 1 or key % 1 ~= 0 then
             return false
         end
         count = count + 1

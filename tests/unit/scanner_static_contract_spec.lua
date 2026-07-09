@@ -30,13 +30,19 @@ for _, label in ipairs(record.data.labels or {}) do
 end
 
 for _, reference in ipairs(record.data.references or {}) do
-    if reference.reference_style == "function" and reference.name == "café" then
+    if
+        reference.reference_style == "function"
+        and reference.name == "café"
+    then
         saw_explicit_reference = true
     end
     if reference.reference_style == "shorthand" and reference.name == "caf" then
         saw_truncated_shorthand = true
     end
-    if reference.reference_style == "shorthand" and reference.name == "café" then
+    if
+        reference.reference_style == "shorthand"
+        and reference.name == "café"
+    then
         saw_non_ascii_shorthand = true
     end
 end

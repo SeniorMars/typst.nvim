@@ -70,8 +70,6 @@ function M.diagnostics()
         source = "fallback",
         use_quickfix = false,
         list = "quickfix",
-        fonts = true,
-        font_scan_timeout_ms = 250,
         max_external_buffers = 256,
         overflow = "quickfix-only",
         external_paths = "bufadd",

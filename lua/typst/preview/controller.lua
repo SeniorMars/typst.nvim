@@ -10,14 +10,8 @@ local preview_backend = require("typst.preview.backend")
 local preview_pending = require("typst.preview.pending")
 local preview_results = require("typst.preview.results")
 local preview_status = require("typst.preview.status")
-local delegated = require("typst.preview.backends.delegated")
 local source_sync = require("typst.preview.source_sync")
 local state = require("typst.preview.state_machine")
-
-M.own_command_definition = delegated.own_command_definition
-M.own_stop_command_definition = delegated.own_stop_command_definition
-M.own_toggle_command_definition = delegated.own_toggle_command_definition
-M.own_inverse_command_definition = delegated.own_inverse_command_definition
 
 local callback_error = preview_results.callback_error
 local record_stop_failed = state.to_stopping_failed
@@ -31,23 +25,9 @@ end
 
 -- Integration layer for preview backends.
 --
--- Preference order is configured callbacks, native typst.nvim preview, then
--- explicit compatibility delegation to typst-preview.nvim. Preview state is
--- project-local so multiple Typst roots can be active without sharing backend
--- metadata.
---- Check whether typst-preview.nvim can be required.
----@return boolean available True when the plugin module is available.
----@return any error Error from `require`, when unavailable.
-function M.available()
-    return delegated.available()
-end
-
---- Check whether a preview command belongs to another preview backend.
----@param name? string Command name to check.
----@return boolean available True when a non-typst.nvim command exists.
-function M.command_available(name)
-    return delegated.command_available(name)
-end
+-- Preference order is configured callbacks, then native typst.nvim preview.
+-- Preview state is project-local so multiple Typst roots can be active without
+-- sharing backend metadata.
 
 --- Clear active preview state without invoking a backend stop command.
 ---@param project table Project state whose preview service is cleared.
@@ -90,8 +70,9 @@ local function prepare_open(project, preview, opts)
     end
 
     if preview.reuse ~= false and opts.restart ~= true then
-        -- Reuse avoids tearing down typst-preview.nvim on every :TypstPreview;
-        -- watch refresh and source sync can continue against the active backend.
+        -- Reuse avoids tearing down an active native/callback preview on every
+        -- :TypstPreview; watch refresh and source sync can continue against the
+        -- active backend.
         state.record_reused(project, opts)
         local current_preview = state.current(project)
         log.add("debug", "preview already active; reusing existing preview", {
@@ -156,17 +137,6 @@ function M.open(project, opts)
 
     if backend.kind == "browser" or backend.kind == "viewer" then
         return backend:open(project, opts)
-    end
-
-    if backend.kind == "delegated" then
-        -- Do not require users to configure typst-preview.nvim twice. If its
-        -- command already exists and is not typst.nvim's own shim, delegate from
-        -- the main buffer with the project root as cwd.
-        local result = backend:open(project, opts)
-        if type(result) == "table" and result.ok == false then
-            return result
-        end
-        return state.to_active_delegated(project, opts, result)
     end
 
     return backend_err
@@ -235,7 +205,7 @@ function M.refresh(project, result, opts)
     return preview_backend.refresh(project, result, opts)
 end
 
---- Toggle preview state through typst-preview.nvim or configured open/stop hooks.
+--- Toggle preview state through configured/native open/stop hooks.
 ---@param project table Project state whose preview should be toggled.
 ---@param opts? table Toggle controls, including preview mode.
 ---@return boolean|table|string|nil result New preview state or backend result payload.

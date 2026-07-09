@@ -35,15 +35,16 @@ package.loaded["typst.resources.drivers.preview"] = {
         return { ok = true }
     end,
 }
-package.loaded["typst.core.buffer"] = vim.tbl_extend("force", original_core_buffer, {
-    reset = function()
-        if not buffer_injected then
-            buffer_injected = true
-            error("injected editor reset failure")
-        end
-        return original_core_buffer.reset()
-    end,
-})
+package.loaded["typst.core.buffer"] =
+    vim.tbl_extend("force", original_core_buffer, {
+        reset = function()
+            if not buffer_injected then
+                buffer_injected = true
+                error("injected editor reset failure")
+            end
+            return original_core_buffer.reset()
+        end,
+    })
 
 local ok, summary = xpcall(function()
     return resource_manager.reset({ force = true })
