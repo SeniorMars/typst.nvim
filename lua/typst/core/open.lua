@@ -1,4 +1,4 @@
-local util = require("typst.core.util")
+local buffer_util = require("typst.core.buffer")
 
 local M = {}
 
@@ -103,7 +103,7 @@ function M.file(path, opts)
     end
 
     local result, err, winid = with_destination_window(opts, function()
-        local bufnr = util.edit_existing_or_path(path)
+        local bufnr = buffer_util.edit_existing_or_path(path)
         if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
             return nil
         end

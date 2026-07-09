@@ -4,7 +4,6 @@ local conceal_util = require("typst.conceal.util")
 local inspect = require("typst.conceal.inspect")
 local log = require("typst.core.log")
 local matches = require("typst.conceal.matches")
-local metadata = require("typst.metadata")
 local project = require("typst.project")
 local render = require("typst.conceal.render")
 local telemetry = require("typst.core.telemetry")
@@ -366,7 +365,6 @@ function M.reset()
     installed_conceallevel = {}
     conceallevel_owner = {}
     custom.reset()
-    metadata.reset()
     provider_started = false
 end
 

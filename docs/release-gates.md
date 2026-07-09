@@ -147,8 +147,8 @@ contract. New supported Typst minors should add or refresh a fixture.
 the current supported Typst minor, plus a Linux nightly-Neovim compiler-provider
 smoke lane. Provider behavior is tested with fake providers rather than real
 third-party tools whenever possible. Release candidates should keep coverage for
-synchronous results, callback results, returned pending handles, raw handles,
-timeouts, cancellation, duplicate callbacks, provider-thrown errors, and
+synchronous results, callback results, explicit pending handles, userdata
+handles, timeouts, cancellation, duplicate callbacks, provider-thrown errors, and
 malformed results.
 
 External provider docs live in `docs/provider-contracts.md`. Any provider

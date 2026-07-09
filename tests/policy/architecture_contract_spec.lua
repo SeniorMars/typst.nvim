@@ -19,10 +19,25 @@ local function assert_not_required(path, modules)
 end
 
 local architecture = read("docs/architecture.md")
+local provider_adapter = read("lua/typst/integrations/provider_adapter.lua")
+local provider_lifecycle = read("lua/typst/integrations/provider_lifecycle.lua")
 for _, text in ipairs({
     "Subtractive Architecture Rule",
     "Not Allowed During Stable-Core Hardening",
     "runtime.resource_manager is the reset/prune/exit cleanup entry point",
+    "deferred import-scan scheduling",
+    "Preview Backend Interface",
+    "Do not add a preview backend registry",
+    "typst.integrations.provider_lifecycle",
+    "adapter wholesale onto `core.operation`",
+    "Do not move watch cycles into `core.operation`",
+    "expanding this into a render framework",
+    "boring default artifact opener",
+    "`typst.core.util` is a compatibility convenience",
+    "do not churn unrelated",
+    "files solely to remove `core.util`",
+    "Current Boundary Limits",
+    "Do not add speculative controller namespaces",
 }) do
     assert(
         architecture:find(text, 1, true),
@@ -32,6 +47,26 @@ end
 assert(
     not architecture:find("The ideal expanded target is", 1, true),
     "architecture docs should not present the old expanded inventory as a target"
+)
+assert(
+    not architecture:find("Post-Stable Target Boundaries", 1, true),
+    "architecture docs should not present post-stable expansion targets"
+)
+assert(
+    provider_adapter:find(
+        'require("typst.integrations.provider_lifecycle")',
+        1,
+        true
+    ),
+    "provider_adapter should keep provider_lifecycle until it actually migrates onto core.operation"
+)
+assert(
+    provider_lifecycle:find("Temporary provider lifecycle bridge", 1, true),
+    "provider_lifecycle should document its temporary bridge role"
+)
+assert(
+    not provider_lifecycle:find('require("typst.core.operation")', 1, true),
+    "provider_lifecycle should not become a second operation adapter"
 )
 
 for _, path in ipairs({
@@ -45,6 +80,7 @@ for _, path in ipairs({
     "lua/typst/ui/elements",
     "lua/typst/ui/layouts",
     "lua/typst/integrations/pickers",
+    "lua/typst/preview/backends/registry",
 }) do
     assert(
         vim.fn.isdirectory(path) == 0,
@@ -64,10 +100,40 @@ for _, path in ipairs({
     "lua/typst/resources/drivers/editor_state.lua",
     "lua/typst/resources/supervisor.lua",
     "lua/typst/runtime/hooks.lua",
+    "lua/typst/preview/backends/registry.lua",
+    "lua/typst/compiler/result.lua",
+    "lua/typst/viewer/init.lua",
 }) do
     assert(
         vim.fn.filereadable(path) == 0,
         "stable-core hardening should not restore alias file: " .. path
+    )
+end
+
+for _, shim in ipairs({
+    {
+        path = "lua/typst/preview/backends/callback.lua",
+        text = "typst.preview.backends.custom",
+    },
+    {
+        path = "lua/typst/preview/backends/viewer_fallback.lua",
+        text = "typst.preview.backends.viewer",
+    },
+    {
+        path = "lua/typst/preview/backends/native.lua",
+        text = "typst.preview.native",
+    },
+    {
+        path = "lua/typst/integrations/typst_preview.lua",
+        text = "typst.preview.controller",
+    },
+}) do
+    local source = read(shim.path)
+    assert(
+        source:find(shim.text, 1, true)
+            and not source:find("vim.api.nvim_create_autocmd", 1, true)
+            and not source:find("vim.system", 1, true),
+        "compatibility shim should stay tiny and delegating: " .. shim.path
     )
 end
 
@@ -96,8 +162,8 @@ for _, path in ipairs({
     "lua/typst/compiler/watch/runner.lua",
     "lua/typst/compiler/generic.lua",
     "lua/typst/workflows/artifacts.lua",
-    "lua/typst/workflows/render.lua",
     "lua/typst/workflows/render/provider.lua",
+    "lua/typst/workflows/render/preflight.lua",
 }) do
     local text = read(path)
     assert(

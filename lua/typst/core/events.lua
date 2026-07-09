@@ -38,9 +38,9 @@ local function cancel_deferred_items(items, reason)
     end
 end
 
--- `TypstEvent*` names are the documented autocmd surface. The shorter
--- `TypstCompileStarted`-style names remain as compatibility aliases, so event
--- payload changes should be additive unless the public API version changes.
+-- `TypstEvent*` names are the documented autocmd surface. A few shorter
+-- pre-1.0 names and deprecated duplicate `TypstEvent*` aliases remain until an
+-- explicit API/deprecation decision removes them.
 local aliases = require("typst.api.contract").event_aliases()
 
 local function provider_label(project, compiler)

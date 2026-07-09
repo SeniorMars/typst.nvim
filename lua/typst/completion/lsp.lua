@@ -401,11 +401,15 @@ function M.items(opts, base, context)
     local changedtick = vim.api.nvim_buf_get_changedtick(bufnr)
     local results = {}
 
-    for _, client in ipairs(tinymist.clients(bufnr)) do
-        if
-            type(client.request) == "function"
-            and client_supports_completion(client, bufnr)
-        then
+    local selected = tinymist.select_client({
+        bufnr = bufnr,
+        project = project_for_buffer(bufnr),
+        method = "textDocument/completion",
+        request = "async",
+    })
+    if selected.ok then
+        local client = selected.client
+        if client_supports_completion(client, bufnr) then
             local params = {
                 textDocument = vim.lsp.util.make_text_document_params(bufnr),
                 position = lsp_position(

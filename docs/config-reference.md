@@ -6,7 +6,7 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | Key | Type | Default |
 | --- | --- | --- |
 | `allow_external_output` | `boolean` | `false` |
-| `api` | `list` | `{}` |
+| `api.experimental_warnings` | `boolean` | `false` |
 | `bibliography.attachment_fields` | `list` | `{ "pdf", "file", "attachment" }` |
 | `bibliography.attachment_paths` | `list` | `{ "{key}.pdf", "attachments/{key}.pdf", "pdf/{key}.pdf" }` |
 | `bibliography.completion` | `string` | `"auto"` |
@@ -114,7 +114,8 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `diagnostics.font_scan_timeout_ms` | `number` | `250` |
 | `diagnostics.fonts` | `boolean` | `true` |
 | `diagnostics.list` | `string` | `"quickfix"` |
-| `diagnostics.max_buffers_per_publish` | `integer` | `256` |
+| `diagnostics.max_external_buffers` | `integer` | `256` |
+| `diagnostics.overflow` | `string` | `"quickfix-only"` |
 | `diagnostics.source` | `string` | `"fallback"` |
 | `diagnostics.use_quickfix` | `boolean` | `false` |
 | `executable` | `string` | `"typst"` |

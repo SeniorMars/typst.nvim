@@ -966,6 +966,17 @@ assert(
     "TypstConcealRefresh should not reset global metadata"
 )
 
+metadata_reset_calls = 0
+rawset(metadata, "reset", function()
+    metadata_reset_calls = metadata_reset_calls + 1
+end)
+conceal.reset()
+metadata.reset = original_metadata_reset
+assert(
+    metadata_reset_calls == 0,
+    "conceal.reset should leave global metadata reset to the manifest"
+)
+
 cached_matches = conceal.matches(cache_buf, cache_range)
 primed_query_calls = query_calls
 typst.conceal.refresh(cache_buf)

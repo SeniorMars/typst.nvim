@@ -15,6 +15,7 @@ typst.setup({
 })
 
 local original_clients = tinymist.clients
+local original_select_client = tinymist.select_client
 local request_count = 0
 local cancelled = 0
 local callbacks = {}
@@ -38,6 +39,14 @@ local client = {
 }
 tinymist.clients = function()
     return { client }
+end
+tinymist.select_client = function()
+    return {
+        ok = true,
+        provider = "tinymist",
+        client = client,
+        clients = { client },
+    }
 end
 
 local bufnr = vim.api.nvim_create_buf(true, true)
@@ -178,6 +187,7 @@ assert(
 
 completion_lsp.reset()
 tinymist.clients = original_clients
+tinymist.select_client = original_select_client
 typst.reset({ force = true })
 
 vim.cmd("qa!")

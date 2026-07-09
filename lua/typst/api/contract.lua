@@ -5,31 +5,59 @@ local M = {}
 M.version = 1
 
 local event_aliases = {
+    TypstEventProjectAttach = { "TypstProjectAttach" },
     TypstProjectAttach = { "TypstEventProjectAttach" },
+    TypstEventBufferDetach = {
+        "TypstBufferDetach",
+        "TypstProjectDetach",
+        "TypstEventProjectDetach",
+    },
     TypstBufferDetach = {
         "TypstEventBufferDetach",
         "TypstProjectDetach",
         "TypstEventProjectDetach",
     },
     TypstProjectDetach = {
-        "TypstEventProjectDetach",
         "TypstEventBufferDetach",
+        "TypstEventProjectDetach",
     },
+    TypstEventProjectDetach = {
+        "TypstEventBufferDetach",
+        "TypstBufferDetach",
+        "TypstProjectDetach",
+    },
+    TypstEventProjectPruned = { "TypstProjectPruned" },
     TypstProjectPruned = { "TypstEventProjectPruned" },
+    TypstEventCompileStarted = { "TypstCompileStarted", "TypstEventCompiling" },
     TypstCompileStarted = { "TypstEventCompileStarted", "TypstEventCompiling" },
+    TypstEventCompiling = { "TypstEventCompileStarted", "TypstCompileStarted" },
+    TypstEventCompileSuccess = { "TypstCompileSuccess" },
     TypstCompileSuccess = { "TypstEventCompileSuccess" },
+    TypstEventCompileFailed = { "TypstCompileFailed" },
     TypstCompileFailed = { "TypstEventCompileFailed" },
+    TypstEventCompileStopped = { "TypstCompileStopped" },
     TypstCompileStopped = { "TypstEventCompileStopped" },
+    TypstEventCompilerForceCleared = { "TypstCompilerForceCleared" },
     TypstCompilerForceCleared = { "TypstEventCompilerForceCleared" },
+    TypstEventPreviewStarted = { "TypstPreviewOpened" },
     TypstPreviewOpened = { "TypstEventPreviewStarted" },
+    TypstEventPreviewForwarded = { "TypstPreviewForwarded" },
     TypstPreviewForwarded = { "TypstEventPreviewForwarded" },
+    TypstEventPreviewInverse = { "TypstPreviewInverse" },
     TypstPreviewInverse = { "TypstEventPreviewInverse" },
+    TypstEventPreviewStopped = { "TypstPreviewStopped" },
     TypstPreviewStopped = { "TypstEventPreviewStopped" },
+    TypstEventViewInverse = { "TypstViewInverse" },
     TypstViewInverse = { "TypstEventViewInverse" },
+    TypstEventArtifactCreated = { "TypstArtifactCreated" },
     TypstArtifactCreated = { "TypstEventArtifactCreated" },
+    TypstEventArtifactsCleaned = { "TypstArtifactsCleaned" },
     TypstArtifactsCleaned = { "TypstEventArtifactsCleaned" },
+    TypstEventRenderCreated = { "TypstRenderCreated" },
     TypstRenderCreated = { "TypstEventRenderCreated" },
+    TypstEventTocCreated = { "TypstTocCreated" },
     TypstTocCreated = { "TypstEventTocCreated" },
+    TypstEventTocActivated = { "TypstTocActivated" },
     TypstTocActivated = { "TypstEventTocActivated" },
 }
 
@@ -276,7 +304,7 @@ end
 
 event_payloads.TypstProjectAttach = payload_for("TypstEventProjectAttach")
 event_payloads.TypstBufferDetach = payload_for("TypstEventBufferDetach")
-event_payloads.TypstProjectDetach = payload_for("TypstEventProjectDetach")
+event_payloads.TypstProjectDetach = payload_for("TypstEventBufferDetach")
 event_payloads.TypstProjectPruned = payload_for("TypstEventProjectPruned")
 event_payloads.TypstCompileStarted = payload_for("TypstEventCompileStarted")
 event_payloads.TypstCompileSuccess = payload_for("TypstEventCompileSuccess")
@@ -338,6 +366,8 @@ local compatibility_events = {
     "TypstCompilerForceCleared",
     "TypstDiagnosticsCleared",
     "TypstDiagnosticsPublished",
+    "TypstEventCompiling",
+    "TypstEventProjectDetach",
     "TypstOutputCleaned",
     "TypstPreviewForwarded",
     "TypstPreviewInverse",

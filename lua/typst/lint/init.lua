@@ -323,7 +323,11 @@ local function run_tinymist(state, opts)
             return namespaces
         end
 
-        for _, client in ipairs(tinymist.clients(bufnr)) do
+        local selected = tinymist.select_client({
+            bufnr = bufnr,
+            project = state,
+        })
+        for _, client in ipairs(selected.ok and selected.clients or {}) do
             if
                 client.id
                 and type(vim.lsp.diagnostic.get_namespace) == "function"

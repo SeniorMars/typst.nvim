@@ -17,7 +17,7 @@ local index_service = require("typst.project.services.index")
 local resource_manager = require("typst.runtime.resource_manager")
 local output_ownership = require("typst.resources.outputs")
 local util = require("typst.core.util")
-local viewer = require("typst.viewer")
+local viewer = require("typst.viewer.generic")
 
 local function health()
     return vim.health or require("health")
@@ -1040,9 +1040,10 @@ function M.check()
         )
     )
     ok(
-        ("Diagnostics external paths: %s (max buffers per publish: %d)"):format(
+        ("Diagnostics external paths: %s (max external buffers: %d, overflow: %s)"):format(
             opts.diagnostics.external_paths or "bufadd",
-            opts.diagnostics.max_buffers_per_publish or 0
+            opts.diagnostics.max_external_buffers or 0,
+            opts.diagnostics.overflow or "quickfix-only"
         )
     )
     ok(

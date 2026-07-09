@@ -5,12 +5,11 @@ local compiler_service = require("typst.project.services.compiler")
 local operations = require("typst.project.services.operations")
 local project_services = require("typst.project.services")
 local state_machine = require("typst.compiler.state_machine")
-local result_compat = require("typst.compiler.result")
 
 local ok, err = xpcall(function()
     assert(
-        result_compat == state_machine,
-        "compiler.result should remain a compatibility shim"
+        not pcall(require, "typst.compiler.result"),
+        "compiler.result compatibility shim should stay deleted"
     )
 
     local normalized = state_machine.normalize({ ok = true })

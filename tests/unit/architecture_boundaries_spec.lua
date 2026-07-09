@@ -14,8 +14,14 @@ local project_facade = require("typst.project")
 local project_registry = require("typst.project.registry")
 local project_resolver = require("typst.project.resolver")
 local project_store = require("typst.project.store")
+local project_lifecycle = require("typst.project.lifecycle")
+local lifecycle_deferred_import_scan =
+    require("typst.project.lifecycle.deferred_import_scan")
+local lifecycle_feature_finalize =
+    require("typst.project.lifecycle.feature_finalize")
+local lifecycle_reload = require("typst.project.lifecycle.reload")
+local lifecycle_transition = require("typst.project.lifecycle.transition")
 local resource_session = require("typst.resources.session")
-local resource_manager = require("typst.runtime.resource_manager")
 local resource_manager = require("typst.runtime.resource_manager")
 local preview_service = require("typst.project.services.preview")
 local compiler_api = require("typst.compiler")
@@ -26,6 +32,8 @@ local compiler_typst_watcher = require("typst.compiler.watch.runner")
 local compiler_watch_output = require("typst.compiler.output")
 local edit_api = require("typst.edit.api")
 local edit_treesitter = require("typst.core.treesitter")
+local index_scheduler = require("typst.project.index_scheduler")
+local index_service = require("typst.project.index_service")
 local navigation_follow = require("typst.navigation.follow")
 local navigation_follow_context = require("typst.navigation.follow_context")
 local navigation_picker_backends = require("typst.navigation.picker_backends")
@@ -56,13 +64,14 @@ local architecture_doc =
 for _, phrase in ipairs({
     "Stability-First Target Layout",
     "Stable-Core Implementation Layout",
-    "Post-Stable Target Boundaries",
+    "Current Boundary Limits",
     "Top-Level Mental Model",
     "What Not To Do",
     "Hard Ownership Boundaries",
     "project.store",
     "project.attachments",
-    "project index modules",
+    "typst.project.index_service",
+    "typst.project.index_scheduler",
     "core.windows",
     "runtime.resource_manager",
     "compiler.fanout",
@@ -81,6 +90,10 @@ for _, phrase in ipairs({
         )
     )
 end
+assert(
+    not architecture_doc:find("Post-Stable Target Boundaries", 1, true),
+    "architecture docs should not describe a post-stable expanded target"
+)
 
 local live_registry_allowlist = {
     ["lua/typst/project/registry.lua"] = true,
@@ -101,6 +114,25 @@ for _, file in ipairs(vim.fn.globpath(root .. "/lua", "**/*.lua", false, true)) 
     end
 end
 
+for _, rel in ipairs({
+    "lua/typst/core/open.lua",
+    "lua/typst/core/coordinates.lua",
+    "lua/typst/preview/native/session.lua",
+    "lua/typst/project/index_paths.lua",
+}) do
+    local text = table.concat(vim.fn.readfile(root .. "/" .. rel), "\n")
+    assert(
+        not text:find('require("typst.core.util")', 1, true),
+        rel .. " should import narrow core modules instead of core.util"
+    )
+end
+
+assert(
+    core_result.reason.timeout == "timeout"
+        and core_result.reason.cancelled == "cancelled"
+        and core_result.status.pending == "pending",
+    "core.result should expose canonical lifecycle vocabulary"
+)
 assert(
     core_result.is_confirmed_stopped({ stopped = true }) == true,
     "core.result should classify confirmed stopped results"
@@ -149,6 +181,16 @@ assert(
     index_files == require("typst.project.index_files"),
     "project index file module should stay on its real path"
 )
+assert(
+    type(index_service.collect) == "function"
+        and type(index_service.category) == "function",
+    "project.index_service should own index collection and category reads"
+)
+assert(
+    type(index_scheduler.prepare) == "function"
+        and type(index_scheduler.commit_new_aggregate) == "function",
+    "project.index_scheduler should own index freshness and cache commits"
+)
 
 local main = root .. "/tests/fixtures/basic/main.typ"
 vim.cmd.edit(main)
@@ -185,6 +227,20 @@ assert(
     type(project_attachments.install) == "function"
         and type(project_attachments.reapply_attached_buffers) == "function",
     "project.attachments should expose BufferAttachment lifecycle hooks"
+)
+assert(
+    type(project_lifecycle.attach) == "function"
+        and type(project_lifecycle.reload_state) == "function"
+        and project_lifecycle.transition_buffer
+            == lifecycle_transition.transition_buffer,
+    "project.lifecycle should remain the attach/reload facade"
+)
+assert(
+    type(lifecycle_deferred_import_scan.schedule) == "function"
+        and type(lifecycle_feature_finalize.attached_buffer) == "function"
+        and type(lifecycle_reload.reload_state) == "function"
+        and type(lifecycle_transition.transition_buffer) == "function",
+    "project lifecycle helpers should live under project/lifecycle/"
 )
 assert(
     type(resource_manager.reset) == "function"
@@ -240,7 +296,7 @@ assert(
 )
 assert(
     require("typst.integrations.typst_preview") == preview_controller,
-    "typst-preview integration should remain a compatibility facade"
+    "typst-preview integration compatibility facade should delegate to preview.controller"
 )
 assert(
     require("typst.viewer.api") == viewer_api,
@@ -297,9 +353,9 @@ assert(
     "preview helper modules should live under preview/"
 )
 assert(
-    require("typst.viewer") == viewer_generic
+    not pcall(require, "typst.viewer")
         and require("typst.viewer.generic") == viewer_generic,
-    "viewer generic backend should remain available at flat paths"
+    "viewer generic backend should stay on the concrete generic path only"
 )
 assert(
     require("typst.viewer.generic_helpers") == viewer_generic_helpers,
@@ -384,13 +440,15 @@ assert(
     "runtime.resource_manager should be the project liveness boundary"
 )
 local global_operation = operation.new("architecture-boundary-global")
-local session_with_global = resource_session.snapshot(project)
+local session_with_global = resource_session.snapshot(project) or {}
 assert(
-    session_with_global.global_operations.active == 1,
+    session_with_global.global_operations
+        and session_with_global.global_operations.active == 1,
     "resources.session should expose global operations"
 )
+local global_snapshot = resource_session.global_snapshot() or {}
 assert(
-    resource_session.global_snapshot().operations.active == 1,
+    global_snapshot.operations and global_snapshot.operations.active == 1,
     "resources.session should expose runtime-wide operation liveness"
 )
 assert(
@@ -418,8 +476,21 @@ local lease = assert(
     )
 )
 assert(
-    output_ownership.active_for_project(prune_project)[lease.key] == lease,
-    "resources.outputs should expose project-owned leases"
+    output_ownership.active_for_project(prune_project, { raw = true })[lease.key]
+        == lease,
+    "resources.outputs should expose raw project-owned leases when requested"
+)
+local copied_lease = output_ownership.active_for_project(prune_project)[lease.key]
+assert(
+    copied_lease ~= lease and copied_lease.path == lease.path,
+    "resources.outputs should copy project-owned leases by default"
+)
+copied_lease.owner.project_key = "mutated-snapshot"
+local raw_lease =
+    output_ownership.active_for_project(prune_project, { raw = true })[lease.key]
+assert(
+    raw_lease.owner.project_key == prune_project.key,
+    "mutating lease snapshots should not mutate live output leases"
 )
 assert(
     output_ownership.snapshot(prune_project)[1].path == lease.path,

@@ -124,6 +124,10 @@ product-boundary map, not a generated API surface.
 - `integrations.tinymist.lsp = "auto"` starts or reuses a native Neovim LSP
   Tinymist client when possible, but skips native Tinymist when coc.nvim appears
   active.
+- Project-local availability is root-aware. A named native client with a
+  different `root_dir` does not satisfy a typst.nvim project; rootless clients
+  are considered compatible because some Neovim LSP clients are single-file or
+  externally managed.
 - `coc-tinymist` owns its own Coc language client and server settings such as
   `tinymist.serverPath` and `tinymist.serverArgs`; typst.nvim does not read Coc
   settings or send Tinymist wrapper requests through Coc.

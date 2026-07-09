@@ -49,17 +49,15 @@ local function next_generation(bufnr, method, opts)
     return generations[key]
 end
 
-local function project_for_buffer(bufnr)
-    local ok, project = pcall(require, "typst.project")
-    if ok and type(project.get) == "function" then
-        return project.get(bufnr)
-    end
+local function request_project(bufnr, opts)
+    return type(opts.project) == "table" and opts.project
+        or clients.project_for_buffer(bufnr)
 end
 
 local function capture_guard(bufnr, method, opts)
     opts = opts or {}
     local project = type(opts.project) == "table" and opts.project
-        or project_for_buffer(bufnr)
+        or clients.project_for_buffer(bufnr)
     local guard = {
         bufnr = bufnr,
         method = method,
@@ -178,6 +176,16 @@ local function protected_callback(callback, ...)
     end
 end
 
+local function selection_failure(method, selection)
+    return vim.tbl_extend("force", {
+        ok = false,
+        provider = "tinymist",
+        method = method,
+        reason = "no_client",
+        message = "Tinymist Neovim LSP client is not attached",
+    }, selection or {})
+end
+
 --- Send an asynchronous Tinymist LSP request with timeout and staleness guards.
 ---@param bufnr? integer Buffer used for client selection and changedtick guards.
 ---@param method string LSP method name to request.
@@ -193,242 +201,231 @@ function M.request(bufnr, method, params_for_client, opts, callback, normalize)
     end
 
     bufnr = bufnr or vim.api.nvim_get_current_buf()
-    local request_clients = opts.client and { opts.client }
-        or clients.clients(bufnr)
-    local saw_client = false
-    for _, client in ipairs(request_clients) do
-        saw_client = true
-        if
-            type(client.request) == "function"
-            and clients.supports_method(client, method, bufnr)
-        then
-            local params_ok, params_or_err = pcall(params_for_client, client)
-            if not params_ok then
-                local result = {
-                    ok = false,
-                    reason = "request_failed",
-                    provider = "tinymist",
-                    client = client.name,
-                    method = method,
-                    message = ("Tinymist %s request parameters failed: %s"):format(
-                        method,
-                        tostring(params_or_err)
-                    ),
-                    error = params_or_err,
-                }
-                schedule(function()
-                    protected_callback(callback, result, client)
-                end)
-                return result
-            end
+    local selected = clients.select_client({
+        bufnr = bufnr,
+        project = request_project(bufnr, opts),
+        client = opts.client,
+        method = method,
+        request = "async",
+    })
+    if not selected.ok then
+        local result = selection_failure(method, selected)
+        schedule(function()
+            protected_callback(callback, result)
+        end)
+        return result
+    end
 
-            local params = params_or_err
-            if not params then
-                local result = {
-                    ok = false,
-                    reason = "missing_position",
-                    provider = "tinymist",
-                    client = client.name,
-                    method = method,
-                    message = "Tinymist request requires a cursor position",
-                }
-                schedule(function()
-                    protected_callback(callback, result, client)
-                end)
-                return result
-            end
-
-            local timeout_ms = opts.timeout_ms or 1000
-            local completed = false
-            local request_id = nil
-            local timer = nil
-            local guard = capture_guard(bufnr, method, opts)
-            local pending
-
-            local function cancel_request()
-                if request_id and type(client.cancel_request) == "function" then
-                    pcall(client.cancel_request, client, request_id)
-                end
-            end
-
-            local function finish(result)
-                if completed then
-                    return result
-                end
-                completed = true
-                close_timer(timer)
-                result.provider = result.provider or "tinymist"
-                result.client = result.client or client.name
-                result.method = result.method or method
-                protected_callback(callback, result, client)
-                return result
-            end
-
-            if timeout_ms and timeout_ms > 0 then
-                timer = uv.new_timer()
-                if timer then
-                    timer:start(timeout_ms, 0, function()
-                        schedule(function()
-                            if completed then
-                                return
-                            end
-                            -- Ask the client to cancel before reporting timeout;
-                            -- finish() will ignore any later LSP callback.
-                            cancel_request()
-                            finish({
-                                ok = false,
-                                reason = "timeout",
-                                provider = "tinymist",
-                                client = client.name,
-                                method = method,
-                                message = ("Tinymist %s timed out after %dms"):format(
-                                    method,
-                                    timeout_ms
-                                ),
-                            })
-                        end)
-                    end)
-                end
-            end
-
-            local start = lsp_request.start(
-                client,
+    local client = selected.client
+    local params_ok, params_or_err = pcall(params_for_client, client)
+    if not params_ok then
+        local result = {
+            ok = false,
+            reason = "request_failed",
+            provider = "tinymist",
+            client = client.name,
+            method = method,
+            message = ("Tinymist %s request parameters failed: %s"):format(
                 method,
-                params,
-                function(err, result)
-                    schedule(function()
-                        if err then
-                            finish({
-                                ok = false,
-                                reason = "lsp_error",
-                                provider = "tinymist",
-                                client = client.name,
-                                method = method,
-                                message = tostring(err),
-                                error = err,
-                            })
-                            return
-                        end
+                tostring(params_or_err)
+            ),
+            error = params_or_err,
+        }
+        schedule(function()
+            protected_callback(callback, result, client)
+        end)
+        return result
+    end
 
-                        local stale = stale_result(guard, opts)
-                        if stale then
-                            stale.client = client.name
-                            stale.method = method
-                            finish(stale)
-                            return
-                        end
+    local params = params_or_err
+    if not params then
+        local result = {
+            ok = false,
+            reason = "missing_position",
+            provider = "tinymist",
+            client = client.name,
+            method = method,
+            message = "Tinymist request requires a cursor position",
+        }
+        schedule(function()
+            protected_callback(callback, result, client)
+        end)
+        return result
+    end
 
-                        if type(normalize) == "function" then
-                            local ok_norm, normalized = async_state.protect(
-                                function()
-                                    return normalize(result, client, params)
-                                end
-                            )
-                            if ok_norm and type(normalized) == "table" then
-                                finish(normalized)
-                            else
-                                finish({
-                                    ok = false,
-                                    reason = "normalize_failed",
-                                    provider = "tinymist",
-                                    client = client.name,
-                                    method = method,
-                                    message = ok_norm
-                                            and "Tinymist response normalizer returned no result"
-                                        or tostring(normalized),
-                                    error = tostring(normalized),
-                                })
-                            end
-                        else
-                            finish({
-                                ok = result ~= nil,
-                                result = result,
-                            })
-                        end
-                    end)
-                end,
-                bufnr
-            )
+    local timeout_ms = opts.timeout_ms or 1000
+    local completed = false
+    local request_id = nil
+    local timer = nil
+    local guard = capture_guard(bufnr, method, opts)
+    local pending
 
-            if not start.ok and start.called == false then
-                close_timer(timer)
-                local result = {
-                    ok = false,
-                    reason = "request_failed",
-                    provider = "tinymist",
-                    client = client.name,
-                    method = method,
-                    message = start.message,
-                    error = start.error,
-                }
-                schedule(function()
-                    protected_callback(callback, result, client)
-                end)
-                return result
-            end
-
-            request_id = start.request_id
-            if not start.ok then
-                close_timer(timer)
-                local result = {
-                    ok = false,
-                    reason = "request_failed",
-                    provider = "tinymist",
-                    client = client.name,
-                    method = method,
-                    message = ("Tinymist %s request failed"):format(method),
-                }
-                schedule(function()
-                    protected_callback(callback, result, client)
-                end)
-                return result
-            end
-
-            pending = {
-                ok = false,
-                pending = true,
-                provider = "tinymist",
-                client = client.name,
-                method = method,
-                cancel = function(self_or_opts, maybe_opts)
-                    local cancel_opts = maybe_opts
-                    if self_or_opts ~= pending then
-                        cancel_opts = self_or_opts
-                    end
-                    -- Expose cancellation on the pending result so callers that
-                    -- abandon a UI action can also abandon the LSP request.
-                    cancel_request()
-                    finish({
-                        ok = false,
-                        reason = (cancel_opts and cancel_opts.reason)
-                            or "cancelled",
-                        provider = "tinymist",
-                        client = client.name,
-                        method = method,
-                        stopped = true,
-                        message = ("Tinymist %s request was cancelled"):format(
-                            method
-                        ),
-                    })
-                    return true
-                end,
-            }
-            return pending
+    local function cancel_request()
+        if request_id and type(client.cancel_request) == "function" then
+            pcall(client.cancel_request, client, request_id)
         end
     end
 
-    local result = {
+    local function finish(result)
+        if completed then
+            return result
+        end
+        completed = true
+        close_timer(timer)
+        result.provider = result.provider or "tinymist"
+        result.client = result.client or client.name
+        result.method = result.method or method
+        protected_callback(callback, result, client)
+        return result
+    end
+
+    if timeout_ms and timeout_ms > 0 then
+        timer = uv.new_timer()
+        if timer then
+            timer:start(timeout_ms, 0, function()
+                schedule(function()
+                    if completed then
+                        return
+                    end
+                    -- Ask the client to cancel before reporting timeout;
+                    -- finish() will ignore any later LSP callback.
+                    cancel_request()
+                    finish({
+                        ok = false,
+                        reason = "timeout",
+                        provider = "tinymist",
+                        client = client.name,
+                        method = method,
+                        message = ("Tinymist %s timed out after %dms"):format(
+                            method,
+                            timeout_ms
+                        ),
+                    })
+                end)
+            end)
+        end
+    end
+
+    local start = lsp_request.start(
+        client,
+        method,
+        params,
+        function(err, result)
+            schedule(function()
+                if err then
+                    finish({
+                        ok = false,
+                        reason = "lsp_error",
+                        provider = "tinymist",
+                        client = client.name,
+                        method = method,
+                        message = tostring(err),
+                        error = err,
+                    })
+                    return
+                end
+
+                local stale = stale_result(guard, opts)
+                if stale then
+                    stale.client = client.name
+                    stale.method = method
+                    finish(stale)
+                    return
+                end
+
+                if type(normalize) == "function" then
+                    local ok_norm, normalized = async_state.protect(
+                        function()
+                            return normalize(result, client, params)
+                        end
+                    )
+                    if ok_norm and type(normalized) == "table" then
+                        finish(normalized)
+                    else
+                        finish({
+                            ok = false,
+                            reason = "normalize_failed",
+                            provider = "tinymist",
+                            client = client.name,
+                            method = method,
+                            message = ok_norm
+                                    and "Tinymist response normalizer returned no result"
+                                or tostring(normalized),
+                            error = tostring(normalized),
+                        })
+                    end
+                else
+                    finish({
+                        ok = result ~= nil,
+                        result = result,
+                    })
+                end
+            end)
+        end,
+        bufnr
+    )
+
+    if not start.ok and start.called == false then
+        close_timer(timer)
+        local result = {
+            ok = false,
+            reason = "request_failed",
+            provider = "tinymist",
+            client = client.name,
+            method = method,
+            message = start.message,
+            error = start.error,
+        }
+        schedule(function()
+            protected_callback(callback, result, client)
+        end)
+        return result
+    end
+
+    request_id = start.request_id
+    if not start.ok then
+        close_timer(timer)
+        local result = {
+            ok = false,
+            reason = "request_failed",
+            provider = "tinymist",
+            client = client.name,
+            method = method,
+            message = ("Tinymist %s request failed"):format(method),
+        }
+        schedule(function()
+            protected_callback(callback, result, client)
+        end)
+        return result
+    end
+
+    pending = {
         ok = false,
-        reason = saw_client and "unsupported" or "no_client",
+        pending = true,
         provider = "tinymist",
+        client = client.name,
         method = method,
-        message = saw_client and ("Tinymist %s is unavailable"):format(method)
-            or "Tinymist Neovim LSP client is not attached",
+        cancel = function(self_or_opts, maybe_opts)
+            local cancel_opts = maybe_opts
+            if self_or_opts ~= pending then
+                cancel_opts = self_or_opts
+            end
+            -- Expose cancellation on the pending result so callers that abandon
+            -- a UI action can also abandon the LSP request.
+            cancel_request()
+            finish({
+                ok = false,
+                reason = (cancel_opts and cancel_opts.reason) or "cancelled",
+                provider = "tinymist",
+                client = client.name,
+                method = method,
+                stopped = true,
+                message = ("Tinymist %s request was cancelled"):format(method),
+            })
+            return true
+        end,
     }
-    schedule(function()
-        protected_callback(callback, result)
-    end)
-    return result
+    return pending
 end
 
 return M

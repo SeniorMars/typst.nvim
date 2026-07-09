@@ -29,8 +29,16 @@ assert(
         and vim.tbl_contains(
             api_contract.event_aliases.TypstProjectPruned,
             "TypstEventProjectPruned"
-        ),
+    ),
     "event contract should expose project-pruned event"
+)
+assert(
+    vim.tbl_contains(api_contract.events, "TypstEventProjectDetach"),
+    "deprecated project-detach TypstEvent alias should remain documented"
+)
+assert(
+    vim.tbl_contains(api_contract.events, "TypstEventCompiling"),
+    "deprecated compile progress TypstEvent alias should remain documented"
 )
 for _, event in ipairs(api_contract.compatibility_events or {}) do
     assert(
@@ -84,10 +92,8 @@ for _, pattern in ipairs({
     "TypstEventConfigChanged",
     "TypstEventProjectAttach",
     "TypstEventBufferDetach",
-    "TypstEventProjectDetach",
     "TypstEventProjectPruned",
     "TypstEventCompileStarted",
-    "TypstEventCompiling",
     "TypstEventCompileSuccess",
     "TypstEventCompileFailed",
     "TypstEventCompileStopped",
@@ -120,10 +126,10 @@ local provider = {
         typst_test_compiler(project).last_cwd = project.root
         callback({ code = fail_next_compile and 1 or 0, stale = false })
         fail_next_compile = false
-        return { kind = "compile" }
+        return nil
     end,
     start = function()
-        return { kind = "watch" }
+        return { kind = "watch", pending = true }
     end,
     stop = function(_, callback)
         if callback then
@@ -226,7 +232,11 @@ assert(
 )
 assert(
     seen.TypstEventCompiling and seen.TypstEventCompiling[1],
-    "compile progress alias should be emitted"
+    "deprecated compile progress alias should be emitted"
+)
+assert_payload_documented(
+    "TypstEventCompiling",
+    seen.TypstEventCompiling[1]
 )
 assert(
     seen.TypstEventCompileStarted[1].output:match(
@@ -525,15 +535,11 @@ assert_payload_documented(
 )
 assert(
     seen.TypstEventProjectDetach and seen.TypstEventProjectDetach[1],
-    "compat project detach alias should be emitted"
-)
-assert(
-    seen.TypstEventProjectDetach[1].key == project.key,
-    "compat project detach alias should include project key"
+    "deprecated project-detach alias should be emitted"
 )
 assert(
     seen.TypstEventProjectDetach[1].event_kind == "buffer_detach",
-    "compat project detach alias should report buffer-detach semantics"
+    "deprecated project-detach alias should keep buffer-detach semantics"
 )
 assert_payload_documented(
     "TypstEventProjectDetach",

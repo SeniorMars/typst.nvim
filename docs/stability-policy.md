@@ -103,6 +103,6 @@ regression tests.
 
 Architecture changes should remove more lifecycle surface area than they add.
 The approved stable-core architecture budget is one reset manifest, one preview
-controller split, one runtime API policy table, one pending/cancel contract, and
-one output lease owner. A broader abstraction needs a deletion plan, migration
-tests, and an explicit update to `docs/stable-core-decisions.md`.
+controller boundary, one runtime API policy table, one pending/cancel contract,
+and one output lease owner. A broader abstraction needs a deletion plan,
+migration tests, and an explicit update to `docs/stable-core-decisions.md`.

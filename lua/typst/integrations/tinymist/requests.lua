@@ -22,6 +22,11 @@ end
 local schedule = async.schedule
 local close_timer = async.close_timer
 
+local function request_project(bufnr, opts)
+    return type(opts.project) == "table" and opts.project
+        or clients.project_for_buffer(bufnr)
+end
+
 local function next_format_generation(bufnr, opts)
     if opts.guard_generation == false then
         return nil
@@ -198,13 +203,12 @@ function M.rename(bufnr, new_name, opts)
         )
     end
 
-    if not clients.available(bufnr) then
-        return {
-            ok = false,
-            reason = "no_client",
-            provider = "tinymist",
-            message = "Tinymist Neovim LSP client is not attached",
-        }
+    local selected = clients.select_client({
+        bufnr = bufnr,
+        project = request_project(bufnr, opts),
+    })
+    if not selected.ok then
+        return selected
     end
 
     return async_required("textDocument/rename")
@@ -415,49 +419,31 @@ function M.format(bufnr, opts, callback)
     bufnr = bufnr or vim.api.nvim_get_current_buf()
     opts = opts or {}
 
-    local saw_client = false
-    for _, client in ipairs(clients.clients(bufnr)) do
-        saw_client = true
-        if
-            type(client.request) == "function"
-            and clients.supports_method(
-                client,
-                "textDocument/formatting",
-                bufnr
-            )
-        then
-            local request_params = format_params(bufnr, opts)
-            if callback and type(client.request) == "function" then
-                local pending, failure =
-                    async_format(bufnr, client, request_params, opts, callback)
-                return pending
-                    or failure
-                    or {
-                        ok = false,
-                        reason = "request_failed",
-                        provider = "tinymist",
-                        message = "Tinymist formatting request did not return a result",
-                    }
-            end
-            return async_required("textDocument/formatting")
+    local selected = clients.select_client({
+        bufnr = bufnr,
+        project = request_project(bufnr, opts),
+        method = "textDocument/formatting",
+        request = "async",
+    })
+    if selected.ok then
+        local client = selected.client
+        local request_params = format_params(bufnr, opts)
+        if callback and type(client.request) == "function" then
+            local pending, failure =
+                async_format(bufnr, client, request_params, opts, callback)
+            return pending
+                or failure
+                or {
+                    ok = false,
+                    reason = "request_failed",
+                    provider = "tinymist",
+                    message = "Tinymist formatting request did not return a result",
+                }
         end
+        return async_required("textDocument/formatting")
     end
 
-    if not saw_client then
-        return {
-            ok = false,
-            reason = "no_client",
-            provider = "tinymist",
-            message = "Tinymist Neovim LSP client is not attached",
-        }
-    end
-
-    return {
-        ok = false,
-        reason = "unsupported",
-        provider = "tinymist",
-        message = "Tinymist formatting is unavailable",
-    }
+    return selected
 end
 
 return M

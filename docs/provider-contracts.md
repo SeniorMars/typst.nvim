@@ -8,30 +8,40 @@ require("typst").providers.register(kind, name, provider)
 
 Supported provider kinds are normalized by `typst.integrations.providers`.
 Common aliases such as `compile`, `compiler`, `formatter`, `linter`,
-`artifact`, `export`, `rendered_preview`, and `view` resolve to their stable
+`artifact`, `export`, `rendered_preview`, and `view` resolve to their canonical
 kind names.
 
-Stable provider kinds are:
+Provider kind stability is deliberately narrower than provider availability.
+Core kinds are part of the stable workflow boundary; supported kinds are tested
+extension points for the first hardening pass; experimental kinds exist for
+early adopters and should not broaden further while stable-core hardening is
+active. Experimental does not mean removed: it means the implementation remains
+available while its lifecycle/result/API contract is still allowed to change.
 
-- `bench`
-- `compiler`
-- `coverage`
-- `eval`
-- `export`
-- `format`
-- `grammar`
-- `index`
-- `init`
-- `lint`
-- `picker`
-- `preview`
-- `profile`
-- `render`
-- `semantic`
-- `source_map`
-- `test`
-- `toc`
-- `viewer`
+- `bench` - experimental
+- `compiler` - core
+- `coverage` - experimental
+- `eval` - experimental
+- `export` - experimental
+- `format` - supported
+- `grammar` - experimental
+- `index` - experimental
+- `init` - experimental
+- `lint` - supported
+- `picker` - experimental
+- `preview` - experimental
+- `profile` - experimental
+- `render` - experimental
+- `semantic` - experimental
+- `source_map` - experimental
+- `test` - experimental
+- `toc` - experimental
+- `viewer` - core
+
+The stable-provider target for this phase is intentionally small:
+`compiler`, `viewer`, `format`, and `lint`. Preview, render, export,
+semantic/source-map, grammar, picker/TOC, and development workflow providers are
+advanced or experimental until the compile/view/editing core is boring.
 
 ## Semantic Providers
 
@@ -77,7 +87,7 @@ Provider methods may complete in one of four ways:
 - Return a terminal result synchronously.
 - Call the supplied callback with a terminal result.
 - Return `{ pending = true, cancel = function(...) ... end }`.
-- Return a raw handle or userdata while completing through the callback.
+- Return a userdata handle while completing through the callback.
 
 Inline compiler provider tables supplied directly to `setup()` are validated
 strictly during setup so missing required methods are reported before command
@@ -122,7 +132,7 @@ Expected failure results should use `{ ok = false, reason, message }`. Expected
 stop results should use `stopped = true` only after shutdown is confirmed.
 Timeouts and unknown external state should not claim `stopped = true`.
 
-When a timeout is configured, raw handles and pending tables are watchdog
+When a timeout is configured, userdata handles and pending tables are watchdog
 protected. A provider that never calls back receives a synthetic timeout result.
 For compiler-provider compile, watch/start, and stop paths, timeout means
 "unconfirmed writer": typst.nvim keeps the active provider handle and output
@@ -135,8 +145,8 @@ timeout.
 Provider anti-patterns that typst.nvim treats as failures or unconfirmed state:
 
 - returning a pending handle and never calling its finish callback;
-- returning a handle-like table without `pending`, `on_finish`, or terminal
-  result fields;
+- returning a handle-like table without `pending = true` or terminal result
+  fields;
 - reporting `stopped = true` before the external process or writer is
   confirmed stopped;
 - writing to the declared output after a timeout without first reporting a
@@ -157,20 +167,17 @@ typst.nvim has two adapter modes:
   normalize them.
 - **Handle mode** is used for compiler/watch/start-style methods where the
   returned value may be an active process or custom pending handle. In this
-  mode, tables with only handle-like fields such as `path`, `output`,
-  `diagnostics`, or `by_buffer` remain handles. Terminal table results must be
-  explicit.
+  mode, async table handles must include `pending = true`. Terminal table
+  results must be explicit.
 
 Terminal results in handle mode should include at least one terminal field such
 as `ok`, `code`, `reason`, `message`, `stopped`, `forced`, or `orphaned`.
 Use `{ pending = true }` for pending handles that should expose adapter-managed
-timeout/cancel behavior. If a custom handle looks result-shaped, either include
-`pending = true` or ensure the call site supplies an explicit handle predicate.
-Cancelable tables with structural result fields such as `path`, `output`,
-`diagnostics`, or `by_buffer` but no explicit terminal marker are treated as
-active handles and logged as ambiguous. Add `pending = true` for async handles,
-or add an explicit terminal field such as `ok`, `code`, or `reason` for real
-results.
+timeout/cancel behavior. If a custom handle looks result-shaped, include
+`pending = true`; otherwise the adapter reports `invalid_result`. Internal call
+sites may supply an explicit handle predicate while migrating legacy handles,
+but public providers should not rely on structural fields such as `path`,
+`output`, `diagnostics`, or `by_buffer` to imply async state.
 
 Structural-only results are accepted only by provider kinds whose adapters
 declare those fields or normalize the table before classification:
@@ -205,8 +212,9 @@ return {
   end,
 }
 
--- Raw handle in handle mode. This is not terminal merely because it has path.
+-- Pending handle in handle mode. This is not terminal merely because it has path.
 return {
+  pending = true,
   path = "/tmp/provider-owned-output.pdf",
   cancel = function(self, opts)
     self.process:kill()
@@ -247,7 +255,7 @@ The current fixture IDs are:
 - `callback_success`
 - `callback_failure`
 - `returned_pending_handle`
-- `raw_handle_timeout`
+- `pending_handle_timeout`
 - `cancellation_before_completion`
 - `duplicate_callback`
 - `thrown_provider_error`
@@ -272,7 +280,8 @@ Terminal results should be tables. Common fields:
 }
 ```
 
-For compiler providers, `typst.compiler.result.normalize` applies these rules:
+For compiler providers, `typst.compiler.state_machine.normalize` applies these
+rules:
 
 - `ok = true` without `code` becomes `code = 0`.
 - `ok = false` without `code` becomes `code = 1`.
@@ -320,6 +329,9 @@ shape. A table that only has fields like `path`, `output`, or `diagnostics` is
 not treated as a completed result by default; provider adapters must opt into
 those shapes or normalize them. This avoids confusing cancellable provider
 handles with completed work.
+If the table exposes `cancel`, `stop`, or `kill` without a terminal result
+marker, it must also set `pending = true`; otherwise the adapter reports an
+`invalid_result`.
 
 ## Cancellation
 
@@ -611,7 +623,8 @@ preview = {
 }
 ```
 
-The stable provider kind for real source-map integrations is `source_map`.
+The experimental provider kind for real source-map integrations is
+`source_map`.
 Aliases include `source_maps`, `sourcemap`, `sourcemaps`,
 `preview_source_map`, and `preview_source_maps`.
 
@@ -678,15 +691,15 @@ New provider kinds or major provider behavior changes should add fixtures for:
 - synchronous success and synchronous failure;
 - callback success and callback failure;
 - returned pending handle success;
-- raw handle timeout without callback;
+- pending handle timeout without callback;
 - cancellation before completion;
 - duplicate callback after terminal result;
 - thrown provider error;
 - malformed or nil result.
 
 The executable conformance matrix lives in
-`typst.integrations.provider_contract`. Every stable provider kind listed in
-this document must be covered by the shared adapter fixtures below, plus any
+`typst.integrations.provider_contract`. Every provider kind listed in this
+document must be covered by the shared adapter fixtures below, plus any
 kind-specific integration tests required by its lifecycle:
 
 | Fixture id | Required edge case |
@@ -696,7 +709,7 @@ kind-specific integration tests required by its lifecycle:
 | `callback_success` | asynchronous callback success |
 | `callback_failure` | asynchronous callback failure |
 | `returned_pending_handle` | returned pending handle |
-| `raw_handle_timeout` | timeout or never-callback handle |
+| `pending_handle_timeout` | timeout or never-callback pending handle |
 | `cancellation_before_completion` | cancel before completion |
 | `duplicate_callback` | stale or duplicate terminal callback |
 | `thrown_provider_error` | thrown provider error |
@@ -704,5 +717,6 @@ kind-specific integration tests required by its lifecycle:
 
 The release `provider-matrix` gate runs the shared SDK fixtures for compiler,
 preview/export/render, source-map, viewer, formatter, linter, grammar, and
-workflow providers. A provider behavior change is incomplete unless it updates
-the conformance matrix, docs, and focused fixture coverage in the same patch.
+workflow providers even when those kinds are experimental. A provider behavior
+change is incomplete unless it updates the conformance matrix, docs, and
+focused fixture coverage in the same patch.

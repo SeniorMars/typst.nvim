@@ -250,6 +250,12 @@ local function include_lsp_source(context)
     return not lsp_context_exclusions[context]
 end
 
+local function complete_source(name, context, fn)
+    return telemetry.time("completion.source." .. name, fn, {
+        context = context,
+    })
+end
+
 local function call_refresh_hook(opts, source)
     local hook = opts
         and (opts[source .. "_refresh"] or opts.refresh or opts.on_refresh)
@@ -328,7 +334,9 @@ local function complete_impl(opts)
     end
 
     if include_lsp_source(context) then
-        for _, item in ipairs(mod("lsp").items(opts, base, context)) do
+        for _, item in ipairs(complete_source("lsp", context, function()
+            return mod("lsp").items(opts, base, context)
+        end)) do
             if add(item) then
                 return items
             end
@@ -336,7 +344,9 @@ local function complete_impl(opts)
     end
 
     if context == "csl_style" then
-        for _, item in ipairs(mod("csl").items(opts, base, metadata_catalog())) do
+        for _, item in ipairs(complete_source("csl", context, function()
+            return mod("csl").items(opts, base, metadata_catalog())
+        end)) do
             if add(item) then
                 return items
             end
@@ -345,7 +355,9 @@ local function complete_impl(opts)
     end
 
     if context == "raw_language" then
-        for _, item in ipairs(mod("raw").items(opts, base)) do
+        for _, item in ipairs(complete_source("raw", context, function()
+            return mod("raw").items(opts, base)
+        end)) do
             if add(item) then
                 return items
             end
@@ -354,7 +366,9 @@ local function complete_impl(opts)
     end
 
     if context == "path" or context == "file_path" then
-        for _, item in ipairs(mod("paths").items(opts, base)) do
+        for _, item in ipairs(complete_source("paths", context, function()
+            return mod("paths").items(opts, base)
+        end)) do
             if add(item) then
                 return items
             end
@@ -364,7 +378,9 @@ local function complete_impl(opts)
 
     if context == "color" then
         for _, item in
-            ipairs(mod("colors").items(opts, base, metadata_catalog()))
+            ipairs(complete_source("colors", context, function()
+                return mod("colors").items(opts, base, metadata_catalog())
+            end))
         do
             if add(item) then
                 return items
@@ -374,7 +390,9 @@ local function complete_impl(opts)
     end
 
     if context == "font_family" or context == "font" then
-        for _, item in ipairs(mod("fonts").items(opts, base)) do
+        for _, item in ipairs(complete_source("fonts", context, function()
+            return mod("fonts").items(opts, base)
+        end)) do
             if add(item) then
                 return items
             end
@@ -383,7 +401,9 @@ local function complete_impl(opts)
     end
 
     if context == "parameter" or context == "named_parameter" then
-        for _, item in ipairs(mod("parameters").items(opts, base)) do
+        for _, item in ipairs(complete_source("parameters", context, function()
+            return mod("parameters").items(opts, base)
+        end)) do
             if add(item) then
                 return items
             end
@@ -392,7 +412,13 @@ local function complete_impl(opts)
     end
 
     if context == "parameter_value" then
-        for _, item in ipairs(mod("parameters").value_items(opts, base)) do
+        for _, item in ipairs(complete_source(
+            "parameter_values",
+            context,
+            function()
+                return mod("parameters").value_items(opts, base)
+            end
+        )) do
             if add(item) then
                 return items
             end
@@ -401,7 +427,9 @@ local function complete_impl(opts)
     end
 
     if context ~= "math" or opts.include_project_in_math then
-        for _, item in ipairs(mod("project").items(opts, base)) do
+        for _, item in ipairs(complete_source("project", context, function()
+            return mod("project").items(opts, base)
+        end)) do
             if add(item) then
                 return items
             end
@@ -409,7 +437,9 @@ local function complete_impl(opts)
     end
 
     if context ~= "math" or opts.include_project_in_math then
-        for _, item in ipairs(mod("packages").items(opts, base)) do
+        for _, item in ipairs(complete_source("packages", context, function()
+            return mod("packages").items(opts, base)
+        end)) do
             if add(item) then
                 return items
             end
@@ -418,12 +448,14 @@ local function complete_impl(opts)
 
     for _, item in
         ipairs(
-            mod("stdlib").items(
-                base,
-                context,
-                metadata_catalog(),
-                limit - #items
-            )
+            complete_source("stdlib", context, function()
+                return mod("stdlib").items(
+                    base,
+                    context,
+                    metadata_catalog(),
+                    limit - #items
+                )
+            end)
         )
     do
         if add(item) then

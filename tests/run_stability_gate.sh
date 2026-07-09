@@ -9,6 +9,7 @@ specs=(
   tests/unit/api_spec_modules_exist_spec.lua
   tests/unit/api_globals_spec.lua
   tests/unit/api_globals_retained_reset_spec.lua
+  tests/unit/api_experimental_warnings_spec.lua
   tests/unit/stable_api_no_expected_throw_spec.lua
   tests/policy/expected_failures_do_not_throw_spec.lua
   tests/unit/workflow_safe_output_path_spec.lua
@@ -17,9 +18,16 @@ specs=(
   tests/unit/api_context_non_table_opts_spec.lua
   tests/unit/runtime_context_policy_notify_spec.lua
   tests/unit/project_public_snapshot_immutability_spec.lua
+  tests/unit/root_callback_invalid_return_spec.lua
+  tests/unit/main_callback_invalid_return_spec.lua
+  tests/unit/buffer_main_unreadable_spec.lua
   tests/unit/compiler_scratch_buffer_spec.lua
   tests/unit/compiler_stop_idle_lease_spec.lua
+  tests/unit/compiler_stop_callbacks_spec.lua
+  tests/unit/compiler_watch_stop_callbacks_spec.lua
+  tests/unit/compiler_watch_operation_cancel_spec.lua
   tests/unit/completion_lsp_timeout_spec.lua
+  tests/unit/completion/telemetry_spec.lua
   tests/unit/lifecycle_path_equivalence_spec.lua
   tests/unit/ftplugin_window_restore_wrong_buffer_spec.lua
   tests/unit/events_deferred_operation_reset_spec.lua
@@ -33,16 +41,20 @@ specs=(
   tests/unit/bug_report_spec.lua
   tests/unit/preview_error_contract_spec.lua
   tests/unit/preview_results_spec.lua
+  tests/unit/preview_export_override_mode_spec.lua
+  tests/unit/preview_follow_buffer_settle_policy_spec.lua
   tests/unit/preview_state_machine_spec.lua
   tests/unit/preview_status_service_compat_spec.lua
   tests/unit/preview_backend_contract_spec.lua
   tests/unit/preview_facade_spec.lua
   tests/unit/runtime_api_force_clear_notify_once_spec.lua
   tests/unit/runtime_dispatch_factory_env_spec.lua
+  tests/unit/core_operation_contract_spec.lua
   tests/unit/core_operation_reset_spec.lua
   tests/unit/core_operation_owner_scope_spec.lua
   tests/unit/cancel_style_migration_contract_spec.lua
   tests/unit/resource_manager_spec.lua
+  tests/unit/resource_manager_snapshot_pcall_spec.lua
   tests/integration/reset/global_operation_visibility_spec.lua
   tests/stable_core/invariants_spec.lua
   tests/unit/cache_registry_spec.lua
@@ -62,6 +74,7 @@ specs=(
   tests/unit/diagnostics_tool_result_spec.lua
   tests/unit/quickfix_nil_project_clear_spec.lua
   tests/unit/provider_adapter_handle_classification_spec.lua
+  tests/unit/tinymist_root_matching_spec.lua
   tests/unit/provider_adapter_late_duplicate_spec.lua
   tests/unit/provider_adapter_invalid_handle_spec.lua
   tests/unit/operation_cancel_matrix_spec.lua

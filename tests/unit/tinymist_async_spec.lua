@@ -1,7 +1,10 @@
 local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
+local project = require("typst.project")
 local request_async = require("typst.integrations.tinymist.async")
+
+local original_project_get = project.get
 
 local bufnr = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_set_current_buf(bufnr)
@@ -60,4 +63,48 @@ assert(
     "Tinymist nil normalize result should include an actionable message"
 )
 
+project.get = function(target)
+    assert(target == bufnr, "Tinymist async request should inspect target buffer")
+    return {
+        root = root .. "/expected-root",
+        main = root .. "/expected-root/main.typ",
+    }
+end
+fake_client.config = {
+    root_dir = root .. "/wrong-root",
+}
+local wrong_root_callback = nil
+local wrong_root = request_async.request(
+    bufnr,
+    "tinymist/testWrongRoot",
+    function()
+        error("wrong-root selection must not build request params")
+    end,
+    {
+        client = fake_client,
+        guard_cursor = false,
+        timeout_ms = 0,
+    },
+    function(result)
+        wrong_root_callback = result
+    end
+)
+assert(
+    wrong_root
+        and wrong_root.ok == false
+        and wrong_root.reason == "wrong_root",
+    "Tinymist async request should reject wrong-root clients from inferred project"
+)
+assert(
+    vim.wait(1000, function()
+        return wrong_root_callback ~= nil
+    end, 10),
+    "Tinymist wrong-root selection should still notify callback"
+)
+assert(
+    wrong_root_callback.reason == "wrong_root",
+    "Tinymist wrong-root callback should preserve selector reason"
+)
+
+project.get = original_project_get
 vim.cmd("qa!")

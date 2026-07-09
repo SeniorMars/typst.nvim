@@ -37,7 +37,7 @@ backticking non-existent APIs.
 | `diagnostics` | namespace cache and namespace-to-source map | `diagnostics.reset()` | `diagnostics.clear_buffer()` | n/a | diagnostics namespace/source specs |
 | `diagnostics.quickfix` | quickfix owner and window loclist owners | `diagnostics.reset()` | source/project clear rebuilds or clears | window loclist owner clear | quickfix ownership specs |
 | `completion` | frontend sequence counters and source caches | `completion.reset()` | source-specific forget entries | n/a | completion generation/cache specs |
-| `completion.context` | buffer-keyed completion context cache | `clear_cache()` via reset manifest | `clear_cache(bufnr)` | n/a | `completion_context_cache_reset_spec.lua` |
+| `completion.context` | buffer-keyed completion context cache | `completion.reset()` via reset manifest | `clear_cache(bufnr)` | n/a | `completion_context_cache_reset_spec.lua` |
 | `completion.packages` | package metadata cache and prewarm state | package reset/reset manifest | n/a | n/a | package/completion specs |
 | `metadata` / `metadata.symbol` | generated metadata and symbol lookup caches | metadata/symbol reset | n/a | n/a | metadata/config docs specs |
 | `core.treesitter` | collect cache keyed by buffer/range/query | `treesitter.forget()` via cache registry | `treesitter.forget(bufnr)` | n/a | Tree-sitter/conceal specs |

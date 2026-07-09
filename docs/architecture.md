@@ -39,7 +39,7 @@ stable-core hardening.
 The approved stabilization architecture budget is intentionally small:
 
 1. One reset manifest and one reset/prune/exit orchestrator.
-2. One preview controller split with small backend adapters.
+2. One preview controller boundary with small backend adapters.
 3. One declarative runtime API policy table.
 4. One pending/cancel contract used by providers, preview, and operations.
 5. One output lease owner.
@@ -156,8 +156,10 @@ integrations/preview.lua
 integrations/viewer.lua
 ```
 
-Compiler and preview are core workflows. Only external tool/plugin adapters
-belong under `integrations/`.
+Compiler and viewer are the core workflow providers for the first stable-core
+pass. Preview remains available, but native browser/source-sync/provider
+preview behavior is an advanced subsystem until its lifecycle contract is as
+boring as compile/view.
 
 Move ownership only when tests pin the boundary. The layout should follow
 boundaries with regression coverage:
@@ -182,9 +184,8 @@ Core modules should be boring and dependency-light. `core/` must not know about
 Typst projects, preview, compiler, diagnostics, or UI. It owns reusable
 primitives such as process shutdown, pending handles, path helpers, generic
 result predicates, logging, events, and caches. Compiler-specific result
-normalization should eventually move from `core.result` into
-`compiler/result.lua`; `core.result` should retain only generic result predicates
-and constructors.
+normalization belongs in `compiler.state_machine`; `core.result` should retain
+only generic result predicates and constructors.
 
 Project modules own identity, not live resources. They answer root, main, key,
 buffer membership, dependency graph, index state, and service-table existence.
@@ -198,6 +199,10 @@ the project/global liveness view, `resources.outputs` owns generated-output
 leases and locks, and deleted `resources.supervisor` should not be restored.
 Callers should use `runtime.resource_manager` directly rather than learning
 backend-specific compiler, preview, operation, diagnostics, or output details.
+Temporary reset overlaps must be listed in
+`runtime.resource_manifest.migration_duplicate_policy()` with the older owner,
+reason, and removal plan. That policy should normally be empty; new reset
+owners should replace older cleanup paths instead of running beside them.
 
 Compiler modules own compile/watch state, provider policy, Typst CLI behavior,
 watch output parsing, and compiler events. `typst.compiler` decides when a
@@ -217,8 +222,8 @@ document an exception.
 Viewer and preview are separate workflows. `typst.viewer.api` owns viewer
 commands and preview-facing public command orchestration. A viewer opens or
 controls existing artifacts. `typst.preview.controller` owns delegated and
-native preview lifecycle decisions, while `typst.integrations.typst_preview`
-remains only the old require-path compatibility facade.
+native preview lifecycle decisions; old require-path compatibility facades may
+exist only as tiny delegates and must not own preview lifecycle state.
 `preview/native/*` owns native browser preview details. Do not extract full
 viewer controllers before the stable-core boundary is pinned. Source-sync
 capability reporting should make this distinction explicit.
@@ -303,6 +308,9 @@ constructing keys by hand.
 compiler, provider, preview, and operation lifecycle code. In particular,
 `is_confirmed_stopped()` is the only generic predicate that should release owned
 resources, while timeout/orphaned/pending stop results remain unconfirmed.
+`core.result.reason` and `core.result.status` are the shared vocabulary for
+common lifecycle outcomes; subsystem result helpers may add fields, but should
+reuse those reason/status strings instead of inventing near-duplicates.
 
 Project-scoped resource state is observed through `resources/session.lua`. It
 summarizes compiler handles, preview activity, active/retained operations,
@@ -437,11 +445,10 @@ cache keys so redraw hot paths avoid full Tree-sitter collection work.
 Provider contracts are normalized by `typst.integrations.provider_adapter` and
 documented in `docs/provider-contracts.md`.
 
-Providers may finish synchronously, call a callback, return a pending handle, or
-return a raw handle while completing through a callback. Call sites decide
-whether a table is expected to be a terminal result or an active handle. In
-handle mode, result-shaped terminal tables must be explicit with fields such as
-`ok`, `code`, `reason`, or `stopped`.
+Providers may finish synchronously, call a callback, return an explicit pending
+handle, or return a userdata handle while completing through a callback. Async
+table handles must include `pending = true`; result-shaped terminal tables must
+be explicit with fields such as `ok`, `code`, `reason`, or `stopped`.
 
 Call sites that install lifecycle state, retain output leases, or release output
 leases must use `provider_adapter.classify_return()`,
@@ -449,14 +456,32 @@ leases must use `provider_adapter.classify_return()`,
 `provider_adapter.is_terminal_result()` instead of raw `type(result) == "table"`
 and `pending` checks. Structural result fields such as `path`, `output`, or
 `artifacts` are valid terminal results only after the caller has declared them
-to the adapter; cancelable structural tables remain active handles.
+to the adapter; cancelable structural tables are invalid async handles unless
+they opt in with `pending = true` or an internal call site supplies an explicit
+handle predicate.
 
-The shared pending helper provides common `finish`, `on_finish`, and `cancel`
-behavior for adapter-owned pending handles, preview export continuations, and
-native preview continuations. It does not decide result-vs-handle
-classification; the owning adapter does. Internal pending observation is
-method-style (`handle:on_finish(callback)`). Dot-style observation is a
-call-site compatibility choice, not something inferred from callback arity.
+The shared pending/operation lifecycle contract provides common `finish`,
+`on_finish`, `on_result(result, handle)`, and `cancel` behavior for
+adapter-owned pending handles, process-backed operations, preview export
+continuations, and native preview continuations. It does not decide
+result-vs-handle classification; the owning adapter does. Internal observation
+is method-style (`handle:on_finish(callback)` or `handle:on_result(callback)`).
+Dot-style observation is a call-site compatibility choice, not something
+inferred from callback arity.
+
+Provider adapter convergence is intentionally incremental. The adapter uses the
+small `typst.integrations.provider_lifecycle` bridge for timeout, cancellation,
+duplicate-result suppression, and public pending-handle shape. Do not move the
+adapter wholesale onto `core.operation` until that change deletes an older
+provider lifecycle path in the same patch. Until then, `core.operation` owns
+process-backed operations and `provider_lifecycle` owns provider-returned
+pending handles.
+
+Watch migration follows the same rule. `typst watch` process stop/settle
+semantics use the shared operation contract, but watch cycle parsing, stream
+queues, dependency polling, partial-line flushing, and per-cycle diagnostics are
+compiler-domain state. Do not move watch cycles into `core.operation`; migrate
+only stop/restart ownership and lifecycle result vocabulary.
 
 Provider callbacks must be single-shot from typst.nvim's perspective. Duplicate
 callbacks after timeout or cancellation are logged and ignored. Cancellation
@@ -469,6 +494,11 @@ providers do not own diagnostics unless they explicitly declare diagnostic
 ownership. Preview and viewer providers own display/open behavior, not compiler
 artifact state, unless they invoke export/compile APIs that acquire artifact
 ownership explicitly.
+
+Provider breadth is frozen while stable-core hardening is active. Existing
+kinds stay available, but `typst.integrations.provider_contract` classifies
+each kind as `core`, `supported`, or `experimental`; new kinds require the same
+classification, docs, tests, and a deletion or stabilization plan.
 
 ## Migration Plan
 
@@ -501,8 +531,10 @@ small compatibility-preserving boundaries:
    - `project.resolver` resolves candidates without mutating state.
    - `project.attachments` is the BufferAttachment facade for buffer hooks and
      setup reapplication.
-   - project index modules stay on their current flat paths until there is a
-     deletion-backed reason to move them.
+   - `typst.project.index_service` owns project-index collection and category
+     reads; `typst.project.index_scheduler` owns generation/freshness sync,
+     watcher commits, and aggregate-cache metadata. They stay as flat modules
+     to avoid adding a broad `project/index/` framework directory.
    - `core.windows` is the shared visible-window lookup primitive.
    - `resources.outputs` is the output lease facade used outside low-level tests.
    - `resources.session` is the project liveness view.
@@ -515,6 +547,10 @@ small compatibility-preserving boundaries:
      lifecycle module or narrower helper modules, not in a new full controller.
    - Keep built-in Typst helpers at their historical paths until tests require a
      real file split.
+   - Render already has planner/runner/cache/display/helper splits. Do not keep
+     expanding this into a render framework: `typst.workflows.render.runner`
+     may retain lifecycle coordination until a concrete bug or deleted
+     duplicate path justifies another extraction.
 3. Keep preview and viewer lifecycle in tested entry points.
    - `typst.viewer.api` owns artifact opening and viewer source sync for now.
    - `typst.preview.controller` owns preview open/reuse/restart/refresh/stop
@@ -522,25 +558,32 @@ small compatibility-preserving boundaries:
    - `typst.preview.results`, `typst.preview.pending`,
      `typst.preview.state_machine`, and `typst.preview.backends.*` own preview
      result shape, pending observation, state mutation, and backend adapters.
-   - `typst.integrations.typst_preview` remains a compatibility facade.
+   - `typst.preview.backends.viewer` is the boring default artifact opener.
+     `typst.preview.backends.browser`, `.delegated`, and `.custom` are explicit
+     advanced backends for browser server/source-map behavior,
+     typst-preview.nvim delegation, and user callbacks.
+   - Compatibility facades such as `typst.integrations.typst_preview` may
+     delegate to current owners, but must stay tiny and state-free.
    - `preview/native/*` may keep native browser/server/session details.
 4. Keep navigation and editor implementation files in their existing layout.
    - The current flat navigation/edit modules remain the implementation paths
      for this stabilization patch.
-5. Harden the public API before any future layout migration.
+5. Harden the public API before any layout migration.
    - Keep implementation paths movable later, but land each move behind the
      compatibility facade and policy tests first.
+6. Shrink broad dependencies only near active work.
+   - `typst.core.util` is a compatibility convenience. Replace it with direct
+     imports such as `core.path`, `core.buffer`, `core.command`, or
+     `core.files` when already editing a module, but do not churn unrelated
+     files solely to remove `core.util`.
 
-### Post-Stable Target Boundaries
+### Current Boundary Limits
 
-After the stable-core contract is pinned, narrower controller modules remain
-valid long-term extraction targets when tests show the ownership boundary is
-stable. `compiler.controller` can become the compile/watch/stop/output owner,
-and `viewer.controller` can own viewer open/forward/inverse behavior. Preview
-lifecycle already uses the tested `preview.controller` boundary.
-   - Expose workflow namespaces deliberately: project, compiler, viewer,
-     preview, diagnostics, navigation, edit, completion, conceal, bibliography,
-     metadata, providers.
+Stable-core hardening should document current owners rather than propose an
+expanded controller inventory. New controller modules are allowed only when they
+delete duplicated lifecycle code, preserve commands and public APIs, and arrive
+with targeted contract tests. Do not add speculative controller namespaces for
+compile/watch/viewer workflows just to match an idealized layout.
 
 Command-to-module intent should stay simple for users:
 
@@ -599,14 +642,33 @@ under `project/lifecycle/`:
 
 - `buffers.lua`: buffer autocmd installation, TOC follow hooks, omnifunc, dirty
   changedtick suppression, and reapplying attached buffers after config reload.
+- `deferred_import_scan.lua`: deferred import-scan scheduling, tokens, pending
+  handles, suggestion recording, command-time suggestion acceptance, and
+  reset-visible deferred scan state.
 - `events.lua`: attach/detach/prune event payloads and previous-project stop
   handoff.
+- `feature_finalize.lua`: post-commit editor/integration finalization for an
+  attached buffer, including feature reapplication, Tinymist ensure, and
+  deferred-scan scheduling.
+- `transition.lua`: the single post-commit transition boundary for event
+  emission, bounded transition snapshots, finalization error capture, and
+  previous-project stop/prune handoff.
+- `reload.lua`: two-phase reload, rollback, failed-candidate cleanup, and
+  reload metadata reporting.
 
-Future splits should continue this pattern without changing commands or public
-project APIs. Good next boundaries are feature application
-(mappings/folds/conceal/indent/signatures) and integration startup
-(Tinymist/provider hooks). The scheduled ftplugin attach contract stays in the
-coordinator and must keep the idempotence tests passing.
+Additional lifecycle splits must delete duplicated ownership while preserving
+commands, public project APIs, and the scheduled ftplugin attach contract. The
+coordinator keeps that idempotence boundary.
+
+### Preview Backend Interface
+
+`typst.preview.controller` owns preview lifecycle decisions. Concrete preview
+work lives behind explicit backends under `preview/backends/`: `viewer` for the
+boring artifact-to-viewer path, `browser` for advanced native browser/server
+work, `delegated` for typst-preview.nvim compatibility, and `custom` for user
+callbacks. Do not add a preview backend registry or marketplace layer during
+stable-core hardening; new backends must be explicit modules that satisfy the
+small `preview.backends.interface` shape and delete duplicated controller logic.
 
 ### Compiler Event Pipeline
 
@@ -617,9 +679,10 @@ That module maps them onto the existing public `TypstCompile*` User events and
 filters payload fields so raw process output does not accidentally become part
 of the public contract.
 
-The remaining long-term step is to move side effects behind a reducer. Watch
-parser/state should eventually produce normalized compiler events before
-diagnostics, artifacts, dependency refresh, and preview consumers run:
+Do not introduce a compiler reducer as a standalone framework. If watch
+side-effect ordering causes a concrete bug, parser/state may emit narrower
+normalized compiler events before diagnostics, artifacts, dependency refresh,
+and preview consumers run:
 
 ```lua
 { kind = "cycle_start", generation = n, cycle = c }

@@ -7,6 +7,7 @@ local symbols = require("typst.integrations.tinymist.symbols")
 
 ---@class typst.Tinymist
 ---@field clients fun(...): table
+---@field select_client fun(opts: table|nil): table
 ---@field available fun(bufnr: integer|nil): boolean
 ---@field available_for_project fun(project: table): boolean
 ---@field lsp_backend fun(): string
@@ -43,6 +44,7 @@ local symbols = require("typst.integrations.tinymist.symbols")
 local M = {}
 
 M.clients = clients.clients
+M.select_client = clients.select_client
 M.available = clients.available
 M.available_for_project = clients.available_for_project
 M.lsp_backend = clients.lsp_backend

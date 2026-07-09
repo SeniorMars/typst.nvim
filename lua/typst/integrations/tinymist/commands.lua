@@ -8,11 +8,9 @@ local M = {}
 
 local METHOD = "workspace/executeCommand"
 
-local function normalize_bufnr(bufnr)
-    if bufnr == nil or bufnr == 0 then
-        return vim.api.nvim_get_current_buf()
-    end
-    return bufnr
+local function request_project(bufnr, opts)
+    return type(opts.project) == "table" and opts.project
+        or clients.project_for_buffer(bufnr)
 end
 
 local function protected_callback(callback, result)
@@ -67,10 +65,18 @@ local function normalize_command(command, arguments, opts)
 end
 
 local function command_clients(bufnr, opts)
-    if opts.client then
-        return { opts.client }
+    local selected = clients.select_client({
+        bufnr = bufnr,
+        client = opts.client,
+        project = request_project(bufnr, opts),
+        method = METHOD,
+        request = "async",
+        allow_exec_cmd = true,
+    })
+    if not selected.ok then
+        return {}, selected
     end
-    return clients.clients(bufnr)
+    return selected.clients or { selected.client }, selected
 end
 
 local function success_result(client, command_object, result, extra)
@@ -190,7 +196,7 @@ end
 ---@return table result Execution result, pending request, or failure payload.
 function M.execute_command(command, arguments, opts)
     opts = opts or {}
-    local bufnr = normalize_bufnr(opts.bufnr)
+    local bufnr = clients.normalize_bufnr(opts.bufnr)
     local command_object, params, err =
         normalize_command(command, arguments, opts)
     if not command_object then
@@ -200,9 +206,10 @@ function M.execute_command(command, arguments, opts)
         )
     end
 
+    local command_clients_list, selected = command_clients(bufnr, opts)
     local saw_client = false
     local exec_cmd_failure = nil
-    for _, client in ipairs(command_clients(bufnr, opts)) do
+    for _, client in ipairs(command_clients_list) do
         saw_client = true
 
         local exec_result =
@@ -227,9 +234,11 @@ function M.execute_command(command, arguments, opts)
                 command_object
             ))
         or failure(
-            "no_client",
-            "Tinymist Neovim LSP client is not attached",
-            command_object
+            selected and selected.reason or "no_client",
+            selected and selected.message
+                or "Tinymist Neovim LSP client is not attached",
+            command_object,
+            selected
         )
     return immediate(opts.callback, result)
 end

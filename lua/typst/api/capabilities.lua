@@ -155,6 +155,8 @@ function M.collect(opts)
                 and (current.diagnostics or {}).source ~= "off",
             source = (current.diagnostics or {}).source,
             external_paths = (current.diagnostics or {}).external_paths,
+            max_external_buffers = (current.diagnostics or {}).max_external_buffers,
+            overflow = (current.diagnostics or {}).overflow,
         },
     }
 end

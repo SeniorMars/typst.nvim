@@ -2,7 +2,7 @@
   "generated_by": "typst.config.docs",
   "entries": [
     { "path": "allow_external_output", "type": "boolean", "default": "false" },
-    { "path": "api", "type": "list", "default": "{}" },
+    { "path": "api.experimental_warnings", "type": "boolean", "default": "false" },
     { "path": "bibliography.attachment_fields", "type": "list", "default": "{ \"pdf\", \"file\", \"attachment\" }" },
     { "path": "bibliography.attachment_paths", "type": "list", "default": "{ \"{key}.pdf\", \"attachments/{key}.pdf\", \"pdf/{key}.pdf\" }" },
     { "path": "bibliography.completion", "type": "string", "default": "\"auto\"" },
@@ -110,7 +110,8 @@
     { "path": "diagnostics.font_scan_timeout_ms", "type": "number", "default": "250" },
     { "path": "diagnostics.fonts", "type": "boolean", "default": "true" },
     { "path": "diagnostics.list", "type": "string", "default": "\"quickfix\"" },
-    { "path": "diagnostics.max_buffers_per_publish", "type": "integer", "default": "256" },
+    { "path": "diagnostics.max_external_buffers", "type": "integer", "default": "256" },
+    { "path": "diagnostics.overflow", "type": "string", "default": "\"quickfix-only\"" },
     { "path": "diagnostics.source", "type": "string", "default": "\"fallback\"" },
     { "path": "diagnostics.use_quickfix", "type": "boolean", "default": "false" },
     { "path": "executable", "type": "string", "default": "\"typst\"" },

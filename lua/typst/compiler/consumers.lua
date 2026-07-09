@@ -1,11 +1,11 @@
 local log = require("typst.core.log")
 local notify_user = require("typst.core.notify").user
-local util = require("typst.core.util")
+local path_util = require("typst.core.path")
 
 local M = {}
 
 local function viewer_module()
-    return require("typst.viewer")
+    return require("typst.viewer.generic")
 end
 
 local function preview_module()
@@ -105,7 +105,7 @@ local function open_viewer(project, notify)
         if path ~= false then
             notify_user(
                 notify,
-                ("Opened %s"):format(util.relpath(path, project.root))
+                ("Opened %s"):format(path_util.relpath(path, project.root))
             )
         end
         return path

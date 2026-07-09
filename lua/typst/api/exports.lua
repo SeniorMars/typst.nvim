@@ -10,6 +10,8 @@ local last_global_install = {
     installed = {},
     skipped = {},
 }
+local warned_experimental_symbols = {}
+local wrapped_experimental_functions = setmetatable({}, { __mode = "k" })
 
 ---@class TypstApiNamespaceSpec
 ---@field name string
@@ -101,13 +103,15 @@ local function install_namespace(api, namespace, notify)
         or nil
 
     for public_name, entry in pairs(normalize_method_map(namespace.methods)) do
-        if type(entry) == "table" and entry.custom then
-            target[public_name] = custom_methods[entry.custom]
-        elseif factory and type(entry) == "string" then
-            target[public_name] = factory(entry)
-        else
-            local source = source_for(namespace, entry)
-            target[public_name] = lazy(source.module, source.method)
+        if target[public_name] == nil then
+            if type(entry) == "table" and entry.custom then
+                target[public_name] = custom_methods[entry.custom]
+            elseif factory and type(entry) == "string" then
+                target[public_name] = factory(entry)
+            else
+                local source = source_for(namespace, entry)
+                target[public_name] = lazy(source.module, source.method)
+            end
         end
     end
 
@@ -251,6 +255,78 @@ local function experimental_symbols(api)
     return sorted_unique(experimental)
 end
 
+local function stable_symbol_set(api)
+    local stable = {}
+    for _, name in ipairs(stable_symbols(api)) do
+        stable[name] = true
+    end
+    return stable
+end
+
+local function experimental_warnings_enabled()
+    local ok, config = pcall(require, "typst.config")
+    if not ok or type(config) ~= "table" then
+        return false
+    end
+    local current = config.unsafe_get()
+    return type(current) == "table"
+        and type(current.api) == "table"
+        and current.api.experimental_warnings == true
+end
+
+local function warn_experimental_symbol(symbol, notify)
+    if
+        warned_experimental_symbols[symbol]
+        or not experimental_warnings_enabled()
+    then
+        return
+    end
+
+    warned_experimental_symbols[symbol] = true
+    local message = ("typst.nvim Lua API %s is experimental"):format(symbol)
+    log_global("warn", message, {
+        symbol = symbol,
+        stable_symbols = "require('typst').stable_symbols()",
+    })
+    if type(notify) == "function" then
+        pcall(notify, message, vim.log.levels.WARN)
+    end
+end
+
+local function wrap_experimental(symbol, fn, notify)
+    if type(fn) ~= "function" then
+        return fn
+    end
+    if wrapped_experimental_functions[fn] then
+        return fn
+    end
+    local wrapped = function(...)
+        warn_experimental_symbol(symbol, notify)
+        return fn(...)
+    end
+    wrapped_experimental_functions[wrapped] = {
+        symbol = symbol,
+        wrapped = fn,
+    }
+    return wrapped
+end
+
+local function wrap_installed_experimental_symbols(api, notify)
+    local stable = stable_symbol_set(api)
+    for _, namespace in ipairs(api_spec.namespaces or {}) do
+        local target = api[namespace.name]
+        if type(target) == "table" then
+            for public_name in pairs(normalize_method_map(namespace.methods)) do
+                local symbol = namespace.name .. "." .. public_name
+                if not stable[symbol] then
+                    target[public_name] =
+                        wrap_experimental(symbol, target[public_name], notify)
+                end
+            end
+        end
+    end
+end
+
 --- Install v:lua globals owned by the public API spec.
 ---
 --- Globals are process-wide. typst.nvim only installs names with the
@@ -361,6 +437,7 @@ function M.install(api, notify)
     for _, namespace in ipairs(api_spec.namespaces) do
         install_namespace(api, namespace, notify)
     end
+    wrap_installed_experimental_symbols(api, notify)
 
     M.install_globals()
 
@@ -375,6 +452,14 @@ function M.install(api, notify)
     api.experimental_symbols = function()
         return experimental_symbols(api)
     end
+end
+
+function M.experimental_wrapper(symbol, fn, notify)
+    return wrap_experimental(symbol, fn, notify)
+end
+
+function M.reset_experimental_warnings()
+    warned_experimental_symbols = {}
 end
 
 M.spec = api_spec

@@ -77,7 +77,6 @@ end
 
 local cache_reset_required = {
     artifacts = true,
-    completion_context = true,
     completion_packages = true,
     formatting = true,
     import_scan = true,
@@ -88,6 +87,30 @@ local cache_reset_required = {
     state = true,
     symbol = true,
 }
+local migration_duplicates = manifest.migration_duplicate_policy()
+assert(
+    type(migration_duplicates) == "table",
+    "reset manifest should expose migration duplicate policy"
+)
+assert(
+    next(migration_duplicates) == nil,
+    "reset manifest migration duplicate policy should be empty"
+)
+for name, policy in pairs(migration_duplicates) do
+    assert(
+        type(policy.overlaps_with) == "string" and policy.overlaps_with ~= "",
+        "migration duplicate entries need an overlapping owner: " .. name
+    )
+    assert(
+        type(policy.reason) == "string" and policy.reason ~= "",
+        "migration duplicate entries need a reason: " .. name
+    )
+    assert(
+        type(policy.remove_when) == "string" and policy.remove_when ~= "",
+        "migration duplicate entries need a deletion or stabilization plan: "
+            .. name
+    )
+end
 local cache_reset_seen = {}
 for _, entry in ipairs(entries_by_phase.clear_derived_caches or {}) do
     cache_reset_seen[entry.name] = true
@@ -102,6 +125,64 @@ for name in pairs(cache_reset_required) do
         "reset manifest missing cache reset owner: " .. name
     )
 end
+for name in pairs(migration_duplicates) do
+    local overlaps_with = migration_duplicates[name].overlaps_with
+    assert(
+        cache_reset_seen[name],
+        "migration duplicate policy references missing reset entry: " .. name
+    )
+    assert(
+        by_name[overlaps_with] ~= nil,
+        "migration duplicate policy references missing overlap owner: "
+            .. overlaps_with
+    )
+end
+
+local completion_entry = (by_name.completion or {})[1]
+assert(
+    completion_entry
+        and completion_entry.phase == "runtime_hooks"
+        and completion_entry.loaded_only ~= true,
+    "completion should be the single reset owner for completion submodule caches"
+)
+assert(
+    cache_reset_seen.completion_context == nil,
+    "completion_context should not be a separate reset manifest entry"
+)
+
+local original_completion = package.loaded["typst.completion"]
+local original_completion_context =
+    package.loaded["typst.completion.context"]
+local completion_context_resets = 0
+package.loaded["typst.completion"] = nil
+package.loaded["typst.completion.context"] = {
+    reset = function()
+        completion_context_resets = completion_context_resets + 1
+        return {
+            ok = true,
+            reset = true,
+        }
+    end,
+}
+local completion_only_reset = manifest.reset_runtime_hooks({}, {
+    ["core.events"] = true,
+    ["preview.follow_buffer"] = true,
+    ["project.lifecycle"] = true,
+    ["project.attachments"] = true,
+    conceal = true,
+    diagnostics = true,
+})
+assert(
+    completion_only_reset.completion
+        and completion_only_reset.completion.ok == true,
+    "completion runtime reset should run as the single completion cache owner"
+)
+assert(
+    completion_context_resets == 1,
+    "completion runtime reset should clear loaded completion.context"
+)
+package.loaded["typst.completion"] = original_completion
+package.loaded["typst.completion.context"] = original_completion_context
 
 local runtime_owned_reset_entries = {
     completion = true,
@@ -118,6 +199,14 @@ for name in pairs(runtime_owned_reset_entries) do
             .. name
     )
 end
+local conceal_source = table.concat(
+    vim.fn.readfile(root .. "/lua/typst/conceal/init.lua"),
+    "\n"
+)
+assert(
+    not conceal_source:find("metadata%.reset%(", 1),
+    "conceal.reset should not reset metadata; reset manifest owns metadata"
+)
 
 for _, entry in ipairs(entries_by_phase.stop_resources or {}) do
     assert(

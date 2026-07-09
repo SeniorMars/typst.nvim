@@ -8,6 +8,7 @@ local process = require("typst.core.process")
 local tinymist = require("typst.integrations.tinymist")
 
 local original_tinymist_clients = tinymist.clients
+local original_tinymist_select_client = tinymist.select_client
 local original_follow_resolve = follow.resolve
 local original_system = vim.system
 
@@ -18,29 +19,37 @@ local ok, err = xpcall(function()
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "alpha" })
     completion_lsp.reset()
     local lsp_callback = nil
+    local fake_client = {
+        id = 99,
+        name = "tinymist",
+        offset_encoding = "utf-16",
+        supports_method = function()
+            return true
+        end,
+        request = function(_, method, _params, callback, request_bufnr)
+            assert(
+                method == "textDocument/completion",
+                "completion should issue Tinymist completion request"
+            )
+            assert(
+                request_bufnr == bufnr,
+                "completion should pass request buffer"
+            )
+            lsp_callback = callback
+            return true, 1
+        end,
+    }
     tinymist.clients = function(client_bufnr)
         assert(client_bufnr == bufnr, "completion should request target buffer")
+        return { fake_client }
+    end
+    tinymist.select_client = function(opts)
+        assert(opts.bufnr == bufnr, "completion should select target buffer")
         return {
-            {
-                id = 99,
-                name = "tinymist",
-                offset_encoding = "utf-16",
-                supports_method = function()
-                    return true
-                end,
-                request = function(_, method, _params, callback, request_bufnr)
-                    assert(
-                        method == "textDocument/completion",
-                        "completion should issue Tinymist completion request"
-                    )
-                    assert(
-                        request_bufnr == bufnr,
-                        "completion should pass request buffer"
-                    )
-                    lsp_callback = callback
-                    return true, 1
-                end,
-            },
+            ok = true,
+            provider = "tinymist",
+            client = fake_client,
+            clients = { fake_client },
         }
     end
 
@@ -151,6 +160,7 @@ local ok, err = xpcall(function()
 end, debug.traceback)
 
 tinymist.clients = original_tinymist_clients
+tinymist.select_client = original_tinymist_select_client
 follow.resolve = original_follow_resolve
 vim.system = original_system
 completion_lsp.reset()

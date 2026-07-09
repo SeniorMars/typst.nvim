@@ -28,6 +28,11 @@ local function config()
     return typst_config.unsafe_get().structural_actions
 end
 
+local function request_project(bufnr, opts)
+    return type(opts.project) == "table" and opts.project
+        or clients.project_for_buffer(bufnr)
+end
+
 local function params(bufnr, client, opts)
     opts = opts or {}
     local text_document = vim.lsp.util.make_text_document_params(bufnr)
@@ -83,20 +88,24 @@ local function matches_patterns(action, patterns)
     return false
 end
 
-local function has_async_code_action_client(bufnr)
-    for _, client in ipairs(clients.clients(bufnr)) do
-        if
-            type(client.request) == "function"
-            and clients.supports_method(
-                client,
-                "textDocument/codeAction",
-                bufnr
-            )
-        then
-            return true
-        end
-    end
-    return false
+local function select_code_action_client(bufnr, opts)
+    return clients.select_client({
+        bufnr = bufnr,
+        project = request_project(bufnr, opts or {}),
+        method = "textDocument/codeAction",
+        request = "async",
+    })
+end
+
+local function selection_failure(selection, fallback_message)
+    return vim.tbl_extend("force", {
+        ok = false,
+        provider = "tinymist",
+        reason = "unsupported",
+        actions = {},
+        message = fallback_message
+            or "Tinymist code actions require an asynchronous client",
+    }, selection or {})
 end
 
 local function action_command(action)
@@ -119,14 +128,9 @@ function M.code_actions(bufnr, opts)
     local actions = {}
 
     if type(opts.callback) == "function" then
-        if not has_async_code_action_client(bufnr) then
-            opts.callback({
-                ok = false,
-                provider = "tinymist",
-                reason = "unsupported",
-                actions = {},
-                message = "Tinymist code actions require an asynchronous client",
-            })
+        local selected = select_code_action_client(bufnr, opts)
+        if not selected.ok then
+            opts.callback(selection_failure(selected))
             return nil
         end
 
@@ -387,13 +391,12 @@ function M.structural_action(action_name, opts)
 
     if type(opts.callback) == "function" then
         local callback = opts.callback
-        if not has_async_code_action_client(bufnr) then
-            local result = {
-                ok = false,
-                reason = "unsupported",
-                provider = "tinymist",
-                message = "Tinymist structural actions require an asynchronous client",
-            }
+        local selected = select_code_action_client(bufnr, opts)
+        if not selected.ok then
+            local result = selection_failure(
+                selected,
+                "Tinymist structural actions require an asynchronous client"
+            )
             callback(result)
             return result
         end
@@ -417,12 +420,9 @@ function M.structural_action(action_name, opts)
         )
     end
 
-    if not clients.available(bufnr) then
-        return {
-            ok = false,
-            reason = "no_client",
-            message = "Tinymist Neovim LSP client is not attached",
-        }
+    local selected = select_code_action_client(bufnr, opts)
+    if not selected.ok then
+        return selected
     end
 
     return async_required("textDocument/codeAction")

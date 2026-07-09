@@ -45,6 +45,7 @@ end
 local notify = require("typst.core.notify").default
 
 api_exports.install(M, notify)
+M.report = api_exports.experimental_wrapper("report", M.report, notify)
 
 --- Initialize typst.nvim for the current Neovim session.
 ---@param opts? table User configuration merged by `typst.config.setup`.
@@ -63,7 +64,10 @@ end
 ---@param opts? table Reset controls such as `force` and `keep_telemetry`.
 ---@return table|nil summary Lifecycle reset summary from project-resource cleanup.
 function M.reset(opts)
-    return runtime_setup.reset(opts)
+    local summary = runtime_setup.reset(opts)
+    api_exports.reset_experimental_warnings()
+    return summary
 end
+M.reset = api_exports.experimental_wrapper("reset", M.reset, notify)
 
 return M

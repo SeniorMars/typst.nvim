@@ -62,7 +62,9 @@ Optional integrations:
   `"off"` to stay on fallback paths, or `"start"` to force
   typst.nvim-managed nvim-lsp startup even when Coc is present. Set
   `integrations.tinymist.client_names` to detect custom nvim-lsp wrapper
-  client names. `:checkhealth
+  client names. In multi-root sessions, an attached native Tinymist client must
+  have either no `root_dir` or a root compatible with the current typst.nvim
+  project before it satisfies project-local availability. `:checkhealth
   typst` reports the selected mode, detected native Tinymist clients,
   advertised capabilities, the Coc skip reason, and the last project-local
   ensure reason such as `missing_executable`, `detect`, `disabled`, or `coc`.
@@ -114,7 +116,7 @@ Feature stability is grouped by workflow, not by module directory:
 | --- | --- | --- |
 | Core workflow | Setup, project discovery, main-file control, compile/watch/stop, diagnostics, viewer dispatch, status/info/log/cache/lock commands. | Supported user workflow; regressions should be treated as bugs. |
 | Editor workflow | Completion adapters, TOC/pickers, folds, motions, text objects, conceal, formatting, lint, grammar, and structural transforms. | Supported, but quality can depend on Tree-sitter, Typst CLI, Tinymist, and configured providers. |
-| Integration workflow | Tinymist, native preview, typst-preview.nvim delegation, custom providers, export/render/eval/profile/test/bench/coverage helpers. | Supported where configured; provider contracts may still tighten before a stable release. |
+| Integration workflow | Tinymist, native preview, typst-preview.nvim delegation, custom providers, export/render/eval/profile/test/bench/coverage helpers. | Available but deliberately narrower than the stable core. Preview/render/export/semantic/source-map and development workflow providers remain experimental while core lifecycle contracts harden. |
 | Lua API | Exact dotted symbols in the stable-symbol block of [API.md](API.md). | Stable at the current API level. Installed helpers outside that list are experimental. |
 | Internals | Service tables, resolver/index/preview sessions, resource supervision, generated metadata loaders, and cache registries. | Internal; use commands or documented Lua wrappers instead of depending on these shapes. |
 
@@ -372,7 +374,7 @@ require("typst").setup({
     source = "fallback",
     use_quickfix = true,
     -- "bufadd" enables vim.diagnostic for unopened external files up to
-    -- max_buffers_per_publish. Use "quickfix-only" on large/remote trees.
+    -- max_external_buffers. Use "quickfix-only" on large/remote trees.
     external_paths = "bufadd",
   },
 })
@@ -504,6 +506,8 @@ require("typst").setup({
       -- and skips startup when coc.nvim/coc-tinymist appears active.
       -- Use "detect" for passive existing-client queries, "off" to disable,
       -- or "start" to force nvim-lsp startup.
+      -- Existing clients are reused only when their root matches the project,
+      -- or when the client has no root_dir.
       lsp = "auto",
       client_names = { "tinymist" },
       path = "tinymist",
@@ -521,7 +525,8 @@ require("typst").setup({
     use_quickfix = false,
     list = "quickfix",
     external_paths = "bufadd",
-    max_buffers_per_publish = 16,
+    max_external_buffers = 16,
+    overflow = "quickfix-only",
     fonts = true,
     font_scan_timeout_ms = 250,
   },
@@ -1122,7 +1127,10 @@ current-buffer word and character counts plus project index cache hit/miss
 statistics; `statusline({ words = true })` appends the word count. The status
 string is read through the active compiler provider's `status(project)` method.
 Pass `{ telemetry = true }` to include the same performance telemetry summary
-reported by `:TypstTelemetry`.
+reported by `:TypstTelemetry`. Completion records per-source timings such as
+`completion.source.lsp`, `completion.source.project`, and
+`completion.source.stdlib` so hot-path regressions are visible without guessing
+which source dominated a request.
 `:TypstStatus` echoes the compact current-project status, and `:TypstStatus!`
 echoes the compact table for every registered Typst project. `:TypstStatusAll`
 does the same explicitly, and `:TypstStatusAll!` opens the all-project report in
@@ -1260,7 +1268,9 @@ When `root` is not configured, table keys also act as root hints, so subprojects
 inside a larger Git repository can resolve before the `.git` marker is used. A
 throwing `root` or `main` callback is caught, logged, and treated as no match so
 the remaining resolvers can continue; typst.nvim does not leave a half-attached
-buffer because a user resolver failed. A
+buffer because a user resolver failed. `root` and `main` callbacks must return
+`nil`/`false` to decline or a non-empty string path. Other truthy return values
+are ignored with a warning and the remaining resolvers continue. A
 `.typstmain` file contains the main path relative to the file's directory,
 either as a bare path or `main = path`. `:TypstToggleMain` switches the current
 buffer between local-main mode and the resolved project main. Set
@@ -1900,9 +1910,17 @@ Diagnostics for files outside the current buffer follow
 
 | Mode | Behavior |
 | --- | --- |
-| `"bufadd"` | Default. Creates unloaded buffers for external diagnostic paths, capped by `diagnostics.max_buffers_per_publish`, so `vim.diagnostic` can own them. |
+| `"bufadd"` | Default. Creates unloaded buffers for external diagnostic paths, capped by `diagnostics.max_external_buffers`, so `vim.diagnostic` can own them. |
 | `"quickfix-only"` | Keeps unopened-file diagnostics in quickfix/location lists without typst.nvim-created hidden buffers. Use this for large, generated, remote, or package-heavy projects. |
 | `"open-files-only"` | Publishes diagnostics only for already loaded files and reports skipped external paths in `:TypstInfo!`. |
+
+With `"bufadd"`, `diagnostics.max_external_buffers = 0` means typst.nvim
+creates no hidden buffers for unopened diagnostic paths; those diagnostics are
+preserved as quickfix/location-list items when
+`diagnostics.overflow = "quickfix-only"`. Use
+`diagnostics.overflow = "drop"` to discard capped unopened-file diagnostics.
+The old `diagnostics.max_buffers_per_publish` option remains a deprecated alias
+for `diagnostics.max_external_buffers` during this migration window.
 
 - Optional JSONL file logging is local-only and disabled by default. If enabled,
   the raw log file may contain absolute paths in structured fields; generated
@@ -1923,9 +1941,11 @@ Diagnostics for files outside the current buffer follow
   keep compiler diagnostics beside semantic diagnostics.
 - Unexpected hidden buffers after a build: the default
   `diagnostics.external_paths = "bufadd"` creates unloaded buffers for external
-  diagnostic paths up to `diagnostics.max_buffers_per_publish` so
-  `vim.diagnostic` can own them. Use `"quickfix-only"` to keep unopened-file
-  diagnostics in quickfix/location lists, or `"open-files-only"` to skip
+  diagnostic paths up to `diagnostics.max_external_buffers` so
+  `vim.diagnostic` can own them. Set `max_external_buffers = 0` to create no
+  hidden diagnostic buffers, keep `overflow = "quickfix-only"` to preserve
+  capped diagnostics in quickfix/location lists, use `overflow = "drop"` to
+  discard capped unopened-file diagnostics, or use `"open-files-only"` to skip
   unopened external files.
 - coc.nvim is active and native Tinymist did not start: configure
   `coc-tinymist` through Coc settings, or set

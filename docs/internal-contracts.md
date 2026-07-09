@@ -21,9 +21,12 @@ the target line before passing them to Neovim APIs.
 Diagnostic parsing may `bufadd()` unloaded files so Neovim can own diagnostics
 for files outside the current window. To avoid unbounded hidden-buffer growth
 from malformed provider output, new diagnostic buffers are capped by
-`diagnostics.max_buffers_per_publish`; diagnostics for already accepted buffers
-continue to publish within the same batch. Set the cap to `0` to disable it.
-The cap applies to parser-created hidden buffers. `diagnostics.external_paths`
+`diagnostics.max_external_buffers`; diagnostics for already accepted buffers
+continue to publish within the same batch. Set the cap to `0` to disable hidden
+buffer creation for unopened diagnostic paths. Cap-skipped diagnostics are
+preserved as quickfix-only items when `diagnostics.overflow = "quickfix-only"`,
+or dropped when `diagnostics.overflow = "drop"`. The cap
+applies to parser-created hidden buffers. `diagnostics.external_paths`
 can opt out of parser-created buffers: `"quickfix-only"` keeps unopened-file
 diagnostics as quickfix/location-list items without tracking them as
 `vim.diagnostic` buffers, while `"open-files-only"` skips unopened files
@@ -34,6 +37,31 @@ quickfix reopen commands can rebuild the list after a user-owned quickfix
 replacement.
 Providers that return native `by_buffer` diagnostics are expected to supply
 valid existing buffer numbers and are not path-expanded by the parser.
+
+## Tinymist Client Selection
+
+Tinymist feature modules should select clients through
+`typst.integrations.tinymist.clients.select_client()`. The selector owns LSP
+mode policy, root compatibility, async request support, method support, and
+structured failure reasons: `lsp_off`, `no_client`, `wrong_root`, and
+`unsupported`. Feature modules may still expose raw client lists for reporting,
+but user-facing requests must not hand-roll root or capability checks.
+
+## Dependency Churn
+
+`typst.core.util` is a compatibility convenience, not the preferred dependency
+boundary for new code. When a module is already being edited, replace broad
+`core.util` imports with direct imports such as `core.path`, `core.buffer`,
+`core.command`, or `core.files` when that keeps the patch local. Do not churn
+unrelated modules solely to remove `core.util`; dependency clarity should fall
+out of nearby maintenance work.
+
+## Completion Pipeline
+
+Completion source telemetry is the current decision surface. Do not rewrite the
+completion pipeline, source ordering, or frontend adapters until telemetry shows
+a concrete hot path or user-visible latency problem. Small source-local fixes
+are fine; broad completion orchestration changes need timing evidence.
 
 ## Public Project Snapshots
 
@@ -101,6 +129,23 @@ cancel attempt so late process exits cannot mutate stale project/cache state.
 `resources.session.global_snapshot()` is the runtime-wide liveness surface for
 global operation counts and blockers. New long-running work should still prefer
 a project operation record or resource-session owner when a project exists.
+Operation handles expose the same lifecycle tags and result observer shape as
+`typst.core.pending` handles: `handle:on_result(function(result, handle) ... end)`.
+New async owners should use that observer shape when they do not need
+operation-specific process metadata.
+
+Provider-returned pending handles are intentionally bridged through
+`typst.integrations.provider_lifecycle`, not directly through
+`typst.core.operation`. The bridge owns timeout cancellation, duplicate callback
+suppression, normalized public handle fields, and `pending=true` provider
+handle observation. Full provider/operation convergence is deferred until it
+removes an older provider lifecycle path in the same change.
+
+Watch jobs are split deliberately: `typst.core.operation` owns the external
+watch process stop/settle lifecycle, while `compiler.watch.state` and
+`compiler.watch.runner` own stream queues, compile-cycle parsing, dependency
+polling, and per-cycle diagnostic publication. Watch cycle state is Typst-domain
+state and must not be hidden inside the generic operation object.
 
 ## Buffer Path Selection
 

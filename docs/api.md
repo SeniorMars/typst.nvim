@@ -37,6 +37,8 @@ Prefer structured namespaces for new code, but do not treat an installed
 namespace as stable by itself. Stable symbols are the exact dotted names
 returned by `typst.stable_symbols()`. Installed helpers outside that list are
 reported by `typst.experimental_symbols()` before 1.0.
+Set `api.experimental_warnings = true` in setup to log and notify once per
+experimental Lua symbol when it is called.
 
 Mixed namespaces currently contain the stable workflow entry points:
 

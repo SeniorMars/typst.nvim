@@ -3,6 +3,13 @@ local coordinates = require("typst.core.coordinates")
 
 local M = {}
 
+local function project_for_buffer(bufnr)
+    local ok, project = pcall(require, "typst.project")
+    if ok and type(project.get) == "function" then
+        return project.get(bufnr)
+    end
+end
+
 local function normalize_location(value, encoding)
     local location = vim.islist(value) and value[1] or value
     if not location then
@@ -40,23 +47,12 @@ function M.can_request_async(bufnr, opts)
         return false
     end
 
-    for _, client in ipairs(tinymist.clients(bufnr)) do
-        if type(client.request) == "function" then
-            if type(client.supports_method) ~= "function" then
-                return true
-            end
-            local ok, supported = pcall(
-                client.supports_method,
-                client,
-                "textDocument/definition",
-                bufnr
-            )
-            if ok and supported ~= false then
-                return true
-            end
-        end
-    end
-    return false
+    return tinymist.select_client({
+        bufnr = bufnr,
+        project = project_for_buffer(bufnr),
+        method = "textDocument/definition",
+        request = "async",
+    }).ok == true
 end
 
 function M.definition(bufnr, opts)

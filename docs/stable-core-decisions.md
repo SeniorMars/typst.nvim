@@ -12,7 +12,11 @@ files, which is the most complete default workflow.
 
 The behavior is intentionally visible and bounded:
 
-- `diagnostics.max_buffers_per_publish` caps hidden buffer creation.
+- `diagnostics.max_external_buffers` caps hidden buffer creation.
+- `diagnostics.max_external_buffers = 0` means no hidden buffers are created
+  for unopened diagnostic paths; those diagnostics are kept as quickfix-only
+  items when `diagnostics.overflow = "quickfix-only"`.
+- `diagnostics.overflow = "drop"` discards capped unopened-file diagnostics.
 - `:checkhealth typst` reports the current policy and cap.
 - `:TypstInfo!` and `:TypstBugReport` include publish metadata.
 - `quickfix-only` is the recommended profile for large projects, generated
@@ -83,12 +87,20 @@ colors, and richer semantic navigation are supported editor workflows. They
 must degrade to structured unavailable results when no compatible Tinymist
 client exists. coc-tinymist remains an ownership boundary in `"auto"` mode:
 typst.nvim should detect it and avoid stealing LSP startup ownership.
+Project-local native Tinymist availability is root-aware: a configured-name
+client with a different `root_dir` does not satisfy a project, while a rootless
+client remains compatible because Neovim may attach single-file or externally
+managed clients without root metadata.
 
 ## Compatibility Functions
 
 Global compatibility functions and installed experimental helpers remain
 available through the reset phase. They are not stable unless they appear in
 the `API.md` stable-symbol block and `require("typst").stable_symbols()`.
+Broad experimental namespaces stay in place for pre-1.0 compatibility and are
+controlled by `experimental_symbols()` plus opt-in
+`api.experimental_warnings = true`; typst.nvim is not adding a parallel
+`typst.experimental.*` tree during stable-core hardening.
 Owned Neovim expression callbacks are limited to the documented
 `typst_nvim_omnifunc`, `typst_nvim_indentexpr`, `typst_nvim_formatexpr`,
 `typst_nvim_foldexpr`, and `typst_nvim_foldtext` globals. typst.nvim does not
@@ -110,3 +122,12 @@ DSL, broad picker framework, new event bus, or generated-docs pipeline for
 internal modules during stable-core hardening. These may be reconsidered only
 with a deletion plan and contract tests proving that older overlapping paths
 were removed.
+
+Provider breadth is frozen during stable-core hardening. Existing provider
+kinds remain available, but `typst.integrations.provider_contract` must classify
+each kind as `core`, `supported`, or `experimental`. The first stable-provider
+target is deliberately small: compiler/viewer are core, format/lint are
+supported, and preview/render/export/semantic/source-map/grammar/development
+workflow providers stay experimental until their lifecycle and result contracts
+settle. New experimental workflows require a matching deletion or stabilization
+plan before they are added.

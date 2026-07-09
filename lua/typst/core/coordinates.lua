@@ -1,4 +1,4 @@
-local util = require("typst.core.util")
+local buffer_util = require("typst.core.buffer")
 local windows = require("typst.core.windows")
 
 local M = {}
@@ -28,7 +28,7 @@ end
 
 function M.line_text_for_file(path, row)
     if path then
-        local loaded = util.loaded_buffer_for_path(path)
+        local loaded = buffer_util.loaded_buffer_for_path(path)
         if loaded then
             return M.line_text(loaded, row)
         end

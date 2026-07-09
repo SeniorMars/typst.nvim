@@ -59,9 +59,15 @@ failures are reported in the relevant section instead of throwing:
     compiler = true,
     source = "fallback",
     external_paths = "bufadd",
+    max_external_buffers = 256,
+    overflow = "quickfix-only",
   },
 }
 ```
+
+`diagnostics.max_buffers_per_publish` is accepted as a deprecated setup-time
+alias for `diagnostics.max_external_buffers`; new configs should use
+`max_external_buffers`.
 
 Within API level 1, only the stable functions listed below, command names,
 event names, provider kinds, and result-table fields are additive unless the
@@ -84,7 +90,9 @@ helpers such as artifact workflows, completion, editing transforms, metadata,
 provider registry helpers, preview helpers, development workflows, and
 `reset()` are demoted to experimental unless they appear in the stable symbol
 list below. Use `stable_symbols()` and `experimental_symbols()` to audit the
-current tier of an installed helper.
+current tier of an installed helper. Set
+`api.experimental_warnings = true` during development to log and notify once
+per experimental Lua symbol when it is called.
 
 ## Compatibility Policy
 
@@ -105,7 +113,9 @@ Stable API changes follow these rules:
   deliberately removed with a migration note.
 - Provider kinds are part of the public API. New provider kinds must update
   `docs/provider-contracts.md`, provider contract tests, and the CI provider
-  matrix in the same patch.
+  matrix in the same patch. During stable-core hardening, every kind must also
+  be classified as `core`, `supported`, or `experimental`; new experimental
+  workflows require an explicit stabilization or deletion plan.
 
 The release gate for this policy is `tests/run_api_stability.sh`, which checks
 the runtime symbol lists against this document, command docs, alias policy, and
@@ -223,7 +233,9 @@ below to distinguish stable, experimental, and internal surfaces.
 
 Use `require("typst").stable_symbols()` to inspect the exact stable dotted
 symbol list. Use `require("typst").experimental_symbols()` to audit installed
-helpers that are intentionally not part of the stable API contract yet.
+helpers that are intentionally not part of the stable API contract yet. Opt in
+to runtime warnings with `api.experimental_warnings = true` if you want local
+configs or plugins to surface accidental dependencies on experimental helpers.
 
 The following lists are checked in CI against the installed Lua API. Update the
 code and this document together when the public symbol surface changes.
@@ -894,8 +906,9 @@ the copy, and renames it into place on success.
 `tinymist test --coverage`, and `bench(opts)` runs `crityp` by default when the
 executables are available. Each returns an async result with `command`, `stdout`,
 `stderr`, `code`, and an optional report buffer. Provider kinds are `profile`,
-`test`, `bench`, and `coverage`, and custom providers still override the default
-commands.
+`test`, `bench`, and `coverage`; these are experimental workflow providers
+while the compile/view/preview core hardens. Custom providers still override the
+default commands.
 
 Semantic helpers expose stable commands around Tinymist/LSP behavior:
 `inlay_hints_toggle(opts)`, `code_action(opts)`, `color_info(opts)`,
@@ -1635,10 +1648,10 @@ The plugin emits these public `User` events:
 - `TypstEventConfigChanged`
 - `TypstEventProjectAttach`
 - `TypstEventBufferDetach`
-- `TypstEventProjectDetach`
+- `TypstEventProjectDetach` (deprecated alias of `TypstEventBufferDetach`)
 - `TypstEventProjectPruned`
 - `TypstEventCompileStarted`
-- `TypstEventCompiling`
+- `TypstEventCompiling` (deprecated alias of `TypstEventCompileStarted`)
 - `TypstEventCompileSuccess`
 - `TypstEventCompileFailed`
 - `TypstEventCompileStopped`
@@ -1690,9 +1703,11 @@ event includes `finalization_ok = false` and `finalization_error`; successful
 attach events include `finalization_ok = true`. Buffer detach events add
 `event_kind`, `bufnr`, `buffer`, `reason`, `remaining_buffers`, and
 `project_pruned`. `TypstEventBufferDetach` is the precise event for a buffer
-leaving a project. `TypstEventProjectDetach` remains a compatibility alias for
-that buffer-detach moment. `TypstEventProjectPruned` fires only when an empty
-project is removed from typst.nvim's registry and includes `event_kind`,
+leaving a project. `TypstEventProjectDetach` remains a deprecated compatibility
+alias for that same buffer-detach moment; it does not mean the project registry
+entry was removed. `TypstEventCompiling` remains a deprecated compatibility
+alias for `TypstEventCompileStarted`. `TypstEventProjectPruned` fires only when
+an empty project is removed from typst.nvim's registry and includes `event_kind`,
 `reason`, `remaining_buffers`, and `project_pruned`.
 `TypstEventCompilerForceCleared` includes `key_display`, `output`,
 `released_lease`, `stopped`, `forced`, `discarded`, `reason`, and

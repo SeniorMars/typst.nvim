@@ -23,13 +23,6 @@ local function async_required(method)
     }
 end
 
-local function normalize_bufnr(bufnr)
-    if bufnr == nil or bufnr == 0 then
-        return vim.api.nvim_get_current_buf()
-    end
-    return bufnr
-end
-
 local function protected_callback(callback, result)
     local ok, err = pcall(callback, result)
     if not ok then
@@ -128,13 +121,12 @@ end
 ---@param method string LSP method name.
 ---@return boolean supported True when any attached Tinymist client supports it.
 function M.supports(bufnr, method)
-    bufnr = normalize_bufnr(bufnr)
-    for _, client in ipairs(clients.clients(bufnr)) do
-        if clients.supports_method(client, method, bufnr) then
-            return true
-        end
-    end
-    return false
+    bufnr = clients.normalize_bufnr(bufnr)
+    return clients.select_client({
+        bufnr = bufnr,
+        project = clients.project_for_buffer(bufnr),
+        method = method,
+    }).ok == true
 end
 
 --- Send a guarded Tinymist request and normalize the raw response.
@@ -144,7 +136,7 @@ end
 ---@param callback? fun(result:table) Callback that receives the normalized result.
 ---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.request(bufnr, method, opts, callback)
-    bufnr = normalize_bufnr(bufnr)
+    bufnr = clients.normalize_bufnr(bufnr)
     opts = opts or {}
     callback = callback or opts.callback
     if type(callback) ~= "function" then
@@ -188,7 +180,7 @@ end
 ---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.document_highlight(bufnr, opts)
     opts = opts or {}
-    local target = normalize_bufnr(bufnr)
+    local target = clients.normalize_bufnr(bufnr)
     return M.request(bufnr, "textDocument/documentHighlight", {
         callback = opts.callback,
         client = opts.client,
@@ -266,7 +258,7 @@ end
 ---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.signature_help(bufnr, opts)
     opts = opts or {}
-    local target = normalize_bufnr(bufnr)
+    local target = clients.normalize_bufnr(bufnr)
     return M.request(bufnr, "textDocument/signatureHelp", {
         callback = opts.callback,
         client = opts.client,
@@ -313,7 +305,7 @@ end
 ---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.color_presentation(bufnr, opts)
     opts = opts or {}
-    local target = normalize_bufnr(bufnr)
+    local target = clients.normalize_bufnr(bufnr)
     local callback = opts.callback
     if type(callback) ~= "function" then
         return async_required("textDocument/colorPresentation")
@@ -391,7 +383,7 @@ end
 ---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.selection_range(bufnr, opts)
     opts = opts or {}
-    local target = normalize_bufnr(bufnr)
+    local target = clients.normalize_bufnr(bufnr)
     return M.request(bufnr, "textDocument/selectionRange", {
         callback = opts.callback,
         client = opts.client,
@@ -421,7 +413,7 @@ end
 ---@return table|typst.ProviderCancelHandle|typst.ProviderResult|nil result Pending handle or immediate failure payload.
 function M.on_enter(bufnr, opts)
     opts = opts or {}
-    local target = normalize_bufnr(bufnr)
+    local target = clients.normalize_bufnr(bufnr)
     return M.request(bufnr, "experimental/onEnter", {
         callback = opts.callback,
         client = opts.client,

@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local typst = require("typst")
 local project_services = require("typst.project.services")
+local buffer = require("typst.core.buffer")
 local util = require("typst.core.util")
 typst.reset()
 typst.setup({
@@ -128,14 +129,17 @@ end)
 place_on("target-func")
 local actions = typst.context.open({ open = false, semantic = false })
 local original_loaded_buffer_for_path = util.loaded_buffer_for_path
+local original_buffer_loaded_buffer_for_path = buffer.loaded_buffer_for_path
 local loaded_buffer_lookups = {}
-util.loaded_buffer_for_path = function(path)
+local function tracked_loaded_buffer_for_path(path)
     if path then
         local key = util.path_key(path)
         loaded_buffer_lookups[key] = (loaded_buffer_lookups[key] or 0) + 1
     end
     return original_loaded_buffer_for_path(path)
 end
+util.loaded_buffer_for_path = tracked_loaded_buffer_for_path
+buffer.loaded_buffer_for_path = tracked_loaded_buffer_for_path
 local callback_refs = nil
 local refs_ok, pending = pcall(
     context.execute,
@@ -150,6 +154,7 @@ local refs_ok, pending = pcall(
 )
 
 util.loaded_buffer_for_path = original_loaded_buffer_for_path
+buffer.loaded_buffer_for_path = original_buffer_loaded_buffer_for_path
 vim.lsp.get_clients = old_get_clients
 assert(refs_ok, pending)
 assert(pending and pending.pending, "definition references should be async")
