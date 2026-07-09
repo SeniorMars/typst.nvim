@@ -1,3 +1,5 @@
+local core_result = require("typst.core.result")
+
 local M = {}
 
 local function symbol(endpoint)
@@ -27,13 +29,13 @@ end
 
 function M.error_payload(endpoint, reason, message, fields)
     return vim.tbl_extend("force", {
-        ok = false,
-        reason = reason or "runtime_error",
-        message = message or reason or "Typst runtime API error",
         operation = symbol(endpoint),
         namespace = endpoint and endpoint.namespace or nil,
         method = endpoint and endpoint.name or nil,
-    }, fields or {})
+    }, core_result.failed(
+        reason or "runtime_error",
+        message or reason or "Typst runtime API error"
+    ), fields or {})
 end
 
 function M.route_resolution_error(endpoint, err, callback, notify, opts)

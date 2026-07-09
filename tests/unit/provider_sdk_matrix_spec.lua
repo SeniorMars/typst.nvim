@@ -51,12 +51,13 @@ local function provider_for(case_id)
         end
     end
 
-    if case_id == "raw_handle_timeout" then
+    if case_id == "pending_handle_timeout" then
         return function()
             return {
+                pending = true,
                 path = "/tmp/typst.nvim-provider-handle.pdf",
                 cancel = function(_, opts)
-                    observed.raw_handle_timeout_cancel_opts = opts
+                    observed.pending_handle_timeout_cancel_opts = opts
                     return true, { stopped = true }
                 end,
             }
@@ -114,7 +115,8 @@ local function invoke_case(case)
         on_result = function(item)
             callbacks[#callbacks + 1] = item
         end,
-        return_mode = case.id == "raw_handle_timeout" and "handle" or nil,
+        return_mode = case.id == "pending_handle_timeout" and "handle"
+            or nil,
     })
     return result, callbacks
 end
@@ -141,12 +143,13 @@ for _, case in ipairs(contract.fixture_cases()) do
     elseif case.expected == "pending" then
         assert(result.pending == true, case.id .. " should return pending")
     elseif case.expected == "timeout" then
-        assert(result.path, case.id .. " should expose raw handle")
+        assert(result.pending == true, case.id .. " should expose pending handle")
+        assert(result.path, case.id .. " should preserve handle metadata")
         local terminal = wait_for_callback(callbacks)
         assert(terminal.reason == "timeout", case.id .. " should time out")
         assert(
-            observed.raw_handle_timeout_cancel_opts
-                and observed.raw_handle_timeout_cancel_opts.reason
+            observed.pending_handle_timeout_cancel_opts
+                and observed.pending_handle_timeout_cancel_opts.reason
                     == "timeout",
             case.id .. " should pass timeout cancel options"
         )
@@ -183,7 +186,7 @@ for _, required in ipairs({
     "callback_success",
     "callback_failure",
     "returned_pending_handle",
-    "raw_handle_timeout",
+    "pending_handle_timeout",
     "cancellation_before_completion",
     "duplicate_callback",
     "thrown_provider_error",

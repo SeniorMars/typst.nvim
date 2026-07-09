@@ -195,6 +195,40 @@ function M.start(project, callback, run_config)
             cleanup = function()
                 output_ownership.release(lease)
             end,
+            on_settle = function(result)
+                if
+                    type(result) == "table"
+                    and (
+                        result.orphaned == true
+                        or result.retained == true
+                        or result.orphan_retained == true
+                    )
+                then
+                    local compiler_state = compiler_service.get(project) or {}
+                    local stopping = compiler_state.stopping_compile
+                    if
+                        compiler_state.process_operation == compile_operation
+                        or (
+                            stopping
+                            and stopping.operation == compile_operation
+                        )
+                    then
+                        compiler_service.finish_stop_unconfirmed(
+                            project,
+                            vim.tbl_extend("force", {
+                                deps_path = deps_path,
+                                stale = false,
+                            }, result)
+                        )
+                    end
+                    return
+                end
+                compiler_process.finish_stopped_compile(
+                    project,
+                    handle,
+                    result
+                )
+            end,
             on_finish = function(result)
                 if
                     compiler_process.finish_stopped_compile(

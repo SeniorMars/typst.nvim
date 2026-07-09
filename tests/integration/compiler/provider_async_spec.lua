@@ -23,7 +23,7 @@ local provider = {
             run_config.compile.profile,
         }
         typst_test_compiler(project).last_cwd = project.root
-        return { kind = "compile", pid = 5101 }
+        return { kind = "compile", pid = 5101, pending = true }
     end,
     start = function(project, callback, run_config)
         callbacks.watch = callback
@@ -34,13 +34,13 @@ local provider = {
             run_config.compile.profile,
         }
         typst_test_compiler(project).last_cwd = project.root
-        return { kind = "watch", pid = 5102 }
+        return { kind = "watch", pid = 5102, pending = true }
     end,
     stop = function(_project, callback)
         if callback then
             callback({ code = 0, stale = false, stopped = true })
         end
-        return { kind = "stop", pid = 5103 }
+        return nil
     end,
     status = function(project)
         return "async-" .. typst_test_compiler(project).status
@@ -325,13 +325,13 @@ assert(
 local timeout_provider = {
     name = "timeout-provider",
     compile = function()
-        return { kind = "compile-timeout" }
+        return { kind = "compile-timeout", pending = true }
     end,
     start = function()
-        return { kind = "watch-timeout" }
+        return { kind = "watch-timeout", pending = true }
     end,
     stop = function()
-        return { kind = "stop-timeout" }
+        return { kind = "stop-timeout", pending = true }
     end,
     status = function(project)
         return "timeout-" .. typst_test_compiler(project).status
@@ -520,16 +520,16 @@ local late_provider = {
     name = "late-callback-provider",
     compile = function(_project, callback)
         late_callback = callback
-        return { kind = "late-callback-compile" }
+        return { kind = "late-callback-compile", pending = true }
     end,
     start = function()
-        return { kind = "late-callback-watch" }
+        return { kind = "late-callback-watch", pending = true }
     end,
     stop = function(_project, callback)
         if callback then
             callback({ code = 0, stopped = true, stale = false })
         end
-        return { kind = "late-callback-stop" }
+        return nil
     end,
     status = function(project_state)
         return "late-" .. typst_test_compiler(project_state).status
@@ -938,7 +938,7 @@ for _, case in ipairs({
             return { code = 0, stale = false }
         end,
         start = function()
-            return { kind = "watch-" .. case.reason }
+            return { kind = "watch-" .. case.reason, pending = true }
         end,
         stop = function(_project, callback)
             callback({
@@ -948,7 +948,7 @@ for _, case in ipairs({
                 stopped = false,
                 reason = case.reason,
             })
-            return { kind = "stop-" .. case.reason }
+            return nil
         end,
         status = function()
             return "watching"

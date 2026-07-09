@@ -3,6 +3,7 @@ local compiler_events = require("typst.compiler.events")
 local async = require("typst.core.async")
 local log = require("typst.core.log")
 local process = require("typst.core.process")
+local core_result = require("typst.core.result")
 local compiler_service = require("typst.project.services.compiler")
 
 local M = {}
@@ -145,26 +146,6 @@ function M.terminate_handle(handle, label, fields)
     return true, nil, timer
 end
 
---- Add a callback to an in-flight compile stop transition.
----@param stopping TypstStoppingCompile Stopping compile record stored in project compiler state.
----@param callback? fun(result:TypstCompilerResult) Callback invoked when the stop settles.
-function M.add_stop_callback(stopping, callback)
-    if callback then
-        stopping.callbacks[#stopping.callbacks + 1] = callback
-    end
-end
-
---- Add a callback to an in-flight watch stop transition.
----@param watcher TypstCompilerWatcher Watcher state stored in project compiler state.
----@param callback? fun(result:TypstCompilerResult) Callback invoked when the stop settles.
-function M.add_watcher_stop_callback(watcher, callback)
-    if type(callback) ~= "function" then
-        return
-    end
-    watcher.stop_callbacks = watcher.stop_callbacks or {}
-    watcher.stop_callbacks[#watcher.stop_callbacks + 1] = callback
-end
-
 local function protected_stop_callback(kind, callback, payload)
     local ok, err = pcall(callback, payload)
     if not ok then
@@ -174,18 +155,68 @@ local function protected_stop_callback(kind, callback, payload)
     end
 end
 
---- Drain callbacks for a completed watcher stop exactly once.
----@param watcher TypstCompilerWatcher? Watcher state stored in project compiler state.
----@param payload TypstCompilerResult Stop result passed to each callback.
-function M.drain_watcher_stop_callbacks(watcher, payload)
-    local callbacks = watcher and watcher.stop_callbacks or {}
-    if watcher then
-        watcher.stop_callbacks = nil
+local function stop_payload(defaults, result)
+    local payload = vim.tbl_extend(
+        "force",
+        defaults or {},
+        type(result) == "table" and result or {}
+    )
+    if payload.stopped == nil then
+        payload.stopped = payload.ok ~= false
+            and payload.pending ~= true
+            and payload.orphaned ~= true
+            and payload.retained ~= true
+            and payload.orphan_retained ~= true
+            and not core_result.is_unconfirmed_stop(payload)
+    end
+    return payload
+end
+
+local function compile_stop_payload(stopping, result)
+    return stop_payload({
+        deps_path = stopping and stopping.deps_path or nil,
+        stale = false,
+    }, result)
+end
+
+local function operation_stop_callback(operation_handle)
+    if
+        operation_handle
+        and type(operation_handle.on_settle) == "function"
+    then
+        return "on_settle"
+    end
+    if
+        operation_handle
+        and type(operation_handle.on_result) == "function"
+    then
+        return "on_result"
+    end
+end
+
+--- Add a callback to an in-flight compile stop transition.
+---@param stopping TypstStoppingCompile Stopping compile record stored in project compiler state.
+---@param callback? fun(result:TypstCompilerResult) Callback invoked when the stop settles.
+function M.add_stop_callback(stopping, callback)
+    if type(callback) ~= "function" then
+        return
     end
 
-    for _, stop_callback in ipairs(callbacks) do
-        protected_stop_callback("watcher", stop_callback, payload)
+    local callback_method =
+        stopping and operation_stop_callback(stopping.operation) or nil
+    if callback_method then
+        stopping.operation[callback_method](stopping.operation, function(result)
+            protected_stop_callback(
+                "compile",
+                callback,
+                compile_stop_payload(stopping, result)
+            )
+        end)
+        return
     end
+
+    stopping.callbacks = stopping.callbacks or {}
+    stopping.callbacks[#stopping.callbacks + 1] = callback
 end
 
 --- Finish a pending one-shot compile stop if the exiting handle matches it.
@@ -232,11 +263,7 @@ function M.finish_stopped_compile(project, handle, result)
     end
     compiler_service.set(project, fields)
 
-    local payload = vim.tbl_extend("force", result or {}, {
-        deps_path = stopping.deps_path,
-        stale = false,
-        stopped = true,
-    })
+    local payload = compile_stop_payload(stopping, result)
     if stopping.exit_cleanup then
         log.add(
             "debug",
@@ -253,7 +280,9 @@ function M.finish_stopped_compile(project, handle, result)
     )
     compiler_events.stopped(project, payload)
 
-    for _, stop_callback in ipairs(stopping.callbacks) do
+    local callbacks = stopping.callbacks or {}
+    stopping.callbacks = nil
+    for _, stop_callback in ipairs(callbacks) do
         protected_stop_callback("compile", stop_callback, payload)
     end
 
@@ -297,6 +326,7 @@ function M.stop_compile_for_exit(project, opts)
     else
         stopping = {
             handle = handle,
+            operation = compiler_state.process_operation,
             deps_path = deps_path,
             callbacks = {},
             kill_timer = nil,

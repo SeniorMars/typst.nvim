@@ -6,6 +6,7 @@ local compiler_fanout = require("typst.compiler.fanout")
 local compiler_output = require("typst.compiler.output")
 local output_path_util = require("typst.compiler.output_path")
 local compiler_watch = require("typst.compiler.watch.state")
+local watch_stop = require("typst.compiler.watch.stop")
 local compiler_process = require("typst.compiler.typst_process")
 local log = require("typst.core.log")
 local operation = require("typst.core.operation")
@@ -71,7 +72,7 @@ local function finish_stopping_watcher(project, watcher, result, payload)
     )
     log.add("info", "watch stopped", { code = result.code })
     compiler_events.stopped(project, payload)
-    compiler_process.drain_watcher_stop_callbacks(watcher, payload)
+    watch_stop.drain_callbacks(watcher, payload)
 end
 
 ---@param project TypstProject Project whose watcher exited.
@@ -433,6 +434,40 @@ function M.start(project, callback, run_config)
             project_key = project.key,
             cleanup = function()
                 output_ownership.release(lease)
+            end,
+            on_settle = function(result)
+                local active_watcher =
+                    (compiler_service.get(project) or {}).watcher
+                if
+                    active_watcher ~= watcher_state
+                    or not watcher_state.stopping
+                then
+                    return
+                end
+                if
+                    type(result) == "table"
+                    and (
+                        result.orphaned == true
+                        or result.retained == true
+                        or result.orphan_retained == true
+                    )
+                then
+                    local payload = watch_stop.payload(watcher_state, result)
+                    compiler_service.finish_stop_unconfirmed(project, payload)
+                    watch_stop.drain_callbacks(watcher_state, payload)
+                    log.add("warn", "watch stop could not be confirmed", {
+                        main = project.main,
+                        reason = payload.reason,
+                    })
+                    return
+                end
+                finish_watcher(
+                    project,
+                    watcher_state,
+                    deps_path,
+                    result,
+                    callback
+                )
             end,
             on_finish = function(result)
                 finish_watcher(

@@ -25,7 +25,7 @@ local provider = {
         typst_test_compiler(project).last_cwd = project.root
         typst_test_compiler(project).last_profile = run_config.compile.profile
         callback({ code = 0, stale = false })
-        return { provider = "test" }
+        return nil
     end,
     start = function(project, callback, run_config)
         calls[#calls + 1] =
@@ -38,7 +38,7 @@ local provider = {
         )
         typst_test_compiler(project).last_profile = run_config.compile.profile
         watch_callback = callback
-        return { provider = "test" }
+        return { provider = "test", pending = true }
     end,
     stop = function(project, callback)
         calls[#calls + 1] = { method = "stop" }
@@ -125,8 +125,8 @@ local handle = typst.compiler.compile({ profile = "custom" }, function(result)
     compile_done = true
 end)
 assert(
-    handle.provider == "test",
-    "custom provider compile handle was not returned"
+    handle and handle.code == 0,
+    "custom provider compile should return the synchronous terminal result"
 )
 assert(compile_done, "custom provider compile callback did not run")
 assert(calls[1].method == "compile", "custom compile provider was not used")
@@ -367,8 +367,8 @@ assert(
     replaced
         and replaced.restart == true
         and replaced.next_handle
-        and replaced.next_handle.provider == "test",
-    "custom compile should return a restart handle tracking the replacement compile"
+        and replaced.next_handle.code == 0,
+    "custom compile should return a restart result tracking the replacement compile"
 )
 assert(
     calls[5].method == "stop",
@@ -396,10 +396,10 @@ local failing_provider = {
             stderr = "boom",
             stale = false,
         })
-        return { provider = "failing" }
+        return nil
     end,
     start = function()
-        return { provider = "failing-watch" }
+        return { provider = "failing-watch", pending = true }
     end,
     stop = function(_, callback)
         if callback then
@@ -422,8 +422,8 @@ typst.setup({
 })
 local failing_handle = typst.compiler.compile()
 assert(
-    failing_handle and failing_handle.provider == "failing",
-    "failing provider handle should be returned"
+    failing_handle and failing_handle.code == 1,
+    "failing provider terminal result should be returned"
 )
 assert(
     typst_test_compiler(project).status == "error",
@@ -468,16 +468,16 @@ local normalized_provider = {
     name = "normalized-provider",
     compile = function(_, callback)
         callback({ ok = true, stale = false })
-        return { provider = "normalized-ok" }
+        return nil
     end,
     start = function()
-        return { provider = "normalized-watch" }
+        return { provider = "normalized-watch", pending = true }
     end,
     stop = function(_, callback)
         if callback then
             callback({ stopped = true, stale = false })
         end
-        return { provider = "normalized-stop" }
+        return nil
     end,
     status = function()
         return typst_test_compiler(project).status
@@ -510,7 +510,7 @@ assert(
 
 normalized_provider.compile = function(_, callback)
     callback({ ok = false, stderr = "normalized boom", stale = false })
-    return { provider = "normalized-failed" }
+    return nil
 end
 typst.setup({
     root = root,
@@ -553,16 +553,16 @@ local idle_restart_provider = {
     compile = function(_, callback)
         idle_restart_calls[#idle_restart_calls + 1] = "compile"
         callback({ ok = true, stale = false })
-        return { provider = "idle-restart-compile" }
+        return nil
     end,
     start = function()
         idle_restart_calls[#idle_restart_calls + 1] = "start"
-        return { provider = "idle-restart-watch" }
+        return { provider = "idle-restart-watch", pending = true }
     end,
     stop = function(_, callback)
         idle_restart_calls[#idle_restart_calls + 1] = "stop"
         callback({ idle = true, stale = false })
-        return { provider = "idle-restart-stop" }
+        return nil
     end,
     status = function()
         return typst_test_compiler(project).status
@@ -584,7 +584,7 @@ assert(
     idle_restarted
         and idle_restarted.restart == true
         and idle_restarted.next_handle
-        and idle_restarted.next_handle.provider == "idle-restart-compile",
+        and idle_restarted.next_handle.ok == true,
     "idle stop result should allow the replacement compile to start"
 )
 assert(

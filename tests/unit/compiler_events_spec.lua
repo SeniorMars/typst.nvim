@@ -49,7 +49,7 @@ local pattern, payload = compiler_events.payload("cycle_success", {
     stdout = "must not leak",
 })
 assert(
-    pattern == "TypstCompileSuccess",
+    pattern == "TypstEventCompileSuccess",
     "cycle success should use success event"
 )
 assert(payload.event_kind == "cycle_success", "cycle kind should be normalized")

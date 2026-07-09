@@ -247,8 +247,18 @@ local function run(kind, mode, project, callback, run_config)
         output = ctx.output,
     })
     local state = {
+        _typst_lifecycle_handle = true,
+        _typst_pending_handle = true,
+        _typst_handle_contract = "pending",
         provider = kind,
         mode = mode,
+        kind = ("compiler-%s-%s"):format(kind, mode),
+        pending = true,
+        finished = false,
+        state = "running",
+        on_finish_style = "colon",
+        _typst_on_finish_style = "colon",
+        _typst_cancel_style = "colon",
         stop_requested = false,
         stop_callback = nil,
         stop_result_sent = false,
@@ -292,6 +302,10 @@ local function run(kind, mode, project, callback, run_config)
                 release_lease(state)
             end,
             on_finish = function(result)
+                state.pending = false
+                state.finished = true
+                state.state = "finished"
+                state.result = result
                 state.process_exited = true
                 if mode == "watch" then
                     result.stdout = state.stdout
@@ -331,6 +345,20 @@ local function run(kind, mode, project, callback, run_config)
         }
     )
     state.handle = state.operation.handle
+    function state:on_finish(cb)
+        if type(cb) ~= "function" then
+            return self
+        end
+        return self.operation:on_result(function(result)
+            return cb(result, self)
+        end)
+    end
+    function state:on_result(cb)
+        return self:on_finish(cb)
+    end
+    function state:cancel(opts, cb)
+        return self.operation:_cancel(opts, cb)
+    end
 
     return state
 end

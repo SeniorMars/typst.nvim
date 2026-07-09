@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local command_util = require("typst.ui.commands.util")
 local log = require("typst.core.log")
+local pending = require("typst.core.pending")
 
 log.clear()
 
@@ -161,6 +162,41 @@ command_util.report_result("TypstUnitPendingErr", {
 assert(
     #notifications == 0,
     "pending nil, err command results should not be reported before completion"
+)
+
+notifications = {}
+local pending_failure = pending.new({ kind = "command-test-failure" })
+command_util.create("TypstUnitPendingFailure", function()
+    return pending_failure
+end, command_util.opts("Unit command pending failure test"))
+vim.cmd("TypstUnitPendingFailure")
+assert(
+    #notifications == 0,
+    "pending command failures should not notify before completion"
+)
+pending_failure:finish({
+    ok = false,
+    reason = "async_failed",
+    message = "Async command failed",
+})
+assert(
+    #notifications == 1 and notifications[1].message == "Async command failed",
+    "pending command failures should notify through command result handling"
+)
+
+notifications = {}
+local pending_success = pending.new({ kind = "command-test-success" })
+command_util.create("TypstUnitPendingSuccess", function()
+    return pending_success
+end, command_util.opts("Unit command pending success test"))
+vim.cmd("TypstUnitPendingSuccess")
+pending_success:finish({
+    ok = true,
+    message = "Async command succeeded",
+})
+assert(
+    #notifications == 0,
+    "pending command success should not warn through command result handling"
 )
 
 notifications = {}

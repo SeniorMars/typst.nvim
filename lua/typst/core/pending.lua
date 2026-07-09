@@ -1,4 +1,5 @@
 local log = require("typst.core.log")
+local core_result = require("typst.core.result")
 
 local M = {}
 
@@ -14,7 +15,7 @@ end
 local function default_cancel_result(opts, stopped)
     return {
         ok = false,
-        reason = opts and opts.reason or "cancelled",
+        reason = opts and opts.reason or core_result.reason.cancelled,
         stopped = stopped ~= false,
     }
 end
@@ -22,7 +23,7 @@ end
 local function cancel_unconfirmed_result(opts)
     return {
         ok = false,
-        reason = "cancel_unconfirmed",
+        reason = core_result.reason.cancel_unconfirmed,
         message = "Pending handle cancel did not confirm shutdown",
         requested_reason = opts and opts.reason or nil,
         stopped = false,
@@ -64,6 +65,22 @@ local function copy_fields(target, fields)
     for key, value in pairs(fields or {}) do
         target[key] = value
     end
+end
+
+local function handle_state(source)
+    if type(source) ~= "table" then
+        return nil
+    end
+    return {
+        id = source.id,
+        kind = source.kind,
+        owner = source.owner,
+        project_key = source.project_key,
+        pending = source.pending == true,
+        finished = source.finished == true or source.state == "finished",
+        state = source.state,
+        result = source.result,
+    }
 end
 
 local function cancel_style(source, opts)
@@ -164,11 +181,20 @@ function M.new(opts)
         end
 
     local handle = {
+        _typst_lifecycle_handle = true,
+        _typst_pending_handle = true,
+        _typst_handle_contract = "pending",
         pending = true,
         finished = false,
+        state = "pending",
+        id = opts.id,
         kind = opts.kind,
+        owner = opts.owner,
+        project_key = opts.project_key,
         handle = source,
         on_finish_style = opts.on_finish_style or "colon",
+        _typst_on_finish_style = opts.on_finish_style or "colon",
+        _typst_cancel_style = opts.cancel_style,
     }
 
     if opts.copy_handle_fields and type(source) == "table" then
@@ -196,11 +222,12 @@ function M.new(opts)
         finished = true
         handle.finished = true
         handle.pending = false
+        handle.state = "finished"
         local ok, result = pcall(complete, raw, handle, source_name)
         if not ok then
             result = {
                 ok = false,
-                reason = "pending_complete_failed",
+                reason = core_result.reason.pending_complete_failed,
                 message = tostring(result),
                 error = tostring(result),
             }
@@ -241,10 +268,15 @@ function M.new(opts)
         end
 
         if finished then
-            return false, handle.result
+            return true,
+                handle.result
+                    or core_result.idle({
+                        already_finished = true,
+                    })
         end
 
         local stopped, result
+        handle.state = "cancelling"
         if type(opts.cancel) == "function" then
             local ok, cancel_stopped, cancel_result =
                 pcall(opts.cancel, handle, cancel_opts, handle.finish)
@@ -258,7 +290,7 @@ function M.new(opts)
                 stopped, result =
                     false, {
                         ok = false,
-                        reason = "cancel_failed",
+                        reason = core_result.reason.cancel_failed,
                         message = tostring(cancel_stopped),
                         stopped = false,
                     }
@@ -274,6 +306,7 @@ function M.new(opts)
         end
 
         if type(result) == "table" and result.pending == true then
+            handle.state = "cancelling"
             return stopped ~= false, result
         end
 
@@ -285,6 +318,50 @@ function M.new(opts)
     end
 
     return handle
+end
+
+---Return whether a value exposes typst.nvim's pending/operation lifecycle shape.
+---@param source any
+---@return boolean
+function M.is_handle(source)
+    return type(source) == "table"
+        and (
+            source._typst_lifecycle_handle == true
+            or source._typst_pending_handle == true
+            or source._typst_operation_handle == true
+            or source.pending == true
+            or type(source.on_finish) == "function"
+            or type(source.on_result) == "function"
+        )
+end
+
+---Return whether a lifecycle handle is terminal.
+---@param source any
+---@return boolean
+function M.finished(source)
+    return type(source) == "table"
+        and (
+            source.finished == true
+            or source.state == "finished"
+            or source.pending == false and source.result ~= nil
+        )
+end
+
+---Return the terminal result for a lifecycle handle when available.
+---@param source any
+---@return any result
+function M.result(source)
+    if type(source) == "table" then
+        return source.result
+    end
+    return nil
+end
+
+---Return a compact lifecycle snapshot for pending and operation handles.
+---@param source any
+---@return table|nil state
+function M.state(source)
+    return handle_state(source)
 end
 
 ---Subscribe to another handle using an explicit on_finish calling convention.
@@ -323,12 +400,44 @@ function M.subscribe(source, callback, opts)
     return false, result
 end
 
+---Subscribe with the converged result callback shape `(result, handle)`.
+---@param source any Pending or operation-like handle.
+---@param callback fun(result:any, handle:any)
+---@param opts? {style?:"colon"|"dot"}
+---@return boolean ok
+---@return any result_or_error
+function M.subscribe_result(source, callback, opts)
+    if type(callback) ~= "function" then
+        return false, "missing pending callback"
+    end
+    if type(source) ~= "table" then
+        return false, "missing pending source"
+    end
+
+    if type(source.on_result) == "function" then
+        local ok, result = pcall(function()
+            return source:on_result(callback)
+        end)
+        if ok then
+            return true, result
+        end
+        return false, result
+    end
+
+    return M.subscribe(source, function(result)
+        callback(result, source)
+    end, opts)
+end
+
 ---Subscribe to a handle that may expose explicit or legacy receiver style.
 ---@param source any Pending source handle.
 ---@param callback function Callback to run when `source` finishes.
 ---@return boolean ok
 ---@return any result_or_error
 function M.subscribe_compatible(source, callback)
+    if type(source) == "table" and type(source.on_result) == "function" then
+        return M.subscribe_result(source, callback)
+    end
     local style = type(source) == "table"
             and (source.on_finish_style or source._typst_on_finish_style)
         or nil

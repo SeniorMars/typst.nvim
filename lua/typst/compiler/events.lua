@@ -11,31 +11,31 @@ local M = {}
 
 local specs = {
     compile_start = {
-        pattern = "TypstCompileStarted",
+        pattern = "TypstEventCompileStarted",
         event_kind = "compile_start",
         compiler_event = "started",
         status = "compiling",
     },
     compile_success = {
-        pattern = "TypstCompileSuccess",
+        pattern = "TypstEventCompileSuccess",
         event_kind = "compile_success",
         compiler_event = "success",
         status = "success",
     },
     compile_failure = {
-        pattern = "TypstCompileFailed",
+        pattern = "TypstEventCompileFailed",
         event_kind = "compile_failure",
         compiler_event = "failed",
         status = "error",
     },
     compile_stopped = {
-        pattern = "TypstCompileStopped",
+        pattern = "TypstEventCompileStopped",
         event_kind = "compile_stopped",
         compiler_event = "stopped",
         status = "idle",
     },
     cycle_start = {
-        pattern = "TypstCompileStarted",
+        pattern = "TypstEventCompileStarted",
         event_kind = "cycle_start",
         compiler_event = "started",
         status = "compiling",
@@ -43,7 +43,7 @@ local specs = {
         watch_status = "watching",
     },
     cycle_success = {
-        pattern = "TypstCompileSuccess",
+        pattern = "TypstEventCompileSuccess",
         event_kind = "cycle_success",
         compiler_event = "success",
         status = "success",
@@ -52,7 +52,7 @@ local specs = {
         last_cycle_status = "success",
     },
     cycle_failure = {
-        pattern = "TypstCompileFailed",
+        pattern = "TypstEventCompileFailed",
         event_kind = "cycle_failure",
         compiler_event = "failed",
         status = "error",

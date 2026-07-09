@@ -1,5 +1,6 @@
 local log = require("typst.core.log")
 local async = require("typst.core.async")
+local core_result = require("typst.core.result")
 local process = require("typst.core.process")
 
 local M = {}
@@ -8,6 +9,7 @@ local uv = vim.uv or vim.loop
 local next_id = 0
 local active = {}
 local retained = {}
+local slot_to_ids = {}
 
 -- Small lifecycle wrapper around vim.system handles.
 --
@@ -16,12 +18,18 @@ local retained = {}
 -- shutdowns remain visible as orphaned operations instead of disappearing.
 ---@class typst.Operation
 ---@field id number
+---@field _typst_lifecycle_handle true
+---@field _typst_operation_handle true
+---@field _typst_handle_contract "operation"
 ---@field kind string
 ---@field state "starting"|"running"|"stopping"|"finished"|"orphaned-running"|"orphaned-retained"|nil
 ---@field pending boolean
+---@field finished boolean
 ---@field generation number|nil
 ---@field owner "global"|"project"|nil Resource-session ownership scope.
 ---@field project_key string|nil Project key when `owner == "project"`.
+---@field slot string|nil Uniqueness slot within the owner scope.
+---@field slot_key string|nil Internal slot index key.
 ---@field command string|nil
 ---@field cwd string|nil
 ---@field stdout string
@@ -40,6 +48,8 @@ local retained = {}
 ---@field exited boolean|nil
 ---@field wait_timeout number|nil
 ---@field _callbacks fun(operation:typst.Operation)[]
+---@field _result_callbacks fun(result:table|nil, operation:typst.Operation)[]
+---@field _settle_callbacks fun(result:table|nil, operation:typst.Operation)[]
 ---@field _cancel_callbacks fun(operation:typst.Operation)[]
 ---@field _timeout_timer any?
 ---@field cleanup fun(self:typst.Operation)?
@@ -58,12 +68,16 @@ local public_result_fields = {
     ok = true,
     code = true,
     signal = true,
+    pending = true,
+    stale = true,
     stdout = true,
     stderr = true,
     reason = true,
     message = true,
     stopped = true,
     forced = true,
+    cancelled = true,
+    timeout = true,
     spawn_failed = true,
     error = true,
     orphaned = true,
@@ -76,6 +90,82 @@ local public_result_fields = {
 
 local close_timer = async.close_timer
 local schedule = async.schedule
+
+local function operation_slot_key(owner, project_key, slot)
+    if type(owner) == "table" then
+        local operation = owner
+        owner = operation.owner
+        project_key = operation.project_key
+        slot = operation.slot
+    end
+    if type(slot) ~= "string" or slot == "" then
+        return nil
+    end
+    owner = owner or "global"
+    if owner == "project" then
+        return ("project:%s:%s"):format(project_key or "", slot)
+    end
+    return ("global::%s"):format(slot)
+end
+
+local function release_slot(operation)
+    local key = operation.slot_key or operation_slot_key(operation)
+    local ids = key and slot_to_ids[key] or nil
+    if not ids then
+        return
+    end
+    for index = #ids, 1, -1 do
+        if ids[index] == operation.id or not active[ids[index]] then
+            table.remove(ids, index)
+        end
+    end
+    if #ids == 0 then
+        slot_to_ids[key] = nil
+    end
+end
+
+local function active_slot_owner(key)
+    local ids = key and slot_to_ids[key] or nil
+    if not ids then
+        return nil
+    end
+    for index = #ids, 1, -1 do
+        local candidate = active[ids[index]]
+        if candidate then
+            return candidate
+        end
+        table.remove(ids, index)
+    end
+    if #ids == 0 then
+        slot_to_ids[key] = nil
+    end
+    return nil
+end
+
+local function register_slot(operation)
+    local key = operation_slot_key(operation)
+    operation.slot_key = key
+    if key then
+        local existing = active_slot_owner(key)
+        local ids = slot_to_ids[key] or {}
+        slot_to_ids[key] = ids
+        if existing and existing ~= operation then
+            operation.slot_collision = true
+            log.add("warn", "operation slot collision", {
+                slot = operation.slot,
+                owner = operation.owner or "global",
+                project_key = operation.project_key,
+                existing_id = existing.id,
+                existing_kind = existing.kind,
+                new_id = operation.id,
+                new_kind = operation.kind,
+            })
+            return false, existing
+        end
+        ids[#ids + 1] = operation.id
+    end
+    return true
+end
 
 local function copy_result_fields(operation, result)
     result = type(result) == "table" and result or {}
@@ -126,11 +216,52 @@ local function protected_callback(operation, callback)
     end
 end
 
+local function protected_result_callback(operation, callback)
+    local ok, err = pcall(callback, operation.result, operation)
+    if not ok then
+        log.add("warn", "operation result callback failed", {
+            id = operation.id,
+            kind = operation.kind,
+            error = err,
+        })
+    end
+end
+
+local function protected_settle_callback(operation, callback)
+    local ok, err = pcall(callback, operation.result, operation)
+    if not ok then
+        log.add("warn", "operation settle callback failed", {
+            id = operation.id,
+            kind = operation.kind,
+            error = err,
+        })
+    end
+end
+
 local function run_callbacks(operation)
     local callbacks = callbacks_snapshot(operation._callbacks)
     operation._callbacks = {}
     for _, callback in ipairs(callbacks) do
         protected_callback(operation, callback)
+    end
+
+    local result_callbacks = callbacks_snapshot(operation._result_callbacks)
+    operation._result_callbacks = {}
+    for _, callback in ipairs(result_callbacks) do
+        protected_result_callback(operation, callback)
+    end
+end
+
+local function run_settle_callbacks(operation)
+    if operation._settled == true then
+        return
+    end
+    operation._settled = true
+
+    local settle_callbacks = callbacks_snapshot(operation._settle_callbacks)
+    operation._settle_callbacks = {}
+    for _, callback in ipairs(settle_callbacks) do
+        protected_settle_callback(operation, callback)
     end
 end
 
@@ -229,6 +360,47 @@ function Operation:on_finish(callback)
     return self
 end
 
+--- Register a converged lifecycle callback that receives `(result, operation)`.
+---
+--- This mirrors `typst.core.pending` result callbacks while preserving the
+--- older operation-specific `on_finish(operation)` API.
+---@param callback fun(result:table|nil, operation:typst.Operation)
+---@return typst.Operation operation This operation, for chaining.
+function Operation:on_result(callback)
+    if type(callback) ~= "function" then
+        return self
+    end
+
+    if terminal_state(self.state) then
+        protected_result_callback(self, callback)
+    else
+        self._result_callbacks[#self._result_callbacks + 1] = callback
+    end
+
+    return self
+end
+
+--- Register a callback for stop settlement rather than real process finish.
+---
+--- Normal finishes settle and finish at the same time. Retained orphans settle
+--- when typst.nvim stops waiting for them, while `on_finish()` still waits for
+--- the underlying process/provider to really exit.
+---@param callback fun(result:table|nil, operation:typst.Operation)
+---@return typst.Operation operation This operation, for chaining.
+function Operation:on_settle(callback)
+    if type(callback) ~= "function" then
+        return self
+    end
+
+    if wait_released_state(self.state) then
+        protected_settle_callback(self, callback)
+    else
+        self._settle_callbacks[#self._settle_callbacks + 1] = callback
+    end
+
+    return self
+end
+
 --- Mark operation as finished and flush lifecycle callbacks.
 --- This finalizes timers, applies result fields, runs cleanup, and captures state in
 --- one pass to keep cancellation and orphan handling consistent.
@@ -253,6 +425,7 @@ function Operation:finish(result)
 
     self.state = "finished"
     self.pending = false
+    self.finished = true
     self.finished_at = uv.hrtime()
     if was_orphaned then
         self.exited = true
@@ -265,9 +438,9 @@ function Operation:finish(result)
     close_timer(self._force_finish_timer)
     active[self.id] = nil
     retained[self.id] = nil
+    release_slot(self)
 
     copy_result_fields(self, result)
-    drain_cancel_callbacks(self)
 
     if type(self.cleanup) == "function" then
         local ok, err = pcall(self.cleanup, self)
@@ -280,6 +453,8 @@ function Operation:finish(result)
         end
     end
 
+    drain_cancel_callbacks(self)
+    run_settle_callbacks(self)
     run_callbacks(self)
     return self
 end
@@ -300,6 +475,7 @@ function Operation:_orphan(result)
     -- preserving late-exit cleanup.
     self.state = "orphaned-running"
     self.pending = true
+    self.finished = false
     self.orphaned = true
     self.orphaned_at = uv.hrtime()
     close_timer(self._timeout_timer)
@@ -359,6 +535,7 @@ function Operation:_retain_orphan(result)
 
     self.state = "orphaned-retained"
     self.pending = false
+    self.finished = false
     self.orphaned = true
     self.orphan_retained = true
     self.retained = true
@@ -368,6 +545,7 @@ function Operation:_retain_orphan(result)
     close_timer(self._force_finish_timer)
     active[self.id] = nil
     retained[self.id] = self
+    release_slot(self)
 
     copy_result_fields(
         self,
@@ -388,6 +566,7 @@ function Operation:_retain_orphan(result)
         error = self.error,
     })
     drain_cancel_callbacks(self)
+    run_settle_callbacks(self)
     return self
 end
 
@@ -424,6 +603,7 @@ function Operation:_abandon(result)
 
     self.abandoned = true
     self.pending = false
+    self.finished = true
     self.finished_at = uv.hrtime()
     self.state = "finished"
     close_timer(self._timeout_timer)
@@ -431,7 +611,10 @@ function Operation:_abandon(result)
     close_timer(self._force_finish_timer)
     active[self.id] = nil
     retained[self.id] = nil
+    release_slot(self)
     self._callbacks = {}
+    self._result_callbacks = {}
+    self._settle_callbacks = {}
     self._cancel_callbacks = {}
     self.cleanup = nil
     self.on_cancel = nil
@@ -457,6 +640,8 @@ function Operation:_quiesce_for_reset(opts)
     opts = opts or {}
     self.reset_quiesced = true
     self._callbacks = {}
+    self._result_callbacks = {}
+    self._settle_callbacks = {}
     self._cancel_callbacks = {}
     if opts.keep_cleanup ~= true then
         self.cleanup = nil
@@ -490,10 +675,13 @@ function Operation:_cancel(opts, callback)
         wait = false,
     }, opts or {})
     if self.state == "finished" then
+        local idle = core_result.idle({
+            already_finished = true,
+        })
         if type(callback) == "function" then
-            callback(true, { stopped = true, idle = true })
+            callback(true, idle)
         end
-        return true, { stopped = true, idle = true }
+        return true, idle
     end
 
     if
@@ -534,9 +722,9 @@ function Operation:_cancel(opts, callback)
             stopped = true,
         })
         if type(callback) == "function" then
-            callback(true, { stopped = true, idle = true })
+            callback(true, core_result.idle({ already_finished = true }))
         end
-        return true, { stopped = true, idle = true }
+        return true, core_result.idle({ already_finished = true })
     end
 
     if opts.wait then
@@ -687,10 +875,18 @@ function M.new(kind, opts)
         id = next_operation_id(),
         kind = kind or "operation",
         state = "starting",
+        _typst_lifecycle_handle = true,
+        _typst_operation_handle = true,
+        _typst_handle_contract = "operation",
+        on_finish_style = "colon",
+        _typst_on_finish_style = "colon",
+        _typst_cancel_style = "colon",
         pending = true,
+        finished = false,
         generation = opts.generation,
         owner = opts.owner,
         project_key = opts.project_key,
+        slot = opts.slot,
         command = opts.command,
         cwd = opts.cwd,
         stdout = "",
@@ -699,6 +895,8 @@ function M.new(kind, opts)
         on_cancel = opts.on_cancel,
         on_cancel_failed = opts.on_cancel_failed,
         _callbacks = {},
+        _result_callbacks = {},
+        _settle_callbacks = {},
         _cancel_callbacks = {},
     }, Operation)
     operation.cancel = function(first, second, third)
@@ -709,6 +907,30 @@ function M.new(kind, opts)
     end
 
     active[operation.id] = operation
+    local registered, existing = register_slot(operation)
+    if registered == false then
+        active[operation.id] = nil
+        copy_result_fields(
+            operation,
+            core_result.failed(
+                "slot_collision",
+                "operation slot already has an active owner",
+                {
+                    slot = operation.slot,
+                    owner = operation.owner or "global",
+                    project_key = operation.project_key,
+                    existing_id = existing and existing.id or nil,
+                    existing_kind = existing and existing.kind or nil,
+                    stopped = false,
+                    slot_collision = true,
+                }
+            )
+        )
+        operation.pending = false
+        operation.finished = true
+        operation.state = "finished"
+        operation.finished_at = uv.hrtime()
+    end
     return operation
 end
 
@@ -728,12 +950,19 @@ function M.run(kind, command, opts, handlers)
         generation = handlers.generation,
         owner = handlers.owner,
         project_key = handlers.project_key,
+        slot = handlers.slot,
         cleanup = handlers.cleanup,
         on_cancel = handlers.on_cancel,
         on_cancel_failed = handlers.on_cancel_failed,
     })
     if type(handlers.on_finish) == "function" then
         operation:on_finish(handlers.on_finish)
+    end
+    if type(handlers.on_settle) == "function" then
+        operation:on_settle(handlers.on_settle)
+    end
+    if operation.state == "finished" then
+        return operation
     end
 
     local proc_opts = vim.tbl_extend("force", opts, {})
@@ -860,6 +1089,90 @@ function M.retained()
         out[id] = operation
     end
     return out
+end
+
+--- Return an operation by id from active or retained registries.
+---@param id number|string|nil Operation id.
+---@return typst.Operation|nil operation
+function M.by_id(id)
+    id = tonumber(id)
+    if not id then
+        return nil
+    end
+    return active[id] or retained[id]
+end
+
+--- Return the active operation currently occupying a slot.
+---@param owner_or_opts "global"|"project"|table|nil Owner scope or an option table.
+---@param project_key? string Project key when owner is "project".
+---@param slot? string Slot name.
+---@return typst.Operation|nil operation
+function M.by_slot(owner_or_opts, project_key, slot)
+    if type(owner_or_opts) == "table" then
+        local opts = owner_or_opts
+        owner_or_opts = opts.owner
+        project_key = opts.project_key
+        slot = opts.slot
+    end
+    local key = operation_slot_key(owner_or_opts, project_key, slot)
+    local ids = key and slot_to_ids[key] or nil
+    if not ids then
+        return nil
+    end
+    for index = 1, #ids do
+        local operation = active[ids[index]]
+        if operation then
+            return operation
+        end
+    end
+    slot_to_ids[key] = nil
+    return nil
+end
+
+local function snapshot_record(operation)
+    local handle = operation.handle
+    local pid = type(handle) == "table" and handle.pid or nil
+    return {
+        id = operation.id,
+        kind = operation.kind,
+        state = operation.state,
+        owner = operation.owner,
+        project_key = operation.project_key,
+        slot = operation.slot,
+        generation = operation.generation,
+        pending = operation.pending == true,
+        cancelled = operation.cancelled == true,
+        orphaned = operation.orphaned == true,
+        retained = operation.retained == true
+            or operation.orphan_retained == true,
+        command = operation.command,
+        cwd = operation.cwd,
+        pid = pid,
+        reason = operation.reason,
+        message = operation.message,
+    }
+end
+
+--- Return compact operation records for resource reports.
+---@param opts? {scope?:"global"|"project"|"all",project_key?:string}
+---@return table snapshot
+function M.snapshot(opts)
+    opts = opts or { scope = "all" }
+    opts.scope = opts.scope or "all"
+    local active_records = {}
+    local retained_records = {}
+    for _, operation in ipairs(scoped_values(active, opts)) do
+        active_records[#active_records + 1] = snapshot_record(operation)
+    end
+    for _, operation in ipairs(scoped_values(retained, opts)) do
+        retained_records[#retained_records + 1] = snapshot_record(operation)
+    end
+    return {
+        active = #active_records,
+        retained = #retained_records,
+        records = active_records,
+        retained_records = retained_records,
+    }
 end
 
 --- Cancel every active operation.

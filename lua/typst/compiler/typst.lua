@@ -1,8 +1,10 @@
 local compiler_compile = require("typst.compiler.typst_compile")
 local compiler_process = require("typst.compiler.typst_process")
 local compiler_watcher = require("typst.compiler.watch.runner")
+local watch_stop = require("typst.compiler.watch.stop")
 local compiler_result = require("typst.compiler.state_machine")
 local log = require("typst.core.log")
+local core_result = require("typst.core.result")
 local compiler_service = require("typst.project.services.compiler")
 local restart_handle = require("typst.core.restart_handle")
 
@@ -30,6 +32,87 @@ local function wrap_restart_callback(restart, callback)
             callback(result, ...)
         end
     end
+end
+
+local function idle_stop_result()
+    return core_result.idle({
+        stale = false,
+    })
+end
+
+local function stop_failed_result(err, message)
+    return core_result.failed(
+        core_result.reason.stop_failed,
+        message or "failed to stop compiler process",
+        {
+            error = err,
+            stale = false,
+            stopped = false,
+        }
+    )
+end
+
+local function cancel_watcher_operation(project, watcher, callback)
+    if
+        not watcher
+        or not watcher.operation
+        or type(watcher.operation.cancel) ~= "function"
+    then
+        return false
+    end
+
+    local cancel_ok, stopped, cancel_result = pcall(
+        watcher.operation.cancel,
+        watcher.operation,
+        {
+            reason = "watcher_stop",
+            timeout_ms = 1500,
+            kill_timeout_ms = 1500,
+        }
+    )
+    if not cancel_ok then
+        watcher.stopping = false
+        compiler_service.set(project, { status = "error" })
+        if callback then
+            callback(
+                stop_failed_result(
+                    stopped,
+                    "failed to stop watcher through operation"
+                )
+            )
+        end
+        return true
+    end
+
+    if
+        stopped == true
+        or (
+            type(cancel_result) == "table"
+            and (cancel_result.pending == true or cancel_result.stopping == true)
+        )
+    then
+        if stopped ~= true then
+            log.add("debug", "watcher process SIGTERM sent", {
+                main = project.main,
+                signal_owner = "operation",
+            })
+        end
+        watch_stop.add_callback(watcher, callback)
+        return true
+    end
+
+    watcher.stopping = false
+    compiler_service.set(project, { status = "error" })
+    if callback then
+        callback(
+            stop_failed_result(
+                type(cancel_result) == "table" and cancel_result.error
+                    or cancel_result,
+                "failed to stop watcher"
+            )
+        )
+    end
+    return true
 end
 
 --- Start a built-in one-shot Typst compile, replacing active compiler work.
@@ -184,12 +267,7 @@ function M.stop(project, callback)
         local stopping = (compiler_service.get(project) or {}).stopping_compile
         if not stopping then
             if callback then
-                callback({
-                    code = 0,
-                    stale = false,
-                    stopped = true,
-                    idle = true,
-                })
+                callback(idle_stop_result())
             end
             return nil
         end
@@ -200,6 +278,7 @@ function M.stop(project, callback)
     if compiler_process.active_process(project) then
         local compiler_state = compiler_service.get(project) or {}
         local handle = compiler_state.process
+        local process_operation = compiler_state.process_operation
         local deps_path = compiler_state.active_compile_deps_path
         -- Bump generation before terminating so the old compile's exit callback
         -- cannot publish a result over a newer compile/watch request.
@@ -218,18 +297,14 @@ function M.stop(project, callback)
             log.add("error", "failed to stop compile", { error = err })
             compiler_service.set(project, { status = "error" })
             if callback then
-                callback({
-                    code = 1,
-                    error = err,
-                    stale = false,
-                    stopped = false,
-                })
+                callback(stop_failed_result(err, "failed to stop compile"))
             end
             return handle
         end
 
         local stopping = {
             handle = handle,
+            operation = process_operation,
             deps_path = deps_path,
             callbacks = {},
             kill_timer = kill_timer,
@@ -246,7 +321,7 @@ function M.stop(project, callback)
             status = "idle",
         })
         if callback then
-            callback({ code = 0, stale = false, stopped = true, idle = true })
+            callback(idle_stop_result())
         end
         return nil
     end
@@ -259,20 +334,23 @@ function M.stop(project, callback)
             status = "idle",
         })
         if callback then
-            callback({ code = 0, stale = false, stopped = true, idle = true })
+            callback(idle_stop_result())
         end
         return nil
     end
     if watcher.stopping then
-        compiler_process.add_watcher_stop_callback(watcher, callback)
+        watch_stop.add_callback(watcher, callback)
         log.add("info", "watcher stop already pending", { main = project.main })
         return watcher.handle
     end
 
     compiler_service.set(project, { status = "stopping" })
     watcher.stopping = true
-    compiler_process.add_watcher_stop_callback(watcher, callback)
     log.add("info", "stopping watcher", { main = project.main })
+    if cancel_watcher_operation(project, watcher, callback) then
+        return watcher.handle
+    end
+
     local ok, err, kill_timer = compiler_process.terminate_handle(
         watcher.handle,
         "watcher process",
@@ -285,9 +363,10 @@ function M.stop(project, callback)
         watcher.stop_callbacks = nil
         compiler_service.set(project, { status = "error" })
         if callback then
-            callback({ code = 1, error = err, stale = false, stopped = false })
+            callback(stop_failed_result(err, "failed to stop watcher"))
         end
     else
+        watch_stop.add_callback(watcher, callback)
         watcher.kill_timer = kill_timer
     end
 
@@ -329,12 +408,24 @@ function M.stop_for_exit(project, opts)
         })
     end
 
-    return {
-        code = ok and 0 or 1,
-        stale = false,
-        stopped = stopped,
-        idle = not attempted,
-    }
+    if not attempted then
+        return idle_stop_result()
+    end
+    if ok then
+        return core_result.stopped({
+            stale = false,
+            idle = false,
+        })
+    end
+    return core_result.failed(
+        core_result.reason.shutdown_failed,
+        "failed to stop compiler resources",
+        {
+            stale = false,
+            stopped = stopped,
+            idle = false,
+        }
+    )
 end
 
 --- Return the stored built-in compiler status for a project.

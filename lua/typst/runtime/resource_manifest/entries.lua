@@ -30,7 +30,6 @@ local runtime_hook_entries = {
         owner_key = "completion",
         module = "typst.completion",
         method = "reset",
-        loaded_only = true,
     },
     {
         name = "conceal",
@@ -71,12 +70,6 @@ local cache_reset_entries = {
         name = "formatting",
         module = "typst.formatting",
         method = "reset",
-        optional = true,
-    },
-    {
-        name = "completion_context",
-        module = "typst.completion.context",
-        method = "clear_cache",
         optional = true,
     },
     {
@@ -140,6 +133,10 @@ local cache_reset_entries = {
     },
 }
 
+-- Temporary reset migration debt. This table should stay empty; new overlaps
+-- require a matching policy entry plus a deletion or stabilization plan.
+local migration_duplicate_policy = {}
+
 function M.runtime_hook_entries(exclude)
     local entries = {}
     for _, entry in ipairs(runtime_hook_entries) do
@@ -171,6 +168,10 @@ function M.cache_reset_entries()
         entries[#entries + 1] = item
     end
     return entries
+end
+
+function M.migration_duplicate_policy()
+    return vim.deepcopy(migration_duplicate_policy)
 end
 
 -- Ordered reset ownership manifest. Runtime reset executes these phases in

@@ -6,19 +6,56 @@ local pending = require("typst.core.pending")
 local completed = {}
 local handle = pending.new({
     kind = "unit",
+    owner = "project",
+    project_key = "project-key",
     complete = function(raw)
         return { ok = true, value = raw.value }
     end,
 })
+assert(
+    pending.is_handle(handle) == true
+        and handle._typst_lifecycle_handle == true
+        and handle._typst_pending_handle == true,
+    "pending.new should expose the shared lifecycle handle contract"
+)
+local initial_state = pending.state(handle)
+assert(
+    initial_state
+        and initial_state.pending == true
+        and initial_state.finished == false
+        and initial_state.kind == "unit"
+        and initial_state.project_key == "project-key",
+    "pending state snapshots should expose compact lifecycle metadata"
+)
 handle:on_finish(function(result, finished)
     completed[#completed + 1] = { result = result, handle = finished }
+end)
+local result_style_observed = nil
+pending.subscribe_result(handle, function(done, finished)
+    result_style_observed = { result = done, handle = finished }
 end)
 local result = handle.finish({ value = 42 }, "test")
 assert(result.ok == true and result.value == 42, "finish should normalize raw")
 assert(handle.pending == false, "finish should clear pending")
+assert(handle.state == "finished", "finish should mark lifecycle state")
 assert(handle.result == result, "finish should retain the result")
+assert(pending.result(handle) == result, "pending.result should expose result")
 assert(#completed == 1, "on_finish should run once")
 assert(completed[1].handle == handle, "on_finish should receive the handle")
+assert(
+    result_style_observed
+        and result_style_observed.result == result
+        and result_style_observed.handle == handle,
+    "subscribe_result should use the shared result callback shape"
+)
+local finished_state = pending.state(handle)
+assert(
+    finished_state
+        and finished_state.pending == false
+        and finished_state.finished == true
+        and finished_state.result == result,
+    "pending state snapshots should report terminal results"
+)
 
 local duplicate = handle.finish({ value = 99 }, "duplicate")
 assert(duplicate == result, "duplicate finish should keep first result")
@@ -29,6 +66,16 @@ handle.on_finish(function(done)
     late = done
 end)
 assert(late == result, "late on_finish should run immediately")
+local late_cancel_stopped, late_cancel_result =
+    handle:cancel({ reason = "late_cancel" })
+assert(
+    late_cancel_stopped == true,
+    "cancel after finish should be an idempotent success"
+)
+assert(
+    late_cancel_result == result,
+    "cancel after finish should return the retained result"
+)
 
 local nil_calls = 0
 local nil_duplicates = 0
@@ -58,8 +105,16 @@ assert(nil_handle.finish({ again = true }, "duplicate") == nil)
 assert(nil_calls == 1, "duplicate nil finish should not rerun callbacks")
 assert(nil_duplicates == 1, "duplicate nil finish should be observable")
 local nil_stopped, nil_cancel_result = nil_handle:cancel()
-assert(nil_stopped == false, "finished nil handle should not cancel")
-assert(nil_cancel_result == nil, "finished nil handle should return nil result")
+assert(
+    nil_stopped == true,
+    "finished nil handle cancel should be an idempotent success"
+)
+assert(
+    nil_cancel_result
+        and nil_cancel_result.idle == true
+        and nil_cancel_result.already_finished == true,
+    "finished nil handle cancel should return an idle result"
+)
 
 local cancelled_source_opts = nil
 local cancellable = pending.new({

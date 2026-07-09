@@ -81,13 +81,36 @@ local methods = {
     },
 }
 
+local kind_stability = {
+    compiler = "core",
+    export = "experimental",
+    format = "supported",
+    grammar = "experimental",
+    index = "experimental",
+    init = "experimental",
+    lint = "supported",
+    picker = "experimental",
+    preview = "experimental",
+    render = "experimental",
+    semantic = "experimental",
+    source_map = "experimental",
+    toc = "experimental",
+    viewer = "core",
+
+    bench = "experimental",
+    coverage = "experimental",
+    eval = "experimental",
+    profile = "experimental",
+    test = "experimental",
+}
+
 local fixture_matrix = {
     "synchronous success",
     "synchronous failure",
     "callback success",
     "callback failure",
     "returned pending handle",
-    "raw handle timeout",
+    "pending handle timeout",
     "cancellation before completion",
     "duplicate callback",
     "thrown provider error",
@@ -121,8 +144,8 @@ local fixture_cases = {
         expected = "pending",
     },
     {
-        id = "raw_handle_timeout",
-        label = "raw handle timeout",
+        id = "pending_handle_timeout",
+        label = "pending handle timeout",
         expected = "timeout",
     },
     {
@@ -174,8 +197,8 @@ local conformance_cases = {
         required = true,
     },
     {
-        id = "raw_handle_timeout",
-        label = "timeout or never-callback handle",
+        id = "pending_handle_timeout",
+        label = "timeout or never-callback pending handle",
         required = true,
     },
     {
@@ -270,6 +293,34 @@ function M.kinds()
     return sorted_keys(seen)
 end
 
+local function kinds_by_stability(stability)
+    local out = {}
+    for kind, value in pairs(kind_stability) do
+        if value == stability then
+            out[#out + 1] = kind
+        end
+    end
+    table.sort(out)
+    return out
+end
+
+function M.core_kinds()
+    return kinds_by_stability("core")
+end
+
+function M.supported_kinds()
+    return kinds_by_stability("supported")
+end
+
+function M.experimental_kinds()
+    return kinds_by_stability("experimental")
+end
+
+function M.kind_stability(kind)
+    kind = M.normalize_kind(kind)
+    return kind_stability[kind]
+end
+
 function M.methods(kind)
     kind = M.normalize_kind(kind)
     return vim.deepcopy(methods[kind] or {})
@@ -308,6 +359,10 @@ function M.sdk_contract()
         version = 1,
         aliases = M.aliases(),
         kinds = M.kinds(),
+        core_kinds = M.core_kinds(),
+        supported_kinds = M.supported_kinds(),
+        experimental_kinds = M.experimental_kinds(),
+        kind_stability = vim.deepcopy(kind_stability),
         methods = vim.deepcopy(methods),
         result_contract = M.result_contract(),
         structural_results = M.structural_results(),

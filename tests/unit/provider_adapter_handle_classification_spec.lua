@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local adapter = require("typst.integrations.provider_adapter")
 local log = require("typst.core.log")
+local operation = require("typst.core.operation")
 
 log.clear()
 
@@ -45,16 +46,17 @@ local handle = invoke_returning(cancelable({
 }))
 
 assert(
-    type(handle) == "table" and handle.path == "/tmp/output.pdf",
-    "cancelable path tables should remain provider handles"
+    type(handle) == "table" and handle.reason == "invalid_result",
+    "cancelable path tables without pending=true should be invalid"
 )
 
 local output_handle = invoke_returning(cancelable({
     output = "/tmp/output.pdf",
 }))
 assert(
-    type(output_handle) == "table" and output_handle.output == "/tmp/output.pdf",
-    "cancelable output tables should remain provider handles"
+    type(output_handle) == "table"
+        and output_handle.reason == "invalid_result",
+    "cancelable output tables without pending=true should be invalid"
 )
 
 local diagnostics_handle = invoke_returning(cancelable({
@@ -62,16 +64,17 @@ local diagnostics_handle = invoke_returning(cancelable({
 }))
 assert(
     type(diagnostics_handle) == "table"
-        and diagnostics_handle.diagnostics ~= nil,
-    "cancelable diagnostics tables should remain provider handles"
+        and diagnostics_handle.reason == "invalid_result",
+    "cancelable diagnostics tables without pending=true should be invalid"
 )
 
 local by_buffer_handle = invoke_returning(cancelable({
     by_buffer = {},
 }))
 assert(
-    type(by_buffer_handle) == "table" and by_buffer_handle.by_buffer ~= nil,
-    "cancelable by_buffer tables should remain provider handles"
+    type(by_buffer_handle) == "table"
+        and by_buffer_handle.reason == "invalid_result",
+    "cancelable by_buffer tables without pending=true should be invalid"
 )
 
 local source_map_handle = invoke_returning(
@@ -84,13 +87,13 @@ local source_map_handle = invoke_returning(
 )
 assert(
     type(source_map_handle) == "table"
-        and source_map_handle.path == "/tmp/source.typ",
-    "cancelable provider-specific structural tables should remain handles"
+        and source_map_handle.reason == "invalid_result",
+    "cancelable provider-specific structural tables without pending=true should be invalid"
 )
 
 assert(
-    callback_called == false,
-    "ambiguous cancelable handles should not be completed as results"
+    callback_called == true,
+    "strict-contract violations should complete as invalid results"
 )
 
 local saw_warning = false
@@ -104,7 +107,25 @@ for _, entry in ipairs(log.entries()) do
         break
     end
 end
-assert(saw_warning, "ambiguous provider handles should produce a warning")
+assert(
+    saw_warning == false,
+    "strict-contract violations should not be accepted as ambiguous handles"
+)
+
+callback_called = false
+local explicit_pending_handle = invoke_returning(cancelable({
+    pending = true,
+    path = "/tmp/output.pdf",
+}))
+assert(
+    explicit_pending_handle.pending == true
+        and explicit_pending_handle.path == "/tmp/output.pdf",
+    "structural async handles must be explicit pending handles"
+)
+assert(
+    callback_called == false,
+    "explicit pending handles should not complete until they produce a result"
+)
 
 callback_called = false
 local explicit_result = invoke_returning({
@@ -164,6 +185,14 @@ assert(
     }) == false,
     "invalid scalar handles must not be stored as active lifecycle handles"
 )
+local structural_invalid_class = adapter.classify_return({
+    path = "/tmp/output.pdf",
+})
+assert(
+    structural_invalid_class.invalid_handle == true
+        and structural_invalid_class.kind == "invalid_handle",
+    "plain structural provider tables should be invalid without explicit ok/result fields"
+)
 assert(
     adapter.is_active_handle({ pending = true }, { return_mode = "handle" }),
     "is_active_handle should follow adapter classification"
@@ -174,6 +203,27 @@ assert(
         { return_mode = "handle" }
     ),
     "is_terminal_result should follow adapter classification"
+)
+
+local op = operation.new("provider-adapter-classification")
+local operation_class = adapter.classify_return(op, {
+    return_mode = "handle",
+    expect_handle = true,
+})
+assert(
+    operation_class.active_handle == true
+        and operation_class.invalid_handle == false,
+    "operation handles should satisfy the shared provider handle contract"
+)
+op:finish({ ok = true, code = 0 })
+local finished_operation_class = adapter.classify_return(op, {
+    return_mode = "handle",
+    expect_handle = true,
+})
+assert(
+    finished_operation_class.terminal_result == true
+        and finished_operation_class.active_handle == false,
+    "finished operation handles should classify as terminal results"
 )
 local structural_with_cancel = {
     path = "/tmp/output.pdf",

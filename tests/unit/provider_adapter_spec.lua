@@ -85,6 +85,15 @@ local pending = adapter.invoke(
 )
 assert(pending.pending, "silent async provider should return a pending result")
 assert(
+    pending._typst_provider_lifecycle == true
+        and pending._typst_handle_contract == "provider-pending",
+    "silent async providers should use the shared provider pending lifecycle"
+)
+assert(
+    type(pending.on_result) == "function",
+    "provider lifecycle pending handles should expose on_result"
+)
+assert(
     vim.wait(1000, function()
         return timed_out ~= nil
     end, 5),
@@ -94,10 +103,16 @@ assert(timed_out.reason == "timeout", "silent provider should time out")
 
 ---@type any
 local returned_pending_timeout = nil
+local returned_pending_on_result = nil
+local returned_pending_on_result_handle = nil
+local returned_pending_raw_on_result_called = false
 local returned_pending = adapter.invoke(
     function()
         return {
             pending = true,
+            on_result = function()
+                returned_pending_raw_on_result_called = true
+            end,
             cancel = function()
                 return true, { stopped = true }
             end,
@@ -120,9 +135,25 @@ assert(
     "returned pending provider should return its pending handle"
 )
 assert(
+    returned_pending._typst_provider_lifecycle == true
+        and returned_pending._typst_handle_contract == "provider-pending"
+        and type(returned_pending.on_finish) == "function",
+    "returned provider handles should be wrapped in the shared lifecycle proxy"
+)
+assert(
     adapter.result_like({ pending = true, reason = "starting" }) == false,
     "pending provider handles with reason metadata should not be result-like"
 )
+local returned_pending_finished = nil
+local returned_pending_finished_handle = nil
+returned_pending:on_finish(function(result, handle)
+    returned_pending_finished = result
+    returned_pending_finished_handle = handle
+end)
+returned_pending:on_result(function(result, handle)
+    returned_pending_on_result = result
+    returned_pending_on_result_handle = handle
+end)
 assert(
     vim.wait(1000, function()
         return returned_pending_timeout ~= nil
@@ -132,6 +163,33 @@ assert(
 assert(
     returned_pending_timeout.reason == "timeout",
     "returned pending provider should time out"
+)
+assert(
+    returned_pending_timeout.stopped == true
+        and type(returned_pending_timeout.cancel_result) == "table"
+        and returned_pending_timeout.cancel_result.stopped == true,
+    "provider timeout should preserve confirmed cancellation result"
+)
+assert(
+    returned_pending_finished == returned_pending_timeout,
+    "provider lifecycle proxy should expose the shared on_finish result"
+)
+assert(
+    returned_pending_finished_handle == returned_pending,
+    "provider lifecycle proxy should expose itself as the on_finish handle"
+)
+assert(
+    returned_pending_on_result == returned_pending_timeout
+        and returned_pending_on_result_handle == returned_pending,
+    "provider lifecycle proxy should expose normalized on_result callbacks"
+)
+assert(
+    returned_pending_raw_on_result_called == false,
+    "provider lifecycle proxy should override raw provider on_result callbacks"
+)
+assert(
+    returned_pending.timeout == true and returned_pending.stopped == true,
+    "provider lifecycle proxy should copy canonical timeout/stop fields"
 )
 
 ---@type any
@@ -230,18 +288,25 @@ assert(
     "invalid handle-mode provider returns should become terminal invalid results"
 )
 assert(
+    invalid_handle.contract == "provider-result-v1"
+        and invalid_handle.classification == "invalid_handle",
+    "invalid handle-mode provider returns should include strict contract metadata"
+)
+assert(
     invalid_handle_callback == invalid_handle,
     "invalid handle-mode provider returns should notify through the adapter"
 )
 
 local cancelled_result = nil
 local cancel_reason = nil
+local cancel_count = 0
 local cancellable = adapter.invoke(
     function()
         return {
             ok = true,
             pending = true,
             cancel = function(_, opts)
+                cancel_count = cancel_count + 1
                 cancel_reason = opts and opts.reason
                 return true,
                     {
@@ -265,6 +330,10 @@ local cancellable = adapter.invoke(
     }
 )
 assert(cancellable.pending, "returned pending provider should start pending")
+assert(
+    cancellable._typst_provider_lifecycle == true,
+    "cancellable provider handles should use the shared lifecycle proxy"
+)
 local cancelled = cancellable.cancel({ reason = "user_cancelled" })
 assert(cancelled, "returned pending provider proxy should report cancellation")
 assert(
@@ -279,12 +348,18 @@ assert(
     cancel_reason == "user_cancelled",
     "returned pending provider cancellation should reach the provider handle"
 )
+local cancelled_again = cancellable.cancel({ reason = "after_finish" })
+assert(
+    cancelled_again and cancel_count == 1,
+    "finished provider lifecycle proxy cancellation should be idempotent"
+)
 
 local handle_cancel_opts = nil
-local raw_handle_timeout = nil
-local raw_handle = adapter.invoke(
+local pending_handle_timeout = nil
+local pending_handle = adapter.invoke(
     function()
         return {
+            pending = true,
             path = "/tmp/typst.nvim-provider-output.pdf",
             cancel = function(_, opts)
                 handle_cancel_opts = opts
@@ -297,28 +372,180 @@ local raw_handle = adapter.invoke(
     {},
     {
         kind = "render",
-        provider_name = "raw-handle",
+        provider_name = "pending-handle",
         return_mode = "handle",
         expect_handle = true,
         timeout_ms = 10,
         on_result = function(result)
-            raw_handle_timeout = result
+            pending_handle_timeout = result
         end,
     }
 )
 assert(
-    raw_handle and raw_handle.path == "/tmp/typst.nvim-provider-output.pdf",
-    "handle return mode should preserve raw handles with path fields"
+    pending_handle
+        and pending_handle.path == "/tmp/typst.nvim-provider-output.pdf",
+    "handle return mode should preserve explicit pending handles with path fields"
 )
 assert(
     vim.wait(1000, function()
-        return raw_handle_timeout ~= nil
+        return pending_handle_timeout ~= nil
     end, 5),
-    "raw provider handle did not time out"
+    "pending provider handle did not time out"
 )
 assert(
     handle_cancel_opts and handle_cancel_opts.reason == "timeout",
     "provider timeout cancellation should pass cancel options"
+)
+
+local unconfirmed_timeout_result = nil
+local unconfirmed_timeout_handle = adapter.invoke(
+    function()
+        return {
+            pending = true,
+            cancel = function()
+                return false,
+                    {
+                        ok = false,
+                        stopped = false,
+                        reason = "shutdown_failed",
+                    }
+            end,
+        }
+    end,
+    nil,
+    {},
+    {},
+    {
+        kind = "render",
+        provider_name = "pending-handle-unconfirmed-timeout",
+        timeout_ms = 10,
+        on_result = function(result)
+            unconfirmed_timeout_result = result
+        end,
+    }
+)
+assert(
+    unconfirmed_timeout_handle and unconfirmed_timeout_handle.pending == true,
+    "unconfirmed timeout provider should start pending"
+)
+assert(
+    vim.wait(1000, function()
+        return unconfirmed_timeout_result ~= nil
+    end, 5),
+    "unconfirmed timeout provider did not report timeout"
+)
+assert(
+    unconfirmed_timeout_result.stopped == false
+        and type(unconfirmed_timeout_result.cancel_result) == "table"
+        and unconfirmed_timeout_result.cancel_result.stopped == false,
+    "provider timeout should preserve unconfirmed cancellation result"
+)
+
+local pending_timeout_result = nil
+local pending_timeout_callback = nil
+local pending_timeout_handle = adapter.invoke(
+    function(_, _, callback)
+        pending_timeout_callback = callback
+        return {
+            pending = true,
+            cancel = function()
+                return false,
+                    {
+                        ok = false,
+                        pending = true,
+                        stopped = false,
+                        reason = "provider_stopping",
+                    }
+            end,
+        }
+    end,
+    nil,
+    {},
+    {},
+    {
+        kind = "render",
+        provider_name = "pending-handle-pending-timeout-cancel",
+        timeout_ms = 10,
+        cancel_timeout_ms = 5000,
+        on_result = function(result)
+            pending_timeout_result = result
+        end,
+    }
+)
+assert(
+    pending_timeout_handle and pending_timeout_handle.pending == true,
+    "pending timeout cancel provider should start pending"
+)
+assert(
+    vim.wait(1000, function()
+        return pending_timeout_handle.state == "cancelling"
+    end, 5),
+    "provider timeout with pending cancellation should enter cancelling state"
+)
+assert(
+    pending_timeout_result == nil,
+    "provider timeout with pending cancellation should not finish early"
+)
+pending_timeout_callback({
+    ok = false,
+    stopped = false,
+    reason = "provider_stopped_late",
+})
+assert(
+    vim.wait(1000, function()
+        return pending_timeout_result ~= nil
+    end, 5),
+    "provider pending timeout cancellation should finish from late callback"
+)
+assert(
+    pending_timeout_result.reason == "provider_stopped_late",
+    "provider late callback should supply final result after pending timeout cancel"
+)
+
+local cancel_watchdog_result = nil
+local cancel_watchdog_handle = adapter.invoke(
+    function()
+        return {
+            pending = true,
+            cancel = function()
+                return false,
+                    {
+                        ok = false,
+                        pending = true,
+                        stopped = false,
+                        reason = "provider_stopping",
+                    }
+            end,
+        }
+    end,
+    nil,
+    {},
+    {},
+    {
+        kind = "render",
+        provider_name = "pending-cancel-watchdog",
+        timeout_ms = 10,
+        cancel_timeout_ms = 10,
+        on_result = function(result)
+            cancel_watchdog_result = result
+        end,
+    }
+)
+assert(
+    cancel_watchdog_handle and cancel_watchdog_handle.pending == true,
+    "provider pending-cancel watchdog should start from a pending handle"
+)
+assert(
+    vim.wait(1000, function()
+        return cancel_watchdog_result ~= nil
+    end, 5),
+    "provider pending-cancel watchdog should eventually finish"
+)
+assert(
+    cancel_watchdog_result.reason == "cancel_unconfirmed"
+        and cancel_watchdog_result.stopped == false
+        and cancel_watchdog_handle.pending == false,
+    "provider pending-cancel watchdog should report unconfirmed cancellation"
 )
 
 local explicit_handle_result = adapter.invoke(
@@ -362,6 +589,10 @@ local ambiguous_table = adapter.invoke(
 assert(
     ambiguous_table.reason == "invalid_result",
     "generic provider tables with only structural fields should be invalid by default"
+)
+assert(
+    ambiguous_table.contract == "provider-result-v1",
+    "generic structural tables should fail through the strict provider contract"
 )
 
 local allowed_table = adapter.invoke(

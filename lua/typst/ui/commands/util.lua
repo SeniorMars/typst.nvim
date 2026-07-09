@@ -1,5 +1,6 @@
 local log = require("typst.core.log")
 local notify = require("typst.core.notify")
+local pending = require("typst.core.pending")
 local unpack = require("typst.core.tables").unpack
 
 local M = {}
@@ -130,6 +131,44 @@ function M.report_result(name, values, context)
     return nil
 end
 
+--- Report the eventual result of a command-created pending handle.
+---
+--- Async command operations finish after the command callback's duplicate
+--- suppression context is gone, but they should still use the same failure
+--- formatting and notification sink as synchronous command returns.
+---@param name string Command name.
+---@param result any Result delivered by a pending handle.
+---@param context? table Command result context.
+---@return any result Original result for callback chaining.
+function M.report_async_result(name, result, context)
+    if is_pending_result(result) then
+        return result
+    end
+    M.report_result(name, { n = 1, result }, context)
+    return result
+end
+
+local function attach_async_reporter(name, values, context)
+    local result = values and values[1] or nil
+    local err = values and values[2] or nil
+    local pending_result = is_pending_result(result) and result
+        or is_pending_result(err) and err
+        or nil
+    if not pending_result then
+        return
+    end
+    if pending_result._typst_command_async_reporter == name then
+        return
+    end
+    pending_result._typst_command_async_reporter = name
+    local notify_fn = context and context.notify or result_notify
+    pending.subscribe_compatible(pending_result, function(done)
+        M.report_async_result(name, done, {
+            notify = notify_fn,
+        })
+    end)
+end
+
 --- Set the notification sink used for returned structured command failures.
 ---@param notify_fn? fun(message:string, level?:integer)
 ---@return fun(message:string, level?:integer) previous Previously configured sink.
@@ -170,6 +209,7 @@ local function command_callback(name, callback)
         end, debug.traceback)
         active_command = previous_context
         if ok then
+            attach_async_reporter(name, result, context)
             return M.report_result(name, result, context)
         end
 

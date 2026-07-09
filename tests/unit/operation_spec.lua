@@ -2,6 +2,7 @@ local root = vim.fn.getcwd()
 vim.opt.runtimepath:prepend(root)
 
 local operation = require("typst.core.operation")
+local pending = require("typst.core.pending")
 local process = require("typst.core.process")
 
 local original_kill = process.kill
@@ -22,6 +23,27 @@ local ok, err = xpcall(function()
     local id = op.id
     local cancel = op.cancel
     local finish = op.finish
+    local result_callback = nil
+    assert(
+        op._typst_lifecycle_handle == true
+            and op._typst_operation_handle == true
+            and op.pending == true
+            and op.finished == false,
+        "operations should expose the shared lifecycle handle contract"
+    )
+    assert(
+        pending.is_handle(op) == true
+            and pending.state(op).state == "starting",
+        "pending helpers should observe operation lifecycle handles"
+    )
+    op:on_result(function(result, finished)
+        result_callback = { result = result, operation = finished }
+    end)
+    local shared_subscribe_callback = nil
+    local subscribed = pending.subscribe_result(op, function(result, finished)
+        shared_subscribe_callback = { result = result, operation = finished }
+    end)
+    assert(subscribed == true, "pending.subscribe_result should accept operations")
 
     op:finish({
         ok = true,
@@ -43,6 +65,19 @@ local ok, err = xpcall(function()
         op.result and op.result.state == "success",
         "raw provider result should be preserved separately"
     )
+    assert(op.finished == true, "finished operations should be marked")
+    assert(
+        result_callback
+            and result_callback.result == op.result
+            and result_callback.operation == op,
+        "operation on_result should use the shared result callback shape"
+    )
+    assert(
+        shared_subscribe_callback
+            and shared_subscribe_callback.result == op.result
+            and shared_subscribe_callback.operation == op,
+        "pending.subscribe_result should observe operation results"
+    )
 
     local late_ok = pcall(function()
         op:on_finish(function()
@@ -50,6 +85,16 @@ local ok, err = xpcall(function()
         end)
     end)
     assert(late_ok, "late on_finish callbacks should be protected")
+    local late_result_callback = nil
+    op:on_result(function(result, finished)
+        late_result_callback = { result = result, operation = finished }
+    end)
+    assert(
+        late_result_callback
+            and late_result_callback.result == op.result
+            and late_result_callback.operation == op,
+        "late operation on_result callbacks should run immediately"
+    )
 
     local orphan_cleaned = false
     local orphan_callback = nil

@@ -89,6 +89,19 @@ assert(
     ),
     "provider docs should not document old shape-based terminal detection"
 )
+assert(
+    docs:find(
+        "async table handles must include `pending = true`",
+        1,
+        true
+    )
+        and docs:find(
+            "otherwise the adapter reports `invalid_result`",
+            1,
+            true
+        ),
+    "provider docs should document strict pending-handle table contracts"
+)
 for kind, fields in pairs(structural_results) do
     assert(
         docs:find("`" .. kind .. "`", 1, true),
@@ -101,10 +114,62 @@ for kind, fields in pairs(structural_results) do
         )
     end
 end
+local classified = {}
+for _, kind in ipairs(contract.core_kinds()) do
+    classified[kind] = "core"
+end
+for _, kind in ipairs(contract.supported_kinds()) do
+    classified[kind] = "supported"
+end
+for _, kind in ipairs(contract.experimental_kinds()) do
+    classified[kind] = "experimental"
+end
+assert(
+    classified.compiler == "core"
+        and classified.viewer == "core",
+    "provider contract should classify compiler/viewer as core workflow providers"
+)
+assert(
+    classified.format == "supported"
+        and classified.lint == "supported",
+    "provider contract should keep only formatter/linter as supported providers"
+)
+assert(
+    classified.preview == "experimental"
+        and classified.render == "experimental"
+        and classified.export == "experimental"
+        and classified.semantic == "experimental"
+        and classified.source_map == "experimental"
+        and classified.grammar == "experimental"
+        and classified.index == "experimental"
+        and classified.picker == "experimental"
+        and classified.toc == "experimental"
+        and classified.eval == "experimental"
+        and classified.profile == "experimental"
+        and classified.test == "experimental"
+        and classified.bench == "experimental"
+        and classified.coverage == "experimental",
+    "broad provider workflows should remain experimental while core hardens"
+)
+
 for _, kind in ipairs(contract.kinds()) do
     assert(
+        classified[kind],
+        ("provider kind `%s` should declare stability classification"):format(
+            kind
+        )
+    )
+    assert(
         docs:find("`" .. kind .. "`", 1, true),
-        ("provider docs should list stable kind `%s`"):format(kind)
+        ("provider docs should list provider kind `%s`"):format(kind)
+    )
+    assert(
+        docs:find(
+            ("`%s` - %s"):format(kind, contract.kind_stability(kind)),
+            1,
+            true
+        ),
+        ("provider docs should classify provider kind `%s`"):format(kind)
     )
     assert(
         #contract.methods(kind) > 0,

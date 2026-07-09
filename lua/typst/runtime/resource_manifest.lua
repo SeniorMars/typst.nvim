@@ -5,6 +5,7 @@ local M = {}
 
 M.runtime_hook_entries = entries.runtime_hook_entries
 M.cache_reset_entries = entries.cache_reset_entries
+M.migration_duplicate_policy = entries.migration_duplicate_policy
 M.phases = entries.phases
 M.entries = entries.entries
 
