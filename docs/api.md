@@ -233,7 +233,7 @@ unrelated state.
 
 Registered external providers receive these copied project contexts by default.
 This includes compiler, viewer, export, render, semantic,
-format, lint, grammar, index, and TOC providers. Built-in providers and
+format, lint, index, and TOC providers. Built-in providers and
 typst.nvim internals keep using the mutable project object they own.
 
 ## Invalidation

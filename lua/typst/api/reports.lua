@@ -343,45 +343,6 @@ function M.install(api, notify)
         })
     end
 
-    local function grammar(opts, callback)
-        opts = opts or {}
-        local function notify_result(result)
-            if opts.notify == false or type(result) ~= "table" then
-                return
-            end
-            if result.ok then
-                local total = result.diagnostics or 0
-                notify(
-                    ("Typst grammar: %d diagnostic%s"):format(
-                        total,
-                        total == 1 and "" or "s"
-                    ),
-                    total > 0 and vim.log.levels.WARN or vim.log.levels.INFO
-                )
-            else
-                notify(
-                    result.message or "Typst grammar check failed",
-                    vim.log.levels.WARN
-                )
-            end
-        end
-
-        return operation.notify_result(function(callback)
-            return require("typst.project.services.operations").grammar(
-                project_for_opts(api, opts),
-                opts,
-                callback
-            )
-        end, {
-            notify_result = notify_result,
-            start_message = opts.notify ~= false
-                    and "Running Typst grammar check"
-                or nil,
-            notify = notify,
-            callback = callback,
-        })
-    end
-
     local function status(bufnr)
         if type(bufnr) == "table" then
             local status_opts = bufnr
@@ -416,7 +377,6 @@ function M.install(api, notify)
     api.tools = {
         format = format,
         lint = lint,
-        grammar = grammar,
     }
 end
 

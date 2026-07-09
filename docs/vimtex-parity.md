@@ -114,9 +114,9 @@ Phase 2 ecosystem API baseline is implemented.
 | `|vimtex-compiler-arara|` | Arara | NOT APPLICABLE | Project-specific task/generic compiler providers replace TeX automation directives and are covered by provider lifecycle tests. | Implemented |
 | `|vimtex-compiler-generic|` | Generic | DIRECT | Custom compile/watch provider support. | Implemented |
 | `|vimtex-lint|` | Syntax Checking (Linting) | REINTERPRETED | Typst/Tinymist/command lint providers and quickfix integration. | Implemented |
-| `|vimtex-grammar|` | Grammar Checking | DELEGATED | `:TypstGrammar` runs external prose/grammar providers, normalizes provider output, and publishes diagnostics/quickfix. | Implemented |
-| `|vimtex-grammar-textidote|` | textidote | DELEGATED | `grammar.provider = "textidote"` command preset with textidote line/column output parsing. | Implemented |
-| `|vimtex-grammar-vlty|` | vlty | DELEGATED | `grammar.provider = "vlty"` command preset with Vale/vlty-style JSON output parsing through the grammar provider API. | Implemented |
+| `|vimtex-grammar|` | Grammar Checking | NOT APPLICABLE | External prose/grammar tooling is intentionally not a first-party Typst workflow. | N/A |
+| `|vimtex-grammar-textidote|` | textidote | NOT APPLICABLE | Use an external Neovim prose/grammar plugin if needed. | N/A |
+| `|vimtex-grammar-vlty|` | vlty | NOT APPLICABLE | Use an external Neovim prose/grammar plugin if needed. | N/A |
 | `|vimtex-view|` | View | REINTERPRETED | Generic output opener plus native browser/viewer preview. | Partial |
 | `|vimtex-view-configuration|` | Viewer configuration | DIRECT | `viewer.open`, `viewer.args`, `viewer.forward`, and placeholders. | Implemented |
 | `|vimtex-view-evince|` | Evince | DELEGATED | Named PDF viewer preset opens/reuses Typst output; source sync remains capability-gated. | Partial |

@@ -142,12 +142,6 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `format.prose_width` | `number` | `80` |
 | `format.provider` | `string` | `"auto"` |
 | `format.timeout_ms` | `number` | `2000` |
-| `grammar.command` | `nil\|string` | `nil` |
-| `grammar.extra_args` | `list` | `{}` |
-| `grammar.file_arg` | `nil\|string` | `nil` |
-| `grammar.provider` | `string` | `"command"` |
-| `grammar.stdin` | `nil\|string` | `nil` |
-| `grammar.timeout_ms` | `number` | `2000` |
 | `imaps.builtins` | `boolean` | `true` |
 | `imaps.enabled` | `boolean` | `false` |
 | `imaps.mappings` | `list` | `{}` |
@@ -421,4 +415,3 @@ This file is generated from the runtime defaults. Run `just config-docs` after c
 | `viewer.providers.zathura.open` | `string` | `"zathura"` |
 | `viewer.reload` | `nil\|string\|function` | `nil` |
 <!-- typst.nvim config-reference:end -->
-

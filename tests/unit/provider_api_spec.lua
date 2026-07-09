@@ -10,7 +10,6 @@ local calls = {
     view = 0,
     format = 0,
     lint = 0,
-    grammar = 0,
     index = 0,
     picker = 0,
     toc = 0,
@@ -95,15 +94,6 @@ typst.providers.register("lint", "provider-api-lint", {
         }
     end,
 })
-typst.providers.register("grammar", "provider-api-grammar", {
-    check = function(_, _, _)
-        calls.grammar = calls.grammar + 1
-        return {
-            provider = "provider-api-grammar",
-            output = "tests/fixtures/basic/main.typ:1:1: warning: registered grammar",
-        }
-    end,
-})
 typst.providers.register("index", "provider-api-index", {
     collect = function(project)
         calls.index = calls.index + 1
@@ -181,9 +171,6 @@ typst.setup({
     lint = {
         provider = "provider-api-lint",
     },
-    grammar = {
-        provider = "provider-api-grammar",
-    },
     picker = {
         provider = "provider-api-picker",
     },
@@ -252,17 +239,6 @@ assert(
     "lint result should keep registered provider name"
 )
 assert(calls.lint == 1, "registered lint provider should be called once")
-
-local grammar_result = typst.tools.grammar({ notify = false })
-assert(
-    grammar_result.ok and grammar_result.diagnostics == 1,
-    "registered grammar provider should publish diagnostics"
-)
-assert(
-    grammar_result.provider == "provider-api-grammar",
-    "grammar result should keep registered provider name"
-)
-assert(calls.grammar == 1, "registered grammar provider should be called once")
 
 local indexed = typst.index.collect({ project = project })
 assert(

@@ -99,7 +99,6 @@ function M.values()
         },
         format = default_tools.format(),
         lint = default_tools.lint(),
-        grammar = default_tools.grammar(),
         viewer = default_tools.viewer(),
         preview = default_tools.preview(),
         render = {

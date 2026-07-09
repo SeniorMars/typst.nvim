@@ -75,7 +75,7 @@ local pending = adapter.invoke(
     {},
     {},
     {
-        kind = "grammar",
+        kind = "lint",
         provider_name = "silent",
         timeout_ms = 10,
         on_result = function(result)

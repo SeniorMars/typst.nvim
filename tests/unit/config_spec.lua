@@ -592,34 +592,6 @@ local invalid_configs = {
         message = "lint.timeout_ms",
     },
     {
-        opts = { grammar = false },
-        message = "grammar must be a table",
-    },
-    {
-        opts = { grammar = { provider = "unknown" } },
-        message = "grammar.provider",
-    },
-    {
-        opts = { grammar = { command = {} } },
-        message = "grammar.command must not be an empty list",
-    },
-    {
-        opts = { grammar = { extra_args = { "--format", 42 } } },
-        message = "grammar.extra_args%[2%]",
-    },
-    {
-        opts = { grammar = { timeout_ms = -1 } },
-        message = "grammar.timeout_ms",
-    },
-    {
-        opts = { grammar = { stdin = "yes" } },
-        message = "grammar.stdin",
-    },
-    {
-        opts = { grammar = { file_arg = "yes" } },
-        message = "grammar.file_arg",
-    },
-    {
         opts = { viewer = false },
         message = "viewer must be a table",
     },

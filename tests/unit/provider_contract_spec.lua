@@ -130,7 +130,6 @@ assert(
         and classified.export == "experimental"
         and classified.semantic == "experimental"
         and classified.source_map == "experimental"
-        and classified.grammar == "experimental"
         and classified.index == "experimental"
         and classified.picker == "experimental"
         and classified.toc == "experimental",
@@ -225,7 +224,6 @@ local structural_provider_paths = {
     ["lua/typst/preview/source_maps.lua"] = "result_fields",
     ["lua/typst/integrations/semantic.lua"] = "result_fields",
     ["lua/typst/lint/init.lua"] = "normalize",
-    ["lua/typst/syntax/grammar.lua"] = "normalize",
     ["lua/typst/workflows/artifacts.lua"] = "normalize",
     ["lua/typst/workflows/render/provider.lua"] = "normalize",
     ["lua/typst/viewer/generic.lua"] = "normalize",
@@ -271,7 +269,6 @@ local expected_adapter_users = {
     "lua/typst/navigation/toc_collect.lua",
     "lua/typst/project/index_providers.lua",
     "lua/typst/preview/source_maps.lua",
-    "lua/typst/syntax/grammar.lua",
     "lua/typst/viewer/generic.lua",
     "lua/typst/viewer/source_sync.lua",
     "lua/typst/workflows/artifacts.lua",

@@ -127,7 +127,7 @@ Provider breadth is frozen during stable-core hardening. Existing provider
 kinds remain available, but `typst.integrations.provider_contract` must classify
 each kind as `core`, `supported`, or `experimental`. The first stable-provider
 target is deliberately small: compiler/viewer are core, format/lint are
-supported, and preview/render/export/semantic/source-map/grammar providers stay
+supported, and preview/render/export/semantic/source-map providers stay
 experimental until their lifecycle and result contracts settle. New
 experimental workflows require a matching deletion or stabilization plan before
 they are added.

@@ -512,7 +512,6 @@ code and this document together when the public symbol surface changes.
 - `template.init`
 - `template.list`
 - `tools.format`
-- `tools.grammar`
 - `tools.lint`
 - `ui.bug_report`
 - `ui.count`
@@ -594,7 +593,6 @@ is sent to `typst compile -` rather than the synthetic scratch path.
 - `require("typst").ui.count(opts)`
 - `require("typst").tools.format(opts)`
 - `require("typst").tools.lint(opts)`
-- `require("typst").tools.grammar(opts)`
 - `require("typst").viewer.view(opts)`
 - `require("typst").viewer.view_forward(opts)`
 - `require("typst").viewer.view_inverse(opts)`
@@ -741,7 +739,7 @@ include command, cwd, root, main, and output where available.
 
 Provider registration is the public extension registry for named Lua
 providers. `register_provider(kind, name, provider)` stores a provider under
-one of the supported kinds: `compiler`, `format`, `lint`, `grammar`, `viewer`,
+one of the supported kinds: `compiler`, `format`, `lint`, `viewer`,
 `picker`, `toc`, `index`, `export`, `init`, `semantic`, or `render`. Aliases
 such as `compile`, `formatter`, `linter`, `view`, `exports`, `template`, and
 `terminal_image` are
@@ -942,18 +940,6 @@ parses Typst human or short diagnostics. `lint.provider` may be `"typst"`, `"tin
 `"command"`, a registered provider name, callback, or a provider table exposing
 `lint(bufnr, project, opts)`. Passing `{ open = true }` populates and opens
 quickfix for the lint result.
-
-`grammar(opts)` runs the configured external prose or grammar checker and
-returns the same diagnostic result shape as `lint(opts)`. `grammar.provider`
-may be `"command"`, `"textidote"`, `"vlty"`, a registered provider name,
-callback, or a provider table exposing `grammar(bufnr, project, opts)`,
-`check(...)`, or `run(...)`.
-Generic command providers default to stdin; `textidote` and `vlty` default to
-passing the current file path. `{file}`, `{main}`, and `{root}` placeholders in
-`grammar.extra_args` are expanded before execution. textidote line/column
-output and Vale/vlty-style JSON output are normalized before diagnostics are
-published. Passing `{ open = true }` populates and opens quickfix for the
-grammar result.
 
 The bibliography diagnostics API, `bibliography_diagnostics(opts)`, checks the current project bibliography
 workflow. It reports explicit undefined citations from `#cite(<key>)`, duplicate
@@ -1456,7 +1442,6 @@ The public command surface is:
 - `:TypstCount[!]`
 - `:TypstFormat`
 - `:TypstLint[!]`
-- `:TypstGrammar[!]`
 - `:TypstView`
 - `:TypstViewForward`
 - `:TypstViewInverse [file] [line] [column]`

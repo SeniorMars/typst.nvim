@@ -11,17 +11,6 @@ typst.setup({
     diagnostics = {
         enabled = true,
     },
-    grammar = {
-        provider = function()
-            return {
-                ok = true,
-                provider = "test-grammar",
-                output = ("%s/tests/fixtures/basic/main.typ:1:1: warning: grammar"):format(
-                    root
-                ),
-            }
-        end,
-    },
     project = {
         import_scan = false,
     },
@@ -121,29 +110,6 @@ assert(
 assert(
     lint_result.buffers == 0 and vim.tbl_isempty(lint_result.by_buffer),
     "lint publish failure should return empty diagnostic tables"
-)
-
-rawset(diagnostics, "parse", function()
-    error("grammar parser boom")
-end)
-local grammar_ok, grammar_result = xpcall(function()
-    return typst.tools.grammar({ notify = false })
-end, debug.traceback)
-diagnostics.parse = original_parse
-if not grammar_ok then
-    error(grammar_result)
-end
-assert(
-    grammar_result and grammar_result.ok == false,
-    "grammar publish should return a structured failure on parser errors"
-)
-assert(
-    grammar_result.reason == "diagnostics_parse_failed",
-    "grammar publish should preserve diagnostics parse failure reason"
-)
-assert(
-    grammar_result.buffers == 0 and vim.tbl_isempty(grammar_result.by_buffer),
-    "grammar publish failure should return empty diagnostic tables"
 )
 
 vim.cmd("qa!")

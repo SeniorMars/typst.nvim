@@ -394,7 +394,6 @@ assert_namespace(typst.ui, {
 assert_namespace(typst.tools, {
     "format",
     "lint",
-    "grammar",
 })
 for _, name in ipairs({
     "doc",

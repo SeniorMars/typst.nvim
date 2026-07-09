@@ -26,7 +26,6 @@ local public_commands = {
     "TypstCount",
     "TypstFormat",
     "TypstLint",
-    "TypstGrammar",
     "TypstView",
     "TypstViewForward",
     "TypstViewInverse",

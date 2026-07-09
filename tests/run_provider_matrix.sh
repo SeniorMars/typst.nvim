@@ -44,8 +44,7 @@ tools_viewer_specs=(
   tests/unit/tinymist_format_async_spec.lua
   tests/unit/format_async_spec.lua
   tests/unit/format_lint_spec.lua
-  tests/unit/lint_grammar_generation_spec.lua
-  tests/unit/grammar_spec.lua
+  tests/unit/lint_generation_spec.lua
 )
 
 case "${suite}" in

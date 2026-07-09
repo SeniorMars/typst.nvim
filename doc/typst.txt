@@ -96,7 +96,7 @@ Extensibility:
 - public Lua API namespaces for projects, compiler, viewer, artifacts, editing,
   completion, metadata, syntax, conceal, bibliography, and providers;
 - provider registry for compilers, viewers, pickers, TOC/index layers,
-  formatters, linters, grammar checkers, workflows, and renderers;
+  formatters, linters, workflows, and renderers;
 - `TypstEvent*` User events for setup, project, compile, preview, view, render,
   TOC, and quit lifecycle hooks.
 
@@ -119,8 +119,8 @@ Recommended:
 - typstyle for the default non-Tinymist formatter path;
 - a browser, configured PDF viewer, or custom preview provider;
 - Telescope, fzf-lua, fzf.vim, Snacks, or `vim.ui.select` for picker UIs;
-- optional external tools such as textidote, vlty/Vale-style checkers,
-  crityp, or terminal image support depending on configured workflows.
+- optional external tools such as terminal image support depending on
+  configured workflows.
 
 Run `:checkhealth typst` after installation. Health output reports executable
 availability, parser/query loading, Tinymist and preview integration state,
@@ -544,7 +544,7 @@ Command groups:
     |:TypstPreviewImage|, |:TypstPreviewPage|, |:TypstRenderCacheClear|
 
   External workflows:
-    |:TypstFormat|, |:TypstLint|, |:TypstGrammar|,
+    |:TypstFormat|, |:TypstLint|,
     |:TypstExport|, |:TypstArtifacts|, |:TypstArtifactOpen|,
     |:TypstArtifactClean|, |:TypstInit|, |:TypstTemplates|,
     |:TypstHtmlPreview|, |:TypstPresentation|
@@ -798,13 +798,6 @@ Command groups:
     Typst human or short diagnostics, and publishes them through
     `vim.diagnostic`. With bang, also populate and open quickfix for the lint
     result.
-
-                                                        *:TypstGrammar*
-:TypstGrammar[!]
-    Run the configured external prose or grammar checker. Diagnostics are
-    published through `vim.diagnostic` with source `typst grammar`. With bang,
-    also populate and open quickfix for the grammar result. Built-in parsers
-    normalize textidote line/column output and Vale/vlty-style JSON output.
 
                                                         *:TypstView*
 :TypstView
@@ -2279,14 +2272,6 @@ Defaults: >
       extra_args = {},
       timeout_ms = 2000,
     },
-    grammar = {
-      provider = "command",
-      command = nil,
-      extra_args = {},
-      timeout_ms = 2000,
-      stdin = nil,
-      file_arg = nil,
-    },
     viewer = {
       provider = "generic",
       open = nil,
@@ -2788,16 +2773,6 @@ short diagnostics. The `"command"` provider receives current-buffer text on
 stdin and parses stdout/stderr as short diagnostics relative to the project
 root.
 
-`grammar.provider` may be `"command"`, `"textidote"`, `"vlty"`, a registered
-provider name, callback, or a provider table exposing
-`grammar(bufnr, project, opts)`, `check(...)`, or `run(...)`. Generic commands
-default to current-buffer text on stdin. `textidote` and `vlty` default to
-passing the current file path. Arguments in `grammar.extra_args` may use
-`{file}`, `{main}`, and `{root}` placeholders. `grammar.stdin` and
-`grammar.file_arg` override those provider defaults. textidote line/column
-output and Vale/vlty-style JSON output are normalized before diagnostics are
-published.
-
 `structural_actions.patterns` controls how typst.nvim selects a Tinymist code
 action for the structural commands. Patterns are Lua patterns matched against
 the action title, kind, and command name.
@@ -3134,7 +3109,7 @@ Provider registration is the public extension registry. *typst-provider-contract
   require("typst").providers.register(kind, name, provider)
 <
 
-Supported provider kinds are `compiler`, `format`, `lint`, `grammar`,
+Supported provider kinds are `compiler`, `format`, `lint`,
 `viewer`, `preview`, `source_map`, `picker`, `toc`, `index`, `export`,
 `init`, `semantic`, and `render`.
 Aliases such as `compile`, `formatter`, `linter`, `view`, `exports`,
@@ -3514,7 +3489,6 @@ workflow functions:
   require("typst").ui.count()
   require("typst").tools.format()
   require("typst").tools.lint()
-  require("typst").tools.grammar()
   require("typst").viewer.view()
   require("typst").viewer.view_forward()
   require("typst").viewer.view_inverse()
@@ -3779,7 +3753,7 @@ tables or URLs without opening a scratch buffer or browser. Without `query`,
 cursor token resolution is used where applicable.
 
 Provider helpers register named Lua providers for `compiler`, `format`, `lint`,
-`grammar`, `viewer`, `picker`, `toc`, `index`, `export`, `init`, `semantic`,
+`viewer`, `picker`, `toc`, `index`, `export`, `init`, `semantic`,
 and `render`. Registered
 names are accepted by the matching configuration keys, for example
 `format.provider = "my-format"` or `viewer.provider = "my-viewer"`.

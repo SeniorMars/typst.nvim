@@ -177,20 +177,6 @@ function M.register(ctx)
         })
     )
 
-    create(
-        "TypstGrammar",
-        function(args)
-            return api.tools.grammar({ open = args.bang })
-        end,
-        vim.tbl_extend(
-            "force",
-            opts("Run the configured Typst grammar/prose checker"),
-            {
-                bang = true,
-            }
-        )
-    )
-
     create("TypstLog", function()
         log.open()
     end, opts("Open the typst.nvim log"))

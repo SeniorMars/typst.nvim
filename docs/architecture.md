@@ -215,7 +215,7 @@ Viewer and preview refresh route through `compiler.consumers` from the existing
 API paths rather than being duplicated by each backend.
 
 Diagnostics modules own diagnostic publication. Only `diagnostics.publisher`
-should call `vim.diagnostic.set` for compiler/lint/grammar diagnostics. Parser,
+should call `vim.diagnostic.set` for compiler/lint diagnostics. Parser,
 policy, quickfix, and count helpers should feed that publisher or clearly
 document an exception.
 
@@ -236,7 +236,7 @@ indent, insert mappings, match highlighting, and formatexpr. Project lifecycle
 may apply or detach editor hooks, but it should not know their internal behavior.
 
 Workflows own user-triggered jobs that are not the main compiler loop: export,
-render, template init, clean, lint, format, and grammar.
+render, template init, clean, lint, and format.
 Output-producing workflows should use `resources.outputs`,
 `resources.operations`, `core.process`, and the provider adapter instead of
 talking directly to low-level lease tables.

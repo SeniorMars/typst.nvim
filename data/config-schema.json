@@ -138,12 +138,6 @@
     { "path": "format.prose_width", "type": "number", "default": "80" },
     { "path": "format.provider", "type": "string", "default": "\"auto\"" },
     { "path": "format.timeout_ms", "type": "number", "default": "2000" },
-    { "path": "grammar.command", "type": "nil|string", "default": "nil" },
-    { "path": "grammar.extra_args", "type": "list", "default": "{}" },
-    { "path": "grammar.file_arg", "type": "nil|string", "default": "nil" },
-    { "path": "grammar.provider", "type": "string", "default": "\"command\"" },
-    { "path": "grammar.stdin", "type": "nil|string", "default": "nil" },
-    { "path": "grammar.timeout_ms", "type": "number", "default": "2000" },
     { "path": "imaps.builtins", "type": "boolean", "default": "true" },
     { "path": "imaps.enabled", "type": "boolean", "default": "false" },
     { "path": "imaps.mappings", "type": "list", "default": "{}" },
@@ -418,4 +412,3 @@
     { "path": "viewer.reload", "type": "nil|string|function", "default": "nil" }
   ]
 }
-

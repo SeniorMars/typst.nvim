@@ -307,9 +307,6 @@ typst.setup({
     lint = {
         provider = function() end,
     },
-    grammar = {
-        provider = function() end,
-    },
     preview = {
         provider = function() end,
     },

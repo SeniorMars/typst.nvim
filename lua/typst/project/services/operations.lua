@@ -1047,17 +1047,6 @@ function M.lint(project, opts, callback)
     end)
 end
 
---- Run Typst grammar checks under operation tracking.
----@param project table? Project state used for operation tracking.
----@param opts? table Grammar-check options.
----@param callback? fun(result:table) Terminal grammar result callback.
----@return unknown result Native grammar-check handle or synchronous result.
-function M.grammar(project, opts, callback)
-    return run(project, "grammar", callback, function(done)
-        return require("typst.syntax.grammar").check(opts, done)
-    end)
-end
-
 --- Render the current Typst fragment under operation tracking.
 ---@param project table? Project state used for render context and tracking.
 ---@param opts? table Fragment render options.

@@ -21,7 +21,6 @@ available while its lifecycle/result/API contract is still allowed to change.
 - `compiler` - core
 - `export` - experimental
 - `format` - supported
-- `grammar` - experimental
 - `index` - experimental
 - `init` - experimental
 - `lint` - supported
@@ -35,7 +34,7 @@ available while its lifecycle/result/API contract is still allowed to change.
 
 The stable-provider target for this phase is intentionally small:
 `compiler`, `viewer`, `format`, and `lint`. Preview, render, export,
-semantic/source-map, grammar, and picker/TOC providers are
+semantic/source-map, and picker/TOC providers are
 advanced or experimental until the compile/view/editing core is boring.
 
 ## Semantic Providers
@@ -181,7 +180,6 @@ declare those fields or normalize the table before classification:
 | --- | --- |
 | `source_map` | `path`, `file`, `filename`, `line`, `column` |
 | `lint` | `diagnostics`, `by_buffer` |
-| `grammar` | `diagnostics`, `by_buffer` |
 | `export` | `path`, `output`, `outputs`, `artifacts` |
 | `render` | `path`, `output`, `outputs`, `artifacts` |
 | `viewer` | `opened`, `path`, `output` |
@@ -292,7 +290,7 @@ tables, for example `{ "typst", "compile", main, output }`. Shell strings such
 as `"typst compile main.typ"` are rejected with `reason = "invalid_command"` so
 providers do not accidentally depend on shell splitting or Neovim internals.
 
-Lint and grammar providers may return native Neovim diagnostics grouped by
+Lint providers may return native Neovim diagnostics grouped by
 buffer:
 
 ```lua
@@ -706,7 +704,7 @@ kind-specific integration tests required by its lifecycle:
 | `malformed_nil_result` | malformed or nil result |
 
 The release `provider-matrix` gate runs the shared SDK fixtures for compiler,
-preview/export/render, source-map, viewer, formatter, linter, grammar, and
+preview/export/render, source-map, viewer, formatter, linter, and
 workflow providers even when those kinds are experimental. A provider behavior
 change is incomplete unless it updates the conformance matrix, docs, and
 focused fixture coverage in the same patch.

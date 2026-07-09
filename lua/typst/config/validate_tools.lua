@@ -433,37 +433,4 @@ function M.lint(lint)
     end
 end
 
---- Validate grammar-check tool configuration.
----@param grammar table `grammar` configuration section.
-function M.grammar(grammar)
-    if type(grammar) ~= "table" then
-        error("typst.nvim: grammar must be a table")
-    end
-
-    validate_tool_provider(
-        grammar.provider,
-        "grammar.provider",
-        { "command", "textidote", "vlty" },
-        "grammar"
-    )
-
-    if grammar.command ~= nil then
-        validate_command_prefix(grammar.command, "grammar.command")
-    end
-
-    validate_string_list(grammar.extra_args, "grammar.extra_args")
-
-    if type(grammar.timeout_ms) ~= "number" or grammar.timeout_ms < 0 then
-        error("typst.nvim: grammar.timeout_ms must be a non-negative number")
-    end
-
-    if grammar.stdin ~= nil and type(grammar.stdin) ~= "boolean" then
-        error("typst.nvim: grammar.stdin must be a boolean or nil")
-    end
-
-    if grammar.file_arg ~= nil and type(grammar.file_arg) ~= "boolean" then
-        error("typst.nvim: grammar.file_arg must be a boolean or nil")
-    end
-end
-
 return M

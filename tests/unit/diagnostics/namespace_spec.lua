@@ -42,17 +42,9 @@ diagnostics.publish(
     "shared.typ:1:1: warning: lint project a",
     { source = "lint" }
 )
-diagnostics.publish(
-    project_a,
-    "shared.typ:1:1: warning: grammar project a",
-    { source = "typst grammar" }
-)
-
 local namespace_a = diagnostics.namespace_for(project_a)
 local namespace_b = diagnostics.namespace_for(project_b)
 local namespace_a_lint = diagnostics.namespace_for(project_a, "lint")
-local namespace_a_grammar =
-    diagnostics.namespace_for(project_a, "typst grammar")
 local namespace_a_bibliography =
     bibliography_diagnostics.namespace_for(project_a)
 local namespace_b_bibliography =
@@ -61,8 +53,6 @@ local a_diagnostics = vim.diagnostic.get(bufnr, { namespace = namespace_a })
 local b_diagnostics = vim.diagnostic.get(bufnr, { namespace = namespace_b })
 local a_lint_diagnostics =
     vim.diagnostic.get(bufnr, { namespace = namespace_a_lint })
-local a_grammar_diagnostics =
-    vim.diagnostic.get(bufnr, { namespace = namespace_a_grammar })
 assert(
     #a_diagnostics == 1,
     "project A should publish diagnostics in its own namespace"
@@ -84,17 +74,10 @@ assert(
         and a_lint_diagnostics[1].message == "lint project a",
     "project A lint diagnostic should be retained separately"
 )
-assert(
-    #a_grammar_diagnostics == 1
-        and a_grammar_diagnostics[1].message == "grammar project a",
-    "project A grammar diagnostic should be retained separately"
-)
-
 local seen_namespaces = {}
 for _, source in ipairs({
     "compiler",
     "lint",
-    "typst grammar",
     "bibliography",
     "custom source!",
 }) do
@@ -117,9 +100,8 @@ assert(
 )
 assert(
     namespace_a_bibliography ~= namespace_a
-        and namespace_a_bibliography ~= namespace_a_lint
-        and namespace_a_bibliography ~= namespace_a_grammar,
-    "bibliography diagnostics should not collide with compiler/lint/grammar namespaces"
+        and namespace_a_bibliography ~= namespace_a_lint,
+    "bibliography diagnostics should not collide with compiler/lint namespaces"
 )
 diagnostics.clear(project_a, { source = "lint" })
 assert(
@@ -130,19 +112,10 @@ assert(
     #vim.diagnostic.get(bufnr, { namespace = namespace_a }) == 1,
     "clearing project A lint should not clear compiler diagnostics"
 )
-assert(
-    #vim.diagnostic.get(bufnr, { namespace = namespace_a_grammar }) == 1,
-    "clearing project A lint should not clear grammar diagnostics"
-)
-
 diagnostics.clear_buffer(project_a, bufnr)
 assert(
     #vim.diagnostic.get(bufnr, { namespace = namespace_a }) == 0,
     "clearing one project buffer should reset compiler diagnostics"
-)
-assert(
-    #vim.diagnostic.get(bufnr, { namespace = namespace_a_grammar }) == 0,
-    "clearing one project buffer should reset grammar diagnostics"
 )
 assert(
     #vim.diagnostic.get(bufnr, { namespace = namespace_b }) == 1,

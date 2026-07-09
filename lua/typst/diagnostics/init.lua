@@ -23,9 +23,6 @@ local function source_key(source)
     end
 
     local lowered = source:lower()
-    if lowered:find("grammar", 1, true) then
-        return "grammar"
-    end
     if lowered:find("lint", 1, true) then
         return "lint"
     end
@@ -50,7 +47,7 @@ end
 
 --- Return the diagnostic namespace for a project/source pair.
 ---@param project? table Project state, or nil for a global source namespace.
----@param source? string Diagnostic source such as compiler, lint, or grammar.
+---@param source? string Diagnostic source such as compiler or lint.
 ---@return integer namespace Neovim diagnostic namespace id.
 function M.namespace_for(project, source)
     local key = source_key(source)
@@ -62,7 +59,7 @@ function M.namespace_for(project, source)
         return global_namespaces[key]
     end
 
-    -- Keep compiler, lint, grammar, and bibliography diagnostics in separate
+    -- Keep compiler, lint, and bibliography diagnostics in separate
     -- namespaces so clearing one source does not erase another source that may
     -- have refreshed independently.
     local namespaces = ensure_project_namespaces(project)
@@ -388,7 +385,7 @@ end
 
 --- Parse and publish Typst diagnostics from tool output.
 ---@param project table Project state whose buffers receive diagnostics.
----@param text string Raw compiler/lint/grammar output.
+---@param text string Raw compiler/lint output.
 ---@param opts? table Publish options, including optional diagnostic source.
 ---@return table<integer, table[]>|nil by_buffer Diagnostics published by valid buffer, or nil when parsing failed.
 ---@return table? error Structured diagnostics parse error when publishing failed.
@@ -422,7 +419,7 @@ end
 
 --- Parse Typst diagnostics without publishing them to Neovim.
 ---@param project table Project state used for path resolution.
----@param text string Raw compiler/lint/grammar output.
+---@param text string Raw compiler/lint output.
 ---@param opts? table Parser options.
 ---@return table<integer, table[]> by_buffer Diagnostics grouped by buffer.
 ---@return TypstDiagnosticParseMeta meta Diagnostic path/buffer handling metadata.

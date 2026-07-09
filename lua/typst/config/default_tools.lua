@@ -95,17 +95,6 @@ function M.lint()
     }
 end
 
-function M.grammar()
-    return {
-        provider = "command",
-        command = nil,
-        extra_args = {},
-        timeout_ms = 2000,
-        stdin = nil,
-        file_arg = nil,
-    }
-end
-
 function M.viewer()
     return {
         provider = "generic",

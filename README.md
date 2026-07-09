@@ -35,7 +35,7 @@ Implemented workflow groups:
   navigation/follow, folds, conceal, motions, text objects, structural editing,
   bibliography diagnostics, package resources, symbols, and metadata.
 - Provider-backed compile/view/preview/source-map/export/render/format/
-  lint/grammar workflows with documented timeout,
+  lint workflows with documented timeout,
   cancellation, and retained-resource behavior.
 - CI gates for unit, integration, policy, stable-core lifecycle, docs/API
   contracts, provider matrix, Windows edges, no Tree-sitter, fake Typst,
@@ -112,7 +112,7 @@ Feature stability is grouped by workflow, not by module directory:
 | Group | Includes | Expectation |
 | --- | --- | --- |
 | Core workflow | Setup, project discovery, main-file control, compile/watch/stop, diagnostics, viewer dispatch, status/info/log/cache/lock commands. | Supported user workflow; regressions should be treated as bugs. |
-| Editor workflow | Completion adapters, TOC/pickers, folds, motions, text objects, conceal, formatting, lint, grammar, and structural transforms. | Supported, but quality can depend on Tree-sitter, Typst CLI, Tinymist, and configured providers. |
+| Editor workflow | Completion adapters, TOC/pickers, folds, motions, text objects, conceal, formatting, lint, and structural transforms. | Supported, but quality can depend on Tree-sitter, Typst CLI, Tinymist, and configured providers. |
 | Integration workflow | Tinymist, native preview, custom providers, and export/render helpers. | Available but deliberately narrower than the stable core. Preview/render/export/semantic/source-map providers remain experimental while core lifecycle contracts harden. |
 | Lua API | Exact dotted symbols in the stable-symbol block of [API.md](API.md). | Stable at the current API level. Installed helpers outside that list are experimental. |
 | Internals | Service tables, resolver/index/preview sessions, resource supervision, generated metadata loaders, and cache registries. | Internal; use commands or documented Lua wrappers instead of depending on these shapes. |
@@ -550,14 +550,6 @@ require("typst").setup({
     command = nil,
     extra_args = {},
     timeout_ms = 2000,
-  },
-  grammar = {
-    provider = "command",
-    command = nil,
-    extra_args = {},
-    timeout_ms = 2000,
-    stdin = nil,
-    file_arg = nil,
   },
   viewer = {
     provider = "generic",
@@ -1127,14 +1119,6 @@ unchanged. `format.prose_width` controls the wrap width.
 short diagnostics through `vim.diagnostic`. `:TypstLint!` also opens the
 quickfix list for the lint result.
 
-`:TypstGrammar` runs the configured external prose or grammar checker and
-publishes parsed diagnostics through `vim.diagnostic`. `grammar.provider` may
-be `"command"`, `"textidote"`, `"vlty"`, a registered provider name, callback,
-or a provider table. Generic command providers default to stdin; `textidote`
-and `vlty` default to passing the current file path. textidote line/column
-output and Vale/vlty-style JSON output are normalized to Typst diagnostics.
-`:TypstGrammar!` opens quickfix for the result.
-
 Compiler diagnostics can use either the global quickfix list or the current
 window's location list. Keep `diagnostics.list = "quickfix"` for the default
 behavior, or set `diagnostics.list = "loclist"` when `:TypstDiagnostics` and
@@ -1142,7 +1126,7 @@ automatic `diagnostics.use_quickfix` publishing should stay window-local.
 
 Plugin integrations can register named Lua providers with
 `require("typst").providers.register(kind, name, provider)`. Supported kinds are
-`compiler`, `format`, `lint`, `grammar`, `viewer`, `picker`, `toc`, `index`,
+`compiler`, `format`, `lint`, `viewer`, `picker`, `toc`, `index`,
 `export`, `init`, `semantic`, and `render`, with aliases such as `compile`,
 `formatter`, `linter`, `view`, `exports`, `template`, and `terminal_image`.
 Registered names are
