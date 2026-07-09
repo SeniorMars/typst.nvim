@@ -32,7 +32,7 @@ end
 
 setup_diagnostics({
     external_paths = "bufadd",
-    max_buffers_per_publish = 4,
+    max_external_buffers = 4,
 })
 local bufadd_path = write_fixture("bufadd-mode.typ")
 local bufadd_by_buffer, bufadd_meta =
@@ -54,7 +54,7 @@ assert(
 
 setup_diagnostics({
     external_paths = "bufadd",
-    max_buffers_per_publish = 1,
+    max_external_buffers = 1,
 })
 local cap_first_path = write_fixture("bufadd-cap-first.typ")
 local cap_second_path = write_fixture("bufadd-cap-second.typ")
@@ -116,7 +116,7 @@ assert(
     #notifications == 1
         and notifications[1].level == vim.log.levels.WARN
         and notifications[1].message:find(
-            "diagnostics.max_buffers_per_publish=1",
+            "diagnostics.max_external_buffers=1",
             1,
             true
         ),
@@ -146,6 +146,33 @@ assert(repeat_ok, repeat_result)
 assert(
     #notifications == 0,
     "bufadd cap warning should be emitted once per project/source/cap"
+)
+
+notifications = {}
+vim.notify = function(message, level)
+    notifications[#notifications + 1] = {
+        message = message,
+        level = level,
+    }
+end
+write_fixture("bufadd-drop-cap-first.typ")
+write_fixture("bufadd-drop-cap-second.typ")
+local drop_warning_ok, drop_warning_result = xpcall(function()
+    return diagnostics.publish(
+        project,
+        table.concat({
+            "bufadd-drop-cap-first.typ:1:1: error: first capped path",
+            "bufadd-drop-cap-second.typ:1:1: error: second capped path",
+        }, "\n"),
+        { overflow = "drop" }
+    )
+end, debug.traceback)
+vim.notify = original_notify
+assert(drop_warning_ok, drop_warning_result)
+assert(
+    #notifications == 1
+        and notifications[1].message:find("overflow=drop", 1, true),
+    "bufadd cap warning should be keyed by overflow policy"
 )
 
 diagnostics.reset()

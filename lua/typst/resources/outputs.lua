@@ -376,12 +376,14 @@ function M.active(path)
     return path_leases.active(path)
 end
 
-function M.active_for_project(project)
+function M.active_for_project(project, opts)
+    opts = opts or {}
     local out = {}
     local key = project and project.key
     for lease_key, lease in pairs(path_leases.active()) do
         if lease.owner and lease.owner.project_key == key then
-            out[lease_key] = lease
+            out[lease_key] = opts.raw == true and lease
+                or vim.deepcopy(lease)
         end
     end
     return out

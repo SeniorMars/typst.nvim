@@ -532,12 +532,16 @@ local invalid_configs = {
         message = "diagnostics.font_scan_timeout_ms",
     },
     {
-        opts = { diagnostics = { max_buffers_per_publish = -1 } },
-        message = "diagnostics.max_buffers_per_publish",
+        opts = { diagnostics = { max_external_buffers = -1 } },
+        message = "diagnostics.max_external_buffers",
     },
     {
-        opts = { diagnostics = { max_buffers_per_publish = 1.5 } },
-        message = "diagnostics.max_buffers_per_publish",
+        opts = { diagnostics = { max_external_buffers = 1.5 } },
+        message = "diagnostics.max_external_buffers",
+    },
+    {
+        opts = { diagnostics = { overflow = "buffer" } },
+        message = "diagnostics.overflow",
     },
     {
         opts = { diagnostics = { external_paths = "buffer-list" } },
@@ -1391,7 +1395,8 @@ local ok, err = pcall(function()
             list = "loclist",
             fonts = false,
             font_scan_timeout_ms = 25,
-            max_buffers_per_publish = 32,
+            max_external_buffers = 32,
+            overflow = "drop",
             external_paths = "open-files-only",
         },
         conceal = {
@@ -1767,13 +1772,18 @@ assert(
     "font diagnostics scan timeout should be configurable"
 )
 assert(
-    config.get().diagnostics.max_buffers_per_publish == 32,
+    config.get().diagnostics.max_external_buffers == 32,
     "diagnostic buffer cap should be configurable"
+)
+assert(
+    config.get().diagnostics.overflow == "drop",
+    "diagnostic overflow policy should be configurable"
 )
 assert(
     config.get().diagnostics.external_paths == "open-files-only",
     "diagnostic external path policy should be configurable"
 )
+
 assert(config.get().docs == nil, "legacy docs config should not be retained")
 assert(
     config.get().conceal.custom.math.customop == "*",
@@ -2217,5 +2227,15 @@ for _, name in ipairs({
         ("default fragment template missing %s"):format(name)
     )
 end
+
+config.setup({
+    diagnostics = {
+        max_buffers_per_publish = 7,
+    },
+})
+assert(
+    config.get().diagnostics.max_external_buffers == 7,
+    "deprecated diagnostic buffer cap alias should normalize to max_external_buffers"
+)
 
 vim.cmd("qa!")

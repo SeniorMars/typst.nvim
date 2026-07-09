@@ -12,11 +12,13 @@ local M = {}
 
 ---@class TypstDiagnosticParseMeta
 ---@field external_paths "bufadd"|"quickfix-only"|"open-files-only"
----@field max_buffers_per_publish integer
+---@field max_external_buffers integer
+---@field overflow "quickfix-only"|"drop"
 ---@field added_buffers integer
 ---@field skipped_buffers integer
 ---@field skipped_by_cap integer
 ---@field skipped_external_paths integer
+---@field dropped_diagnostics integer
 ---@field first_skipped_path? string
 ---@field quickfix_only_diagnostics integer
 ---@field quickfix_items table[]
@@ -34,13 +36,25 @@ local function cache_key(path)
     return util.path_key and util.path_key(path) or path
 end
 
-local function default_max_buffers_per_publish()
+local function normalize_max_external_buffers(value)
+    local parsed = tonumber(value)
+    if parsed == nil then
+        return nil
+    end
+    parsed = math.floor(parsed)
+    if parsed < 0 then
+        return nil
+    end
+    return parsed
+end
+
+local function default_max_external_buffers()
     local ok, config = pcall(require, "typst.config")
     if not ok then
         return 256
     end
     local diagnostics = (config.unsafe_get().diagnostics or {})
-    return tonumber(diagnostics.max_buffers_per_publish) or 256
+    return normalize_max_external_buffers(diagnostics.max_external_buffers) or 256
 end
 
 local function default_external_paths()
@@ -52,6 +66,15 @@ local function default_external_paths()
     return diagnostics.external_paths or "bufadd"
 end
 
+local function default_overflow()
+    local ok, config = pcall(require, "typst.config")
+    if not ok then
+        return "quickfix-only"
+    end
+    local diagnostics = (config.unsafe_get().diagnostics or {})
+    return diagnostics.overflow or "quickfix-only"
+end
+
 local function normalize_external_paths(value)
     if
         value == "quickfix-only"
@@ -61,6 +84,13 @@ local function normalize_external_paths(value)
         return value
     end
     return "bufadd"
+end
+
+local function normalize_overflow(value)
+    if value == "quickfix-only" or value == "drop" then
+        return value
+    end
+    return "quickfix-only"
 end
 
 local function update_line_limit(line_cache, path, lnum)
@@ -230,14 +260,20 @@ function M.parse(project, text, opts)
     precompute_line_limits(project, text, parse_opts.line_cache)
     local by_buffer = {}
     local pending_pretty = nil
-    local max_buffers = tonumber(parse_opts.max_buffers_per_publish)
-        or default_max_buffers_per_publish()
+    local max_buffers = normalize_max_external_buffers(
+        parse_opts.max_external_buffers
+            or parse_opts.max_buffers_per_publish
+    )
+        or default_max_external_buffers()
     local external_paths = normalize_external_paths(
         parse_opts.external_paths or default_external_paths()
     )
+    local overflow =
+        normalize_overflow(parse_opts.overflow or default_overflow())
     local new_buffer_count = 0
     local skipped_by_cap = 0
     local skipped_external_count = 0
+    local dropped_count = 0
     local quickfix_only_count = 0
     local first_skipped_path = nil
     local quickfix_by_path = {}
@@ -285,16 +321,17 @@ function M.parse(project, text, opts)
 
         -- Default `bufadd` mode intentionally creates unloaded buffers so
         -- vim.diagnostic can own external-path diagnostics. This is bounded by
-        -- max_buffers_per_publish; use quickfix-only/open-files-only to avoid
-        -- hidden buffers on large or remote projects.
+        -- max_external_buffers; 0 means never create new hidden buffers.
+        -- Overflow decides whether capped diagnostics remain in quickfix items.
         local existing = vim.fn.bufnr(path)
-        if
-            existing <= 0
-            and max_buffers > 0
-            and new_buffer_count >= max_buffers
-        then
+        if existing <= 0 and new_buffer_count >= max_buffers then
             skipped_by_cap = skipped_by_cap + 1
             first_skipped_path = first_skipped_path or path
+            if overflow == "quickfix-only" then
+                add_quickfix_only(path, diagnostic)
+            else
+                dropped_count = dropped_count + 1
+            end
             return
         end
 
@@ -344,8 +381,10 @@ function M.parse(project, text, opts)
     if skipped_by_cap > 0 then
         log.add("warn", "diagnostic buffer limit reached", {
             main = project and project.main,
-            max_buffers_per_publish = max_buffers,
+            max_external_buffers = max_buffers,
+            overflow = overflow,
             skipped_buffers = skipped_by_cap,
+            dropped_diagnostics = dropped_count,
             first_skipped_path = first_skipped_path,
         })
     end
@@ -359,11 +398,13 @@ function M.parse(project, text, opts)
     return by_buffer,
         {
             external_paths = external_paths,
-            max_buffers_per_publish = max_buffers,
+            max_external_buffers = max_buffers,
+            overflow = overflow,
             added_buffers = new_buffer_count,
             skipped_buffers = skipped_by_cap + skipped_external_count,
             skipped_by_cap = skipped_by_cap,
             skipped_external_paths = skipped_external_count,
+            dropped_diagnostics = dropped_count,
             first_skipped_path = first_skipped_path,
             quickfix_only_diagnostics = quickfix_only_count,
             quickfix_items = quickfix_items or {},

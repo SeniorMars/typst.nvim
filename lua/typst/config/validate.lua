@@ -205,6 +205,10 @@ local function validate_api(api)
     if type(api) ~= "table" then
         error("typst.nvim: api must be a table")
     end
+    validate_optional_boolean(
+        api.experimental_warnings,
+        "api.experimental_warnings"
+    )
 end
 
 local function validate_bibliography(bibliography)

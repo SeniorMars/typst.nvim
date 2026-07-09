@@ -1,6 +1,7 @@
 local lexical = require("typst.syntax.lexical")
 local log = require("typst.core.log")
 local pending_handle = require("typst.core.pending")
+local resolver_value = require("typst.project.resolver.value")
 local telemetry = require("typst.core.telemetry")
 local util = require("typst.core.util")
 
@@ -48,6 +49,10 @@ local function configured_root(path, bufnr, opts)
             })
             return nil
         end
+        root = resolver_value.optional_path(root, "config.root callback", {
+            bufnr = bufnr,
+            path = path,
+        })
         return root and util.resolve_path(root, util.dirname(path)),
             "config.root callback"
     end

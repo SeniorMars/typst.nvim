@@ -116,8 +116,11 @@ function M.explicit_main(buffer_path)
         return main
     end
 
-    state.explicit_mains[key] = nil
-    write_state(state)
+    log.add("warn", "ignored unreadable persisted Typst main", {
+        buffer = normalized,
+        main = main,
+        retained = true,
+    })
     return nil
 end
 

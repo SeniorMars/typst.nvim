@@ -315,6 +315,50 @@ assert(
     "preview_inverse should resolve projects from source paths"
 )
 
+local shared_dir = fixture_root .. "/shared"
+vim.fn.mkdir(shared_dir, "p")
+local shared = shared_dir .. "/macros.typ"
+vim.fn.writefile({ "#let shared = 1" }, shared)
+project.update_dependencies(attached_live, { main, chapter, shared })
+local second_root = fixture_root .. "/second"
+vim.fn.mkdir(second_root, "p")
+local second_main = second_root .. "/main.typ"
+vim.fn.writefile({
+    "= Second",
+    '#include "../shared/macros.typ"',
+}, second_main)
+vim.cmd.edit(vim.fn.fnameescape(second_main))
+vim.bo.filetype = "typst"
+local second_attached = typst.project.set_main(second_main)
+local second_live = assert(store.get(second_attached.key))
+project.update_dependencies(second_live, { second_main, shared })
+
+local ambiguous_inverse_called = false
+rawset(viewer_api, "view_inverse", function()
+    ambiguous_inverse_called = true
+    return { ok = true }
+end)
+local ambiguous_inverse, ambiguous_inverse_err = typst.viewer.view_inverse({
+    path = shared,
+    notify = false,
+})
+viewer_api.view_inverse = original_view_inverse
+assert(
+    ambiguous_inverse == nil
+        and type(ambiguous_inverse_err) == "table"
+        and ambiguous_inverse_err.reason == "ambiguous_source_path",
+    "shared source paths should return ambiguous_source_path"
+)
+assert(
+    type(ambiguous_inverse_err.matches) == "table"
+        and #ambiguous_inverse_err.matches == 2,
+    "ambiguous source path errors should report matching projects"
+)
+assert(
+    ambiguous_inverse_called == false,
+    "ambiguous source paths should not call viewer handlers"
+)
+
 local count_before_unknown_path = vim.tbl_count(project.all())
 local unknown_inverse, unknown_inverse_err = typst.viewer.view_inverse({
     path = fixture_root .. "/missing.typ",

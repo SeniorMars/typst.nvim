@@ -1,5 +1,6 @@
 local lexical = require("typst.syntax.lexical")
 local log = require("typst.core.log")
+local resolver_value = require("typst.project.resolver.value")
 local state_store = require("typst.core.state")
 local util = require("typst.core.util")
 
@@ -124,17 +125,11 @@ function M.discard_unreadable(bufnr, path, main, source, opts)
         return main, source
     end
 
-    if source == "buffer variable vim.b.typst_main" then
-        -- Buffer-local mains are often set interactively. Drop stale values so a
-        -- renamed or deleted main does not keep the buffer attached to a dead
-        -- project until the user manually clears it.
-        util.del_buf_var(bufnr, "typst_main")
-    end
-
     log.add("warn", "ignored unreadable Typst main", {
         buffer = path,
         main = main,
         source = source,
+        retained = source == "buffer variable vim.b.typst_main" or nil,
     })
     return nil
 end
@@ -199,6 +194,11 @@ function M.configured(path, bufnr, root, opts)
             })
             return nil
         end
+        main = resolver_value.optional_path(main, "config.main callback", {
+            bufnr = bufnr,
+            path = path,
+            root = root,
+        })
         return main and util.resolve_path(main, root), "config.main callback"
     end
 
@@ -230,6 +230,15 @@ function M.configured(path, bufnr, root, opts)
                 })
                 return nil
             end
+            main = resolver_value.optional_path(
+                main,
+                "config.main table callback",
+                {
+                    bufnr = bufnr,
+                    path = path,
+                    root = root,
+                }
+            )
             return main and util.resolve_path(main, root),
                 "config.main table callback"
         end

@@ -134,9 +134,11 @@ local function global_snapshot()
     local session = resource_session().global_snapshot()
     session.deferred = require("typst.core.events").deferred_snapshot()
     session.reset = context.state()
-    local ok, locks = pcall(require("typst.resources.outputs").locks, {
-        include_current = true,
-    })
+    local ok, locks = pcall(function()
+        return require("typst.resources.outputs").locks({
+            include_current = true,
+        })
+    end)
     session.output_locks = ok and locks
         or {
             ok = false,

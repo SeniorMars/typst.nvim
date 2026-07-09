@@ -158,9 +158,18 @@ function M.diagnostics(diagnostics)
     end
 
     non_negative_integer(
-        diagnostics.max_buffers_per_publish,
-        "diagnostics.max_buffers_per_publish"
+        diagnostics.max_external_buffers,
+        "diagnostics.max_external_buffers"
     )
+
+    if
+        diagnostics.overflow ~= "quickfix-only"
+        and diagnostics.overflow ~= "drop"
+    then
+        error(
+            'typst.nvim: diagnostics.overflow must be "quickfix-only" or "drop"'
+        )
+    end
 
     if
         diagnostics.external_paths ~= "bufadd"

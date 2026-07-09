@@ -4,6 +4,7 @@ vim.opt.runtimepath:prepend(root)
 local registry = require("typst.project")
 local config = require("typst.config")
 local project_store = require("typst.project.store")
+local util = require("typst.core.util")
 local typst = require("typst")
 typst.reset()
 typst.setup({
@@ -360,7 +361,15 @@ assert(
 )
 assert(
     state_store.explicit_main(persisted_chapter) == nil,
-    "unreadable persisted explicit mains should be cleared until readable"
+    "unreadable persisted explicit mains should be ignored until readable"
+)
+vim.fn.writefile({ "= Generated" }, persisted_forced_missing)
+assert(
+    util.same_path(
+        state_store.explicit_main(persisted_chapter),
+        persisted_forced_missing
+    ),
+    "unreadable persisted explicit mains should be retained for later recovery"
 )
 vim.cmd.edit(chapter)
 bufnr = vim.api.nvim_get_current_buf()

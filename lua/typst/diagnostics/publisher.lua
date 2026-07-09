@@ -46,23 +46,38 @@ local function maybe_warn_buffer_cap(project, key, parse_meta, opts)
         return
     end
 
+    local max_external_buffers = parse_meta.max_external_buffers
     local warning_key = ("%s:%s:%s"):format(
         project and (project.key or project.main) or "global",
         tostring(key or "compiler"),
-        tostring(parse_meta.max_buffers_per_publish)
+        ("%s:%s"):format(
+            tostring(max_external_buffers),
+            tostring(parse_meta.overflow or "quickfix-only")
+        )
     )
     if cap_warning_seen[warning_key] then
         return
     end
     cap_warning_seen[warning_key] = true
 
-    notify.default(
-        ('typst.nvim skipped %d external diagnostic path(s) after diagnostics.max_buffers_per_publish=%d; set diagnostics.external_paths = "quickfix-only" to avoid hidden buffers'):format(
-            parse_meta.skipped_by_cap,
-            parse_meta.max_buffers_per_publish
-        ),
-        vim.log.levels.WARN
-    )
+    local overflow = parse_meta.overflow or "quickfix-only"
+    local message
+    if overflow == "quickfix-only" then
+        message =
+            ('typst.nvim capped %d external diagnostic buffer(s) after diagnostics.max_external_buffers=%d; overflow=quickfix-only preserved diagnostics in quickfix/location list'):format(
+                parse_meta.skipped_by_cap,
+                max_external_buffers
+            )
+    else
+        message =
+            ('typst.nvim dropped %d external diagnostic path(s) after diagnostics.max_external_buffers=%d; overflow=%s'):format(
+                parse_meta.skipped_by_cap,
+                max_external_buffers,
+                overflow
+            )
+    end
+
+    notify.default(message, vim.log.levels.WARN)
 end
 
 local function publish_buffers(ctx, project, key, by_buffer)

@@ -3,6 +3,7 @@ vim.opt.runtimepath:prepend(root)
 
 local config = require("typst.config")
 local docs = require("typst.config.docs")
+local config_spec = require("typst.config.spec")
 
 local default_unknown =
     config._collect_unknown_keys_for_tests(config.defaults())
@@ -18,6 +19,29 @@ for _, item in ipairs(docs.schema()) do
         "generated schema path is not runtime-known: " .. item.path
     )
 end
+
+local function assert_runtime_known(paths, source)
+    for path in pairs(paths or {}) do
+        assert(
+            config._known_path_for_tests(path),
+            ("%s config metadata path is not runtime-known: %s"):format(
+                source,
+                path
+            )
+        )
+    end
+end
+
+local doc_nil_defaults = {}
+for _, path in ipairs(config_spec.doc_nil_defaults or {}) do
+    doc_nil_defaults[path] = true
+end
+
+assert_runtime_known(config_spec.optional_paths, "optional")
+assert_runtime_known(config_spec.dynamic_paths, "dynamic")
+assert_runtime_known(doc_nil_defaults, "doc nil default")
+assert_runtime_known(config_spec.doc_optional_types, "doc optional type")
+assert_runtime_known(config_spec.doc_type_overrides, "doc type override")
 
 local bad_nested = config._collect_unknown_keys_for_tests({
     diagnostics = {

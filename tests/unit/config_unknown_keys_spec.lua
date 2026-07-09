@@ -80,6 +80,30 @@ assert(
     "strict validation should include the full unknown config path"
 )
 
+local alias_ok, alias_err = pcall(function()
+    typst.setup({
+        validation = "strict",
+        diagnostics = {
+            max_buffers_per_publish = 1,
+        },
+    })
+end)
+assert(
+    alias_ok,
+    alias_err or "strict validation should accept deprecated diagnostics buffer cap alias"
+)
+assert(
+    config.get().diagnostics.max_external_buffers == 1,
+    "deprecated diagnostics buffer cap alias should normalize to max_external_buffers"
+)
+assert(
+    not vim.tbl_contains(
+        config.last_unknown_keys(),
+        "diagnostics.max_buffers_per_publish"
+    ),
+    "deprecated diagnostics buffer cap alias should not be reported as unknown"
+)
+
 local empty_main_ok, empty_main_err = pcall(function()
     typst.setup({
         main = {

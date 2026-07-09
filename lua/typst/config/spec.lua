@@ -187,7 +187,8 @@ M.doc_optional_types = {
 
 M.doc_type_overrides = {
     ["diagnostics.external_paths"] = "string",
-    ["diagnostics.max_buffers_per_publish"] = "integer",
+    ["diagnostics.max_external_buffers"] = "integer",
+    ["diagnostics.overflow"] = "string",
     ["integrations.semantic.provider"] = "nil|string|function|table",
     ["preview.browser.style.variables"] = "table",
     validation = "false|string",

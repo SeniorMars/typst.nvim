@@ -10,7 +10,7 @@ typst.reset({ force = true })
 typst.setup({
     root_markers = {},
     diagnostics = {
-        max_buffers_per_publish = 2,
+        max_external_buffers = 2,
     },
 })
 local fixture_root = typst_test_cache_path("diagnostics-buffer-limit")
@@ -71,11 +71,46 @@ assert(
     "diagnostic parser should log skipped diagnostic buffer count and first path"
 )
 
+local invalid_cap_paths = {
+    fixture_root .. "/invalid-one.typ",
+    fixture_root .. "/invalid-two.typ",
+    fixture_root .. "/invalid-three.typ",
+}
+for _, path in ipairs(invalid_cap_paths) do
+    vim.fn.writefile({ "= File" }, path)
+    assert(
+        vim.fn.bufnr(path) == -1,
+        "invalid-cap diagnostic fixture should start unloaded"
+    )
+end
+
+local invalid_cap, invalid_cap_meta = diagnostics.parse(
+    project,
+    table.concat({
+        "invalid-one.typ:1:1: error: first",
+        "invalid-two.typ:1:1: error: second",
+        "invalid-three.typ:1:1: error: fallback skipped",
+    }, "\n"),
+    { max_external_buffers = -1 }
+)
+assert(
+    vim.tbl_count(invalid_cap) == 2,
+    "invalid direct max_external_buffers should fall back to configured cap"
+)
+assert(
+    invalid_cap_meta and invalid_cap_meta.max_external_buffers == 2,
+    "invalid direct max_external_buffers should report the fallback cap"
+)
+assert(
+    vim.fn.bufnr(invalid_cap_paths[3]) == -1,
+    "invalid direct max_external_buffers should still cap fallback overflow"
+)
+
 typst.reset({ force = true })
 typst.setup({
     root_markers = {},
     diagnostics = {
-        max_buffers_per_publish = 1,
+        max_external_buffers = 1,
     },
 })
 local extra_paths = {
@@ -115,20 +150,79 @@ typst.reset({ force = true })
 typst.setup({
     root_markers = {},
     diagnostics = {
-        max_buffers_per_publish = 0,
+        max_external_buffers = 0,
     },
 })
-local unlimited = diagnostics.parse(
+local zero_cap_paths = {
+    fixture_root .. "/zero-one.typ",
+    fixture_root .. "/zero-two.typ",
+}
+for _, path in ipairs(zero_cap_paths) do
+    vim.fn.writefile({ "= File" }, path)
+    assert(path and vim.fn.bufnr(path) == -1, "zero-cap fixture starts unloaded")
+end
+
+local zero_cap, zero_cap_meta = diagnostics.parse(
     project,
     table.concat({
-        "one.typ:1:1: error: first",
-        "two.typ:1:1: error: second",
-        "three.typ:1:1: error: third",
+        "zero-one.typ:1:1: error: first",
+        "zero-two.typ:1:1: error: second",
     }, "\n")
 )
 assert(
-    vim.tbl_count(unlimited) == 3,
-    "diagnostic buffer cap value 0 should allow all parsed buffers"
+    vim.tbl_count(zero_cap) == 0,
+    "diagnostic buffer cap value 0 should not create hidden buffers"
+)
+assert(
+    vim.fn.bufnr(zero_cap_paths[1]) == -1
+        and vim.fn.bufnr(zero_cap_paths[2]) == -1,
+    "diagnostic cap value 0 should leave external paths unloaded"
+)
+assert(
+    zero_cap_meta
+        and zero_cap_meta.skipped_by_cap == 2
+        and zero_cap_meta.quickfix_only_diagnostics == 2
+        and #zero_cap_meta.quickfix_items == 2,
+    "diagnostic cap value 0 should preserve diagnostics as quickfix-only items"
+)
+
+typst.reset({ force = true })
+typst.setup({
+    root_markers = {},
+    diagnostics = {
+        max_external_buffers = 0,
+        overflow = "drop",
+    },
+})
+local drop_paths = {
+    fixture_root .. "/drop-one.typ",
+    fixture_root .. "/drop-two.typ",
+}
+for _, path in ipairs(drop_paths) do
+    vim.fn.writefile({ "= File" }, path)
+    assert(path and vim.fn.bufnr(path) == -1, "drop fixture starts unloaded")
+end
+
+local drop_cap, drop_cap_meta = diagnostics.parse(
+    project,
+    table.concat({
+        "drop-one.typ:1:1: error: first",
+        "drop-two.typ:1:1: error: second",
+    }, "\n")
+)
+assert(
+    vim.tbl_count(drop_cap) == 0,
+    "diagnostic overflow drop should not create hidden buffers"
+)
+assert(
+    drop_cap_meta
+        and drop_cap_meta.max_external_buffers == 0
+        and drop_cap_meta.overflow == "drop"
+        and drop_cap_meta.skipped_by_cap == 2
+        and drop_cap_meta.dropped_diagnostics == 2
+        and drop_cap_meta.quickfix_only_diagnostics == 0
+        and #drop_cap_meta.quickfix_items == 0,
+    "diagnostic overflow drop should drop capped external diagnostics"
 )
 
 typst.reset({ force = true })
@@ -136,7 +230,7 @@ typst.setup({
     root_markers = {},
     diagnostics = {
         external_paths = "open-files-only",
-        max_buffers_per_publish = 2,
+        max_external_buffers = 2,
     },
 })
 local open_only_path = fixture_root .. "/open-only.typ"

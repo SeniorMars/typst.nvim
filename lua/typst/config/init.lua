@@ -302,6 +302,37 @@ local function warn_relative_main_mappings(warnings)
     end
 end
 
+local function warn_deprecated_config_alias(old_path, new_path)
+    local ok, log = pcall(require, "typst.core.log")
+    if ok and log and type(log.add) == "function" then
+        log.add("warn", "deprecated Typst config key", {
+            old = old_path,
+            new = new_path,
+        })
+    end
+end
+
+local function normalize_deprecated_aliases(user_opts)
+    if type(user_opts) ~= "table" then
+        return
+    end
+    local diagnostics = user_opts.diagnostics
+    if
+        type(diagnostics) == "table"
+        and diagnostics.max_buffers_per_publish ~= nil
+    then
+        if diagnostics.max_external_buffers == nil then
+            diagnostics.max_external_buffers =
+                diagnostics.max_buffers_per_publish
+        end
+        diagnostics.max_buffers_per_publish = nil
+        warn_deprecated_config_alias(
+            "diagnostics.max_buffers_per_publish",
+            "diagnostics.max_external_buffers"
+        )
+    end
+end
+
 --- Validate and install the active plugin configuration.
 ---@param opts? table Plugin configuration partial to validate and apply.
 ---@return table config Active configuration table after validation.
@@ -318,6 +349,7 @@ function M.setup(opts)
     -- table that may be reused for later reconfiguration.
     local user_opts = vim.deepcopy(materialize(opts or {}))
     normalize_main_mapping(user_opts)
+    normalize_deprecated_aliases(user_opts)
     warn_relative_main_mappings(last_relative_main_mapping_warnings)
     last_unknown_keys = collect_unknown_keys(user_opts, defaults, "", {}) or {}
     local unknown_mode = unknown_key_mode(user_opts)

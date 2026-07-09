@@ -72,7 +72,8 @@ function M.diagnostics()
         list = "quickfix",
         fonts = true,
         font_scan_timeout_ms = 250,
-        max_buffers_per_publish = 256,
+        max_external_buffers = 256,
+        overflow = "quickfix-only",
         external_paths = "bufadd",
     }
 end

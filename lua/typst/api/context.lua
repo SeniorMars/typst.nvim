@@ -420,6 +420,15 @@ local function graph_contains_path(graph, normalized, path_key)
     return false
 end
 
+local function source_path_match_summary(state, store)
+    return {
+        key = state.key,
+        key_display = store.encode_key(state.key),
+        root = state.root,
+        main = state.main,
+    }
+end
+
 local function project_from_path(opts, policy)
     if policy.source_path ~= true then
         return nil
@@ -436,16 +445,24 @@ local function project_from_path(opts, policy)
 
     local store = require("typst.project.store")
     local buffer = require("typst.core.buffer")
+    local matches = {}
+    local seen = {}
+    local function add_match(state)
+        if type(state) ~= "table" or type(state.key) ~= "string" then
+            return
+        end
+        if seen[state.key] then
+            return
+        end
+        seen[state.key] = true
+        matches[#matches + 1] = state
+    end
+
     local bufnr = buffer.loaded_buffer_for_path(normalized)
     if bufnr then
         local state = store.project_for_buffer(bufnr)
         if state then
-            return {
-                ok = true,
-                project = state,
-                bufnr = bufnr,
-                source_path = normalized,
-            }
+            add_match(state)
         end
     end
 
@@ -456,19 +473,43 @@ local function project_from_path(opts, policy)
             state.main == normalized
             or path_util.path_key(state.main) == path_key
         then
-            return {
-                ok = true,
-                project = state,
-                source_path = normalized,
-            }
+            add_match(state)
+        elseif graph_contains_path(services.graph(state), normalized, path_key) then
+            add_match(state)
         end
-        if graph_contains_path(services.graph(state), normalized, path_key) then
-            return {
-                ok = true,
-                project = state,
-                source_path = normalized,
-            }
+    end
+
+    if #matches == 1 then
+        return {
+            ok = true,
+            project = matches[1],
+            bufnr = bufnr,
+            source_path = normalized,
+        }
+    end
+
+    if #matches > 1 then
+        table.sort(matches, function(left, right)
+            return tostring(left.key) < tostring(right.key)
+        end)
+        local summaries = {}
+        for _, state in ipairs(matches) do
+            summaries[#summaries + 1] = source_path_match_summary(state, store)
         end
+        return {
+            ok = false,
+            error = {
+                ok = false,
+                reason = "ambiguous_source_path",
+                operation = policy.operation,
+                path = normalized,
+                matches = summaries,
+                message = ("Source path belongs to multiple Typst projects; pass project/key explicitly: %s"):format(
+                    normalized
+                ),
+            },
+            source_path = normalized,
+        }
     end
 
     return nil
@@ -571,6 +612,16 @@ function M.project(opts, policy, notify)
 
     local path_result = project_from_path(opts, policy)
     if path_result then
+        if not path_result.ok then
+            maybe_notify(
+                opts,
+                policy,
+                notify,
+                path_result.error,
+                vim.log.levels.WARN
+            )
+            return path_result
+        end
         local pending = maybe_block_pending_resolution(
             opts,
             policy,

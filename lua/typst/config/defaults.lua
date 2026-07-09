@@ -77,7 +77,9 @@ function M.values()
                 on_attach = nil,
             },
         },
-        api = {},
+        api = {
+            experimental_warnings = false,
+        },
         compile = default_tools.compile(M.fragments_output_dir()),
         exports = {
             provider = nil,
