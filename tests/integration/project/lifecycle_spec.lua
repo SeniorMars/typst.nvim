@@ -278,6 +278,7 @@ vim.fn.writefile({ "= Chapter" }, deleted_chapter)
 vim.fn.writefile({ "= Main", '#include "chapter.typ"' }, deleted_main)
 
 vim.cmd.edit(vim.fn.fnameescape(deleted_chapter))
+local deleted_bufnr = vim.api.nvim_get_current_buf()
 local stale_project = typst.project.set_main(deleted_main)
 vim.fn.delete(deleted_main)
 local recovered_deleted = typst.project.get(0)
@@ -290,7 +291,18 @@ assert(
         == "current buffer",
     "deleted explicit main should record fallback source"
 )
-assert(vim.b.typst_main == nil, "deleted buffer-local main should be cleared")
+assert(
+    util.same_path(
+        util.get_buf_var(deleted_bufnr, "typst_main"),
+        deleted_main
+    ),
+    (
+        "deleted buffer-local main should be retained as user-owned state; got %s expected %s"
+    ):format(
+        vim.inspect(util.get_buf_var(deleted_bufnr, "typst_main")),
+        util.normalize(deleted_main)
+    )
+)
 assert(
     project_store.all()[stale_project.key] == nil,
     "stale deleted-main project should be pruned after recovery"
@@ -316,6 +328,7 @@ vim.fn.writefile({ "= Old Main", '#include "chapter.typ"' }, moved_old_main)
 vim.fn.writefile({ "= New Main", '#include "chapter.typ"' }, moved_new_main)
 
 vim.cmd.edit(vim.fn.fnameescape(moved_chapter))
+local moved_bufnr = vim.api.nvim_get_current_buf()
 local moved_stale_project = typst.project.set_main(moved_old_main)
 vim.fn.delete(moved_old_main)
 local recovered_moved = typst.project.get(0)
@@ -329,8 +342,11 @@ assert(
     "moved main recovery should record import scan as the source"
 )
 assert(
-    vim.b.typst_main == nil,
-    "stale moved buffer-local main should be cleared"
+    util.same_path(
+        util.get_buf_var(moved_bufnr, "typst_main"),
+        moved_old_main
+    ),
+    "stale moved buffer-local main should be retained as user-owned state"
 )
 assert(
     project_store.all()[moved_stale_project.key] == nil,
@@ -425,7 +441,7 @@ local event_group = vim.api.nvim_create_augroup(
 )
 vim.api.nvim_create_autocmd("User", {
     group = event_group,
-    pattern = { "TypstEventProjectDetach", "TypstEventProjectAttach" },
+    pattern = { "TypstEventBufferDetach", "TypstEventProjectAttach" },
     callback = function(args)
         seen_events[#seen_events + 1] = {
             match = args.match,
@@ -452,7 +468,7 @@ assert(
     "set_main should emit one detach and one attach event"
 )
 assert(
-    seen_events[1].match == "TypstEventProjectDetach"
+    seen_events[1].match == "TypstEventBufferDetach"
         and seen_events[1].key == event_project_a.key,
     "set_main should detach the old project first"
 )
@@ -490,7 +506,7 @@ assert(
     "lazy project re-resolution should emit one detach and one attach event"
 )
 assert(
-    seen_events[1].match == "TypstEventProjectDetach"
+    seen_events[1].match == "TypstEventBufferDetach"
         and seen_events[1].key == event_project_b.key,
     "lazy re-resolution should detach the stale project first"
 )

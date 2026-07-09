@@ -1,4 +1,4 @@
-local util = require("typst.core.util")
+local path_util = require("typst.core.path")
 local path_calls = require("typst.project.index_path_calls")
 
 local M = {}
@@ -125,7 +125,7 @@ local function resolve_local_import(spec, base)
         return nil
     end
 
-    return util.resolve_path(spec, base)
+    return path_util.resolve_path(spec, base)
 end
 
 local function queue_local_typst_file(resolved, queue, queued)
@@ -213,7 +213,7 @@ function M.scan_imports(
     end
 
     suffix = extend_import_suffix(helpers, lines or {}, row, suffix or "")
-    local resolved = resolve_local_import(spec, util.dirname(path))
+    local resolved = resolve_local_import(spec, path_util.dirname(path))
     helpers.add_unique(out.imports, seen.imports, spec .. "\n" .. path, {
         spec = spec,
         path = resolved,
@@ -267,7 +267,7 @@ function M.scan_includes(path, row, line, out, seen, queue, queued, helpers)
                 break
             end
 
-            local resolved = resolve_local_import(spec, util.dirname(path))
+            local resolved = resolve_local_import(spec, path_util.dirname(path))
             helpers.add_unique(
                 out.paths,
                 seen.paths,

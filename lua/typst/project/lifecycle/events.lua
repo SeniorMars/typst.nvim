@@ -27,7 +27,7 @@ function M.emit_buffer_detach(previous, bufnr, reason, resolution)
         return
     end
     events.emit(
-        "TypstBufferDetach",
+        "TypstEventBufferDetach",
         previous,
         buffer_event_payload(previous, bufnr, reason, resolution)
     )
@@ -39,7 +39,7 @@ function M.emit_project_attach(state, bufnr, reason, extra)
     end
     local resolution = state.resolutions and state.resolutions[bufnr] or nil
     events.emit(
-        "TypstProjectAttach",
+        "TypstEventProjectAttach",
         state,
         vim.tbl_extend("force", {
             event_kind = "project_attach",

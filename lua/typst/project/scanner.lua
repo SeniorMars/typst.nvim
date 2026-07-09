@@ -24,7 +24,9 @@ local path_scan_helpers = scanner_helpers.path_scan_helpers()
 
 -- Static Typst scanner for the project index. It intentionally uses bounded
 -- textual heuristics instead of invoking Typst so navigation and completion work
--- without a successful compile.
+-- without a successful compile. Keep this layer conservative: Tree-sitter and
+-- Tinymist overlays should improve precision rather than making these text
+-- patterns chase every Typst semantic edge.
 
 local function identifier_char(char)
     return char ~= "" and char:match("[%w_%.%-]") ~= nil
@@ -325,7 +327,12 @@ local function scan_references(path, row, line, lines, out, seen)
             break
         end
 
-        if not in_ranges(start_col, ranges) then
+        -- The static shorthand pattern is ASCII-only. If a UTF-8 continuation
+        -- follows the matched prefix, skip it instead of indexing a truncated
+        -- false positive; explicit #ref(<...>) still covers broader names.
+        local next_byte = line:byte(end_col + 1)
+        local truncated_non_ascii = next_byte ~= nil and next_byte >= 128
+        if not truncated_non_ascii and not in_ranges(start_col, ranges) then
             add_reference(out, seen, path, row, start_col, name, "shorthand")
         end
         search_at = end_col + 1
